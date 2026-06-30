@@ -41,7 +41,7 @@ public class MainActivity extends Activity {
     private static final String PREFS_NAME = "BlueAutoUnityPrefs";
     private static final String KEY_SIM = "SimNum";
     private static final String KEY_KEY = "PairKey";
-    private static final String KEY_MODE = "DevMode"; // 0: Robot 24/7, 1: Télécommande, 2: Hybride (Tout-en-un)
+    private static final String KEY_MODE = "DevMode"; // 0: Robot 24/7, 1: Télécommande, 2: Hybride
 
     private Handler pollingHandler = new Handler();
     private int currentMode = 1; 
@@ -49,7 +49,7 @@ public class MainActivity extends Activity {
     private String pairingKey = "";
 
     @Override
-    protected Bundle onCreate(Bundle savedInstanceState) {
+    protected void onCreate(Bundle savedInstanceState) { // <- FIX : Changé 'Bundle' en 'void'
         super.onCreate(savedInstanceState);
 
         // --- DESIGN TECH FUTURISTE LUXE NATIVE ---
@@ -86,7 +86,7 @@ public class MainActivity extends Activity {
 
         btnSave = new Button(this);
         btnSave.setText("LIER");
-        btnSave.setBackgroundColor(Color.parseColor("#C5A059")); // Or Metallic
+        btnSave.setBackgroundColor(Color.parseColor("#C5A059")); 
         btnSave.setTextColor(Color.BLACK);
 
         rowFields.addView(etSimNumber);
@@ -154,7 +154,7 @@ public class MainActivity extends Activity {
             }
         });
 
-        // Demande globale des droits matériels (Appels + Lecture SMS pour le solde)
+        // Demande globale des droits matériels
         if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED ||
             checkSelfPermission(Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED ||
             checkSelfPermission(Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED) {
@@ -165,22 +165,21 @@ public class MainActivity extends Activity {
     }
 
     private void actualiserAffichageMode(int mode) {
-        if(mode == 0) { // Robot pur 24/7
-            webView.setVisibility(View.GONE); // Cache le dashboard pour économiser l'écran et la batterie du bureau
+        if(mode == 0) { 
+            webView.setVisibility(View.GONE); 
             tvStatus.setText("MOTEUR ACTIF : Écoute USSD & Analyse SMS en arrière-plan (24h/27 - Écran Veille)");
-            tvStatus.setTextColor(Color.parseColor("#66FCF1")); // Bleu numérique
-        } else if(mode == 1) { // Télécommande pure
+            tvStatus.setTextColor(Color.parseColor("#66FCF1")); 
+        } else if(mode == 1) { 
             webView.setVisibility(View.VISIBLE);
             tvStatus.setText("CONNECTÉ : Mode Télécommande Mobile Sécurisée");
-            tvStatus.setTextColor(Color.parseColor("#C5A059")); // Or
-        } else { // Hybride
+            tvStatus.setTextColor(Color.parseColor("#C5A059")); 
+        } else { 
             webView.setVisibility(View.VISIBLE);
             tvStatus.setText("CONNECTÉ : Mode Hybride (Exécute ses propres ordres)");
             tvStatus.setTextColor(Color.WHITE);
         }
     }
 
-    // --- INTERACTION SMARTPHONE <-> FORMULAIRE WEB ---
     public class WebAppInterface {
         @JavascriptInterface
         public void executeUSSD(String ussdCode) {
@@ -201,7 +200,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    // --- BOUCLE RADAR DE FOND (Uniquement pour modes 0 et 2) ---
     private final Runnable pollingRunnable = new Runnable() {
         @Override
         public void run() {
@@ -236,7 +234,6 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    // --- ENVOI UNIQUE ET SÉCURISÉ DES SMS (Lié à la clé d'appairage) ---
     public static void sendSmsToWeb(final String body) {
         new Thread(() -> {
             try {
@@ -246,7 +243,7 @@ public class MainActivity extends Activity {
                 conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
                 conn.setDoOutput(true);
 
-                // Récupération dynamique des identifiants locaux pour authentifier le SMS
+                // Échappement basique des guillemets pour le JSON string brut
                 String safeBody = body.replace("\"", "\\\"");
                 String jsonInputString = "{\"message\":\"" + safeBody + "\"}";
 
