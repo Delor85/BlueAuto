@@ -11,7 +11,6 @@ import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
 import android.telephony.SmsMessage;
 import android.view.View;
 import android.view.WindowManager;
@@ -28,8 +27,6 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 import org.json.JSONObject;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -47,10 +44,6 @@ public class MainActivity extends Activity {
     private static final String KEY_KEY = "PairKey";
     private static final String KEY_MODE = "DevMode"; 
 
-    // Simulation d'un navigateur réel pour contourner le pare-feu du serveur (Anti-403)
-    private static final String USER_AGENT = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36";
-
-    private Handler pollingHandler = new Handler();
     private int currentMode = 2; 
     private String nodeCode = "";
     private String pairingKey = "";
@@ -103,7 +96,7 @@ public class MainActivity extends Activity {
         rowFields.addView(btnSave);
 
         tvStatus = new TextView(this);
-        tvStatus.setText("Structure réseau déconnectée.");
+        tvStatus.setText("Liaison de l'infrastructure...");
         tvStatus.setTextColor(Color.parseColor("#888888"));
         tvStatus.setTextSize(12);
 
@@ -120,7 +113,10 @@ public class MainActivity extends Activity {
         WebSettings ws = webView.getSettings();
         ws.setJavaScriptEnabled(true);
         ws.setDomStorageEnabled(true);
-        ws.setUserAgentString(USER_AGENT); // Sécurité anti-403 aussi pour la WebView
+        
+        // On force l'identification du navigateur pour écraser les barrières de sécurité
+        ws.setUserAgentString("Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36");
+        
         webView.addJavascriptInterface(new WebAppInterface(), "AndroidBridge");
         webView.setWebViewClient(new WebViewClient());
 
@@ -136,12 +132,16 @@ public class MainActivity extends Activity {
         spDeviceMode.setSelection(currentMode);
 
         chargerPageWebAiguillee();
-        actualiserAffichageMode(currentMode);
 
         spDeviceMode.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                actualiserAffichageMode(position);
+                if (position == 0) {
+                    getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                } else {
+                    getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                }
+                tvStatus.setText("Configuration : Mode sélectionné appliqué.");
             }
             @Override
             public void onNothingSelected(AdapterView<?> parent) {}
@@ -150,7 +150,6 @@ public class MainActivity extends Activity {
         btnSave.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // Nettoyage strict de la saisie (suppression des espaces générés par l'autocomplétion ou retours à la ligne)
                 nodeCode = etNodeCode.getText().toString().trim().replaceAll("\\s+", "");
                 pairingKey = etPairingKey.getText().toString().trim().replaceAll("\\s+", "");
                 currentMode = spDeviceMode.getSelectedItemPosition();
@@ -158,56 +157,42 @@ public class MainActivity extends Activity {
                 if(!nodeCode.isEmpty() && !pairingKey.isEmpty()) {
                     staticNodeCode = nodeCode;
                     prefs.edit().putString(KEY_NODE, nodeCode).putString(KEY_KEY, pairingKey).putInt(KEY_MODE, currentMode).apply();
-                    Toast.makeText(MainActivity.this, "Nœud enregistré et synchronisé.", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "Paramètres synchronisés.", Toast.LENGTH_SHORT).show();
                     chargerPageWebAiguillee();
-                    actualiserAffichageMode(currentMode);
                 } else {
-                    Toast.makeText(MainActivity.this, "Veuillez remplir tous les champs.", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "Veuillez remplir les champs.", Toast.LENGTH_SHORT).show();
                 }
             }
         });
 
         if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED ||
-            checkSelfPermission(Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED ||
-            checkSelfPermission(Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.CALL_PHONE, Manifest.permission.RECEIVE_SMS, Manifest.permission.READ_SMS}, REQUEST_PERMISSIONS);
+            checkSelfPermission(Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.CALL_PHONE, Manifest.permission.RECEIVE_SMS}, REQUEST_PERMISSIONS);
         }
 
         startSmsListener();
-        pollingHandler.post(pollingRunnable);
     }
 
     private void chargerPageWebAiguillee() {
         if (!nodeCode.isEmpty()) {
-            webView.loadUrl("https://magicservice-blue.gt.tc/index.html?noeud=" + Uri.encode(nodeCode) + "&token=" + Uri.encode(pairingKey));
+            // On injecte le mode directement dans l'URL pour que la page web sache quoi afficher
+            webView.loadUrl("https://magicservice-blue.gt.tc/index.html?noeud=" + Uri.encode(nodeCode) + "&token=" + Uri.encode(pairingKey) + "&mode=" + currentMode);
         } else {
             webView.loadUrl("https://magicservice-blue.gt.tc/index.html");
-        }
-    }
-
-    private void actualiserAffichageMode(int mode) {
-        if(mode == 0) { 
-            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-            webView.setVisibility(View.GONE); 
-            tvStatus.setText("🤖 ROBOT SYNC : Liaison réseau en cours...");
-            tvStatus.setTextColor(Color.YELLOW);
-        } else { 
-            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-            webView.setVisibility(View.VISIBLE);
-            tvStatus.setText("📱 HUB CONNECTÉ : Nœud " + (nodeCode.isEmpty() ? "aucun" : nodeCode));
-            tvStatus.setTextColor(Color.GREEN);
         }
     }
 
     public class WebAppInterface {
         @JavascriptInterface
         public void executeUSSD(String ussdCode) {
+            runOnUiThread(() -> lancerAppelUssd(ussdCode));
+        }
+        
+        @JavascriptInterface
+        public void updateNativeStatus(String message, String hexColor) {
             runOnUiThread(() -> {
-                if (currentMode == 0 || currentMode == 2) {
-                    lancerAppelUssd(ussdCode);
-                } else {
-                    Toast.makeText(MainActivity.this, "Routage via le Cloud...", Toast.LENGTH_SHORT).show();
-                }
+                tvStatus.setText(message);
+                tvStatus.setTextColor(Color.parseColor(hexColor));
             });
         }
     }
@@ -217,61 +202,6 @@ public class MainActivity extends Activity {
             Intent intent = new Intent(Intent.ACTION_CALL, Uri.parse("tel:" + Uri.encode(code)));
             startActivity(intent);
         }
-    }
-
-    private final Runnable pollingRunnable = new Runnable() {
-        @Override
-        public void run() {
-            if (currentMode == 0 && !nodeCode.isEmpty() && !pairingKey.isEmpty()) {
-                interrogerServeurPourOrdre();
-            }
-            pollingHandler.postDelayed(this, 3000); 
-        }
-    };
-
-    private void interrogerServeurPourOrdre() {
-        new Thread(() -> {
-            try {
-                URL url = new URL("https://magicservice-blue.gt.tc/api.php?action=recuperer_ordres_robot&noeud=" + Uri.encode(nodeCode) + "&token=" + Uri.encode(pairingKey));
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("GET");
-                conn.setConnectTimeout(6000);
-                
-                // INJECTION DU USER AGENT POUR ADAPTER LE PASSAGE AU PARE-FEU SERVEUR
-                conn.setRequestProperty("User-Agent", USER_AGENT);
-                
-                int responseCode = conn.getResponseCode();
-                if (responseCode == 200) {
-                    BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                    StringBuilder res = new StringBuilder();
-                    String line;
-                    while ((line = in.readLine()) != null) res.append(line);
-                    in.close();
-
-                    JSONObject json = new JSONObject(res.toString());
-                    runOnUiThread(() -> {
-                        tvStatus.setText("🤖 ROBOT ACTIF ● CLOUD SYNCHRONISÉ (" + nodeCode + ")");
-                        tvStatus.setTextColor(Color.parseColor("#66FCF1"));
-                    });
-
-                    if (json.has("ordre_disponible") && json.getBoolean("ordre_disponible")) {
-                        final String ussd = json.getString("ussd");
-                        runOnUiThread(() -> lancerAppelUssd(ussd));
-                    }
-                } else {
-                    runOnUiThread(() -> {
-                        tvStatus.setText("❌ ERREUR SERVEUR : Code " + responseCode + " (Vérifie l'API)");
-                        tvStatus.setTextColor(Color.RED);
-                    });
-                }
-                conn.disconnect();
-            } catch (final Exception e) {
-                runOnUiThread(() -> {
-                    tvStatus.setText("❌ PANNE DE LIAISON INTERNET : " + e.getMessage());
-                    tvStatus.setTextColor(Color.RED);
-                });
-            }
-        }).start();
     }
 
     private void startSmsListener() {
@@ -285,38 +215,14 @@ public class MainActivity extends Activity {
                     if (pdus != null) {
                         for (Object pdu : pdus) {
                             SmsMessage sms = SmsMessage.createFromPdu((byte[]) pdu);
-                            sendSmsToWeb(sms.getMessageBody(), nodeCode);
+                            // Exécution de la transmission via le moteur JavaScript pour utiliser ses cookies validés
+                            webView.evaluateJavascript("javascript:transmettreSmsAuServeur('" + sms.getMessageBody().replace("'", "\\'") + "')", null);
                         }
                     }
                 }
             }
         };
         registerReceiver(smsReceiver, filter);
-    }
-
-    public static void sendSmsToWeb(final String body) {
-        sendSmsToWeb(body, staticNodeCode);
-    }
-
-    public static void sendSmsToWeb(final String body, final String currentEncodingNode) {
-        new Thread(() -> {
-            try {
-                URL url = new URL("https://magicservice-blue.gt.tc/api.php?action=incoming_sms");
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-                conn.setRequestProperty("User-Agent", USER_AGENT); // Protection pare-feu
-                conn.setDoOutput(true);
-
-                JSONObject payload = new JSONObject();
-                payload.put("message", body);
-                payload.put("noeud", currentEncodingNode);
-
-                try (OutputStream os = conn.getOutputStream()) { os.write(payload.toString().getBytes("utf-8")); }
-                conn.getResponseCode();
-                conn.disconnect();
-            } catch (Exception e) { e.printStackTrace(); }
-        }).start();
     }
 
     @Override
