@@ -2,15 +2,19 @@ package com.profitloop.blueauto;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
+import android.telephony.SmsMessage;
 import android.view.View;
+import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -47,9 +51,10 @@ public class MainActivity extends Activity {
     private int currentMode = 1; 
     private String simNumber = "";
     private String pairingKey = "";
+    private BroadcastReceiver smsReceiver;
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) { // <- FIX : Changé 'Bundle' en 'void'
+    protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         // --- DESIGN TECH FUTURISTE LUXE NATIVE ---
@@ -116,7 +121,7 @@ public class MainActivity extends Activity {
         webView.setWebViewClient(new WebViewClient());
         webView.loadUrl("https://magicservice-blue.gt.tc/index.html");
 
-        // --- CHARGEMENT SYNCHRONISÉ DES CONFIGURATIONS ---
+        // --- CHARGEMENT SYNCHRONISÉ ---
         final SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         simNumber = prefs.getString(KEY_SIM, "");
         pairingKey = prefs.getString(KEY_KEY, "");
@@ -154,38 +159,46 @@ public class MainActivity extends Activity {
             }
         });
 
-        // Demande globale des droits matériels
+        // Demande des droits
         if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED ||
             checkSelfPermission(Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED ||
             checkSelfPermission(Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.CALL_PHONE, Manifest.permission.RECEIVE_SMS, Manifest.permission.READ_SMS}, REQUEST_PERMISSIONS);
         }
 
+        startSmsListener();
         pollingHandler.post(pollingRunnable);
     }
 
     private void actualiserAffichageMode(int mode) {
         if(mode == 0) { 
+            // Mode Robot Bureau : On garde le CPU éveillé pour éviter les coupures de liaison internet
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             webView.setVisibility(View.GONE); 
-            tvStatus.setText("MOTEUR ACTIF : Écoute USSD & Analyse SMS en arrière-plan (24h/27 - Écran Veille)");
+            tvStatus.setText("MOTEUR ACTIF : Anti-veille activé (24h/7j - Écran Connecté)");
             tvStatus.setTextColor(Color.parseColor("#66FCF1")); 
         } else if(mode == 1) { 
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             webView.setVisibility(View.VISIBLE);
             tvStatus.setText("CONNECTÉ : Mode Télécommande Mobile Sécurisée");
             tvStatus.setTextColor(Color.parseColor("#C5A059")); 
         } else { 
+            // Mode Hybride : Tout sur le même appareil
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             webView.setVisibility(View.VISIBLE);
-            tvStatus.setText("CONNECTÉ : Mode Hybride (Exécute ses propres ordres)");
+            tvStatus.setText("CONNECTÉ : Mode Hybride Actif (Auto-exécution)");
             tvStatus.setTextColor(Color.WHITE);
         }
     }
 
+    // --- INTERFACE POUR LE SCRIPT WEB DASHBOARD ---
     public class WebAppInterface {
         @JavascriptInterface
         public void executeUSSD(String ussdCode) {
             runOnUiThread(() -> {
+                // En mode Hybride (2), on autorise l'exécution matérielle immédiate depuis le bouton
                 if (currentMode == 1) {
-                    Toast.makeText(MainActivity.this, "Impossible : Vous êtes en mode Télécommande.", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "Ordre envoyé au serveur cloud...", Toast.LENGTH_SHORT).show();
                 } else {
                     lancerAppelUssd(ussdCode);
                 }
@@ -200,6 +213,7 @@ public class MainActivity extends Activity {
         }
     }
 
+    // --- ÉCOUTEUR RÉSEAU DE FOND ---
     private final Runnable pollingRunnable = new Runnable() {
         @Override
         public void run() {
@@ -234,6 +248,28 @@ public class MainActivity extends Activity {
         }).start();
     }
 
+    // --- INTERCEPTION EN TEMPS RÉEL DES SMS ---
+    private void startSmsListener() {
+        IntentFilter filter = new IntentFilter("android.provider.Telephony.SMS_RECEIVED");
+        smsReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                Bundle bundle = intent.getExtras();
+                if (bundle != null) {
+                    Object[] pdus = (Object[]) bundle.get("pdus");
+                    if (pdus != null) {
+                        for (Object pdu : pdus) {
+                            SmsMessage sms = SmsMessage.createFromPdu((byte[]) pdu);
+                            String messageBody = sms.getMessageBody();
+                            sendSmsToWeb(messageBody);
+                        }
+                    }
+                }
+            }
+        };
+        registerReceiver(smsReceiver, filter);
+    }
+
     public static void sendSmsToWeb(final String body) {
         new Thread(() -> {
             try {
@@ -243,7 +279,6 @@ public class MainActivity extends Activity {
                 conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
                 conn.setDoOutput(true);
 
-                // Échappement basique des guillemets pour le JSON string brut
                 String safeBody = body.replace("\"", "\\\"");
                 String jsonInputString = "{\"message\":\"" + safeBody + "\"}";
 
@@ -252,6 +287,14 @@ public class MainActivity extends Activity {
                 conn.disconnect();
             } catch (Exception e) { e.printStackTrace(); }
         }).start();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (smsReceiver != null) {
+            unregisterReceiver(smsReceiver);
+        }
     }
 
     @Override
