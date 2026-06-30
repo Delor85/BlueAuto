@@ -53,14 +53,12 @@ public class MainActivity extends Activity {
     private String pairingKey = "";
     private BroadcastReceiver smsReceiver;
 
-    // Sauvegarde statique globale pour corriger le fichier SmsReceiver.java défaillant
     public static String staticNodeCode = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // --- DESIGN INTERFACE LUXE ---
         LinearLayout mainLayout = new LinearLayout(this);
         mainLayout.setOrientation(LinearLayout.VERTICAL);
         mainLayout.setBackgroundColor(Color.parseColor("#0B0C10"));
@@ -104,7 +102,7 @@ public class MainActivity extends Activity {
         tvStatus = new TextView(this);
         tvStatus.setText("Structure réseau déconnectée.");
         tvStatus.setTextColor(Color.parseColor("#888888"));
-        tvStatus.setTextSize(11);
+        tvStatus.setTextSize(12);
 
         panel.addView(spDeviceMode);
         panel.addView(rowFields);
@@ -116,20 +114,18 @@ public class MainActivity extends Activity {
         mainLayout.addView(webView);
         setContentView(mainLayout);
 
-        // --- CONFIGURATION MOTEUR WEB ---
         WebSettings ws = webView.getSettings();
         ws.setJavaScriptEnabled(true);
         ws.setDomStorageEnabled(true);
         webView.addJavascriptInterface(new WebAppInterface(), "AndroidBridge");
         webView.setWebViewClient(new WebViewClient());
 
-        // --- CHARGEMENT DES PARAMÈTRES ET INJECTION URL ---
         final SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         nodeCode = prefs.getString(KEY_NODE, "");
         pairingKey = prefs.getString(KEY_KEY, "");
         currentMode = prefs.getInt(KEY_MODE, 2); 
 
-        staticNodeCode = nodeCode; // Assignation de sauvegarde pour le compilateur
+        staticNodeCode = nodeCode;
 
         etNodeCode.setText(nodeCode);
         etPairingKey.setText(pairingKey);
@@ -158,7 +154,6 @@ public class MainActivity extends Activity {
                     staticNodeCode = nodeCode;
                     prefs.edit().putString(KEY_NODE, nodeCode).putString(KEY_KEY, pairingKey).putInt(KEY_MODE, currentMode).apply();
                     Toast.makeText(MainActivity.this, "Nœud enregistré dans l'organigramme.", Toast.LENGTH_SHORT).show();
-                    
                     chargerPageWebAiguillee();
                     actualiserAffichageMode(currentMode);
                 } else {
@@ -179,7 +174,6 @@ public class MainActivity extends Activity {
 
     private void chargerPageWebAiguillee() {
         if (!nodeCode.isEmpty()) {
-            // Le secret de l'expérience unifiée : on passe le noeud en paramètre URL au site web
             webView.loadUrl("https://magicservice-blue.gt.tc/index.html?noeud=" + Uri.encode(nodeCode) + "&token=" + Uri.encode(pairingKey));
         } else {
             webView.loadUrl("https://magicservice-blue.gt.tc/index.html");
@@ -189,19 +183,14 @@ public class MainActivity extends Activity {
     private void actualiserAffichageMode(int mode) {
         if(mode == 0) { 
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-            webView.setVisibility(View.GONE); 
-            tvStatus.setText("RÉSEAU ACTIF : En attente d'ordres pour " + (nodeCode.isEmpty() ? "aucun" : nodeCode));
-            tvStatus.setTextColor(Color.parseColor("#66FCF1")); 
-        } else if(mode == 1) { 
-            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-            webView.setVisibility(View.VISIBLE);
-            tvStatus.setText("CONSOLE : Contrôle distant du nœud " + (nodeCode.isEmpty() ? "aucun" : nodeCode));
-            tvStatus.setTextColor(Color.parseColor("#C5A059")); 
+            webView.setVisibility(View.GONE); // Cache la webview pour voir les diagnostics natifs
+            tvStatus.setText("🤖 ROBOT SYNC : Tentative de liaison réseau...");
+            tvStatus.setTextColor(Color.YELLOW);
         } else { 
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             webView.setVisibility(View.VISIBLE);
-            tvStatus.setText("AUTONOME : Mode Hybride Local Actif");
-            tvStatus.setTextColor(Color.WHITE);
+            tvStatus.setText("📱 CONNECTÉ AU HUB : " + (nodeCode.isEmpty() ? "aucun" : nodeCode));
+            tvStatus.setTextColor(Color.GREEN);
         }
     }
 
@@ -212,7 +201,7 @@ public class MainActivity extends Activity {
                 if (currentMode == 0 || currentMode == 2) {
                     lancerAppelUssd(ussdCode);
                 } else {
-                    Toast.makeText(MainActivity.this, "Ordre routé vers le serveur cloud...", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "Ordre envoyé au serveur cloud...", Toast.LENGTH_SHORT).show();
                 }
             });
         }
@@ -231,7 +220,7 @@ public class MainActivity extends Activity {
             if (currentMode == 0 && !nodeCode.isEmpty() && !pairingKey.isEmpty()) {
                 interrogerServeurPourOrdre();
             }
-            pollingHandler.postDelayed(this, 4000); 
+            pollingHandler.postDelayed(this, 3000); // Analyse toutes les 3 secondes
         }
     };
 
@@ -241,7 +230,10 @@ public class MainActivity extends Activity {
                 URL url = new URL("https://magicservice-blue.gt.tc/api.php?action=recuperer_ordres_robot&noeud=" + Uri.encode(nodeCode) + "&token=" + Uri.encode(pairingKey));
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
-                if (conn.getResponseCode() == 200) {
+                conn.setConnectTimeout(5000);
+                
+                int responseCode = conn.getResponseCode();
+                if (responseCode == 200) {
                     BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
                     StringBuilder res = new StringBuilder();
                     String line;
@@ -249,13 +241,28 @@ public class MainActivity extends Activity {
                     in.close();
 
                     JSONObject json = new JSONObject(res.toString());
+                    runOnUiThread(() -> {
+                        tvStatus.setText("🤖 ROBOT ACTIF ● CONNECTÉ AU CLOUD (" + nodeCode + ")");
+                        tvStatus.setTextColor(Color.parseColor("#66FCF1"));
+                    });
+
                     if (json.has("ordre_disponible") && json.getBoolean("ordre_disponible")) {
                         final String ussd = json.getString("ussd");
                         runOnUiThread(() -> lancerAppelUssd(ussd));
                     }
+                } else {
+                    runOnUiThread(() -> {
+                        tvStatus.setText("❌ ERREUR SERVEUR : Code " + responseCode);
+                        tvStatus.setTextColor(Color.RED);
+                    });
                 }
                 conn.disconnect();
-            } catch (Exception e) { e.printStackTrace(); }
+            } catch (final Exception e) {
+                runOnUiThread(() -> {
+                    tvStatus.setText("❌ ÉCHEC LIAISON INTERNET : " + e.getMessage());
+                    tvStatus.setTextColor(Color.RED);
+                });
+            }
         }).start();
     }
 
@@ -279,12 +286,10 @@ public class MainActivity extends Activity {
         registerReceiver(smsReceiver, filter);
     }
 
-    // FIX COMPILATION : Cette méthode à 1 paramètre appelle la méthode principale pour satisfaire l'ancien SmsReceiver.java
     public static void sendSmsToWeb(final String body) {
         sendSmsToWeb(body, staticNodeCode);
     }
 
-    // Méthode principale à 2 paramètres
     public static void sendSmsToWeb(final String body, final String currentEncodingNode) {
         new Thread(() -> {
             try {
