@@ -36,20 +36,20 @@ import java.net.URL;
 
 public class MainActivity extends Activity {
     private WebView webView;
-    private EditText etSimNumber, etPairingKey;
+    private EditText etNodeCode, etPairingKey;
     private Spinner spDeviceMode;
     private Button btnSave;
     private TextView tvStatus;
     
     private static final int REQUEST_PERMISSIONS = 1;
-    private static final String PREFS_NAME = "BlueAutoUnityPrefs";
-    private static final String KEY_SIM = "SimNum";
+    private static final String PREFS_NAME = "BlueAutoStructuralPrefs";
+    private static final String KEY_NODE = "NodeCode";
     private static final String KEY_KEY = "PairKey";
-    private static final String KEY_MODE = "DevMode"; // 0: Robot 24/7, 1: Télécommande, 2: Hybride
+    private static final String KEY_MODE = "DevMode"; // 0: Robot, 1: Télécommande, 2: Hybride
 
     private Handler pollingHandler = new Handler();
-    private int currentMode = 1; 
-    private String simNumber = "";
+    private int currentMode = 2; // Par défaut en Hybride puisque ça fonctionne au top chez toi
+    private String nodeCode = "";
     private String pairingKey = "";
     private BroadcastReceiver smsReceiver;
 
@@ -57,7 +57,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // --- DESIGN TECH FUTURISTE LUXE NATIVE ---
+        // --- INTERFACE COMMERCIALE LUXE ---
         LinearLayout mainLayout = new LinearLayout(this);
         mainLayout.setOrientation(LinearLayout.VERTICAL);
         mainLayout.setBackgroundColor(Color.parseColor("#0B0C10"));
@@ -68,7 +68,7 @@ public class MainActivity extends Activity {
         panel.setBackgroundColor(Color.parseColor("#1F2833"));
 
         spDeviceMode = new Spinner(this);
-        String[] modes = {"🤖 Mode : Robot Serveur 24/7 (SIM Bureau)", "📱 Mode : Télécommande Mobile (Voyage)", "🔄 Mode : Hybride (Tout-en-un / Unique)"};
+        String[] modes = {"🤖 Mode : Robot Fixe (Exécuteur SIM)", "📱 Mode : Télécommande Mobile (À Distance)", "🔄 Mode : Hybride (Tout-en-un Local)"};
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, modes);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spDeviceMode.setAdapter(adapter);
@@ -77,29 +77,29 @@ public class MainActivity extends Activity {
         rowFields.setOrientation(LinearLayout.HORIZONTAL);
         rowFields.setPadding(0, 10, 0, 10);
 
-        etSimNumber = new EditText(this);
-        etSimNumber.setHint("N° SIM Ligne");
-        etSimNumber.setHintTextColor(Color.parseColor("#888888"));
-        etSimNumber.setTextColor(Color.WHITE);
-        etSimNumber.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+        etNodeCode = new EditText(this);
+        etNodeCode.setHint("Ex: DSM-01/DAE-01");
+        etNodeCode.setHintTextColor(Color.parseColor("#888888"));
+        etNodeCode.setTextColor(Color.WHITE);
+        etNodeCode.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.3f));
 
         etPairingKey = new EditText(this);
         etPairingKey.setHint("Clé Sécurité");
         etPairingKey.setHintTextColor(Color.parseColor("#888888"));
         etPairingKey.setTextColor(Color.WHITE);
-        etPairingKey.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+        etPairingKey.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.9f));
 
         btnSave = new Button(this);
-        btnSave.setText("LIER");
+        btnSave.setText("VALIDER");
         btnSave.setBackgroundColor(Color.parseColor("#C5A059")); 
         btnSave.setTextColor(Color.BLACK);
 
-        rowFields.addView(etSimNumber);
+        rowFields.addView(etNodeCode);
         rowFields.addView(etPairingKey);
         rowFields.addView(btnSave);
 
         tvStatus = new TextView(this);
-        tvStatus.setText("Liaison internet déconnectée.");
+        tvStatus.setText("Structure réseau déconnectée.");
         tvStatus.setTextColor(Color.parseColor("#888888"));
         tvStatus.setTextSize(11);
 
@@ -113,7 +113,7 @@ public class MainActivity extends Activity {
         mainLayout.addView(webView);
         setContentView(mainLayout);
 
-        // --- WEB ENGINE CONFIG ---
+        // --- CONFIGURATION DU MOTEUR WEB ---
         WebSettings ws = webView.getSettings();
         ws.setJavaScriptEnabled(true);
         ws.setDomStorageEnabled(true);
@@ -121,13 +121,13 @@ public class MainActivity extends Activity {
         webView.setWebViewClient(new WebViewClient());
         webView.loadUrl("https://magicservice-blue.gt.tc/index.html");
 
-        // --- CHARGEMENT SYNCHRONISÉ ---
+        // --- CHARGEMENT DES PARAMÈTRES ---
         final SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        simNumber = prefs.getString(KEY_SIM, "");
+        nodeCode = prefs.getString(KEY_NODE, "");
         pairingKey = prefs.getString(KEY_KEY, "");
-        currentMode = prefs.getInt(KEY_MODE, 1);
+        currentMode = prefs.getInt(KEY_MODE, 2); // Mode Hybride par défaut
 
-        etSimNumber.setText(simNumber);
+        etNodeCode.setText(nodeCode);
         etPairingKey.setText(pairingKey);
         spDeviceMode.setSelection(currentMode);
 
@@ -145,21 +145,21 @@ public class MainActivity extends Activity {
         btnSave.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                simNumber = etSimNumber.getText().toString().trim();
+                nodeCode = etNodeCode.getText().toString().trim();
                 pairingKey = etPairingKey.getText().toString().trim();
                 currentMode = spDeviceMode.getSelectedItemPosition();
 
-                if(!simNumber.isEmpty() && !pairingKey.isEmpty()) {
-                    prefs.edit().putString(KEY_SIM, simNumber).putString(KEY_KEY, pairingKey).putInt(KEY_MODE, currentMode).apply();
-                    Toast.makeText(MainActivity.this, "Appareil synchronisé au réseau sécurisé.", Toast.LENGTH_SHORT).show();
+                if(!nodeCode.isEmpty() && !pairingKey.isEmpty()) {
+                    prefs.edit().putString(KEY_NODE, nodeCode).putString(KEY_KEY, pairingKey).putInt(KEY_MODE, currentMode).apply();
+                    Toast.makeText(MainActivity.this, "Nœud enregistré dans l'organigramme.", Toast.LENGTH_SHORT).show();
                     actualiserAffichageMode(currentMode);
                 } else {
-                    Toast.makeText(MainActivity.this, "Remplissez tous les champs de liaison.", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "Champs vides.", Toast.LENGTH_SHORT).show();
                 }
             }
         });
 
-        // Demande des droits
+        // Demande des permissions matérielles au système
         if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED ||
             checkSelfPermission(Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED ||
             checkSelfPermission(Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED) {
@@ -171,36 +171,33 @@ public class MainActivity extends Activity {
     }
 
     private void actualiserAffichageMode(int mode) {
-        if(mode == 0) { 
-            // Mode Robot Bureau : On garde le CPU éveillé pour éviter les coupures de liaison internet
+        if(mode == 0) { // Moteur Robot Écouteur
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             webView.setVisibility(View.GONE); 
-            tvStatus.setText("MOTEUR ACTIF : Anti-veille activé (24h/7j - Écran Connecté)");
+            tvStatus.setText("RÉSEAU ACTIF : En attente d'ordres pour " + (nodeCode.isEmpty() ? "aucun" : nodeCode));
             tvStatus.setTextColor(Color.parseColor("#66FCF1")); 
-        } else if(mode == 1) { 
+        } else if(mode == 1) { // Télécommande
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             webView.setVisibility(View.VISIBLE);
-            tvStatus.setText("CONNECTÉ : Mode Télécommande Mobile Sécurisée");
+            tvStatus.setText("CONSOLE : Contrôle distant du nœud " + (nodeCode.isEmpty() ? "aucun" : nodeCode));
             tvStatus.setTextColor(Color.parseColor("#C5A059")); 
-        } else { 
-            // Mode Hybride : Tout sur le même appareil
+        } else { // Hybride (Le mode autonome qui fonctionne chez toi)
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             webView.setVisibility(View.VISIBLE);
-            tvStatus.setText("CONNECTÉ : Mode Hybride Actif (Auto-exécution)");
+            tvStatus.setText("AUTONOME : Mode Hybride Local Actif");
             tvStatus.setTextColor(Color.WHITE);
         }
     }
 
-    // --- INTERFACE POUR LE SCRIPT WEB DASHBOARD ---
     public class WebAppInterface {
         @JavascriptInterface
         public void executeUSSD(String ussdCode) {
             runOnUiThread(() -> {
-                // En mode Hybride (2), on autorise l'exécution matérielle immédiate depuis le bouton
-                if (currentMode == 1) {
-                    Toast.makeText(MainActivity.this, "Ordre envoyé au serveur cloud...", Toast.LENGTH_SHORT).show();
-                } else {
+                // Si on clique sur le dashboard alors qu'on est en mode Hybride ou Robot, on l'exécute directement sur l'appareil
+                if (currentMode == 0 || currentMode == 2) {
                     lancerAppelUssd(ussdCode);
+                } else {
+                    Toast.makeText(MainActivity.this, "Ordre routé vers le serveur cloud...", Toast.LENGTH_SHORT).show();
                 }
             });
         }
@@ -213,21 +210,21 @@ public class MainActivity extends Activity {
         }
     }
 
-    // --- ÉCOUTEUR RÉSEAU DE FOND ---
+    // Boucle d'interrogation internet permanente (uniquement pour le mode Robot / Exécuteur)
     private final Runnable pollingRunnable = new Runnable() {
         @Override
         public void run() {
-            if ((currentMode == 0 || currentMode == 2) && !simNumber.isEmpty() && !pairingKey.isEmpty()) {
-                recupererOrdreDuServeurCloud();
+            if (currentMode == 0 && !nodeCode.isEmpty() && !pairingKey.isEmpty()) {
+                interrogerServeurPourOrdre();
             }
-            pollingHandler.postDelayed(this, 4000);
+            pollingHandler.postDelayed(this, 4000); // Scan toutes les 4 secondes
         }
     };
 
-    private void recupererOrdreDuServeurCloud() {
+    private void interrogerServeurPourOrdre() {
         new Thread(() -> {
             try {
-                URL url = new URL("https://magicservice-blue.gt.tc/api.php?action=recuperer_ordres_robot&sim=" + simNumber + "&token=" + pairingKey);
+                URL url = new URL("https://magicservice-blue.gt.tc/api.php?action=recuperer_ordres_robot&noeud=" + Uri.encode(nodeCode) + "&token=" + Uri.encode(pairingKey));
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
                 if (conn.getResponseCode() == 200) {
@@ -238,7 +235,7 @@ public class MainActivity extends Activity {
                     in.close();
 
                     JSONObject json = new JSONObject(res.toString());
-                    if (json.getBoolean("ordre_disponible")) {
+                    if (json.has("ordre_disponible") && json.getBoolean("ordre_disponible")) {
                         final String ussd = json.getString("ussd");
                         runOnUiThread(() -> lancerAppelUssd(ussd));
                     }
@@ -248,7 +245,6 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    // --- INTERCEPTION EN TEMPS RÉEL DES SMS ---
     private void startSmsListener() {
         IntentFilter filter = new IntentFilter("android.provider.Telephony.SMS_RECEIVED");
         smsReceiver = new BroadcastReceiver() {
@@ -260,8 +256,7 @@ public class MainActivity extends Activity {
                     if (pdus != null) {
                         for (Object pdu : pdus) {
                             SmsMessage sms = SmsMessage.createFromPdu((byte[]) pdu);
-                            String messageBody = sms.getMessageBody();
-                            sendSmsToWeb(messageBody);
+                            sendSmsToWeb(sms.getMessageBody(), nodeCode);
                         }
                     }
                 }
@@ -270,7 +265,7 @@ public class MainActivity extends Activity {
         registerReceiver(smsReceiver, filter);
     }
 
-    public static void sendSmsToWeb(final String body) {
+    public static void sendSmsToWeb(final String body, final String currentEncodingNode) {
         new Thread(() -> {
             try {
                 URL url = new URL("https://magicservice-blue.gt.tc/api.php?action=incoming_sms");
@@ -279,10 +274,11 @@ public class MainActivity extends Activity {
                 conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
                 conn.setDoOutput(true);
 
-                String safeBody = body.replace("\"", "\\\"");
-                String jsonInputString = "{\"message\":\"" + safeBody + "\"}";
+                JSONObject payload = new JSONObject();
+                payload.put("message", body);
+                payload.put("noeud", currentEncodingNode);
 
-                try (OutputStream os = conn.getOutputStream()) { os.write(jsonInputString.getBytes("utf-8")); }
+                try (OutputStream os = conn.getOutputStream()) { os.write(payload.toString().getBytes("utf-8")); }
                 conn.getResponseCode();
                 conn.disconnect();
             } catch (Exception e) { e.printStackTrace(); }
@@ -292,13 +288,6 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (smsReceiver != null) {
-            unregisterReceiver(smsReceiver);
-        }
-    }
-
-    @Override
-    public void onBackPressed() {
-        if (webView.canGoBack() && currentMode != 0) webView.goBack(); else super.onBackPressed();
+        if (smsReceiver != null) unregisterReceiver(smsReceiver);
     }
 }
