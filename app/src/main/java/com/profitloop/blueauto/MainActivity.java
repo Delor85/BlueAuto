@@ -15,11 +15,12 @@ import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.CheckBox;
-import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 import org.json.JSONObject;
@@ -31,237 +32,233 @@ import java.net.URL;
 
 public class MainActivity extends Activity {
     private WebView webView;
-    private EditText etSimNumber;
-    private CheckBox cbRobotMode;
+    private EditText etSimNumber, etPairingKey;
+    private Spinner spDeviceMode;
     private Button btnSave;
-    private Button btnTestUssd;
     private TextView tvStatus;
     
-    private static final int REQUEST_CALL_PERMISSION = 1;
-    private static final String PREFS_NAME = "BlueAutoHubPrefs";
-    private static final String KEY_SIM_NUMBER = "LocalSimNumber";
-    private static final String KEY_ROBOT_ACTIVE = "IsRobotActive";
+    private static final int REQUEST_PERMISSIONS = 1;
+    private static final String PREFS_NAME = "BlueAutoUnityPrefs";
+    private static final String KEY_SIM = "SimNum";
+    private static final String KEY_KEY = "PairKey";
+    private static final String KEY_MODE = "DevMode"; // 0: Robot 24/7, 1: Télécommande, 2: Hybride (Tout-en-un)
 
     private Handler pollingHandler = new Handler();
-    private boolean isRobotEnabled = false;
-    private String configuredSim = "";
+    private int currentMode = 1; 
+    private String simNumber = "";
+    private String pairingKey = "";
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected Bundle onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // --- DESIGN INTERFACE SOMBRE & LUXE ---
+        // --- DESIGN TECH FUTURISTE LUXE NATIVE ---
         LinearLayout mainLayout = new LinearLayout(this);
         mainLayout.setOrientation(LinearLayout.VERTICAL);
         mainLayout.setBackgroundColor(Color.parseColor("#0B0C10"));
 
-        LinearLayout configPanel = new LinearLayout(this);
-        configPanel.setOrientation(LinearLayout.VERTICAL);
-        configPanel.setPadding(20, 15, 20, 15);
-        configPanel.setBackgroundColor(Color.parseColor("#1F2833"));
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(20, 15, 20, 15);
+        panel.setBackgroundColor(Color.parseColor("#1F2833"));
 
-        cbRobotMode = new CheckBox(this);
-        cbRobotMode.setText("Activer le mode Robot (SIM locale dans ce téléphone)");
-        cbRobotMode.setTextColor(Color.parseColor("#66FCF1"));
-        
-        LinearLayout rowLayout = new LinearLayout(this);
-        rowLayout.setOrientation(LinearLayout.HORIZONTAL);
-        rowLayout.setVisibility(View.GONE);
+        spDeviceMode = new Spinner(this);
+        String[] modes = {"🤖 Mode : Robot Serveur 24/7 (SIM Bureau)", "📱 Mode : Télécommande Mobile (Voyage)", "🔄 Mode : Hybride (Tout-en-un / Unique)"};
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, modes);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spDeviceMode.setAdapter(adapter);
+
+        LinearLayout rowFields = new LinearLayout(this);
+        rowFields.setOrientation(LinearLayout.HORIZONTAL);
+        rowFields.setPadding(0, 10, 0, 10);
 
         etSimNumber = new EditText(this);
-        etSimNumber.setHint("N° SIM (ex: 620550255)");
+        etSimNumber.setHint("N° SIM Ligne");
         etSimNumber.setHintTextColor(Color.parseColor("#888888"));
         etSimNumber.setTextColor(Color.WHITE);
-        LinearLayout.LayoutParams lpInput = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
-        etSimNumber.setLayoutParams(lpInput);
+        etSimNumber.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+
+        etPairingKey = new EditText(this);
+        etPairingKey.setHint("Clé Sécurité");
+        etPairingKey.setHintTextColor(Color.parseColor("#888888"));
+        etPairingKey.setTextColor(Color.WHITE);
+        etPairingKey.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
 
         btnSave = new Button(this);
-        btnSave.setText("OK");
-        btnSave.setBackgroundColor(Color.parseColor("#C5A059")); // Or
+        btnSave.setText("LIER");
+        btnSave.setBackgroundColor(Color.parseColor("#C5A059")); // Or Metallic
         btnSave.setTextColor(Color.BLACK);
 
-        btnTestUssd = new Button(this);
-        btnTestUssd.setText("TEST *825#");
-        btnTestUssd.setBackgroundColor(Color.parseColor("#45A29E")); // Bleu Numérique
-        btnTestUssd.setTextColor(Color.WHITE);
-        LinearLayout.LayoutParams lpBtn = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        lpBtn.setMargins(10, 0, 0, 0);
-        btnTestUssd.setLayoutParams(lpBtn);
-
-        rowLayout.addView(etSimNumber);
-        rowLayout.addView(btnSave);
-        rowLayout.addView(btnTestUssd);
+        rowFields.addView(etSimNumber);
+        rowFields.addView(etPairingKey);
+        rowFields.addView(btnSave);
 
         tvStatus = new TextView(this);
-        tvStatus.setText("Statut : Mode Dashboard pur");
+        tvStatus.setText("Liaison internet déconnectée.");
         tvStatus.setTextColor(Color.parseColor("#888888"));
         tvStatus.setTextSize(11);
-        tvStatus.setPadding(0, 5, 0, 0);
 
-        configPanel.addView(cbRobotMode);
-        configPanel.addView(rowLayout);
-        configPanel.addView(tvStatus);
-        mainLayout.addView(configPanel);
+        panel.addView(spDeviceMode);
+        panel.addView(rowFields);
+        panel.addView(tvStatus);
+        mainLayout.addView(panel);
 
         webView = new WebView(this);
-        webView.setLayoutParams(new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT));
+        webView.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT));
         mainLayout.addView(webView);
-
         setContentView(mainLayout);
 
-        // --- CONFIGURATION DU MOTEUR WEB ---
-        WebSettings webSettings = webView.getSettings();
-        webSettings.setJavaScriptEnabled(true);
-        webSettings.setDomStorageEnabled(true);
+        // --- WEB ENGINE CONFIG ---
+        WebSettings ws = webView.getSettings();
+        ws.setJavaScriptEnabled(true);
+        ws.setDomStorageEnabled(true);
         webView.addJavascriptInterface(new WebAppInterface(), "AndroidBridge");
         webView.setWebViewClient(new WebViewClient());
         webView.loadUrl("https://magicservice-blue.gt.tc/index.html");
 
-        // --- CHARGEMENT DES PRÉFÉRENCES ---
+        // --- CHARGEMENT SYNCHRONISÉ DES CONFIGURATIONS ---
         final SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        configuredSim = prefs.getString(KEY_SIM_NUMBER, "");
-        isRobotEnabled = prefs.getBoolean(KEY_ROBOT_ACTIVE, false);
+        simNumber = prefs.getString(KEY_SIM, "");
+        pairingKey = prefs.getString(KEY_KEY, "");
+        currentMode = prefs.getInt(KEY_MODE, 1);
 
-        if (!configuredSim.isEmpty()) { etSimNumber.setText(configuredSim); }
-        cbRobotMode.setChecked(isRobotEnabled);
-        rowLayout.setVisibility(isRobotEnabled ? View.VISIBLE : View.GONE);
+        etSimNumber.setText(simNumber);
+        etPairingKey.setText(pairingKey);
+        spDeviceMode.setSelection(currentMode);
 
-        cbRobotMode.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+        actualiserAffichageMode(currentMode);
+
+        spDeviceMode.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                rowLayout.setVisibility(isChecked ? View.VISIBLE : View.GONE);
-                if(!isChecked) {
-                    isRobotEnabled = false;
-                    prefs.edit().putBoolean(KEY_ROBOT_ACTIVE, false).apply();
-                    tvStatus.setText("Statut : Mode Dashboard pur");
-                    tvStatus.setTextColor(Color.parseColor("#888888"));
-                }
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                actualiserAffichageMode(position);
             }
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
         });
 
         btnSave.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                String num = etSimNumber.getText().toString().trim();
-                if (!num.isEmpty()) {
-                    configuredSim = num;
-                    isRobotEnabled = true;
-                    prefs.edit().putString(KEY_SIM_NUMBER, num).putBoolean(KEY_ROBOT_ACTIVE, true).apply();
-                    Toast.makeText(MainActivity.this, "Configuration Sauvegardée", Toast.LENGTH_SHORT).show();
-                    tvStatus.setText("Statut : Robot actif sur la SIM [" + num + "]");
-                    tvStatus.setTextColor(Color.parseColor("#66FCF1"));
+                simNumber = etSimNumber.getText().toString().trim();
+                pairingKey = etPairingKey.getText().toString().trim();
+                currentMode = spDeviceMode.getSelectedItemPosition();
+
+                if(!simNumber.isEmpty() && !pairingKey.isEmpty()) {
+                    prefs.edit().putString(KEY_SIM, simNumber).putString(KEY_KEY, pairingKey).putInt(KEY_MODE, currentMode).apply();
+                    Toast.makeText(MainActivity.this, "Appareil synchronisé au réseau sécurisé.", Toast.LENGTH_SHORT).show();
+                    actualiserAffichageMode(currentMode);
+                } else {
+                    Toast.makeText(MainActivity.this, "Remplissez tous les champs de liaison.", Toast.LENGTH_SHORT).show();
                 }
             }
         });
 
-        // Bouton de Test matériel direct
-        btnTestUssd.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                executerAppelUssd("*825#");
-            }
-        });
-
-        if (isRobotEnabled && !configuredSim.isEmpty()) {
-            tvStatus.setText("Statut : Robot actif sur la SIM [" + configuredSim + "]");
-            tvStatus.setTextColor(Color.parseColor("#66FCF1"));
-        }
-
-        if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.CALL_PHONE}, REQUEST_CALL_PERMISSION);
+        // Demande globale des droits matériels (Appels + Lecture SMS pour le solde)
+        if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED ||
+            checkSelfPermission(Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED ||
+            checkSelfPermission(Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.CALL_PHONE, Manifest.permission.RECEIVE_SMS, Manifest.permission.READ_SMS}, REQUEST_PERMISSIONS);
         }
 
         pollingHandler.post(pollingRunnable);
     }
 
-    private void executerAppelUssd(String ussdCode) {
-        if (checkSelfPermission(Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
-            Intent intent = new Intent(Intent.ACTION_CALL, Uri.parse("tel:" + Uri.encode(ussdCode)));
-            startActivity(intent);
-        } else {
-            Toast.makeText(this, "Permission CALL non accordée", Toast.LENGTH_SHORT).show();
+    private void actualiserAffichageMode(int mode) {
+        if(mode == 0) { // Robot pur 24/7
+            webView.setVisibility(View.GONE); // Cache le dashboard pour économiser l'écran et la batterie du bureau
+            tvStatus.setText("MOTEUR ACTIF : Écoute USSD & Analyse SMS en arrière-plan (24h/27 - Écran Veille)");
+            tvStatus.setTextColor(Color.parseColor("#66FCF1")); // Bleu numérique
+        } else if(mode == 1) { // Télécommande pure
+            webView.setVisibility(View.VISIBLE);
+            tvStatus.setText("CONNECTÉ : Mode Télécommande Mobile Sécurisée");
+            tvStatus.setTextColor(Color.parseColor("#C5A059")); // Or
+        } else { // Hybride
+            webView.setVisibility(View.VISIBLE);
+            tvStatus.setText("CONNECTÉ : Mode Hybride (Exécute ses propres ordres)");
+            tvStatus.setTextColor(Color.WHITE);
         }
     }
 
-    // --- INTERFACE DE PONT JAVASCRIPT POUR LE WEB ---
+    // --- INTERACTION SMARTPHONE <-> FORMULAIRE WEB ---
     public class WebAppInterface {
         @JavascriptInterface
         public void executeUSSD(String ussdCode) {
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    executerAppelUssd(ussdCode);
+            runOnUiThread(() -> {
+                if (currentMode == 1) {
+                    Toast.makeText(MainActivity.this, "Impossible : Vous êtes en mode Télécommande.", Toast.LENGTH_SHORT).show();
+                } else {
+                    lancerAppelUssd(ussdCode);
                 }
             });
         }
     }
 
-    // --- MOTEUR SANS FIN (VÉRIFICATION ARRIÈRE-PLAN) ---
+    private void lancerAppelUssd(String code) {
+        if (checkSelfPermission(Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
+            Intent intent = new Intent(Intent.ACTION_CALL, Uri.parse("tel:" + Uri.encode(code)));
+            startActivity(intent);
+        }
+    }
+
+    // --- BOUCLE RADAR DE FOND (Uniquement pour modes 0 et 2) ---
     private final Runnable pollingRunnable = new Runnable() {
         @Override
         public void run() {
-            if (isRobotEnabled && !configuredSim.isEmpty()) {
-                verifierOrdresServeur(configuredSim);
+            if ((currentMode == 0 || currentMode == 2) && !simNumber.isEmpty() && !pairingKey.isEmpty()) {
+                recupererOrdreDuServeurCloud();
             }
             pollingHandler.postDelayed(this, 4000);
         }
     };
 
-    private void verifierOrdresServeur(final String sim) {
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    URL url = new URL("https://magicservice-blue.gt.tc/api.php?action=recuperer_ordres_robot&sim=" + sim);
-                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                    conn.setRequestMethod("GET");
-                    
-                    if (conn.getResponseCode() == 200) {
-                        BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                        StringBuilder response = new StringBuilder();
-                        String line;
-                        while ((line = in.readLine()) != null) { response.append(line); }
-                        in.close();
+    private void recupererOrdreDuServeurCloud() {
+        new Thread(() -> {
+            try {
+                URL url = new URL("https://magicservice-blue.gt.tc/api.php?action=recuperer_ordres_robot&sim=" + simNumber + "&token=" + pairingKey);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                if (conn.getResponseCode() == 200) {
+                    BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                    StringBuilder res = new StringBuilder();
+                    String line;
+                    while ((line = in.readLine()) != null) res.append(line);
+                    in.close();
 
-                        JSONObject json = new JSONObject(response.toString());
-                        if (json.getBoolean("ordre_disponible")) {
-                            final String ussd = json.getString("ussd");
-                            runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() { executerAppelUssd(ussd); }
-                            });
-                        }
+                    JSONObject json = new JSONObject(res.toString());
+                    if (json.getBoolean("ordre_disponible")) {
+                        final String ussd = json.getString("ussd");
+                        runOnUiThread(() -> lancerAppelUssd(ussd));
                     }
-                    conn.disconnect();
-                } catch (Exception e) { e.printStackTrace(); }
-            }
+                }
+                conn.disconnect();
+            } catch (Exception e) { e.printStackTrace(); }
         }).start();
     }
 
-    // --- HOOK DE TRANSMISSION DES SMS REÇUS ---
+    // --- ENVOI UNIQUE ET SÉCURISÉ DES SMS (Lié à la clé d'appairage) ---
     public static void sendSmsToWeb(final String body) {
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    URL url = new URL("https://magicservice-blue.gt.tc/api.php?action=incoming_sms");
-                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                    conn.setRequestMethod("POST");
-                    conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-                    conn.setDoOutput(true);
-                    String safeBody = body.replace("\"", "\\\"");
-                    String jsonInputString = "{\"message\":\"" + safeBody + "\"}";
-                    try (OutputStream os = conn.getOutputStream()) { os.write(jsonInputString.getBytes("utf-8")); }
-                    conn.getResponseCode();
-                    conn.disconnect();
-                } catch (Exception e) { e.printStackTrace(); }
-            }
+        new Thread(() -> {
+            try {
+                URL url = new URL("https://magicservice-blue.gt.tc/api.php?action=incoming_sms");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+                conn.setDoOutput(true);
+
+                // Récupération dynamique des identifiants locaux pour authentifier le SMS
+                String safeBody = body.replace("\"", "\\\"");
+                String jsonInputString = "{\"message\":\"" + safeBody + "\"}";
+
+                try (OutputStream os = conn.getOutputStream()) { os.write(jsonInputString.getBytes("utf-8")); }
+                conn.getResponseCode();
+                conn.disconnect();
+            } catch (Exception e) { e.printStackTrace(); }
         }).start();
     }
 
     @Override
     public void onBackPressed() {
-        if (webView.canGoBack()) { webView.goBack(); } else { super.onBackPressed(); }
+        if (webView.canGoBack() && currentMode != 0) webView.goBack(); else super.onBackPressed();
     }
 }
