@@ -45,19 +45,22 @@ public class MainActivity extends Activity {
     private static final String PREFS_NAME = "BlueAutoStructuralPrefs";
     private static final String KEY_NODE = "NodeCode";
     private static final String KEY_KEY = "PairKey";
-    private static final String KEY_MODE = "DevMode"; // 0: Robot, 1: Télécommande, 2: Hybride
+    private static final String KEY_MODE = "DevMode"; 
 
     private Handler pollingHandler = new Handler();
-    private int currentMode = 2; // Par défaut en Hybride puisque ça fonctionne au top chez toi
+    private int currentMode = 2; 
     private String nodeCode = "";
     private String pairingKey = "";
     private BroadcastReceiver smsReceiver;
+
+    // Sauvegarde statique globale pour corriger le fichier SmsReceiver.java défaillant
+    public static String staticNodeCode = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // --- INTERFACE COMMERCIALE LUXE ---
+        // --- DESIGN INTERFACE LUXE ---
         LinearLayout mainLayout = new LinearLayout(this);
         mainLayout.setOrientation(LinearLayout.VERTICAL);
         mainLayout.setBackgroundColor(Color.parseColor("#0B0C10"));
@@ -113,24 +116,26 @@ public class MainActivity extends Activity {
         mainLayout.addView(webView);
         setContentView(mainLayout);
 
-        // --- CONFIGURATION DU MOTEUR WEB ---
+        // --- CONFIGURATION MOTEUR WEB ---
         WebSettings ws = webView.getSettings();
         ws.setJavaScriptEnabled(true);
         ws.setDomStorageEnabled(true);
         webView.addJavascriptInterface(new WebAppInterface(), "AndroidBridge");
         webView.setWebViewClient(new WebViewClient());
-        webView.loadUrl("https://magicservice-blue.gt.tc/index.html");
 
-        // --- CHARGEMENT DES PARAMÈTRES ---
+        // --- CHARGEMENT DES PARAMÈTRES ET INJECTION URL ---
         final SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         nodeCode = prefs.getString(KEY_NODE, "");
         pairingKey = prefs.getString(KEY_KEY, "");
-        currentMode = prefs.getInt(KEY_MODE, 2); // Mode Hybride par défaut
+        currentMode = prefs.getInt(KEY_MODE, 2); 
+
+        staticNodeCode = nodeCode; // Assignation de sauvegarde pour le compilateur
 
         etNodeCode.setText(nodeCode);
         etPairingKey.setText(pairingKey);
         spDeviceMode.setSelection(currentMode);
 
+        chargerPageWebAiguillee();
         actualiserAffichageMode(currentMode);
 
         spDeviceMode.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
@@ -150,8 +155,11 @@ public class MainActivity extends Activity {
                 currentMode = spDeviceMode.getSelectedItemPosition();
 
                 if(!nodeCode.isEmpty() && !pairingKey.isEmpty()) {
+                    staticNodeCode = nodeCode;
                     prefs.edit().putString(KEY_NODE, nodeCode).putString(KEY_KEY, pairingKey).putInt(KEY_MODE, currentMode).apply();
                     Toast.makeText(MainActivity.this, "Nœud enregistré dans l'organigramme.", Toast.LENGTH_SHORT).show();
+                    
+                    chargerPageWebAiguillee();
                     actualiserAffichageMode(currentMode);
                 } else {
                     Toast.makeText(MainActivity.this, "Champs vides.", Toast.LENGTH_SHORT).show();
@@ -159,7 +167,6 @@ public class MainActivity extends Activity {
             }
         });
 
-        // Demande des permissions matérielles au système
         if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED ||
             checkSelfPermission(Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED ||
             checkSelfPermission(Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED) {
@@ -170,18 +177,27 @@ public class MainActivity extends Activity {
         pollingHandler.post(pollingRunnable);
     }
 
+    private void chargerPageWebAiguillee() {
+        if (!nodeCode.isEmpty()) {
+            // Le secret de l'expérience unifiée : on passe le noeud en paramètre URL au site web
+            webView.loadUrl("https://magicservice-blue.gt.tc/index.html?noeud=" + Uri.encode(nodeCode) + "&token=" + Uri.encode(pairingKey));
+        } else {
+            webView.loadUrl("https://magicservice-blue.gt.tc/index.html");
+        }
+    }
+
     private void actualiserAffichageMode(int mode) {
-        if(mode == 0) { // Moteur Robot Écouteur
+        if(mode == 0) { 
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             webView.setVisibility(View.GONE); 
             tvStatus.setText("RÉSEAU ACTIF : En attente d'ordres pour " + (nodeCode.isEmpty() ? "aucun" : nodeCode));
             tvStatus.setTextColor(Color.parseColor("#66FCF1")); 
-        } else if(mode == 1) { // Télécommande
+        } else if(mode == 1) { 
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             webView.setVisibility(View.VISIBLE);
             tvStatus.setText("CONSOLE : Contrôle distant du nœud " + (nodeCode.isEmpty() ? "aucun" : nodeCode));
             tvStatus.setTextColor(Color.parseColor("#C5A059")); 
-        } else { // Hybride (Le mode autonome qui fonctionne chez toi)
+        } else { 
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             webView.setVisibility(View.VISIBLE);
             tvStatus.setText("AUTONOME : Mode Hybride Local Actif");
@@ -193,7 +209,6 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void executeUSSD(String ussdCode) {
             runOnUiThread(() -> {
-                // Si on clique sur le dashboard alors qu'on est en mode Hybride ou Robot, on l'exécute directement sur l'appareil
                 if (currentMode == 0 || currentMode == 2) {
                     lancerAppelUssd(ussdCode);
                 } else {
@@ -210,14 +225,13 @@ public class MainActivity extends Activity {
         }
     }
 
-    // Boucle d'interrogation internet permanente (uniquement pour le mode Robot / Exécuteur)
     private final Runnable pollingRunnable = new Runnable() {
         @Override
         public void run() {
             if (currentMode == 0 && !nodeCode.isEmpty() && !pairingKey.isEmpty()) {
                 interrogerServeurPourOrdre();
             }
-            pollingHandler.postDelayed(this, 4000); // Scan toutes les 4 secondes
+            pollingHandler.postDelayed(this, 4000); 
         }
     };
 
@@ -265,6 +279,12 @@ public class MainActivity extends Activity {
         registerReceiver(smsReceiver, filter);
     }
 
+    // FIX COMPILATION : Cette méthode à 1 paramètre appelle la méthode principale pour satisfaire l'ancien SmsReceiver.java
+    public static void sendSmsToWeb(final String body) {
+        sendSmsToWeb(body, staticNodeCode);
+    }
+
+    // Méthode principale à 2 paramètres
     public static void sendSmsToWeb(final String body, final String currentEncodingNode) {
         new Thread(() -> {
             try {
