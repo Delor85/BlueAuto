@@ -47,6 +47,9 @@ public class MainActivity extends Activity {
     private static final String KEY_KEY = "PairKey";
     private static final String KEY_MODE = "DevMode"; 
 
+    // Simulation d'un navigateur réel pour contourner le pare-feu du serveur (Anti-403)
+    private static final String USER_AGENT = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36";
+
     private Handler pollingHandler = new Handler();
     private int currentMode = 2; 
     private String nodeCode = "";
@@ -82,13 +85,13 @@ public class MainActivity extends Activity {
         etNodeCode.setHint("Ex: DSM-01/DAE-01");
         etNodeCode.setHintTextColor(Color.parseColor("#888888"));
         etNodeCode.setTextColor(Color.WHITE);
-        etNodeCode.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.3f));
+        etNodeCode.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.2f));
 
         etPairingKey = new EditText(this);
-        etPairingKey.setHint("Clé Sécurité");
+        etPairingKey.setHint("Clé");
         etPairingKey.setHintTextColor(Color.parseColor("#888888"));
         etPairingKey.setTextColor(Color.WHITE);
-        etPairingKey.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.9f));
+        etPairingKey.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
 
         btnSave = new Button(this);
         btnSave.setText("VALIDER");
@@ -117,6 +120,7 @@ public class MainActivity extends Activity {
         WebSettings ws = webView.getSettings();
         ws.setJavaScriptEnabled(true);
         ws.setDomStorageEnabled(true);
+        ws.setUserAgentString(USER_AGENT); // Sécurité anti-403 aussi pour la WebView
         webView.addJavascriptInterface(new WebAppInterface(), "AndroidBridge");
         webView.setWebViewClient(new WebViewClient());
 
@@ -146,18 +150,19 @@ public class MainActivity extends Activity {
         btnSave.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                nodeCode = etNodeCode.getText().toString().trim();
-                pairingKey = etPairingKey.getText().toString().trim();
+                // Nettoyage strict de la saisie (suppression des espaces générés par l'autocomplétion ou retours à la ligne)
+                nodeCode = etNodeCode.getText().toString().trim().replaceAll("\\s+", "");
+                pairingKey = etPairingKey.getText().toString().trim().replaceAll("\\s+", "");
                 currentMode = spDeviceMode.getSelectedItemPosition();
 
                 if(!nodeCode.isEmpty() && !pairingKey.isEmpty()) {
                     staticNodeCode = nodeCode;
                     prefs.edit().putString(KEY_NODE, nodeCode).putString(KEY_KEY, pairingKey).putInt(KEY_MODE, currentMode).apply();
-                    Toast.makeText(MainActivity.this, "Nœud enregistré dans l'organigramme.", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "Nœud enregistré et synchronisé.", Toast.LENGTH_SHORT).show();
                     chargerPageWebAiguillee();
                     actualiserAffichageMode(currentMode);
                 } else {
-                    Toast.makeText(MainActivity.this, "Champs vides.", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "Veuillez remplir tous les champs.", Toast.LENGTH_SHORT).show();
                 }
             }
         });
@@ -183,13 +188,13 @@ public class MainActivity extends Activity {
     private void actualiserAffichageMode(int mode) {
         if(mode == 0) { 
             getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-            webView.setVisibility(View.GONE); // Cache la webview pour voir les diagnostics natifs
-            tvStatus.setText("🤖 ROBOT SYNC : Tentative de liaison réseau...");
+            webView.setVisibility(View.GONE); 
+            tvStatus.setText("🤖 ROBOT SYNC : Liaison réseau en cours...");
             tvStatus.setTextColor(Color.YELLOW);
         } else { 
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             webView.setVisibility(View.VISIBLE);
-            tvStatus.setText("📱 CONNECTÉ AU HUB : " + (nodeCode.isEmpty() ? "aucun" : nodeCode));
+            tvStatus.setText("📱 HUB CONNECTÉ : Nœud " + (nodeCode.isEmpty() ? "aucun" : nodeCode));
             tvStatus.setTextColor(Color.GREEN);
         }
     }
@@ -201,7 +206,7 @@ public class MainActivity extends Activity {
                 if (currentMode == 0 || currentMode == 2) {
                     lancerAppelUssd(ussdCode);
                 } else {
-                    Toast.makeText(MainActivity.this, "Ordre envoyé au serveur cloud...", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "Routage via le Cloud...", Toast.LENGTH_SHORT).show();
                 }
             });
         }
@@ -220,7 +225,7 @@ public class MainActivity extends Activity {
             if (currentMode == 0 && !nodeCode.isEmpty() && !pairingKey.isEmpty()) {
                 interrogerServeurPourOrdre();
             }
-            pollingHandler.postDelayed(this, 3000); // Analyse toutes les 3 secondes
+            pollingHandler.postDelayed(this, 3000); 
         }
     };
 
@@ -230,7 +235,10 @@ public class MainActivity extends Activity {
                 URL url = new URL("https://magicservice-blue.gt.tc/api.php?action=recuperer_ordres_robot&noeud=" + Uri.encode(nodeCode) + "&token=" + Uri.encode(pairingKey));
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
-                conn.setConnectTimeout(5000);
+                conn.setConnectTimeout(6000);
+                
+                // INJECTION DU USER AGENT POUR ADAPTER LE PASSAGE AU PARE-FEU SERVEUR
+                conn.setRequestProperty("User-Agent", USER_AGENT);
                 
                 int responseCode = conn.getResponseCode();
                 if (responseCode == 200) {
@@ -242,7 +250,7 @@ public class MainActivity extends Activity {
 
                     JSONObject json = new JSONObject(res.toString());
                     runOnUiThread(() -> {
-                        tvStatus.setText("🤖 ROBOT ACTIF ● CONNECTÉ AU CLOUD (" + nodeCode + ")");
+                        tvStatus.setText("🤖 ROBOT ACTIF ● CLOUD SYNCHRONISÉ (" + nodeCode + ")");
                         tvStatus.setTextColor(Color.parseColor("#66FCF1"));
                     });
 
@@ -252,14 +260,14 @@ public class MainActivity extends Activity {
                     }
                 } else {
                     runOnUiThread(() -> {
-                        tvStatus.setText("❌ ERREUR SERVEUR : Code " + responseCode);
+                        tvStatus.setText("❌ ERREUR SERVEUR : Code " + responseCode + " (Vérifie l'API)");
                         tvStatus.setTextColor(Color.RED);
                     });
                 }
                 conn.disconnect();
             } catch (final Exception e) {
                 runOnUiThread(() -> {
-                    tvStatus.setText("❌ ÉCHEC LIAISON INTERNET : " + e.getMessage());
+                    tvStatus.setText("❌ PANNE DE LIAISON INTERNET : " + e.getMessage());
                     tvStatus.setTextColor(Color.RED);
                 });
             }
@@ -297,6 +305,7 @@ public class MainActivity extends Activity {
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+                conn.setRequestProperty("User-Agent", USER_AGENT); // Protection pare-feu
                 conn.setDoOutput(true);
 
                 JSONObject payload = new JSONObject();
