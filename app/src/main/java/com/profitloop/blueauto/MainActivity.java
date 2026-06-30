@@ -65,7 +65,7 @@ public class MainActivity extends Activity {
         
         LinearLayout rowLayout = new LinearLayout(this);
         rowLayout.setOrientation(LinearLayout.HORIZONTAL);
-        rowLayout.setVisibility(View.GONE); // Caché par défaut si non coché
+        rowLayout.setVisibility(View.GONE);
 
         etSimNumber = new EditText(this);
         etSimNumber.setHint("Numéro de la SIM (ex: 620550255)");
@@ -76,7 +76,7 @@ public class MainActivity extends Activity {
 
         btnSave = new Button(this);
         btnSave.setText("OK");
-        btnSave.setBackgroundColor(Color.parseColor("#C5A059")); // Or Premium
+        btnSave.setBackgroundColor(Color.parseColor("#C5A059"));
         btnSave.setTextColor(Color.BLACK);
 
         rowLayout.addView(etSimNumber);
@@ -108,10 +108,9 @@ public class MainActivity extends Activity {
         webSettings.setDomStorageEnabled(true);
         webView.setWebViewClient(new WebViewClient());
         
-        // Chargement direct du Dashboard Unique de ton infrastructure
         webView.loadUrl("https://magicservice-blue.gt.tc/index.html");
 
-        // --- GESTION DE LA MÉMOIRE ET DES ACTIONS ---
+        // --- GESTION DE LA MÉMOIRE ---
         final SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         configuredSim = prefs.getString(KEY_SIM_NUMBER, "");
         isRobotEnabled = prefs.getBoolean(KEY_ROBOT_ACTIVE, false);
@@ -122,7 +121,6 @@ public class MainActivity extends Activity {
         cbRobotMode.setChecked(isRobotEnabled);
         rowLayout.setVisibility(isRobotEnabled ? View.VISIBLE : View.GONE);
 
-        // Changement d'état de la case à cocher
         cbRobotMode.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
@@ -136,7 +134,6 @@ public class MainActivity extends Activity {
             }
         });
 
-        // Validation des paramètres de la SIM
         btnSave.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -157,23 +154,21 @@ public class MainActivity extends Activity {
             tvStatus.setTextColor(Color.parseColor("#66FCF1"));
         }
 
-        // Demande des permissions d'appels natifs
         if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.CALL_PHONE}, REQUEST_CALL_PERMISSION);
         }
 
-        // Démarrage de la boucle d'écoute invisible en tâche de fond
         pollingHandler.post(pollingRunnable);
     }
 
-    // --- MOTEUR DE FOND : VÉRIFICATION NATIVE SANS ALTÉRER L'ÉCRAN ---
+    // --- MOTEUR DE FOND : VÉRIFICATION NATIVE USSD ---
     private final Runnable pollingRunnable = new Runnable() {
         @Override
         public void run() {
             if (isRobotEnabled && !configuredSim.isEmpty()) {
                 verifierOrdresServeur(configuredSim);
             }
-            pollingHandler.postDelayed(this, 4000); // Interrogation invisible toutes les 4 secondes
+            pollingHandler.postDelayed(this, 4000);
         }
     };
 
@@ -197,7 +192,6 @@ public class MainActivity extends Activity {
                         if (json.getBoolean("ordre_disponible")) {
                             final String ussd = json.getString("ussd");
                             
-                            // Exécution de l'appel USSD sur le thread principal
                             runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
@@ -209,6 +203,31 @@ public class MainActivity extends Activity {
                             });
                         }
                     }
+                    conn.disconnect();
+                } catch (Exception e) { e.printStackTrace(); }
+            }
+        }).start();
+    }
+
+    // --- INTERCEPTION ET ENVOI DES SMS AU BACKEND (LA MÉTHODE RECORRIGÉE) ---
+    public static void sendSmsToWeb(final String body) {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    URL url = new URL("https://magicservice-blue.gt.tc/api.php?action=incoming_sms");
+                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                    conn.setRequestMethod("POST");
+                    conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+                    conn.setDoOutput(true);
+                    
+                    String safeBody = body.replace("\"", "\\\"");
+                    String jsonInputString = "{\"message\":\"" + safeBody + "\"}";
+                    
+                    try (OutputStream os = conn.getOutputStream()) {
+                        os.write(jsonInputString.getBytes("utf-8"));
+                    }
+                    conn.getResponseCode();
                     conn.disconnect();
                 } catch (Exception e) { e.printStackTrace(); }
             }
