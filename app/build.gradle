@@ -1,3 +1,4 @@
+// Fichier dans le dossier app/
 plugins {
     id 'com.android.application'
 }
