@@ -1,231 +1,126 @@
 package com.profitloop.blueauto;
 
 import android.Manifest;
-import android.app.Activity;
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.graphics.Color;
-import android.net.Uri;
 import android.os.Bundle;
-import android.telephony.SmsMessage;
-import android.view.View;
-import android.view.WindowManager;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.PowerManager;
+import android.telephony.TelephonyManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
-import android.webkit.WebViewClient;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.LinearLayout;
-import android.widget.TextView;
 import android.widget.Toast;
 
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 
-public class MainActivity extends Activity {
+public class MainActivity extends AppCompatActivity {
+
     private WebView webView;
-    private EditText etNodeCode, etPairingKey;
-    private Button btnSave;
-    private TextView tvStatus;
-    private LinearLayout llConfig;
-    
-    private static final int REQUEST_PERMISSIONS = 1;
-    private static final String PREFS_NAME = "ProfitLoopPrefs";
-    private static final String KEY_NODE = "NodeCode";
-    private static final String KEY_KEY = "PairKey";
-private static final String API_URL = "https://magicservice-blue.gt.tc/api.php";
-    private String nodeCode = "";
-    private String pairingKey = "";
-    private BroadcastReceiver smsReceiver;
+    private PowerManager.WakeLock wakeLock;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        setContentView(R.layout.activity_main);
 
-        // UI Android Native de Secours / Configuration Initiale
-        LinearLayout mainLayout = new LinearLayout(this);
-        mainLayout.setOrientation(LinearLayout.VERTICAL);
-        mainLayout.setBackgroundColor(Color.parseColor("#0B0C10"));
-        mainLayout.setPadding(30, 30, 30, 30);
+        // 1. GESTION DU WAKELOCK (Empêche le téléphone de dormir)
+        PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
+        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "BlueAuto::RobotWakeLock");
+        wakeLock.acquire(); // Maintient le processeur actif
 
-        llConfig = new LinearLayout(this);
-        llConfig.setOrientation(LinearLayout.VERTICAL);
+        // 2. CONFIGURATION DE LA WEBVIEW
+        webView = findViewById(R.id.webview);
+        WebSettings webSettings = webView.getSettings();
+        webSettings.setJavaScriptEnabled(true);
+        webSettings.setDomStorageEnabled(true);
 
-        tvStatus = new TextView(this);
-        tvStatus.setText("⚙️ CONFIGURATION DU NOEUD PROFITLOOP");
-        tvStatus.setTextColor(Color.parseColor("#C5A059"));
-        tvStatus.setTextSize(16);
-        llConfig.addView(tvStatus);
+        // Injection du Pont Natif
+        webView.addJavascriptInterface(new AndroidBridge(this), "AndroidBridge");
 
-        etNodeCode = new EditText(this);
-        etNodeCode.setHint("Code Nœud (Ex: POS-001/DSM-01/DAE-01)");
-        etNodeCode.setHintTextColor(Color.GRAY);
-        etNodeCode.setTextColor(Color.WHITE);
-        llConfig.addView(etNodeCode);
+        // Chargement de l'interface PWA
+        webView.loadUrl("https://magicservice-blue.gt.tc/index.html");
 
-        etPairingKey = new EditText(this);
-        etPairingKey.setHint("Clé de Sécurité Réseau");
-        etPairingKey.setHintTextColor(Color.GRAY);
-        etPairingKey.setTextColor(Color.WHITE);
-        llConfig.addView(etPairingKey);
-
-        btnSave = new Button(this);
-        btnSave.setText("VALIDER ET INITIALISER LE TERMINAL");
-        btnSave.setBackgroundColor(Color.parseColor("#C5A059"));
-        btnSave.setTextColor(Color.BLACK);
-        llConfig.addView(btnSave);
-
-        mainLayout.addView(llConfig);
-
-        // Configuration de la WebView principale
-        webView = new WebView(this);
-        LinearLayout.LayoutParams webParam = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT);
-        webView.setLayoutParams(webParam);
-        mainLayout.addView(webView);
-
-        setContentView(mainLayout);
-
-        // Chargement des préférences mémorisées
-        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-        nodeCode = prefs.getString(KEY_NODE, "");
-        pairingKey = prefs.getString(KEY_KEY, "");
-
-        configureWebView();
-
-        btnSave.setOnClickListener(v -> {
-            String inputNode = etNodeCode.getText().toString().trim();
-            String inputKey = etPairingKey.getText().toString().trim();
-
-            if (!inputNode.isEmpty() && !inputKey.isEmpty()) {
-                SharedPreferences.Editor editor = prefs.edit();
-                editor.putString(KEY_NODE, inputNode);
-                editor.putString(KEY_KEY, inputKey);
-                editor.apply();
-
-                nodeCode = inputNode;
-                pairingKey = inputKey;
-
-                llConfig.setVisibility(View.GONE);
-                webView.setVisibility(View.VISIBLE);
-                webView.loadUrl("https://magicservice-blue.gt.tc/index.html");
-                Toast.makeText(this, "Terminal rattaché avec succès.", Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        if (!nodeCode.isEmpty()) {
-            llConfig.setVisibility(View.GONE);
-            webView.loadUrl("https://magicservice-blue.gt.tc/index.html");
-        } else {
-            webView.setVisibility(View.GONE);
-        }
-
+        // Demande des permissions au démarrage
         demanderPermissions();
-        startSmsListener();
-    }
-
-    private void configureWebView() {
-        WebSettings settings = webView.getSettings();
-        settings.setJavaScriptEnabled(true);
-        settings.setDomStorageEnabled(true);
-        webView.setWebViewClient(new WebViewClient());
-        // Injection du Pont JavaScript sécurisé
-        webView.addJavascriptInterface(new AndroidBridge(), "AndroidBridge");
-    }
-
-    // PONT JAVASCRIPT : Permet à l'interface HTML/JS d'interagir avec le matériel
-    public class AndroidBridge {
-        @JavascriptInterface
-        public String getNativeNodeCode() { return nodeCode; }
-
-        @JavascriptInterface
-        public String getNativePairKey() { return pairingKey; }
-
-        @JavascriptInterface
-        public void executeUSSD(String codeUssd) {
-            runOnUiThread(() -> {
-                Toast.makeText(MainActivity.this, "Exécution USSD : " + codeUssd, Toast.LENGTH_LONG).show();
-                lancerAppelUssd(codeUssd);
-            });
-        }
-    }
-
-    private void lancerAppelUssd(String code) {
-        if (checkSelfPermission(Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
-            // Remplacement du # de fin par son équivalent encodé pour l'URI Android
-            String uriCode = code.replace("#", Uri.encode("#"));
-            Intent intent = new Intent(Intent.ACTION_CALL, Uri.parse("tel:" + uriCode));
-            startActivity(intent);
-        }
-    }
-
-    private void startSmsListener() {
-        IntentFilter filter = new IntentFilter("android.provider.Telephony.SMS_RECEIVED");
-        smsReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                Bundle bundle = intent.getExtras();
-                if (bundle != null) {
-                    Object[] pdus = (Object[]) bundle.get("pdus");
-                    if (pdus != null) {
-                        for (Object pdu : pdus) {
-                            SmsMessage sms = SmsMessage.createFromPdu((byte[]) pdu);
-                            String body = sms.getMessageBody();
-                            // Routage asynchrone immédiat du SMS reçu vers le serveur central
-                            transmettreSmsAuServeurBrut(body);
-                        }
-                    }
-                }
-            }
-        };
-        registerReceiver(smsReceiver, filter);
-    }
-
-    private void transmettreSmsAuServeurBrut(final String messageSms) {
-        new Thread(() -> {
-            try {
-                URL url = new URL(API_URL + "?action=incoming_sms");
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-                conn.setDoOutput(true);
-
-                String jsonInputString = "{\"message\": \"" + messageSms.replace("\"", "\\\"") + "\", \"noeud\": \"" + nodeCode + "\"}";
-
-                try (OutputStream os = conn.getOutputStream()) {
-                    byte[] input = jsonInputString.getBytes(StandardCharsets.UTF_8);
-                    os.write(input, 0, input.length);
-                }
-                conn.getResponseCode(); // Valide l'envoi
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }).start();
     }
 
     private void demanderPermissions() {
-        if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED ||
-            checkSelfPermission(Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED ||
-            checkSelfPermission(Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{
-                    Manifest.permission.CALL_PHONE,
-                    Manifest.permission.RECEIVE_SMS,
-                    Manifest.permission.READ_SMS
-            }, REQUEST_PERMISSIONS);
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED ||
+            ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CALL_PHONE, Manifest.permission.READ_PHONE_STATE}, 1);
         }
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (smsReceiver != null) unregisterReceiver(smsReceiver);
+        if (wakeLock != null && wakeLock.isHeld()) {
+            wakeLock.release(); // Libère la batterie quand on ferme vraiment l'app
+        }
+    }
+
+    // =========================================================================
+    // LE PONT JAVASCRIPT -> ANDROID NATIF
+    // =========================================================================
+    public class AndroidBridge {
+        Context mContext;
+
+        AndroidBridge(Context c) {
+            mContext = c;
+        }
+
+        // Retourne un ID unique pour ce Robot (à configurer manuellement ou générer)
+        @JavascriptInterface
+        public String getNativeNodeCode() {
+            return "ROBOT-MASTER-01"; // À dynamiser selon tes besoins
+        }
+
+        // Fonction appelée par uusdEngine.js
+        @JavascriptInterface
+        public void executeUSSD(String ussdCode) {
+            TelephonyManager manager = (TelephonyManager) mContext.getSystemService(Context.TELEPHONY_SERVICE);
+
+            if (ActivityCompat.checkSelfPermission(mContext, Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
+                
+                // Exécution silencieuse (Nécessite Android 8 / API 26 minimum)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    
+                    TelephonyManager.UssdResponseCallback callback = new TelephonyManager.UssdResponseCallback() {
+                        @Override
+                        public void onReceiveUssdResponse(TelephonyManager telephonyManager, String request, CharSequence response) {
+                            super.onReceiveUssdResponse(telephonyManager, request, response);
+                            // Le réseau a répondu, on renvoie la réponse au Javascript
+                            String cleanResponse = response.toString().replace("\n", " ");
+                            renvoyerResultatAuWeb("success", cleanResponse);
+                        }
+
+                        @Override
+                        public void onReceiveUssdResponseFailed(TelephonyManager telephonyManager, String request, int failureCode) {
+                            super.onReceiveUssdResponseFailed(telephonyManager, request, failureCode);
+                            // Erreur réseau ou code PIN
+                            renvoyerResultatAuWeb("error", "Code d'erreur réseau : " + failureCode);
+                        }
+                    };
+
+                    // Lancement de l'USSD en arrière-plan
+                    manager.sendUssdRequest(ussdCode, callback, new Handler(Looper.getMainLooper()));
+                } else {
+                    // Fallback pour les très vieux téléphones (non recommandé pour ce projet)
+                    Toast.makeText(mContext, "Android 8.0 minimum requis pour le mode silencieux", Toast.LENGTH_LONG).show();
+                }
+            }
+        }
+
+        // Permet d'exécuter du JS depuis Java pour mettre à jour l'interface
+        private void renvoyerResultatAuWeb(String status, String message) {
+            new Handler(Looper.getMainLooper()).post(() -> {
+                // Appelle une fonction JS dans ton index.html/ussdEngine.js
+                webView.evaluateJavascript("javascript:handleNativeUSSDResponse('" + status + "', '" + message + "');", null);
+            });
+        }
     }
 }
