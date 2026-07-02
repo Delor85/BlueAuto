@@ -19,23 +19,30 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        
         webView = new WebView(this);
         setContentView(webView);
 
-        WebSettings ws = webView.getSettings();
-        ws.setJavaScriptEnabled(true);
-        ws.setDomStorageEnabled(true);
-
-        // Pont entre le code Web (JS) et la puce SIM (Java)
+        WebSettings webSettings = webView.getSettings();
+        webSettings.setJavaScriptEnabled(true);
+        webSettings.setDomStorageEnabled(true);
+        
+        // Ajout du pont pour communiquer avec ton site Web
         webView.addJavascriptInterface(new AndroidBridge(), "AndroidBridge");
         webView.setWebViewClient(new WebViewClient());
         
+        // Chargement de ta plateforme
         webView.loadUrl("https://magicservice-blue.gt.tc/index.html");
-        
+
         demanderPermissions();
     }
 
     public class AndroidBridge {
+        @JavascriptInterface
+        public String getNativeNodeCode() {
+            return "DSM-ROBOT-01"; // Identifiant par défaut
+        }
+
         @JavascriptInterface
         public void executeUSSD(final String ussdCode) {
             runOnUiThread(() -> {
@@ -48,7 +55,7 @@ public class MainActivity extends Activity {
                         }
                         @Override
                         public void onReceiveUssdResponseFailed(TelephonyManager tm, String request, int failureCode) {
-                            webView.post(() -> webView.evaluateJavascript("window.handleNativeUSSDResponse('error', 'Code: " + failureCode + "')", null));
+                            webView.post(() -> webView.evaluateJavascript("window.handleNativeUSSDResponse('error', 'Code erreur: " + failureCode + "')", null));
                         }
                     }, new Handler(Looper.getMainLooper()));
                 } catch (SecurityException e) {
@@ -59,8 +66,15 @@ public class MainActivity extends Activity {
     }
 
     private void demanderPermissions() {
-        if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.CALL_PHONE, Manifest.permission.RECEIVE_SMS, Manifest.permission.READ_SMS}, 1);
+        if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED ||
+            checkSelfPermission(Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED ||
+            checkSelfPermission(Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED) {
+            
+            requestPermissions(new String[]{
+                Manifest.permission.CALL_PHONE,
+                Manifest.permission.RECEIVE_SMS,
+                Manifest.permission.READ_SMS
+            }, 1);
         }
     }
 }
