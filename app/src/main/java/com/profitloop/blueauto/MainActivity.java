@@ -45,29 +45,28 @@ public class MainActivity extends Activity {
     private static final String KEY_NODE = "NodeCode";
     private static final String KEY_KEY = "PairKey";
     private static final String API_URL = "https://magicservice-blue.gt.tc/api.php";
-    
     private String nodeCode = "";
     private String pairingKey = "";
     private BroadcastReceiver smsReceiver;
+    
+    // Ajout : Gestionnaire d'alimentation
     private PowerManager.WakeLock wakeLock;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        
-        // 1. Écran toujours allumé
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        
-        // 2. Empêcher le CPU de s'endormir (WakeLock)
+
+        // Ajout : Activation du WakeLock pour empêcher la mise en veille
         PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
         wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "BlueAuto::RobotWakeLock");
         wakeLock.acquire();
 
-        // 3. Création de l'interface native de configuration (Sans XML)
+        // UI Android Native de Secours / Configuration Initiale (Ton code d'origine)
         LinearLayout mainLayout = new LinearLayout(this);
         mainLayout.setOrientation(LinearLayout.VERTICAL);
-        mainLayout.setBackgroundColor(Color.parseColor("#050505"));
-        mainLayout.setPadding(40, 60, 40, 40);
+        mainLayout.setBackgroundColor(Color.parseColor("#0B0C10"));
+        mainLayout.setPadding(30, 30, 30, 30);
 
         llConfig = new LinearLayout(this);
         llConfig.setOrientation(LinearLayout.VERTICAL);
@@ -75,12 +74,11 @@ public class MainActivity extends Activity {
         tvStatus = new TextView(this);
         tvStatus.setText("⚙️ CONFIGURATION DU NOEUD PROFITLOOP");
         tvStatus.setTextColor(Color.parseColor("#C5A059"));
-        tvStatus.setTextSize(18);
-        tvStatus.setPadding(0, 0, 0, 30);
+        tvStatus.setTextSize(16);
         llConfig.addView(tvStatus);
 
         etNodeCode = new EditText(this);
-        etNodeCode.setHint("Identifiant (Ex: DSM-01)");
+        etNodeCode.setHint("Code Nœud (Ex: POS-001/DSM-01/DAE-01)");
         etNodeCode.setHintTextColor(Color.GRAY);
         etNodeCode.setTextColor(Color.WHITE);
         llConfig.addView(etNodeCode);
@@ -92,14 +90,14 @@ public class MainActivity extends Activity {
         llConfig.addView(etPairingKey);
 
         btnSave = new Button(this);
-        btnSave.setText("INITIALISER LE TERMINAL");
+        btnSave.setText("VALIDER ET INITIALISER LE TERMINAL");
         btnSave.setBackgroundColor(Color.parseColor("#C5A059"));
         btnSave.setTextColor(Color.BLACK);
         llConfig.addView(btnSave);
 
         mainLayout.addView(llConfig);
 
-        // 4. Intégration de la WebView
+        // Configuration de la WebView principale
         webView = new WebView(this);
         LinearLayout.LayoutParams webParam = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT);
@@ -108,14 +106,13 @@ public class MainActivity extends Activity {
 
         setContentView(mainLayout);
 
-        // 5. Chargement de la mémoire du téléphone
+        // Chargement des préférences mémorisées
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         nodeCode = prefs.getString(KEY_NODE, "");
         pairingKey = prefs.getString(KEY_KEY, "");
 
         configureWebView();
 
-        // 6. Gestion du bouton de sauvegarde
         btnSave.setOnClickListener(v -> {
             String inputNode = etNodeCode.getText().toString().trim();
             String inputKey = etPairingKey.getText().toString().trim();
@@ -132,11 +129,10 @@ public class MainActivity extends Activity {
                 llConfig.setVisibility(View.GONE);
                 webView.setVisibility(View.VISIBLE);
                 webView.loadUrl("https://magicservice-blue.gt.tc/index.html");
-                Toast.makeText(this, "Terminal connecté : " + nodeCode, Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Terminal rattaché avec succès.", Toast.LENGTH_SHORT).show();
             }
         });
 
-        // 7. Bascule automatique si déjà configuré
         if (!nodeCode.isEmpty()) {
             llConfig.setVisibility(View.GONE);
             webView.loadUrl("https://magicservice-blue.gt.tc/index.html");
@@ -153,18 +149,17 @@ public class MainActivity extends Activity {
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         webView.setWebViewClient(new WebViewClient());
-        webView.addJavascriptInterface(new AndroidBridge(this), "AndroidBridge");
+        // Injection du Pont JavaScript sécurisé
+        webView.addJavascriptInterface(new AndroidBridge(), "AndroidBridge");
     }
 
-    // ==========================================
-    // PONT DE COMMANDES JAVASCRIPT -> ANDROID
-    // ==========================================
+    // PONT JAVASCRIPT : Permet à l'interface HTML/JS d'interagir avec le matériel
     public class AndroidBridge {
-        Context mContext;
-        AndroidBridge(Context c) { mContext = c; }
-
         @JavascriptInterface
         public String getNativeNodeCode() { return nodeCode; }
+
+        @JavascriptInterface
+        public String getNativePairKey() { return pairingKey; }
 
         @JavascriptInterface
         public void executeUSSD(String codeUssd) {
@@ -175,27 +170,28 @@ public class MainActivity extends Activity {
     }
 
     private void lancerAppelUssd(String code) {
-        TelephonyManager manager = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
-
         if (checkSelfPermission(Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
+            TelephonyManager manager = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
+            
+            // Ajout : Exécution USSD silencieuse pour Android 8+
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                // Mode Silencieux (API 26+)
                 TelephonyManager.UssdResponseCallback callback = new TelephonyManager.UssdResponseCallback() {
                     @Override
                     public void onReceiveUssdResponse(TelephonyManager tm, String request, CharSequence response) {
                         super.onReceiveUssdResponse(tm, request, response);
-                        renvoyerResultatAuWeb("success", response.toString().replace("\n", " "));
+                        String cleanResponse = response.toString().replace("\n", " ").replace("'", "\\'");
+                        runOnUiThread(() -> webView.evaluateJavascript("javascript:if(window.handleNativeUSSDResponse) window.handleNativeUSSDResponse('success', '" + cleanResponse + "');", null));
                     }
 
                     @Override
                     public void onReceiveUssdResponseFailed(TelephonyManager tm, String request, int failureCode) {
                         super.onReceiveUssdResponseFailed(tm, request, failureCode);
-                        renvoyerResultatAuWeb("error", "Échec réseau. Code: " + failureCode);
+                        runOnUiThread(() -> webView.evaluateJavascript("javascript:if(window.handleNativeUSSDResponse) window.handleNativeUSSDResponse('error', 'Code erreur: " + failureCode + "');", null));
                     }
                 };
                 manager.sendUssdRequest(code, callback, new Handler(Looper.getMainLooper()));
             } else {
-                // Mode Appel Classique (Secours)
+                // Ton code d'origine (Secours pour vieux téléphones)
                 String uriCode = code.replace("#", Uri.encode("#"));
                 Intent intent = new Intent(Intent.ACTION_CALL, Uri.parse("tel:" + uriCode));
                 startActivity(intent);
@@ -203,15 +199,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void renvoyerResultatAuWeb(String status, String message) {
-        new Handler(Looper.getMainLooper()).post(() -> {
-            webView.evaluateJavascript("javascript:if(window.handleNativeUSSDResponse){ handleNativeUSSDResponse('" + status + "', '" + message.replace("'", "\\'") + "'); }", null);
-        });
-    }
-
-    // ==========================================
-    // INTERCEPTION DES SMS (RETOURS CAMTEL)
-    // ==========================================
     private void startSmsListener() {
         IntentFilter filter = new IntentFilter("android.provider.Telephony.SMS_RECEIVED");
         smsReceiver = new BroadcastReceiver() {
@@ -223,7 +210,9 @@ public class MainActivity extends Activity {
                     if (pdus != null) {
                         for (Object pdu : pdus) {
                             SmsMessage sms = SmsMessage.createFromPdu((byte[]) pdu);
-                            transmettreSmsAuServeurBrut(sms.getMessageBody());
+                            String body = sms.getMessageBody();
+                            // Routage asynchrone immédiat du SMS reçu vers le serveur central
+                            transmettreSmsAuServeurBrut(body);
                         }
                     }
                 }
@@ -247,8 +236,10 @@ public class MainActivity extends Activity {
                     byte[] input = jsonInputString.getBytes(StandardCharsets.UTF_8);
                     os.write(input, 0, input.length);
                 }
-                conn.getResponseCode();
-            } catch (Exception e) { e.printStackTrace(); }
+                conn.getResponseCode(); // Valide l'envoi
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }).start();
     }
 
@@ -268,6 +259,10 @@ public class MainActivity extends Activity {
     protected void onDestroy() {
         super.onDestroy();
         if (smsReceiver != null) unregisterReceiver(smsReceiver);
-        if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
+        
+        // Ajout : Libération de la batterie quand l'app est fermée
+        if (wakeLock != null && wakeLock.isHeld()) {
+            wakeLock.release();
+        }
     }
 }
