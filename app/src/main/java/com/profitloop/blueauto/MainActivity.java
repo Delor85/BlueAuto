@@ -1,6 +1,7 @@
 package com.profitloop.blueauto;
 
 import android.Manifest;
+import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
@@ -13,11 +14,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.widget.Toast;
 
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends Activity {
 
     private WebView webView;
     private PowerManager.WakeLock wakeLock;
@@ -25,41 +22,43 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
 
-        // 1. GESTION DU WAKELOCK (Empêche le téléphone de dormir)
+        // 1. GESTION DU WAKELOCK (Empêche le téléphone de s'endormir)
         PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
         wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "BlueAuto::RobotWakeLock");
-        wakeLock.acquire(); // Maintient le processeur actif
+        wakeLock.acquire();
 
-        // 2. CONFIGURATION DE LA WEBVIEW
-        webView = findViewById(R.id.webview);
+        // 2. CREATION DE LA WEBVIEW DYNAMIQUEMENT (Sans fichier XML)
+        webView = new WebView(this);
+        setContentView(webView);
+
         WebSettings webSettings = webView.getSettings();
         webSettings.setJavaScriptEnabled(true);
         webSettings.setDomStorageEnabled(true);
 
-        // Injection du Pont Natif
+        // Injection du Pont Natif Android <-> Javascript
         webView.addJavascriptInterface(new AndroidBridge(this), "AndroidBridge");
 
-        // Chargement de l'interface PWA
+        // Chargement de l'interface hébergée sur InfinityFree
         webView.loadUrl("https://magicservice-blue.gt.tc/index.html");
 
-        // Demande des permissions au démarrage
+        // Vérification et demande des permissions
         demanderPermissions();
     }
 
     private void demanderPermissions() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED ||
-            ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CALL_PHONE, Manifest.permission.READ_PHONE_STATE}, 1);
+        if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED ||
+            checkSelfPermission(Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.CALL_PHONE, Manifest.permission.READ_PHONE_STATE}, 1);
         }
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        // Libération de la batterie à la fermeture réelle de l'app
         if (wakeLock != null && wakeLock.isHeld()) {
-            wakeLock.release(); // Libère la batterie quand on ferme vraiment l'app
+            wakeLock.release();
         }
     }
 
@@ -73,27 +72,24 @@ public class MainActivity extends AppCompatActivity {
             mContext = c;
         }
 
-        // Retourne un ID unique pour ce Robot (à configurer manuellement ou générer)
         @JavascriptInterface
         public String getNativeNodeCode() {
-            return "ROBOT-MASTER-01"; // À dynamiser selon tes besoins
+            return "ROBOT-MASTER-01"; // Identifiant du téléphone
         }
 
-        // Fonction appelée par uusdEngine.js
         @JavascriptInterface
         public void executeUSSD(String ussdCode) {
             TelephonyManager manager = (TelephonyManager) mContext.getSystemService(Context.TELEPHONY_SERVICE);
 
-            if (ActivityCompat.checkSelfPermission(mContext, Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
+            if (mContext.checkSelfPermission(Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
                 
-                // Exécution silencieuse (Nécessite Android 8 / API 26 minimum)
+                // Exécution silencieuse sans pop-up
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                     
                     TelephonyManager.UssdResponseCallback callback = new TelephonyManager.UssdResponseCallback() {
                         @Override
                         public void onReceiveUssdResponse(TelephonyManager telephonyManager, String request, CharSequence response) {
                             super.onReceiveUssdResponse(telephonyManager, request, response);
-                            // Le réseau a répondu, on renvoie la réponse au Javascript
                             String cleanResponse = response.toString().replace("\n", " ");
                             renvoyerResultatAuWeb("success", cleanResponse);
                         }
@@ -101,24 +97,19 @@ public class MainActivity extends AppCompatActivity {
                         @Override
                         public void onReceiveUssdResponseFailed(TelephonyManager telephonyManager, String request, int failureCode) {
                             super.onReceiveUssdResponseFailed(telephonyManager, request, failureCode);
-                            // Erreur réseau ou code PIN
                             renvoyerResultatAuWeb("error", "Code d'erreur réseau : " + failureCode);
                         }
                     };
 
-                    // Lancement de l'USSD en arrière-plan
                     manager.sendUssdRequest(ussdCode, callback, new Handler(Looper.getMainLooper()));
                 } else {
-                    // Fallback pour les très vieux téléphones (non recommandé pour ce projet)
-                    Toast.makeText(mContext, "Android 8.0 minimum requis pour le mode silencieux", Toast.LENGTH_LONG).show();
+                    Toast.makeText(mContext, "Android 8.0 minimum requis", Toast.LENGTH_LONG).show();
                 }
             }
         }
 
-        // Permet d'exécuter du JS depuis Java pour mettre à jour l'interface
         private void renvoyerResultatAuWeb(String status, String message) {
             new Handler(Looper.getMainLooper()).post(() -> {
-                // Appelle une fonction JS dans ton index.html/ussdEngine.js
                 webView.evaluateJavascript("javascript:handleNativeUSSDResponse('" + status + "', '" + message + "');", null);
             });
         }
