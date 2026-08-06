@@ -1,0 +1,23 @@
+// Fichier dans le dossier app/
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.profitloop.blueauto'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.profitloop.blueauto"
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+}
