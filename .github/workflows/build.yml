@@ -1,0 +1,26 @@
+name: Build Android APK
+on: [push, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupération du code
+        uses: actions/checkout@v4
+
+      - name: Configuration de Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Génération de l'APK de test
+        run: |
+          chmod +x gradlew || true
+          gradle assembleDebug
+
+      - name: Livraison du fichier APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ProfitLoop-BlueAuto
+          path: app/build/outputs/apk/debug/app-debug.apk
