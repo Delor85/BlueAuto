@@ -1,24 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.profitloop.blueauto">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Permissions requises pour les appels, internet et l'accessibilité -->
+    <!-- Permissions requises pour les appels, internet, SMS et l'accessibilité -->
     <uses-permission android:name="android.permission.CALL_PHONE" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.BIND_ACCESSIBILITY_SERVICE" />
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <uses-permission android:name="android.permission.READ_SMS" />
 
-    <!-- Début de l'application -->
     <application
         android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="BlueAuto"
         android:supportsRtl="true"
-        android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+        android:theme="@android:style/Theme.Light.NoTitleBar">
 
-        <!-- 1. Activité Principale (L'interface visuelle de l'app) -->
+        <!-- 1. Activité Principale -->
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -28,7 +24,7 @@
             </intent-filter>
         </activity>
 
-        <!-- 2. Service d'Accessibilité (CORRIGÉ : Désormais bien placé à l'intérieur de application) -->
+        <!-- 2. Service d'Accessibilité (USSD) -->
         <service
             android:name=".UssdService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
@@ -41,7 +37,7 @@
                 android:resource="@xml/service_accessibilite_config" />
         </service>
 
-        <!-- 3. Récepteur SMS (Basé sur la présence de SmsReceiver.java dans tes dossiers) -->
+        <!-- 3. Récepteur SMS -->
         <receiver
             android:name=".SmsReceiver"
             android:exported="true">
@@ -51,6 +47,5 @@
         </receiver>
 
     </application>
-    <!-- Fin de l'application -->
 
 </manifest>
