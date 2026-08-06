@@ -1,28 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.profitloop.blueauto">
 
-    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Permissions requises pour les appels, internet et l'accessibilité -->
     <uses-permission android:name="android.permission.CALL_PHONE" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.BIND_ACCESSIBILITY_SERVICE" />
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <uses-permission android:name="android.permission.READ_SMS" />
 
-    <service
-    android:name=".UssdService"
-    android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
-    android:exported="true">
-    <intent-filter>
-        <action android:name="android.accessibilityservice.AccessibilityService" />
-    </intent-filter>
-    <meta-data
-        android:name="android.accessibilityservice"
-        android:resource="@xml/service_accessibilite_config" />
-</service>
-    
+    <!-- Début de l'application -->
     <application
         android:allowBackup="true"
-        android:label="BlueAuto"
-        android:supportsRtl="true">
-        
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+
+        <!-- 1. Activité Principale (L'interface visuelle de l'app) -->
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -31,7 +27,30 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        
+
+        <!-- 2. Service d'Accessibilité (CORRIGÉ : Désormais bien placé à l'intérieur de application) -->
+        <service
+            android:name=".UssdService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/service_accessibilite_config" />
+        </service>
+
+        <!-- 3. Récepteur SMS (Basé sur la présence de SmsReceiver.java dans tes dossiers) -->
+        <receiver
+            android:name=".SmsReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
+
     </application>
+    <!-- Fin de l'application -->
 
 </manifest>
