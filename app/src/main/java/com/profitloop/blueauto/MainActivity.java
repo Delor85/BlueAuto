@@ -143,6 +143,22 @@ private static final String API_URL = "https://magicservice-blue.gt.tc/api.php";
 
     // PONT JAVASCRIPT : Permet à l'interface HTML/JS d'interagir avec le matériel
     public class AndroidBridge {
+
+@JavascriptInterface
+public void executerUssdInteractif(String codeUssdInitial, String codePin) {
+    // 1. On stocke le PIN dans notre service qui attend patiemment
+    UssdService.pinEnAttente = codePin;
+    
+    // 2. On prépare la commande Camtel (ex: *550*2*Numero*Montant#)
+    String encodedHash = Uri.encode("#");
+    String formattedUssd = codeUssdInitial.replace("#", encodedHash);
+    
+    // 3. On lance l'appel USSD. Dès que Camtel répond, le UssdService prendra le relais !
+    Intent intent = new Intent(Intent.ACTION_CALL);
+    intent.setData(Uri.parse("tel:" + formattedUssd));
+    startActivity(intent);
+}
+        
         @JavascriptInterface
         public String getNativeNodeCode() { return nodeCode; }
 
