@@ -20,13 +20,14 @@ jobs:
       - name: Vérifier le backend Cloudflare
         working-directory: cloudflare
         run: |
-          npm install
+          npm ci
           npm run check
 
       - name: Créer les paquets serveur
         run: |
           zip -qr BlueMagic-InfinityFree-htdocs.zip htdocs
-          zip -qr BlueMagic-Cloudflare-backend.zip cloudflare
+          zip -qr BlueMagic-Cloudflare-backend.zip cloudflare \
+            -x 'cloudflare/node_modules/*' 'cloudflare/.wrangler/*' 'cloudflare/.dev.vars'
 
       - name: Publier les paquets serveur
         uses: actions/upload-artifact@v4
