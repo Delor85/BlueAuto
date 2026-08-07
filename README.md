@@ -1,15 +1,39 @@
-şº(·úk¡ø¥zX§{ßİzÿçºYOz¹¢²È¨×§‰çHÈ›YHXYÚXÈŒˆ8 %›Ø›İÛÜ™B‚›YHXYÚXÈ]]ÛX]\ÙKİ\ˆ[ˆ0ê[0ê\Û™H[™›ÚY0êYpêK\È˜[œÙ™\ÈHÜ°êY]H\İšX][Ûˆ›YKĞØ[][]ZH°êXÙ\ÜÚ][0ê\ÛÜ›XZ\È]^0ê]\\È‚‚ŒKˆÛÛ\ÜÚ][ÛˆH
-ML
-ŒŠ›[pê\›Ê›[Û[ØİH
-ML
-ŒJ›[pê\›Ê›[Û[ØÂŒ‹ˆ°ê\šYšXØ][ÛˆHHÛÛ™š\›X][ÛˆØ[][ØZ\ÚYHØØ[HHSˆZ\ÈÛXÈİ\ˆ
-Š‘S•“ÖQTŠŠ‹‚‚Ù]H™\œÚ[Ûˆ™XÛÛœİZ][ˆš[Üš]0êHH˜Z™]Üš]\]YH
-Š•0ê[0êXÛÛ[X[™H8¡¤ˆÙ\™]\ˆ8¡¤ˆ›Ø›İ8¡¤ˆ™[°ê™HTÔÑ8¡¤ˆSˆ8¡¤ˆ™]]™HÜ0ê\˜]]\ŠŠ‹ˆ\ÈÚ[œHÛ™Û]ÈT”ÛÛ\]ÈšY[™›Û\°êÈH˜[Y][Ûˆ\œ˜Z[ˆHÙH›ŞX]K‚‚ˆÈÈÙH]ZHÚ[™ÙH\ˆ˜\Ü0è8 &X[˜ÚY[ˆÛÙB‚‹HHSˆ¸ &Y\İ˜[XZ\È[›ŞpêH]HÙ\™]\ˆšH]H˜]˜TØÜš\È[\İÚY™œ°êH\ˆ[™›ÚYÙ^\İÜ™HÂ‹H8 &Z[\™˜XÙHÙXˆ™H]]\È[X[™\ˆ8 &Y^0êXİ][Ûˆ8 &][ˆÛÙHTÔÑ\˜š]˜Z\™HÂ‹H[pê\›È][Û[ÛÛ™XØ[İ[0ê\È\ˆH›Ø›İ]ÛÛ\\°ê\È]HÜ]\Ø[][]˜[HSˆÂ‹HÚ\]YH[X[™HÜÜğêH[™HÛ0êH8 &ZY[\İ[˜ÙH][ˆX\ÙH[KYİX›H^0êXİ][ÛˆÂ‹H\È0ê]]È°êY[ÈÛÛS‘S‘È8¡¤ˆPTÑQ8¡¤ˆPSS‘È8¡¤ˆUĞRUS‘×ÔSˆ8¡¤ˆS—ÔÕP“RUQ8¡¤ˆUĞRUS‘×Ô‘TÕS8¡¤ˆÕPĞÑQQQÑRSQÕS’Ó“ÕÓ‹Ğ“ĞÒÑQÂ‹H[™HXœÙ[˜ÙHHÛÛ™š\›X][Ûˆ]šY[S’Ó“ÕÓ˜]¸ &Y\İ˜[XZ\È™][0êYH]]ÛX]\]Y[Y[Yš[ˆ8 &pê]š]\ˆ[™HİX›H™XÚ\™ÙHÂ‹H[ˆÙ][Y\ÜØYÙH0ªÈÜ›Û™ÈSˆ0®È›Ü]YH[[pêYX][Y[H›Ø›İ‚‹H]H™\ÜË[ˆ›Ø›İ[\œ›ÙÙHHš[Hİ]\È\ÈÌÙXÛÛ™\È][›ÚYH[ˆX\™X]İ]\È\ÈHZ[]\ËÛÚ][š\›ÛˆÈM™\]pê\È\ˆ›İ\È\È›İXÛ\È˜\Y\È™HÛÛ][\ğêY\È]YH[™[[™HÛÛ[X[™K‚‚ˆÈÈİXİ\™B‚‹H\Øˆ\XØ][Ûˆ[™›ÚY˜]]™H˜]˜KÛÛ\]X›H[™›ÚY‹Œ
-ÈÂ‹HÛİY›\™KØˆTHÛÜšÙ\œÈ
-È˜\ÙHH
-È[\™˜XÙHÙX‹Ü[ÛˆÜ˜]Z]H™XÛÛ[X[™0êYHÂ‹HØÜËØˆ[\™˜XÙHĞH]THÓ^TÔSİ\ˆ[™š[š]Qœ™YHÂ‹HØÜËÒS”ÕSUSÓ—ĞÓÕQ“T‘K›Yˆ0ê\ÚY[Y[ÛİY›\™H\È0è\ÈÂ‹HØÜËÒS”ÕSUSÓ—ÔT×ĞWÔTË›Yˆ›ØğêY\™H\İ[°êYH0è[ˆ0êX][Â‹HØÜËÕTÕÕT”RS‹›Yˆ˜[Y][ÛˆØ›YØ]Ú\™H]˜[\™Ù[°êY[Â‹HØÜËĞUQUÒS’UPS›Yˆ0êY˜]]È°êXÚ\ÈHH™\œÚ[Ûˆ™péİYH]˜Z\ÛÛœÈHH™XÛÛœİXİ[ÛˆÂ‹H™Ú]X‹İÛÜšÙ›İÜËØZ[[[ˆÛÛ\[][Ûˆ]]ÛX]\]YHH8 &PTÈH\İ‚‚ˆÈÈ[Z]HXÚš\]YHÛ›°êB‚[™›ÚY™H›İ\›š]\È8 &PTHX›\]YH[š]™\œÙ[Hİ\ˆ°ê\Û™™H0èH]^pêYH0ê]\H8 &][™HÙ\ÜÚ[ÛˆTÔÑ[\˜Xİ]™Kˆ[\ÛSX[˜YÙ\‹œÙ[™\ÜÙ™\]Y\İ
+# Blue Magic v2 â€” Robot Core
 
-XØZ]Ø[š\ˆ[™H°ê\ÛœÙH0è[™H™\]pêKXZ\È™H›İ\›š]\ÈHpê]ÙHX›\]YHİ\ˆÛÛ[Y\ˆHÙ\ÜÚ[Ûˆ]™XÈHS‹ˆ›YHXYÚXÈ][\ÙHÛ˜ÈPÕSÓ—ĞĞSZ\È[ˆXØÙ\ÜÚXš[]TÙ\šXÙXÛÛ°í0êH][Z]0êH0èH˜[œØXİ[Ûˆ][™YKˆHÛÛ\Ü[Y[HH™[°ê™HSRH0ê\[™H˜XœšXØ[]H8 &X\XØ][Ûˆ0ê[0ê\Û™Hˆ[ˆ\ÜØZHİ\ˆH[Ù0êH^XİH›Ø›İ\İØ›YØ]Ú\™K‚‚“H™\œÚ[ÛˆÜ˜]Z]H8 &R[™š[š]Qœ™YH\İY\0êYH0è8 &Z[\™˜XÙHÙXˆ]›İ\›š]Ó^TÔSXZ\ÈÛÛˆ0êX™\™Ù[Y[Ü˜]Z]]]š[™\ˆ\ÈÛY[È]]ÛX]\ğê\È]¸ &Y\İ\È°ê\Ù[0êHÛÛ[YH[™H]Y›Ü›YH8 &PTKˆHÜÜÚY\ˆÛİY›\™KØ›İ\›š]Û˜ÈH˜XÚÙ[™™XÛÛ[X[™0êKÛÛ°éİHİ\ˆ\ÈÛY[È]]ÛX]\ğê\Ëˆ[™š[š]Qœ™YH™\İH\ÜÛšX›HÛÛ[YHÛÛ][ÛˆH™\K‚‚ˆÈÈ0ê[X\œ˜YÙB‚”İ\ˆ8 &[Ü[Ûˆ™XÛÛ[X[™0êYKİZ]œ™HÙØÜËÒS”ÕSUSÓ—ĞÓÕQ“T‘K›YJØÜËÒS”ÕSUSÓ—ĞÓÕQ“T‘K›Y
-KZ\ÈÙØÜËÒS”ÕSUSÓ—ÔT×ĞWÔTË›YJØÜËÒS”ÕSUSÓ—ÔT×ĞWÔTË›Y
-H0è\\ˆH8 &pê]\HTÈ][™š[ˆÙØÜËÕTÕÕT”RS‹›YJØÜËÕTÕÕT”RS‹›Y
-K‚
+Blue Magic automatise, sur un tÃ©lÃ©phone Android dÃ©diÃ©, les transferts de crÃ©dit de distribution Blue/Camtel qui nÃ©cessitent dÃ©sormais deux Ã©tapes :
+
+1. composition de `*550*2*numÃ©ro*montant#` ou `*550*1*numÃ©ro*montant#` ;
+2. vÃ©rification de la confirmation Camtel, saisie locale du PIN puis clic sur **ENVOYER**.
+
+Cette version reconstruit en prioritÃ© le trajet critique **TÃ©lÃ©commande â†’ serveur â†’ Robot â†’ fenÃªtre USSD â†’ PIN â†’ preuve opÃ©rateur**. Les cinq onglets ERP complets viendront aprÃ¨s la validation terrain de ce noyau.
+
+## Ce qui change par rapport Ã  lâ€™ancien code
+
+- le PIN nâ€™est jamais envoyÃ© au serveur ni au JavaScript ; il est chiffrÃ© par Android Keystore ;
+- lâ€™interface web ne peut plus demander lâ€™exÃ©cution dâ€™un code USSD arbitraire ;
+- numÃ©ro et montant sont recalculÃ©s par le Robot et comparÃ©s au pop-up Camtel avant le PIN ;
+- chaque demande possÃ¨de une clÃ© dâ€™idempotence et un lease anti-double exÃ©cution ;
+- les Ã©tats rÃ©els sont `PENDING â†’ LEASED â†’ DIALING â†’ AWAITING_PIN â†’ PIN_SUBMITTED â†’ AWAITING_RESULT â†’ SUCCEEDED/FAILED/UNKNOWN/BLOCKED` ;
+- une absence de confirmation devient `UNKNOWN` et nâ€™est jamais retentÃ©e automatiquement, afin dâ€™Ã©viter une double recharge ;
+- un seul message Â« Wrong PIN Â» bloque immÃ©diatement le Robot.
+- au repos, un Robot interroge la file toutes les 30 secondes et envoie un heartbeat toutes les 5 minutes, soit environ 3 168 requÃªtes par jour; les boucles rapides ne sont utilisÃ©es que pendant une commande.
+
+## Structure
+
+- `app/` : application Android native Java, compatible Android 6.0+ ;
+- `cloudflare/` : API Workers + base D1 + interface web, option gratuite recommandÃ©e ;
+- `htdocs/` : interface PWA et API PHP/MySQL pour InfinityFree ;
+- `docs/INSTALLATION_CLOUDFLARE.md` : dÃ©ploiement Cloudflare pas Ã  pas ;
+- `docs/INSTALLATION_PAS_A_PAS.md` : procÃ©dure destinÃ©e Ã  un dÃ©butant ;
+- `docs/TEST_TERRAIN.md` : validation obligatoire avant argent rÃ©el ;
+- `.github/workflows/build.yml` : compilation automatique de lâ€™APK de test.
+
+## Limite technique honnÃªte
+
+Android ne fournit pas dâ€™API publique universelle pour rÃ©pondre Ã  la deuxiÃ¨me Ã©tape dâ€™une session USSD interactive. `TelephonyManager.sendUssdRequest()` sait obtenir une rÃ©ponse Ã  une requÃªte, mais ne fournit pas de mÃ©thode publique pour continuer la session avec le PIN. Blue Magic utilise donc `ACTION_CALL` puis un `AccessibilityService` contrÃ´lÃ© et limitÃ© Ã  la transaction attendue. Le comportement de la fenÃªtre MMI dÃ©pend du fabricant et de lâ€™application TÃ©lÃ©phone : un essai sur le modÃ¨le exact du Robot est obligatoire.
+
+La version gratuite dâ€™InfinityFree est adaptÃ©e Ã  lâ€™interface web et fournit PHP/MySQL, mais son hÃ©bergement gratuit peut filtrer les clients automatisÃ©s et nâ€™est pas prÃ©sentÃ© comme une plateforme dâ€™API. Le dossier `cloudflare/` fournit donc le backend recommandÃ©, conÃ§u pour les clients automatisÃ©s. InfinityFree reste disponible comme solution de repli.
+
+## DÃ©marrage
+
+Pour lâ€™option recommandÃ©e, suivre [docs/INSTALLATION_CLOUDFLARE.md](docs/INSTALLATION_CLOUDFLARE.md), puis [docs/INSTALLATION_PAS_A_PAS.md](docs/INSTALLATION_PAS_A_PAS.md) Ã  partir de lâ€™Ã©tape APK et enfin [docs/TEST_TERRAIN.md](docs/TEST_TERRAIN.md).

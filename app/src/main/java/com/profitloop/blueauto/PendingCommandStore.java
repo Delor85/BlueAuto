@@ -1,42 +1,57 @@
-þº(·úk¡ø¥zX§{ßÝzÿçºYOz¹¢²È¨×§‰ç\XÚØYÙHÛÛKœ›Ùš]ÛÜ˜›YX]]ÎÂ‚š[\Ü[™›ÚY˜ÛÛ[ÛÛ^Â‚š[\ÜÜ™ËšœÛÛ‹’”ÓÓ“Øš™XÝÂ‚™š[˜[Û\ÜÈ[™[™ÐÛÛ[X[™ÝÜ™HÂˆÝ]XÈš[˜[Ýš[™ÈPTÑQH“PTÑQŽÂˆÝ]XÈš[˜[Ýš[™ÈPSS‘ÈH‘PSS‘ÈŽÂˆÝ]XÈš[˜[Ýš[™ÈUÐRUS‘×ÔSˆHUÐRUS‘×ÔSˆŽÂˆÝ]XÈš[˜[Ýš[™ÈS—ÔÕP“RUQH”S—ÔÕP“RUQŽÂˆÝ]XÈš[˜[Ýš[™ÈUÐRUS‘×Ô‘TÕSHUÐRUS‘×Ô‘TÕSŽÂˆÝ]XÈš[˜[Ýš[™È‘TÔ•ÔS‘S‘ÈH”‘TÔ•ÔS‘S‘ÈŽÂ‚ˆš]˜]HÝ]XÈš[˜[Ýš[™ÈÑVHHœ[™[™×ØÛÛ[X[™ÚœÛÛˆŽÂ‚ˆš]˜]H[™[™ÐÛÛ[X[™ÝÜ™J
-HßB‚ˆÝ]XÈÞ[˜Ú›Ûš^™Y”ÓÓ“Øš™XÝÙ]
-ÛÛ^ÛÛ^
-HÂˆÝš[™È˜]ÈH\ÛÛ™šYËœ™YœÊÛÛ^
-K™Ù]Ýš[™ÊÑVKˆŠNÂˆYˆ
-˜]Ëš\Ñ[\J
-JH™]\›ˆ[ÂˆžHÂˆ™]\›ˆ™]È”ÓÓ“Øš™XÝ
-˜]ÊNÂˆHØ]Ú
-^Ù\[ÛˆYÛ›Ü™Y
-HÂˆÛX\ŠÛÛ^
-NÂˆ™]\›ˆ[ÂˆBˆB‚ˆÝ]XÈÞ[˜Ú›Ûš^™Y›ÚYØ]™JÛÛ^ÛÛ^”ÓÓ“Øš™XÝÛÛ[X[™
-HÂˆ\ÛÛ™šYËœ™YœÊÛÛ^
-K™Y]
+package com.profitloop.blueauto;
 
-Kœ]Ýš[™ÊÑVKÛÛ[X[™ÔÝš[™Ê
-JK˜ÛÛ[Z]
+import android.content.Context;
 
-NÂˆB‚ˆÝ]XÈÞ[˜Ú›Ûš^™Y›ÚY\]TÝ]JÛÛ^ÛÛ^Ýš[™ÈÝ]JHÂˆ”ÓÓ“Øš™XÝÛÛ[X[™HÙ]
-ÛÛ^
-NÂˆYˆ
-ÛÛ[X[™OH[
-H™]\›ŽÂˆžHÂˆÛÛ[X[™œ]
-›ØØ[ÜÝ]H‹Ý]JNÂˆÛÛ[X[™œ]
-œÝ]WØÚ[™ÙYØ]‹Þ\Ý[K˜Ý\œ™[[YSZ[\Ê
-JNÂˆØ]™JÛÛ^ÛÛ[X[™
-NÂˆHØ]Ú
-^Ù\[ÛˆYÛ›Ü™Y
-HÂˆBˆB‚ˆÝ]XÈÞ[˜Ú›Ûš^™Y›ÚYÛX\ŠÛÛ^ÛÛ^
-HÂˆ\ÛÛ™šYËœ™YœÊÛÛ^
-K™Y]
+import org.json.JSONObject;
 
-Kœ™[[Ý™JÑVJK˜ÛÛ[Z]
+final class PendingCommandStore {
+    static final String LEASED = "LEASED";
+    static final String DIALING = "DIALING";
+    static final String AWAITING_PIN = "AWAITING_PIN";
+    static final String PIN_SUBMITTED = "PIN_SUBMITTED";
+    static final String AWAITING_RESULT = "AWAITING_RESULT";
+    static final String REPORT_PENDING = "REPORT_PENDING";
 
-NÂˆB‚ˆÝ]XÈ›ÛÛX[ˆ\Ñ^\™Y
-”ÓÓ“Øš™XÝÛÛ[X[™
-HÂˆYˆ
-ÛÛ[X[™OH[
-H™]\›ˆ˜[ÙNÂˆÛ™ÈÚ[™ÙY]HÛÛ[X[™›ÜÛ™ÊœÝ]WØÚ[™ÙYØ]‹ÛÛ[X[™›ÜÛ™Ê›X\ÙYØ]‹
-JNÂˆÝš[™ÈÝ]HHÛÛ[X[™›ÜÝš[™Ê›ØØ[ÜÝ]H‹PTÑQ
-NÂˆ™]\›ˆ
-UÐRUS‘×ÔS‹™\]X[ÊÝ]JHS—ÔÕP“RUQ™\]X[ÊÝ]JHUÐRUS‘×Ô‘TÕS™\]X[ÊÝ]JJBˆ	‰ˆÚ[™ÙY]ˆˆ	‰ˆÞ\Ý[K˜Ý\œ™[[YSZ[\Ê
-HHÚ[™ÙY]ˆ\ÛÛ™šYËÓÓSPS‘ÕSQSÕUÓTÎÂˆBŸB
+    private static final String KEY = "pending_command_json";
+
+    private PendingCommandStore() {}
+
+    static synchronized JSONObject get(Context context) {
+        String raw = AppConfig.prefs(context).getString(KEY, "");
+        if (raw.isEmpty()) return null;
+        try {
+            return new JSONObject(raw);
+        } catch (Exception ignored) {
+            clear(context);
+            return null;
+        }
+    }
+
+    static synchronized void save(Context context, JSONObject command) {
+        AppConfig.prefs(context).edit().putString(KEY, command.toString()).commit();
+    }
+
+    static synchronized void updateState(Context context, String state) {
+        JSONObject command = get(context);
+        if (command == null) return;
+        try {
+            command.put("local_state", state);
+            command.put("state_changed_at", System.currentTimeMillis());
+            save(context, command);
+        } catch (Exception ignored) {
+        }
+    }
+
+    static synchronized void clear(Context context) {
+        AppConfig.prefs(context).edit().remove(KEY).commit();
+    }
+
+    static boolean isExpired(JSONObject command) {
+        if (command == null) return false;
+        long changedAt = command.optLong("state_changed_at", command.optLong("leased_at", 0L));
+        String state = command.optString("local_state", LEASED);
+        return (AWAITING_PIN.equals(state) || PIN_SUBMITTED.equals(state) || AWAITING_RESULT.equals(state))
+                && changedAt > 0L
+                && System.currentTimeMillis() - changedAt > AppConfig.COMMAND_TIMEOUT_MS;
+    }
+}

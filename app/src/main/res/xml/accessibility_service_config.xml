@@ -1,1 +1,9 @@
-ює(·ъkЎшҐzX§{ЯЭzязєYOz№ўІИЁќЧ§‰зOЮ[™\њЪ[ЫЏHЊKЊ€[ЫЩ[™ПHќ]‹NЏП‚ЏXШЩ\ЬЪXљ[]K\Щ\ќљXЩH[њО[™›ЪYHљ‹ЛЬШЪ[X\Л[™›ЪYЫЫKШ\ЛЬ™\ЛШ[™›ЪY‚€[™›ЪYXШЩ\ЬЪXљ[]Q]™[ќ\\ПHќ\UЪ[™ЭФЭ]PЪ[™ЩY\UЪ[™ЭРЫЫќ[ќЪ[™ЩY\UљY]Х^Ъ[™ЩY‚€[™›ЪYXШЩ\ЬЪXљ[]Q™YYXЪХ\OH™™YYXЪСЩ[™\љXИ‚€[™›ЪYXШЩ\ЬЪXљ[]Q›YЬПH™›YСY][›YФ™\ЬќљY]ТYЯ›YФ™]љY]™R[ќ\XЭ]™UЪ[™ЭЬИ‚€[™›ЪYШ[”™]љY]™UЪ[™ЭРЫЫќ[ќHќќYH‚€[™›ЪY™\ШЬљ\[ЫЏHђЭљ[™ЛШXШЩ\ЬЪXљ[]WЬЩ\ќљXЩWЩ\ШЬљ\[Ы€‚€[™›ЪY››ЭYљXШ][Ы•[Y[Э]HЊLЊ‚€[™›ЪYњЩ][™ЬРXЭ]љ]OHЫЫKњ›Щљ]ЫЬ›YX]]Л“XZ[ђXЭ]љ]H€П‚
+<?xml version="1.0" encoding="utf-8"?>
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewTextChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagDefault|flagReportViewIds|flagRetrieveInteractiveWindows"
+    android:canRetrieveWindowContent="true"
+    android:description="@string/accessibility_service_description"
+    android:notificationTimeout="120"
+    android:settingsActivity="com.profitloop.blueauto.MainActivity" />

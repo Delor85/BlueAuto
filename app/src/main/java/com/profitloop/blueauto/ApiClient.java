@@ -1,133 +1,149 @@
-şº(·úk¡ø¥zX§{ßİzÿçºYOz¹¢²È¨×§‰ç\XÚØYÙHÛÛKœ›Ùš]ÛÜ˜›YX]]ÎÂ‚š[\Ü[™›ÚY˜ÛÛ[ÛÛ^Âš[\Ü[™›ÚY›ÜËZ[Âš[\Ü[™›ÚYÙXšÚ]ÛÛÚÚYSX[˜YÙ\Â‚š[\ÜÜ™ËšœÛÛ‹’”ÓÓ“Øš™XİÂ‚š[\Ü˜]˜Kš[ËY™™\™Y™XY\Âš[\Ü˜]˜Kš[Ë’[œ]İ™X[NÂš[\Ü˜]˜Kš[Ë’[œ]İ™X[T™XY\Âš[\Ü˜]˜Kš[Ë“İ]]İ™X[NÂš[\Ü˜]˜K›™]’T“ÛÛ›™Xİ[ÛÂš[\Ü˜]˜K›™]•T“Âš[\Ü˜]˜K›™]•T“[˜ÛÙ\Âš[\Ü˜]˜K›š[Ë˜Ú\œÙ]”İ[™\™Ú\œÙ]ÎÂ‚™š[˜[Û\ÜÈ\PÛY[Âˆš]˜]Hš[˜[ÛÛ^ÛÛ^Â‚ˆ\PÛY[
-ÛÛ^ÛÛ^
-HÂˆ\Ë˜ÛÛ^HÛÛ^™Ù]\XØ][ÛÛÛ^
+package com.profitloop.blueauto;
 
-NÂˆB‚ˆ”ÓÓ“Øš™XİZ\Š”ÓÓ“Øš™Xİ^[ØY
-H›İÜÈ^Ù\[ÛˆÂˆ™]\›ˆÜİ
-œZ\—Ù]šXÙH‹^[ØY˜[ÙJNÂˆB‚ˆ”ÓÓ“Øš™XİX\™X]
+import android.content.Context;
+import android.os.Build;
+import android.webkit.CookieManager;
 
-H›İÜÈ^Ù\[ÛˆÂˆ”ÓÓ“Øš™Xİ^[ØYH™]È”ÓÓ“Øš™Xİ
+import org.json.JSONObject;
 
-NÂˆ^[ØYœ]
-˜\İ™\œÚ[Ûˆ‹Œ‹ŒŒ\›Ø›İXÛÜ™HŠNÂˆ^[ØYœ]
-˜[™›ÚYİ™\œÚ[Ûˆ‹Z[•‘T”ÒSÓ‹”‘SPTÑJNÂˆ^[ØYœ]
-™]šXÙWÛ[Ù[‹Z[“PS•QPÕT‘Tˆ
-Èˆˆ
-ÈZ[“SÑS
-NÂˆ^[ØYœ]
-œ›Ø›İÙ[˜X›Y‹\ÛÛ™šYËœ›Ø›İ[˜X›Y
-ÛÛ^
-JNÂˆ™]\›ˆÜİ
-šX\™X]‹^[ØYYJNÂˆB‚ˆ”ÓÓ“Øš™XİX\ÙPÛÛ[X[™
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
-H›İÜÈ^Ù\[ÛˆÂˆ™]\›ˆÜİ
-›X\ÙWØÛÛ[X[™‹™]È”ÓÓ“Øš™Xİ
+final class ApiClient {
+    private final Context context;
 
-KYJNÂˆB‚ˆ”ÓÓ“Øš™XİÜ™X]PÛÛ[X[™
-”ÓÓ“Øš™Xİ^[ØY
-H›İÜÈ^Ù\[ÛˆÂˆ™]\›ˆÜİ
-˜Ü™X]WØÛÛ[X[™‹^[ØYYJNÂˆB‚ˆ”ÓÓ“Øš™XİÛÛ[X[™İ]\Êİš[™ÈX›XÒY
-H›İÜÈ^Ù\[ÛˆÂˆ”ÓÓ“Øš™Xİ^[ØYH™]È”ÓÓ“Øš™Xİ
+    ApiClient(Context context) {
+        this.context = context.getApplicationContext();
+    }
 
-NÂˆ^[ØYœ]
-˜ÛÛ[X[™ÚY‹X›XÒY
-NÂˆ™]\›ˆÜİ
-˜ÛÛ[X[™Üİ]\È‹^[ØYYJNÂˆB‚ˆ”ÓÓ“Øš™XİÙ[™]™[
-”ÓÓ“Øš™XİÛÛ[X[™İš[™Èİ]Kİš[™ÈY\ÜØYÙKİš[™È˜[œØXİ[Û’Y
-H›İÜÈ^Ù\[ÛˆÂˆ”ÓÓ“Øš™Xİ^[ØYH™]È”ÓÓ“Øš™Xİ
+    JSONObject pair(JSONObject payload) throws Exception {
+        return post("pair_device", payload, false);
+    }
 
-NÂˆ^[ØYœ]
-˜ÛÛ[X[™ÚY‹ÛÛ[X[™›Üİš[™ÊœX›X×ÚYŠJNÂˆ^[ØYœ]
-›X\ÙWİÚÙ[ˆ‹ÛÛ[X[™›Üİš[™Ê›X\ÙWİÚÙ[ˆŠJNÂˆ^[ØYœ]
-œİ]H‹İ]JNÂˆYˆ
-Y\ÜØYÙHOH[	‰ˆ[Y\ÜØYÙKš\Ñ[\J
-JH^[ØYœ]
-›Y\ÜØYÙH‹š[JY\ÜØYÙKN
-JNÂˆYˆ
-˜[œØXİ[Û’YOH[	‰ˆ]˜[œØXİ[Û’Yš\Ñ[\J
-JH^[ØYœ]
-›Ü\˜]Ü—İ˜[œØXİ[Û—ÚY‹˜[œØXİ[Û’Y
-NÂˆ™]\›ˆÜİ
-˜ÛÛ[X[™Ù]™[‹^[ØYYJNÂˆB‚ˆš]˜]H”ÓÓ“Øš™XİÜİ
-İš[™ÈXİ[Û‹”ÓÓ“Øš™Xİ^[ØY›ÛÛX[ˆ]][XØ]Y
-H›İÜÈ^Ù\[ÛˆÂˆİš[™È[™Ú[H\ÛÛ™šYË˜\U\›
-ÛÛ^
-H
-ÈØXİ[ÛH‚ˆ
-ÈT“[˜ÛÙ\‹™[˜ÛÙJXİ[Û‹•U‹NŠNÂˆT“ÛÛ›™Xİ[ÛˆÛÛ›™Xİ[ÛˆH
-T“ÛÛ›™Xİ[ÛŠH™]ÈT“
-[™Ú[
-K›Ü[ÛÛ›™Xİ[ÛŠ
-NÂˆÛÛ›™Xİ[Û‹œÙ]ÛÛ›™Xİ[Y[İ]
-L—Ì
-NÂˆÛÛ›™Xİ[Û‹œÙ]™XY[Y[İ]
-NÌ
-NÂˆÛÛ›™Xİ[Û‹œÙ]™\]Y\İY]Ù
-”ÔÕŠNÂˆÛÛ›™Xİ[Û‹œÙ]™\]Y\İ›Ü\JXØÙ\‹˜\XØ][Û‹ÚœÛÛˆŠNÂˆÛÛ›™Xİ[Û‹œÙ]™\]Y\İ›Ü\JÛÛ[U\H‹˜\XØ][Û‹ÚœÛÛÈÚ\œÙ]UU‹NŠNÂˆİš[™È\Ù\YÙ[H\ÛÛ™šYË\Ù\YÙ[
-ÛÛ^
-NÂˆYˆ
-\Ù\YÙ[š\Ñ[\J
-JHÂˆ\Ù\YÙ[H“[Şš[KÍKŒ
-[^È[™›ÚYˆ
-ÈZ[•‘T”ÒSÓ‹”‘SPTÑH
-ÈÈ‚ˆ
-ÈZ[“SÑS
-ÈŠH\UÙX’Ú]ÍLÍËŒÍˆÚ›ÛYKÌLŒ[Øš[HØY˜\šKÍLÍËŒÍˆÂˆBˆÛÛ›™Xİ[Û‹œÙ]™\]Y\İ›Ü\J•\Ù\‹PYÙ[‹\Ù\YÙ[
-NÂˆÛÛ›™Xİ[Û‹œÙ]™\]Y\İ›Ü\J–P›YSXYÚXËPÛY[‹˜[™›ÚY[˜]]™K]ŒˆŠNÂˆYˆ
-]][XØ]Y
-HÂˆİš[™ÈÚÙ[ˆH\ÛÛ™šYËÚÙ[ŠÛÛ^
-NÂˆYˆ
-ÚÙ[‹š\Ñ[\J
-JH›İÈ™]È\Q^Ù\[ÛŠ““ÕÔRT‘Q‹\\™Z[›Ûˆ\Z\°êKˆŠNÂˆÛÛ›™Xİ[Û‹œÙ]™\]Y\İ›Ü\J–Q]šXÙKUÚÙ[ˆ‹ÚÙ[ŠNÂˆB‚ˆHÂˆİš[™ÈÛÛÚÚYHHÛÛÚÚYSX[˜YÙ\‹™Ù][œİ[˜ÙJ
-K™Ù]ÛÛÚÚYJ\ÛÛ™šYË˜\U\›
-ÛÛ^
-JNÂˆYˆ
-ÛÛÚÚYHOH[	‰ˆXÛÛÚÚYKš[J
-Kš\Ñ[\J
-JHÂˆÛÛ›™Xİ[Û‹œÙ]™\]Y\İ›Ü\JÛÛÚÚYH‹ÛÛÚÚYJNÂˆBˆHØ]Ú
-›İØX›HYÛ›Ü™Y
-HÂˆB‚ˆÛÛ›™Xİ[Û‹œÙ]Óİ]]
-YJNÂˆ]V×H›ÙHH^[ØYÔİš[™Ê
-K™Ù]]\Êİ[™\™Ú\œÙ]Ë•U—Î
-NÂˆÛÛ›™Xİ[Û‹œÙ]š^Y[™İİ™X[Z[™Ó[ÙJ›ÙK›[™İ
-NÂˆH
-İ]]İ™X[Hİ]]HÛÛ›™Xİ[Û‹™Ù]İ]]İ™X[J
-JHÂˆİ]]Üš]J›ÙJNÂˆB‚ˆ[İ]\ÈHÛÛ›™Xİ[Û‹™Ù]™\ÜÛœÙPÛÙJ
-NÂˆ[œ]İ™X[Hİ™X[HHİ]\ÈHŒ	‰ˆİ]\ÈˆÈÛÛ›™Xİ[Û‹™Ù][œ]İ™X[J
-BˆˆÛÛ›™Xİ[Û‹™Ù]\œ›Ü”İ™X[J
-NÂˆİš[™È™\ÜÛœÙHH™XY
-İ™X[JNÂˆÛÛ›™Xİ[Û‹™\ØÛÛ›™Xİ
+    JSONObject heartbeat() throws Exception {
+        JSONObject payload = new JSONObject();
+        payload.put("app_version", "2.0.0-robot-core");
+        payload.put("android_version", Build.VERSION.RELEASE);
+        payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
+        payload.put("robot_enabled", AppConfig.robotEnabled(context));
+        return post("heartbeat", payload, true);
+    }
 
-NÂ‚ˆYˆ
-™\ÜÛœÙKš[J
-Kš\Ñ[\J
-JHÂˆ›İÈ™]È\Q^Ù\[ÛŠ‘STWÔ‘TÔÓ”ÑH‹”°ê\ÛœÙHšYHHÙ\™]\ˆ
-ˆ
-Èİ]\È
-ÈŠKˆŠNÂˆB‚ˆ”ÓÓ“Øš™Xİ›ÛİÂˆHÂˆ›ÛİH™]È”ÓÓ“Øš™Xİ
-™\ÜÛœÙJNÂˆHØ]Ú
-^Ù\[Ûˆ\œÙQ\œ›ÜŠHÂˆ›İÈ™]È\Q^Ù\[ÛŠ’S•SQÔ‘TÔÓ”ÑH‹”°ê\ÛœÙH›Ûˆ”ÓÓˆHÙ\™]\ˆ
-ˆ
-Èİ]\È
-ÈŠKˆŠNÂˆB‚ˆYˆ
-\›Ûİ›Ü›ÛÛX[Š›ÚÈ‹˜[ÙJJHÂˆ”ÓÓ“Øš™Xİ\œ›ÜˆH›Ûİ›Ü”ÓÓ“Øš™Xİ
-™\œ›ÜˆŠNÂˆİš[™ÈÛÙHH\œ›ÜˆOH[ÈTWÑT”“Ôˆˆˆ\œ›Ü‹›Üİš[™Ê˜ÛÙH‹TWÑT”“ÔˆŠNÂˆİš[™ÈY\ÜØYÙHH\œ›ÜˆOH[È‘\œ™]\ˆTKˆˆˆ\œ›Ü‹›Üİš[™Ê›Y\ÜØYÙH‹‘\œ™]\ˆTKˆŠNÂˆ›İÈ™]È\Q^Ù\[ÛŠÛÙKY\ÜØYÙJNÂˆBˆ”ÓÓ“Øš™Xİ]HH›Ûİ›Ü”ÓÓ“Øš™Xİ
-™]HŠNÂˆ™]\›ˆ]HOH[È™]È”ÓÓ“Øš™Xİ
+    JSONObject leaseCommand() throws Exception {
+        return post("lease_command", new JSONObject(), true);
+    }
 
-Hˆ]NÂˆB‚ˆš]˜]Hİ]XÈİš[™È™XY
-[œ]İ™X[Hİ™X[JH›İÜÈ^Ù\[ÛˆÂˆYˆ
-İ™X[HOH[
-H™]\›ˆˆÂˆİš[™ĞZ[\ˆ˜[YHH™]Èİš[™ĞZ[\Š
-NÂˆH
-Y™™\™Y™XY\ˆ™XY\ˆH™]ÈY™™\™Y™XY\Š™]È[œ]İ™X[T™XY\Šİ™X[Kİ[™\™Ú\œÙ]Ë•U—Î
-JJHÂˆİš[™È[™NÂˆÚ[H
+    JSONObject createCommand(JSONObject payload) throws Exception {
+        return post("create_command", payload, true);
+    }
 
-[™HH™XY\‹œ™XY[™J
-JHOH[
-H˜[YK˜\[™
-[™JNÂˆBˆ™]\›ˆ˜[YKÔİš[™Ê
-NÂˆB‚ˆš]˜]Hİ]XÈİš[™Èš[Jİš[™È˜[YK[X^
-HÂˆ™]\›ˆ˜[YK›[™İ
+    JSONObject commandStatus(String publicId) throws Exception {
+        JSONObject payload = new JSONObject();
+        payload.put("command_id", publicId);
+        return post("command_status", payload, true);
+    }
 
-HHX^È˜[YHˆ˜[YKœİXœİš[™ÊX^
-NÂˆB‚ˆİ]XÈš[˜[Û\ÜÈ\Q^Ù\[Ûˆ^[™È^Ù\[ÛˆÂˆš[˜[İš[™ÈÛÙNÂ‚ˆ\Q^Ù\[ÛŠİš[™ÈÛÙKİš[™ÈY\ÜØYÙJHÂˆİ\\ŠY\ÜØYÙJNÂˆ\Ë˜ÛÙHHÛÙNÂˆBˆBŸB
+    JSONObject sendEvent(JSONObject command, String state, String message, String transactionId) throws Exception {
+        JSONObject payload = new JSONObject();
+        payload.put("command_id", command.optString("public_id"));
+        payload.put("lease_token", command.optString("lease_token"));
+        payload.put("state", state);
+        if (message != null && !message.isEmpty()) payload.put("message", trim(message, 1800));
+        if (transactionId != null && !transactionId.isEmpty()) payload.put("operator_transaction_id", transactionId);
+        return post("command_event", payload, true);
+    }
+
+    private JSONObject post(String action, JSONObject payload, boolean authenticated) throws Exception {
+        String endpoint = AppConfig.apiUrl(context) + "?action="
+                + URLEncoder.encode(action, "UTF-8");
+        HttpURLConnection connection = (HttpURLConnection) new URL(endpoint).openConnection();
+        connection.setConnectTimeout(12_000);
+        connection.setReadTimeout(18_000);
+        connection.setRequestMethod("POST");
+        connection.setRequestProperty("Accept", "application/json");
+        connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+        String userAgent = AppConfig.userAgent(context);
+        if (userAgent.isEmpty()) {
+            userAgent = "Mozilla/5.0 (Linux; Android " + Build.VERSION.RELEASE + "; "
+                    + Build.MODEL + ") AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36";
+        }
+        connection.setRequestProperty("User-Agent", userAgent);
+        connection.setRequestProperty("X-BlueMagic-Client", "android-native-v2");
+        if (authenticated) {
+            String token = AppConfig.token(context);
+            if (token.isEmpty()) throw new ApiException("NOT_PAIRED", "Appareil non appairÃ©.");
+            connection.setRequestProperty("X-Device-Token", token);
+        }
+
+        try {
+            String cookie = CookieManager.getInstance().getCookie(AppConfig.apiUrl(context));
+            if (cookie != null && !cookie.trim().isEmpty()) {
+                connection.setRequestProperty("Cookie", cookie);
+            }
+        } catch (Throwable ignored) {
+        }
+
+        connection.setDoOutput(true);
+        byte[] body = payload.toString().getBytes(StandardCharsets.UTF_8);
+        connection.setFixedLengthStreamingMode(body.length);
+        try (OutputStream output = connection.getOutputStream()) {
+            output.write(body);
+        }
+
+        int status = connection.getResponseCode();
+        InputStream stream = status >= 200 && status < 400
+                ? connection.getInputStream()
+                : connection.getErrorStream();
+        String response = read(stream);
+        connection.disconnect();
+
+        if (response.trim().isEmpty()) {
+            throw new ApiException("EMPTY_RESPONSE", "RÃ©ponse vide du serveur (HTTP " + status + ").");
+        }
+
+        JSONObject root;
+        try {
+            root = new JSONObject(response);
+        } catch (Exception parseError) {
+            throw new ApiException("INVALID_RESPONSE", "RÃ©ponse non JSON du serveur (HTTP " + status + ").");
+        }
+
+        if (!root.optBoolean("ok", false)) {
+            JSONObject error = root.optJSONObject("error");
+            String code = error == null ? "API_ERROR" : error.optString("code", "API_ERROR");
+            String message = error == null ? "Erreur API." : error.optString("message", "Erreur API.");
+            throw new ApiException(code, message);
+        }
+        JSONObject data = root.optJSONObject("data");
+        return data == null ? new JSONObject() : data;
+    }
+
+    private static String read(InputStream stream) throws Exception {
+        if (stream == null) return "";
+        StringBuilder value = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) value.append(line);
+        }
+        return value.toString();
+    }
+
+    private static String trim(String value, int max) {
+        return value.length() <= max ? value : value.substring(0, max);
+    }
+
+    static final class ApiException extends Exception {
+        final String code;
+
+        ApiException(String code, String message) {
+            super(message);
+            this.code = code;
+        }
+    }
+}

@@ -1,1 +1,16 @@
-şº(·úk¡ø¥zX§{ßİzÿçºYOz¹¢²È¨×§‰ç^Âˆ›˜[YHˆ˜›YK[XYÚXËXÛİY›\™KX\H‹ˆ™\œÚ[ÛˆˆŒ‹ŒŒ‹ˆœš]˜]HˆYKˆ\Hˆ›[Ù[H‹ˆœØÜš\ÈˆÂˆ˜ÚXÚÈˆ››ÙHKXÚXÚÈÜ˜ËÚ[™^šœÈ	‰ˆ›ÙH\İÚ[YÜ˜][Û‹›ZœÈ‹ˆ™]ˆˆÜ˜[™Û\ˆ]ˆ‹ˆ™›ØØ[ˆÜ˜[™Û\ˆHZYÜ˜][ÛœÈ\H›YK[XYÚXÈK[ØØ[‹ˆ™œ™[[İHˆÜ˜[™Û\ˆHZYÜ˜][ÛœÈ\H›YK[XYÚXÈK\™[[İH‹ˆ™\ŞHˆÜ˜[™Û\ˆ\ŞH‚ˆKˆ™]‘\[™[˜ÚY\ÈˆÂˆÜ˜[™Û\ˆˆ—ŒŒH‚ˆBŸB
+{
+  "name": "blue-magic-cloudflare-api",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --check src/index.js && node test/integration.mjs",
+    "dev": "wrangler dev",
+    "db:local": "wrangler d1 migrations apply blue-magic --local",
+    "db:remote": "wrangler d1 migrations apply blue-magic --remote",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.28.1"
+  }
+}

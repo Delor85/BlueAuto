@@ -1,2 +1,4 @@
-şº(·úk¡ø¥zX§{ßİzÿçºYOz¹¢²È¨×§‰çHÈHÛ˜]˜TØÜš\‰Ù^ÜÙH]YH\Èpê]Ù\È[››İ0êY\È˜]˜\ØÜš\[\™˜XÙK‚‹ZÙY\Û\ÜÛY[X™\œÈÛ\ÜÈ
-ˆÂˆ[™›ÚYÙXšÚ]’˜]˜\ØÜš\[\™˜XÙHY]ÙÏÂŸB
+# Le pont JavaScript n'expose que les mÃ©thodes annotÃ©es @JavascriptInterface.
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}

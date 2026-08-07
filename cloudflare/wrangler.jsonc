@@ -1,1 +1,22 @@
-şº(·úk¡ø¥zX§{ßİzÿçºYOz¹¢²È¨×§‰ç^Âˆ‰ØÚ[XHˆ‹‹Û›ÙWÛ[Ù[\ËİÜ˜[™Û\‹ØÛÛ™šYË\ØÚ[XKšœÛÛˆ‹ˆ›˜[YHˆ˜›YK[XYÚXËX\H‹ˆ›XZ[ˆˆœÜ˜ËÚ[™^šœÈ‹ˆ˜ÛÛ\]Xš[]WÙ]HˆŒŒ‹LLÈ‹ˆ˜\ÜÙ]ÈˆÂˆ™\™XİÜHˆ‹‹ÜX›XÈ‹ˆ˜š[™[™ÈˆTÔÑUÈ‹ˆœ[—İÛÜšÙ\—Ùš\œİˆÈ‹Ø\H‹‹Ø\KÊˆ—BˆKˆ™WÙ]X˜\Ù\ÈˆÂˆÂˆ˜š[™[™Èˆ‘ˆ‹ˆ™]X˜\ÙWÛ˜[YHˆ˜›YK[XYÚXÈ‹ˆ™]X˜\ÙWÚYˆ”‘TPÑWÕÒUÑWÑUPTÑWÒQ‹ˆ›ZYÜ˜][Ûœ×Ù\ˆˆ›ZYÜ˜][ÛœÈ‚ˆBˆKˆ˜\œÈˆÂˆSÕÑQÓÔ’QÒSˆˆˆ‚ˆBŸB
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "blue-magic-api",
+  "main": "src/index.js",
+  "compatibility_date": "2026-08-07",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api", "/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "blue-magic",
+      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "ALLOWED_ORIGIN": ""
+  }
+}

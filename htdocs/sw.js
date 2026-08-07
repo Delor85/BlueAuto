@@ -1,27 +1,21 @@
-þº(·úk¡ø¥zX§{ßÝzÿçºYOz¹¢²È¨×§‰çXÛÛœÝÐPÒHH	Ø›YK[XYÚXË]Œ‹\›Ø›ÝXÛÜ™IÎÂ˜ÛÛœÝÒSHÉË‹Ú[™^š[	Ë	Ë‹ÜÝ[K˜ÜÜÉË	Ë‹Ø\šœÉË	Ë‹ÛX[šY™\ÝšœÛÛ‰×NÂ‚œÙ[‹˜Y]™[\Ý[™\Š	Ú[œÝ[	Ë]™[OˆÂˆ]™[ØZ][[
-ØXÚ\Ë›Ü[ŠÐPÒJK[ŠØXÚHOˆØXÚK˜Y[
-ÒS
-JK[Š
+const CACHE = 'blue-magic-v2-robot-core';
+const SHELL = ['./index.html', './style.css', './app.js', './manifest.json'];
 
-HOˆÙ[‹œÚÚ\ØZ][™Ê
-JJNÂŸJNÂ‚œÙ[‹˜Y]™[\Ý[™\Š	ØXÝ]˜]IË]™[OˆÂˆ]™[ØZ][[
-ØXÚ\ËšÙ^\Ê
-K[ŠÙ^\ÈOˆ›ÛZ\ÙK˜[
-ˆÙ^\Ë™š[\ŠÙ^HOˆÙ^HOOHÐPÒJK›X\
-Ù^HOˆØXÚ\Ë™[]JÙ^JJBˆ
-JK[Š
+self.addEventListener('install', event => {
+    event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
+});
 
-HOˆÙ[‹˜ÛY[Ë˜ÛZ[J
-JJNÂŸJNÂ‚œÙ[‹˜Y]™[\Ý[™\Š	Ù™]Ú	Ë]™[OˆÂˆYˆ
-]™[œ™\]Y\Ý›Y]ÙOOH	ÑÑU	ÈY]™[œ™\]Y\Ý\›œÝ\ÕÚ]
-Ù[‹›ØØ][Û‹›ÜšYÚ[ŠJH™]\›ŽÂˆ]™[œ™\ÜÛ™Ú]
-™]Ú
-]™[œ™\]Y\Ý
-K[Š™\ÜÛœÙHOˆÂˆÛÛœÝÛÜHH™\ÜÛœÙK˜ÛÛ™J
-NÂˆØXÚ\Ë›Ü[ŠÐPÒJK[ŠØXÚHOˆØXÚKœ]
-]™[œ™\]Y\ÝÛÜJJNÂˆ™]\›ˆ™\ÜÛœÙNÂˆJK˜Ø]Ú
+self.addEventListener('activate', event => {
+    event.waitUntil(caches.keys().then(keys => Promise.all(
+        keys.filter(key => key !== CACHE).map(key => caches.delete(key))
+    )).then(() => self.clients.claim()));
+});
 
-
-HOˆØXÚ\Ë›X]Ú
-]™[œ™\]Y\Ý
-JJNÂŸJNÂ
+self.addEventListener('fetch', event => {
+    if (event.request.method !== 'GET' || !event.request.url.startsWith(self.location.origin)) return;
+    event.respondWith(fetch(event.request).then(response => {
+        const copy = response.clone();
+        caches.open(CACHE).then(cache => cache.put(event.request, copy));
+        return response;
+    }).catch(() => caches.match(event.request)));
+});

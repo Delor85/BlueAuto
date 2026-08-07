@@ -1,311 +1,426 @@
-şº(·úk¡ø¥zX§{ßİzÿçºYOz¹¢²È¨×§‰çXÛÛœİTWÕ‘T”ÒSÓˆH	Ì‹ŒŒXÛİY›\™IÎÂ˜ÛÛœİT“RSSÔÕUTÈH™]ÈÙ]
-ÉÔÕPĞÑQQQ	Ë	ÑRSQ	Ë	ÕS’Ó“ÕÓ‰Ë	Ğ“ĞÒÑQ	×JNÂ˜ÛÛœİU‘S•ÔÕUTÈH™]ÈÙ]
-Âˆ	ÑPSS‘ÉË	ĞUĞRUS‘×ÔS‰Ë	ÔS—ÔÕP“RUQ	Ë	ĞUĞRUS‘×Ô‘TÕS	Ëˆ	ÔÕPĞÑQQQ	Ë	ÑRSQ	Ë	ÕS’Ó“ÕÓ‰Ë	Ğ“ĞÒÑQ	Â—JNÂ˜ÛÛœİSQÕS”ÒUSÓ”ÈHÂˆPTÑQˆ™]ÈÙ]
-ÉÑPSS‘ÉË	ÑRSQ	×JKˆPSS‘Îˆ™]ÈÙ]
-ÉĞUĞRUS‘×ÔS‰Ë	ĞUĞRUS‘×Ô‘TÕS	Ë	ÔÕPĞÑQQQ	Ë	ÑRSQ	Ë	ÕS’Ó“ÕÓ‰Ë	Ğ“ĞÒÑQ	×JKˆUĞRUS‘×ÔSˆ™]ÈÙ]
-ÉÔS—ÔÕP“RUQ	Ë	ÑRSQ	Ë	ÕS’Ó“ÕÓ‰Ë	Ğ“ĞÒÑQ	×JKˆS—ÔÕP“RUQˆ™]ÈÙ]
-ÉĞUĞRUS‘×Ô‘TÕS	Ë	ÔÕPĞÑQQQ	Ë	ÑRSQ	Ë	ÕS’Ó“ÕÓ‰Ë	Ğ“ĞÒÑQ	×JKˆUĞRUS‘×Ô‘TÕSˆ™]ÈÙ]
-ÉÔÕPĞÑQQQ	Ë	ÑRSQ	Ë	ÕS’Ó“ÕÓ‰Ë	Ğ“ĞÒÑQ	×JBŸNÂ‚™^ÜY˜][Âˆ\Ş[˜È™]Ú
-™\]Y\İ[ŠHÂˆÛÛœİ\›H™]ÈT“
-™\]Y\İ\›
-NÂˆYˆ
-\›œ]˜[YHOOH	ËØ\IÈ	‰ˆ]\›œ]˜[YKœİ\ÕÚ]
-	ËØ\KÉÊJHÂˆ™]\›ˆ[‹TÔÑUË™™]Ú
-™\]Y\İ
-NÂˆB‚ˆÛÛœİXY\œÈH\RXY\œÊ™\]Y\İ[ŠNÂˆYˆ
-™\]Y\İ›Y]ÙOOH	ÓÔSÓ”ÉÊH™]\›ˆ™]È™\ÜÛœÙJ[Üİ]\ÎˆŒXY\œßJNÂˆYˆ
-™\]Y\İ›Y]ÙOOH	ÔÔÕ	È	‰ˆ™\]Y\İ›Y]ÙOOH	ÑÑU	ÊHÂˆ™]\›ˆ˜Z[\™J	ÓQUÑÓ“ÕĞSÕÑQ	Ë	Ópê]ÙH™Y\ğêYK‰ËKXY\œÊNÂˆB‚ˆHÂˆÛÛœİXİ[ÛˆH
-\›œÙX\˜Ú\˜[\Ë™Ù]
-	ØXİ[Û‰ÊH	ÚX[	ÊKš[J
-NÂˆÛÛœİ[œ]H™\]Y\İ›Y]ÙOOH	ÔÔÕ	ÈÈ]ØZ]™XYœÛÛŠ™\]Y\İ
-HˆßNÂˆYˆ
-Xİ[ÛˆOOH	ÚX[	ÊHÂˆ]ØZ][‹‘‹œ™\\™J	ÔÑSPÕHTÈÛ›[™IÊK™š\œİ
+const API_VERSION = '2.0.0-cloudflare';
+const TERMINAL_STATES = new Set(['SUCCEEDED', 'FAILED', 'UNKNOWN', 'BLOCKED']);
+const EVENT_STATES = new Set([
+  'DIALING', 'AWAITING_PIN', 'PIN_SUBMITTED', 'AWAITING_RESULT',
+  'SUCCEEDED', 'FAILED', 'UNKNOWN', 'BLOCKED'
+]);
+const VALID_TRANSITIONS = {
+  LEASED: new Set(['DIALING', 'FAILED']),
+  DIALING: new Set(['AWAITING_PIN', 'AWAITING_RESULT', 'SUCCEEDED', 'FAILED', 'UNKNOWN', 'BLOCKED']),
+  AWAITING_PIN: new Set(['PIN_SUBMITTED', 'FAILED', 'UNKNOWN', 'BLOCKED']),
+  PIN_SUBMITTED: new Set(['AWAITING_RESULT', 'SUCCEEDED', 'FAILED', 'UNKNOWN', 'BLOCKED']),
+  AWAITING_RESULT: new Set(['SUCCEEDED', 'FAILED', 'UNKNOWN', 'BLOCKED'])
+};
 
-NÂˆ™]\›ˆİXØÙ\ÜÊÜÙ\šXÙNˆ	Ø›YK[XYÚXËX\IË™\œÚ[ÛˆTWÕ‘T”ÒSÓ‹]X˜\ÙNˆ	ÛÛ›[™IßKŒXY\œÊNÂˆBˆYˆ
-Xİ[ÛˆOOH	ÜZ\—Ù]šXÙIÊH™]\›ˆ]ØZ]Z\‘]šXÙJ[‹[œ]XY\œÊNÂ‚ˆÛÛœİ]]H]ØZ]]][XØ]J™\]Y\İ[ŠNÂˆİÚ]Ú
-Xİ[ÛŠHÂˆØ\ÙH	ÚX\™X]	Îˆ™]\›ˆ]ØZ]X\™X]
-[‹]][œ]XY\œÊNÂˆØ\ÙH	ØÜ™X]WØÛÛ[X[™	Îˆ™]\›ˆ]ØZ]Ü™X]PÛÛ[X[™
-[‹]][œ]XY\œÊNÂˆØ\ÙH	ÛX\ÙWØÛÛ[X[™	Îˆ™]\›ˆ]ØZ]X\ÙPÛÛ[X[™
-[‹]]XY\œÊNÂˆØ\ÙH	ØÛÛ[X[™Ù]™[	Îˆ™]\›ˆ]ØZ]ÛÛ[X[™]™[
-[‹]][œ]XY\œÊNÂˆØ\ÙH	ØÛÛ[X[™Üİ]\ÉÎˆ™]\›ˆ]ØZ]ÛÛ[X[™İ]\Ê[‹]][œ]XY\œÊNÂˆY˜][ˆ›İÈ™]È\Q\œ›ÜŠ	ÕS’Ó“ÕÓ—ĞPÕSÓ‰Ë	ĞXİ[ÛˆTH[˜ÛÛ›YK‰Ë
-NÂˆBˆHØ]Ú
-\œ›ÜŠHÂˆYˆ
-\œ›Üˆ[œİ[˜Ù[Ùˆ\Q\œ›ÜŠH™]\›ˆ˜Z[\™J\œ›Ü‹˜ÛÙK\œ›Ü‹›Y\ÜØYÙK\œ›Ü‹œİ]\ËXY\œÊNÂˆÛÛœÛÛK™\œ›ÜŠ	Ğ›YSXYÚXÈTIË\œ›Üˆ[œİ[˜Ù[Ùˆ\œ›ÜˆÈ\œ›Ü‹œİXÚÈˆİš[™Ê\œ›ÜŠJNÂˆ™]\›ˆ˜Z[\™J	ÒS•T“SÑT”“Ô‰Ë	Ñ\œ™]\ˆ[\›™HHÙ\™]\‹‰ËLXY\œÊNÂˆBˆBŸNÂ‚˜\Ş[˜È[˜İ[ÛˆZ\‘]šXÙJ[‹[œ]XY\œÊHÂˆÛÛœİ^XİYHİš[™Ê[‹”RT’S‘×ÔÑPÔ‘U	ÉÊNÂˆÛÛœİ›İšYYHİš[™Ê[œ]œZ\š[™×ÜÙXÜ™]	ÉÊNÂˆYˆ
-^XİY›[™İXÛÛœİ[[YQ\]X[
-^XİY›İšYY
-JHÂˆ›İÈ™]È\Q\œ›ÜŠ	ÔRT’S‘×ÑS’QQ	Ë	ÔÙXÜ™]8 &X\Z\˜YÙH[˜ÛÜœ™Xİ‰ËÊNÂˆB‚ˆÛÛœİ›ÙHH›ÙPÛÙJ[œ]››ÙWØÛÙJNÂˆÛÛœİ›ÛHHİš[™Ê[œ]œ›ÛH	ÉÊKš[J
-KÕ\\Ø\ÙJ
-NÂˆÛÛœİ[ÙHHİš[™Ê[œ]›[ÙH	ÉÊKš[J
-KÕ\\Ø\ÙJ
-NÂˆÛÛœİÛ™S[X™\ˆHÛ™J[œ]œÛ™WÛ[X™\ŠNÂˆÛÛœİ]šXÙS˜[YHHÛX[•^
-[œ]™]šXÙWÛ˜[YH	Ğ[™›ÚY	ËMŒ
-NÂˆ]\™[Hİš[™Ê[œ]œ\™[Û›ÙWØÛÙH	ÉÊKš[J
-KÕ\\Ø\ÙJ
-NÂˆYˆ
-VÉÑQIË	ÑÓIË	ÔÔÉ×Kš[˜ÛY\Ê›ÛJJH›İÈ™]È\Q\œ›ÜŠ	ÒS•SQÔ“ÓIË	Ô°íH[˜[YK‰ËŒŠNÂˆYˆ
-VÉÔ‘SSÕIË	Ô“Ğ“Õ	Ë	ÒP”’Q	×Kš[˜ÛY\Ê[ÙJJH›İÈ™]È\Q\œ›ÜŠ	ÒS•SQÓSÑIË	Ó[ÙH[˜[YK‰ËŒŠNÂˆYˆ
-›ÛHOOH	ÑQIÊH\™[H	ÉÎÂˆYˆ
-›ÛHOOH	ÑQIÈ	‰ˆ\\™[
-H›İÈ™]È\Q\œ›ÜŠ	ÔT‘S•Ô‘TURT‘Q	Ë	ÓHİ\0ê\šY]\ˆ\İØ›YØ]Ú\™K‰ËŒŠNÂˆYˆ
-\™[
-HÂˆ›ÙPÛÙJ\™[
-NÂˆÛÛœİ\™[›ÙHH]ØZ][‹‘‹œ™\\™Jˆ	ÔÑSPÕ›ÙWØÛÙH”“ÓH›Ù\ÈÒT‘H›ÙWØÛÙHHÈS‘Xİ]™HHIÂˆ
-K˜š[™
-\™[
-K™š\œİ
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    if (url.pathname !== '/api' && !url.pathname.startsWith('/api/')) {
+      return env.ASSETS.fetch(request);
+    }
 
-NÂˆYˆ
-\\™[›ÙJH›İÈ™]È\Q\œ›ÜŠ	ÔT‘S•Ó“ÕÑ“ÕS‘	Ë	Ó±dİYİ\0ê\šY]\ˆ[›İ]˜X›K‰ËŒŠNÂˆB‚ˆÛÛœİ^\İ[™ÈH]ØZ][‹‘‹œ™\\™Jˆ	ÔÑSPÕ›ÙWØÛÙK›ÛKÛ™WÛ[X™\‹\™[Û›ÙWØÛÙH”“ÓH›Ù\ÈÒT‘H›ÙWØÛÙHHÉÂˆ
-K˜š[™
-›ÙJK™š\œİ
+    const headers = apiHeaders(request, env);
+    if (request.method === 'OPTIONS') return new Response(null, {status: 204, headers});
+    if (request.method !== 'POST' && request.method !== 'GET') {
+      return failure('METHOD_NOT_ALLOWED', 'MÃ©thode HTTP refusÃ©e.', 405, headers);
+    }
 
-NÂˆYˆ
-^\İ[™ÊHÂˆÛÛœİØ[YHH^\İ[™Ëœ›ÛHOOH›ÛH	‰ˆ^\İ[™ËœÛ™WÛ[X™\ˆOOHÛ™S[X™\‚ˆ	‰ˆİš[™Ê^\İ[™Ëœ\™[Û›ÙWØÛÙH	ÉÊHOOH\™[ÂˆYˆ
-\Ø[YJH›İÈ™]È\Q\œ›ÜŠ	Ó“ÑWÒQS•UWĞÓÓ‘“PÕ	Ë	ĞÙH±dİY^\İH]™XÈ[™H]]™HY[]0êK‰ËJNÂˆH[ÙHÂˆÛÛœİÛ™SİÛ™\ˆH]ØZ][‹‘‹œ™\\™J	ÔÑSPÕ›ÙWØÛÙH”“ÓH›Ù\ÈÒT‘HÛ™WÛ[X™\ˆHÉÊBˆ˜š[™
-Û™S[X™\ŠK™š\œİ
+    try {
+      const action = (url.searchParams.get('action') || 'health').trim();
+      const input = request.method === 'POST' ? await readJson(request) : {};
+      if (action === 'health') {
+        await env.DB.prepare('SELECT 1 AS online').first();
+        return success({service: 'blue-magic-api', version: API_VERSION, database: 'online'}, 200, headers);
+      }
+      if (action === 'pair_device') return await pairDevice(env, input, headers);
 
-NÂˆYˆ
-Û™SİÛ™\ŠH›İÈ™]È\Q\œ›ÜŠ	ÔÓ‘WĞS‘PQWÕTÑQ	Ë	ĞÙH[pê\›È\\Y[0êZ°è0è[ˆ]]™H±dİY‰ËJNÂˆ]ØZ][‹‘‹œ™\\™Jˆ	ÒS”ÑT•S•È›Ù\Ê›ÙWØÛÙK›ÛKÛ™WÛ[X™\‹\™[Û›ÙWØÛÙJHSQTÊËËËÊIÂˆ
-K˜š[™
-›ÙK›ÛKÛ™S[X™\‹\™[[
-Kœ[Š
-NÂˆB‚ˆÛÛœİ]šXÙRYHÜ\Ëœ˜[™ÛUURQ
+      const auth = await authenticate(request, env);
+      switch (action) {
+        case 'heartbeat': return await heartbeat(env, auth, input, headers);
+        case 'create_command': return await createCommand(env, auth, input, headers);
+        case 'lease_command': return await leaseCommand(env, auth, headers);
+        case 'command_event': return await commandEvent(env, auth, input, headers);
+        case 'command_status': return await commandStatus(env, auth, input, headers);
+        default: throw new ApiError('UNKNOWN_ACTION', 'Action API inconnue.', 404);
+      }
+    } catch (error) {
+      if (error instanceof ApiError) return failure(error.code, error.message, error.status, headers);
+      console.error('BlueMagic API', error instanceof Error ? error.stack : String(error));
+      return failure('INTERNAL_ERROR', 'Erreur interne du serveur.', 500, headers);
+    }
+  }
+};
 
-NÂˆÛÛœİÚÙ[ˆH˜[™ÛR^
-ÌŠNÂˆ]ØZ][‹‘‹œ™\\™Jˆ	ÒS”ÑT•S•È]šXÙ\Ê]šXÙWÚY›ÙWØÛÙK[ÙK]šXÙWÛ˜[YKÚÙ[—Ú\Ú\İÜÙY[—Ø]
-H	Âˆ
-È•SQTÊËËËËËİ™[YJ	ÉVKI[KIY	R‰SN‰Y–‰Ë	Û›İÉÊJH‚ˆ
-K˜š[™
-]šXÙRY›ÙK[ÙK]šXÙS˜[YK]ØZ]ÚLMŠÚÙ[ŠJKœ[Š
-NÂ‚ˆ™]\›ˆİXØÙ\ÜÊÙ]šXÙWÚYˆ]šXÙRY]šXÙWİÚÙ[ˆÚÙ[‹›ÙWØÛÙNˆ›ÙK›ÛK[Ù_KŒKXY\œÊNÂŸB‚˜\Ş[˜È[˜İ[Ûˆ]][XØ]J™\]Y\İ[ŠHÂˆÛÛœİÚÙ[ˆHİš[™Ê™\]Y\İšXY\œË™Ù]
-	ÖQ]šXÙKUÚÙ[‰ÊH	ÉÊKš[J
-NÂˆYˆ
-]ÚÙ[ŠH›İÈ™]È\Q\œ›ÜŠ	ĞUUÔ‘TURT‘Q	Ë	Ò™]Ûˆ\\™Z[™\]Z\Ë‰ËJNÂˆÛÛœİ]]H]ØZ][‹‘‹œ™\\™Jˆ	ÔÑSPÕ™]šXÙWÚY››ÙWØÛÙK›[ÙK˜Xİ]™HTÈ]šXÙWØXİ]™K	Âˆ
-È	Û‹œ›ÛK‹œÛ™WÛ[X™\‹‹œ\™[Û›ÙWØÛÙK‹˜Xİ]™HTÈ›ÙWØXİ]™H	Âˆ
-È	Ñ”“ÓH]šXÙ\È“ÒSˆ›Ù\ÈˆÓˆ‹››ÙWØÛÙHH››ÙWØÛÙH	Âˆ
-È	ÕÒT‘HÚÙ[—Ú\ÚHÈSRUIÂˆ
-K˜š[™
-]ØZ]ÚLMŠÚÙ[ŠJK™š\œİ
+async function pairDevice(env, input, headers) {
+  const expected = String(env.PAIRING_SECRET || '');
+  const provided = String(input.pairing_secret || '');
+  if (expected.length < 24 || !constantTimeEqual(expected, provided)) {
+    throw new ApiError('PAIRING_DENIED', 'Secret dâ€™appairage incorrect.', 403);
+  }
 
-NÂˆYˆ
-X]]X]]™]šXÙWØXİ]™HX]]››ÙWØXİ]™JHÂˆ›İÈ™]È\Q\œ›ÜŠ	ĞUUÒS•SQ	Ë	Ğ\\™Z[[˜ÛÛ›HİH0ê\ØXİ]°êK‰ËJNÂˆBˆ™]\›ˆ]]ÂŸB‚˜\Ş[˜È[˜İ[ÛˆX\™X]
-[‹]][œ]XY\œÊHÂˆ]ØZ][‹‘‹œ™\\™Jˆ•TUH]šXÙ\ÈÑU\İÜÙY[—Ø]Hİ™[YJ	ÉVKI[KIY	R‰SN‰Y–‰Ë	Û›İÉÊK›Ø›İÙ[˜X›YHË‚ˆ
-È	Ø\İ™\œÚ[ÛˆHË[™›ÚYİ™\œÚ[ÛˆHË]šXÙWÛ[Ù[HÈÒT‘H]šXÙWÚYHÉÂˆ
-K˜š[™
-ˆ[œ]œ›Ø›İÙ[˜X›YÈHˆˆÛX[•^
-[œ]˜\İ™\œÚ[Û‹
-KˆÛX[•^
-[œ]˜[™›ÚYİ™\œÚ[Û‹
-KˆÛX[•^
-[œ]™]šXÙWÛ[Ù[MŒ
-Kˆ]]™]šXÙWÚYˆ
-Kœ[Š
-NÂˆ™]\›ˆİXØÙ\ÜÊÜÙ\™\—İ[YNˆ™]È]J
-KÒTÓÔİš[™Ê
-K›ÙWØÛÙNˆ]]››ÙWØÛÙ_KŒXY\œÊNÂŸB‚˜\Ş[˜È[˜İ[ÛˆÜ™X]PÛÛ[X[™
-[‹]][œ]XY\œÊHÂˆÛÛœİ™\]Y\İ\HHİš[™Ê[œ]œ™\]Y\İİ\H	ÉÊKš[J
-KÕ\\Ø\ÙJ
-NÂˆÛÛœİÛY[YHİš[™Ê[œ]˜ÛY[Ü™\]Y\İÚY	ÉÊKš[J
-NÂˆYˆ
-K×–ĞKV˜K^ŒNWËW^ÌM‹IË\İ
-ÛY[Y
-JHÂˆ›İÈ™]È\Q\œ›ÜŠ	ÒS•SQÔ‘TUQTÕÒQ	Ë	ĞÛ0êH[KYİX›Ûˆ[˜[YK‰ËŒŠNÂˆBˆÛÛœİ™]š[İ\ÈH]ØZ][‹‘‹œ™\\™Jˆ	ÔÑSPÕX›X×ÚYİ]KÜ™X]YØ]”“ÓHÛÛ[X[™È	Âˆ
-È	ÕÒT‘H™\]Y\İ\—Û›ÙWØÛÙHHÈS‘ÛY[Ü™\]Y\İÚYHÉÂˆ
-K˜š[™
-]]››ÙWØÛÙKÛY[Y
-K™š\œİ
+  const node = nodeCode(input.node_code);
+  const role = String(input.role || '').trim().toUpperCase();
+  const mode = String(input.mode || '').trim().toUpperCase();
+  const phoneNumber = phone(input.phone_number);
+  const deviceName = cleanText(input.device_name || 'Android', 160);
+  let parent = String(input.parent_node_code || '').trim().toUpperCase();
+  if (!['DAE', 'DSM', 'POS'].includes(role)) throw new ApiError('INVALID_ROLE', 'RÃ´le invalide.', 422);
+  if (!['REMOTE', 'ROBOT', 'HYBRID'].includes(mode)) throw new ApiError('INVALID_MODE', 'Mode invalide.', 422);
+  if (role === 'DAE') parent = '';
+  if (role !== 'DAE' && !parent) throw new ApiError('PARENT_REQUIRED', 'Le supÃ©rieur est obligatoire.', 422);
+  if (parent) {
+    nodeCode(parent);
+    const parentNode = await env.DB.prepare(
+      'SELECT node_code FROM nodes WHERE node_code = ? AND active = 1'
+    ).bind(parent).first();
+    if (!parentNode) throw new ApiError('PARENT_NOT_FOUND', 'NÅ“ud supÃ©rieur introuvable.', 422);
+  }
 
-NÂˆYˆ
-™]š[İ\ÊH™]\›ˆİXØÙ\ÜÊØÛÛ[X[™ˆ™]š[İ\Ë\XØ]NˆY_KŒXY\œÊNÂ‚ˆÛÛœİ˜[Y\ÈH]ØZ]™\ÛÛ™PÛÛ[X[™
-[‹]][œ]™\]Y\İ\JNÂˆÛÛœİX›XÒYHÜ\Ëœ˜[™ÛUURQ
+  const existing = await env.DB.prepare(
+    'SELECT node_code, role, phone_number, parent_node_code FROM nodes WHERE node_code = ?'
+  ).bind(node).first();
+  if (existing) {
+    const same = existing.role === role && existing.phone_number === phoneNumber
+      && String(existing.parent_node_code || '') === parent;
+    if (!same) throw new ApiError('NODE_IDENTITY_CONFLICT', 'Ce nÅ“ud existe avec une autre identitÃ©.', 409);
+  } else {
+    const phoneOwner = await env.DB.prepare('SELECT node_code FROM nodes WHERE phone_number = ?')
+      .bind(phoneNumber).first();
+    if (phoneOwner) throw new ApiError('PHONE_ALREADY_USED', 'Ce numÃ©ro appartient dÃ©jÃ  Ã  un autre nÅ“ud.', 409);
+    await env.DB.prepare(
+      'INSERT INTO nodes(node_code, role, phone_number, parent_node_code) VALUES(?, ?, ?, ?)'
+    ).bind(node, role, phoneNumber, parent || null).run();
+  }
 
-NÂˆHÂˆ]ØZ][‹‘‹˜˜]Ú
-Âˆ[‹‘‹œ™\\™Jˆ	ÒS”ÑT•S•ÈÛÛ[X[™ÊX›X×ÚYÛY[Ü™\]Y\İÚY™\]Y\İ\—Û›ÙWØÛÙK^Xİ]Ü—Û›ÙWØÛÙK	Âˆ
-È	İ\™Ù]Û›ÙWØÛÙKÜ\˜][Û‹\™Ù]ÜÛ™K[[İ[\ÜÙØÛÙK™\]Z\™\×Ü[ŠH	Âˆ
-È	ÕSQTÊËËËËËËËËËÊIÂˆ
-K˜š[™
-ˆX›XÒYÛY[Y]]››ÙWØÛÙK˜[Y\Ë™^Xİ]Ü‹˜[Y\Ë\™Ù]›ÙKˆ˜[Y\Ë›Ü\˜][Û‹˜[Y\Ë\™Ù]Û™K˜[Y\Ë˜[[İ[˜[Y\Ë\ÜÙ˜[Y\Ëœ™\]Z\™\Ô[‚ˆ
-Kˆ[‹‘‹œ™\\™Jˆ’S”ÑT•S•ÈÛÛ[X[™Ù]™[ÊÛÛ[X[™ÚY]šXÙWÚYİ]KY\ÜØYÙJH‚ˆ
-È”ÑSPÕYË	ÔS‘S‘ÉË	ĞÛÛ[X[™HÜ°êpêYH]ÛÛ°í0êYH\ˆHÙ\™]\‹‰È‚ˆ
-È	Ñ”“ÓHÛÛ[X[™ÈÒT‘HX›X×ÚYHÉÂˆ
-K˜š[™
-]]™]šXÙWÚYX›XÒY
-BˆJNÂˆHØ]Ú
-\œ›ÜŠHÂˆÛÛœİ\XØ]HH]ØZ][‹‘‹œ™\\™Jˆ	ÔÑSPÕX›X×ÚYİ]KÜ™X]YØ]”“ÓHÛÛ[X[™È	Âˆ
-È	ÕÒT‘H™\]Y\İ\—Û›ÙWØÛÙHHÈS‘ÛY[Ü™\]Y\İÚYHÉÂˆ
-K˜š[™
-]]››ÙWØÛÙKÛY[Y
-K™š\œİ
+  const deviceId = crypto.randomUUID();
+  const token = randomHex(32);
+  await env.DB.prepare(
+    'INSERT INTO devices(device_id, node_code, mode, device_name, token_hash, last_seen_at) '
+    + "VALUES(?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+  ).bind(deviceId, node, mode, deviceName, await sha256(token)).run();
 
-NÂˆYˆ
-\XØ]JH™]\›ˆİXØÙ\ÜÊØÛÛ[X[™ˆ\XØ]K\XØ]NˆY_KŒXY\œÊNÂˆ›İÈ\œ›ÜÂˆBˆ™]\›ˆİXØÙ\ÜÊÂˆÛÛ[X[™ˆÜX›X×ÚYˆX›XÒYİ]Nˆ	ÔS‘S‘ÉË^Xİ]Ü—Û›ÙWØÛÙNˆ˜[Y\Ë™^Xİ]ÜŸKˆ\XØ]Nˆ˜[ÙBˆKŒKXY\œÊNÂŸB‚˜\Ş[˜È[˜İ[Ûˆ™\ÛÛ™PÛÛ[X[™
-[‹]][œ]™\]Y\İ\JHÂˆÛÛœİ™\]Y\İ\ˆH]]››ÙWØÛÙNÂˆYˆ
-™\]Y\İ\HOOH	Ô‘TUQTÕÔÕTIÊHÂˆYˆ
-VÉÑÓIË	ÔÔÉ×Kš[˜ÛY\Ê]]œ›ÛJHX]]œ\™[Û›ÙWØÛÙJHÂˆ›İÈ™]È\Q\œ›ÜŠ	Ô‘TUQTÕÓ“ÕĞSÕÑQ	Ë	ĞÙHÛÛ\H™H]]\È[X[™\ˆ[™H™XÚ\™ÙHİ\0ê\šY]\™K‰ËÊNÂˆBˆÛÛœİ˜[YHH[[İ[
-[œ]˜[[İ[
-NÂˆ™]\›ˆÂˆ^Xİ]Üˆ]]œ\™[Û›ÙWØÛÙK\™Ù]›ÙNˆ™\]Y\İ\‹\™Ù]Û™Nˆ]]œÛ™WÛ[X™\‹ˆ[[İ[ˆ˜[YKÜ\˜][Ûˆ	ÑTÕ’P•USÓ—ÕS”Ñ‘T‰Ëˆ\ÜÙˆ
-ML
-ŒŠ‰Ø]]œÛ™WÛ[X™\ŸJ‰İ˜[Y_HØ™\]Z\™\Ô[ˆBˆNÂˆBˆYˆ
-™\]Y\İ\HOOH	ÔÕTWĞÒS	ÊHÂˆYˆ
-VÉÑQIË	ÑÓI×Kš[˜ÛY\Ê]]œ›ÛJJHÂˆ›İÈ™]È\Q\œ›ÜŠ	Ô‘TUQTÕÓ“ÕĞSÕÑQ	Ë	ÔÙ][[ˆQHİHÓH]]\›İš\Ú[Û›™\ˆ[ˆ[™˜[‰ËÊNÂˆBˆÛÛœİ\™Ù]›ÙHH›ÙPÛÙJ[œ]\™Ù]Û›ÙWØÛÙJNÂˆÛÛœİÚ[H]ØZ][‹‘‹œ™\\™Jˆ	ÔÑSPÕ›ÙWØÛÙKÛ™WÛ[X™\ˆ”“ÓH›Ù\È	Âˆ
-È	ÕÒT‘H›ÙWØÛÙHHÈS‘\™[Û›ÙWØÛÙHHÈS‘Xİ]™HHIÂˆ
-K˜š[™
-\™Ù]›ÙK™\]Y\İ\ŠK™š\œİ
+  return success({device_id: deviceId, device_token: token, node_code: node, role, mode}, 201, headers);
+}
 
-NÂˆYˆ
-XÚ[
-H›İÈ™]È\Q\œ›ÜŠ	ĞÒSÓ“ÕÑ“ÕS‘	Ë	ĞÙHÛÛ\H¸ &Y\İ\È[ˆ[™˜[\™XİXİY‹‰ËŒŠNÂˆÛÛœİ˜[YHH[[İ[
-[œ]˜[[İ[
-NÂˆ™]\›ˆÂˆ^Xİ]Üˆ™\]Y\İ\‹\™Ù]›ÙK\™Ù]Û™NˆÚ[œÛ™WÛ[X™\‹[[İ[ˆ˜[YKˆÜ\˜][Ûˆ	ÑTÕ’P•USÓ—ÕS”Ñ‘T‰Ë\ÜÙˆ
-ML
-ŒŠ‰ØÚ[œÛ™WÛ[X™\ŸJ‰İ˜[Y_HØ™\]Z\™\Ô[ˆBˆNÂˆBˆYˆ
-™\]Y\İ\HOOH	Ô‘URSÔĞSIÊHÂˆYˆ
-]]œ›ÛHOOH	ÔÔÉÊH›İÈ™]È\Q\œ›ÜŠ	Ô‘TUQTÕÓ“ÕĞSÕÑQ	Ë	Õ™[H0ê]Z[°ê\Ù\°êYH]^ÔË‰ËÊNÂˆÛÛœİ\™Ù]Û™HHÛ™J[œ]\™Ù]ÜÛ™JNÂˆÛÛœİ˜[YHH[[İ[
-[œ]˜[[İ[
-NÂˆ™]\›ˆÂˆ^Xİ]Üˆ™\]Y\İ\‹\™Ù]›ÙNˆ[\™Ù]Û™K[[İ[ˆ˜[YKˆÜ\˜][Ûˆ	Ô‘URSÕS”Ñ‘T‰Ë\ÜÙˆ
-ML
-ŒJ‰İ\™Ù]Û™_J‰İ˜[Y_HØ™\]Z\™\Ô[ˆBˆNÂˆBˆYˆ
-™\]Y\İ\HOOH	ÕTÕÓ•SP‘T‰ÊHÂˆ™]\›ˆÂˆ^Xİ]Üˆ™\]Y\İ\‹\™Ù]›ÙNˆ[\™Ù]Û™Nˆ[[[İ[ˆ[ˆÜ\˜][Ûˆ	ÕTÕÓ•SP‘T‰Ë\ÜÙˆ	ÊJŒÊŒÈÉË™\]Z\™\Ô[ˆˆNÂˆBˆ›İÈ™]È\Q\œ›ÜŠ	ÒS•SQÔ‘TUQTÕÕTIË	Õ\HHÛÛ[X[™H[˜ÛÛ›K‰ËŒŠNÂŸB‚˜\Ş[˜È[˜İ[ÛˆX\ÙPÛÛ[X[™
-[‹]]XY\œÊHÂˆYˆ
-VÉÔ“Ğ“Õ	Ë	ÒP”’Q	×Kš[˜ÛY\Ê]]›[ÙJJHÂˆ›İÈ™]È\Q\œ›ÜŠ	Ó“ÕĞWÔ“Ğ“Õ	Ë	ĞÙ]\\™Z[¸ &Y\İ\È]]Üš\ğêH0èİY\ˆ\ÈÛÛ[X[™\Ë‰ËÊNÂˆB‚ˆ]ØZ][‹‘‹œ™\\™Jˆ•TUHÛÛ[X[™ÈÑUİ]HHĞTÑHÒSˆ][\X^Ø][\ÈSˆ	ÔS‘S‘ÉÈSÑH	ÑRSQ	ÈS‘‚ˆ
-Èœ™\İ[ÛY\ÜØYÙHHĞTÑHÒSˆ][\X^Ø][\ÈSˆ	ÓX\ÙH^\°êH]˜[ÛÛ\ÜÚ][Û‹‰È‚ˆ
-È‘SÑH	Ô›Ø›İ[™\ÜÛšX›H\°êÈ\ÚY]\œÈX\Ù\Ë‰ÈS‘X\ÙWİÚÙ[—Ú\ÚH•SX\ÙYİ[[H•S‚ˆ
-È˜ÛÛ\]YØ]HĞTÑHÒSˆ][\HX^Ø][\ÈSˆİ™[YJ	ÉVKI[KIY	R‰SN‰Y–‰Ë	Û›İÉÊHSÑHÛÛ\]YØ]S‘‚ˆ
-È\]YØ]Hİ™[YJ	ÉVKI[KIY	R‰SN‰Y–‰Ë	Û›İÉÊH‚ˆ
-È•ÒT‘H^Xİ]Ü—Û›ÙWØÛÙHHÈS‘İ]HH	ÓPTÑQ	ÈS‘X\ÙYİ[[İ™[YJ	ÉVKI[KIY	R‰SN‰Y–‰Ë	Û›İÉÊH‚ˆ
-K˜š[™
-]]››ÙWØÛÙJKœ[Š
-NÂ‚ˆÛÛœİX\ÙUÚÙ[ˆH˜[™ÛR^
-
-NÂˆÛÛœİÛÛ[X[™H]ØZ][‹‘‹œ™\\™Jˆ•TUHÛÛ[X[™ÈÑUİ]HH	ÓPTÑQ	Ë][\H][\
-ÈKX\ÙWİÚÙ[—Ú\ÚHË‚ˆ
-È›X\ÙYİ[[Hİ™[YJ	ÉVKI[KIY	R‰SN‰Y–‰Ë	Û›İÉË	ÊÌLŒÙXÛÛ™ÉÊK‚ˆ
-È\]YØ]Hİ™[YJ	ÉVKI[KIY	R‰SN‰Y–‰Ë	Û›İÉÊH‚ˆ
-È•ÒT‘HYH
-ÑSPÕY”“ÓHÛÛ[X[™ÈÒT‘H^Xİ]Ü—Û›ÙWØÛÙHHÈS‘İ]HH	ÔS‘S‘ÉÈÔ‘Tˆ–HYSRUJH‚ˆ
-ÈS‘İ]HH	ÔS‘S‘ÉÈ‘UT“’S‘ÈYX›X×ÚYÜ\˜][Û‹\™Ù]ÜÛ™K[[İ[\ÜÙØÛÙK™\]Z\™\×Ü[ˆ‚ˆ
-K˜š[™
-]ØZ]ÚLMŠX\ÙUÚÙ[ŠK]]››ÙWØÛÙJK™š\œİ
+async function authenticate(request, env) {
+  const token = String(request.headers.get('X-Device-Token') || '').trim();
+  if (!token) throw new ApiError('AUTH_REQUIRED', 'Jeton appareil requis.', 401);
+  const auth = await env.DB.prepare(
+    'SELECT d.device_id, d.node_code, d.mode, d.active AS device_active, '
+    + 'n.role, n.phone_number, n.parent_node_code, n.active AS node_active '
+    + 'FROM devices d JOIN nodes n ON n.node_code = d.node_code '
+    + 'WHERE d.token_hash = ? LIMIT 1'
+  ).bind(await sha256(token)).first();
+  if (!auth || !auth.device_active || !auth.node_active) {
+    throw new ApiError('AUTH_INVALID', 'Appareil inconnu ou dÃ©sactivÃ©.', 401);
+  }
+  return auth;
+}
 
-NÂˆYˆ
-XÛÛ[X[™
-H™]\›ˆİXØÙ\ÜÊØ]˜Z[X›Nˆ˜[Ù_KŒXY\œÊNÂ‚ˆ]ØZ][‹‘‹œ™\\™Jˆ’S”ÑT•S•ÈÛÛ[X[™Ù]™[ÊÛÛ[X[™ÚY]šXÙWÚYİ]KY\ÜØYÙJHSQTÊËË	ÓPTÑQ	Ë	ĞÛÛ[X[™H°ê\Ù\°êYH]H›Ø›İ‰ÊH‚ˆ
-K˜š[™
-ÛÛ[X[™šY]]™]šXÙWÚY
-Kœ[Š
-NÂˆ™]\›ˆİXØÙ\ÜÊÂˆ]˜Z[X›NˆYKˆÛÛ[X[™ˆÂˆX›X×ÚYˆÛÛ[X[™œX›X×ÚYˆX\ÙWİÚÙ[ˆX\ÙUÚÙ[‹ˆÜ\˜][ÛˆÛÛ[X[™›Ü\˜][Û‹ˆ\™Ù]ÜÛ™NˆÛÛ[X[™\™Ù]ÜÛ™Kˆ[[İ[ˆÛÛ[X[™˜[[İ[ˆ\ÜÙØÛÙNˆÛÛ[X[™\ÜÙØÛÙKˆ™\]Z\™\×Ü[ˆ›ÛÛX[ŠÛÛ[X[™œ™\]Z\™\×Ü[ŠBˆBˆKŒXY\œÊNÂŸB‚˜\Ş[˜È[˜İ[ÛˆÛÛ[X[™]™[
-[‹]][œ]XY\œÊHÂˆYˆ
-VÉÔ“Ğ“Õ	Ë	ÒP”’Q	×Kš[˜ÛY\Ê]]›[ÙJJHÂˆ›İÈ™]È\Q\œ›ÜŠ	Ó“ÕĞWÔ“Ğ“Õ	Ë	ğâ]°ê[™[Y[°ê\Ù\°êH]H›Ø›İ^0êXİ]]\‹‰ËÊNÂˆBˆÛÛœİX›XÒYHİš[™Ê[œ]˜ÛÛ[X[™ÚY	ÉÊKš[J
-NÂˆÛÛœİX\ÙUÚÙ[ˆHİš[™Ê[œ]›X\ÙWİÚÙ[ˆ	ÉÊKš[J
-NÂˆÛÛœİ™^İ]HHİš[™Ê[œ]œİ]H	ÉÊKš[J
-KÕ\\Ø\ÙJ
-NÂˆYˆ
-QU‘S•ÔÕUTËš\Ê™^İ]JJH›İÈ™]È\Q\œ›ÜŠ	ÒS•SQÔÕUIË	ğâ]]HÛÛ[X[™H[˜[YK‰ËŒŠNÂ‚ˆÛÛœİÛÛ[X[™H]ØZ][‹‘‹œ™\\™J	ÔÑSPÕ
-ˆ”“ÓHÛÛ[X[™ÈÒT‘HX›X×ÚYHÉÊK˜š[™
-X›XÒY
-K™š\œİ
+async function heartbeat(env, auth, input, headers) {
+  await env.DB.prepare(
+    "UPDATE devices SET last_seen_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), robot_enabled = ?, "
+    + 'app_version = ?, android_version = ?, device_model = ? WHERE device_id = ?'
+  ).bind(
+    input.robot_enabled ? 1 : 0,
+    cleanText(input.app_version, 40),
+    cleanText(input.android_version, 40),
+    cleanText(input.device_model, 160),
+    auth.device_id
+  ).run();
+  return success({server_time: new Date().toISOString(), node_code: auth.node_code}, 200, headers);
+}
 
-NÂˆYˆ
-XÛÛ[X[™ÛÛ[X[™™^Xİ]Ü—Û›ÙWØÛÙHOOH]]››ÙWØÛÙJHÂˆ›İÈ™]È\Q\œ›ÜŠ	ĞÓÓSPS‘Ó“ÕÑ“ÕS‘	Ë	ĞÛÛ[X[™H[›İ]˜X›Hİ\ˆÙH›Ø›İ‰Ë
-NÂˆBˆYˆ
-XÛÛ[X[™›X\ÙWİÚÙ[—Ú\ÚÛÛ[X[™›X\ÙWİÚÙ[—Ú\ÚOOH]ØZ]ÚLMŠX\ÙUÚÙ[ŠJHÂˆ›İÈ™]È\Q\œ›ÜŠ	ÓPTÑWÒS•SQ	Ë	ÓX\ÙH[˜[YHİH^\°êK‰ËJNÂˆBˆYˆ
-T“RSSÔÕUTËš\ÊÛÛ[X[™œİ]JJHÂˆ™]\›ˆİXØÙ\ÜÊØÛÛ[X[™ˆÛÛ[X[™šY]ÊÛÛ[X[™
-K[™XYWİ\›Z[˜[ˆY_KŒXY\œÊNÂˆBˆYˆ
-USQÕS”ÒUSÓ”ÖØÛÛ[X[™œİ]WOËš\Ê™^İ]JJHÂˆ›İÈ™]È\Q\œ›ÜŠ	ÒS•SQÕS”ÒUSÓ‰Ë˜[œÚ][Ûˆ	ØÛÛ[X[™œİ]_H™\œÈ	Û™^İ]_H™Y\ğêYK˜JNÂˆB‚ˆÛÛœİY\ÜØYÙHHÛX[•^
-[œ]›Y\ÜØYÙKŒ
-NÂˆÛÛœİİ\YYÜ\˜]Ü’YHİš[™Ê[œ]›Ü\˜]Ü—İ˜[œØXİ[Û—ÚY	ÉÊKš[J
-NÂˆÛÛœİÜ\˜]Ü’YH×–ĞKV˜K^ŒNWËW^Í‹IË\İ
-İ\YYÜ\˜]Ü’Y
-HÈİ\YYÜ\˜]Ü’Yˆ[ÂˆÛÛœİ\›Z[˜[HT“RSSÔÕUTËš\Ê™^İ]JNÂˆÛÛœİ™\İ[ÈH]ØZ][‹‘‹˜˜]Ú
-Âˆ[‹‘‹œ™\\™Jˆ	ÕTUHÛÛ[X[™ÈÑUİ]HHË™\İ[ÛY\ÜØYÙHHËÜ\˜]Ü—İ˜[œØXİ[Û—ÚYHË	Âˆ
-Èœİ\YØ]HĞTÑHÒSˆÈH	ÑPSS‘ÉÈS‘İ\YØ]TÈ•SSˆİ™[YJ	ÉVKI[KIY	R‰SN‰Y–‰Ë	Û›İÉÊHSÑHİ\YØ]S‘‚ˆ
-È˜ÛÛ\]YØ]HĞTÑHÒSˆÈHHSˆİ™[YJ	ÉVKI[KIY	R‰SN‰Y–‰Ë	Û›İÉÊHSÑHÛÛ\]YØ]S‘‚ˆ
-È	ÛX\ÙYİ[[HĞTÑHÒSˆÈHHSˆ•SSÑHX\ÙYİ[[S‘	Âˆ
-È\]YØ]Hİ™[YJ	ÉVKI[KIY	R‰SN‰Y–‰Ë	Û›İÉÊH‚ˆ
-È	ÕÒT‘HYHÈS‘İ]HHÉÂˆ
-K˜š[™
-™^İ]KY\ÜØYÙKÜ\˜]Ü’Y™^İ]K\›Z[˜[ÈHˆ\›Z[˜[ÈHˆÛÛ[X[™šYÛÛ[X[™œİ]JKˆ[‹‘‹œ™\\™Jˆ	ÒS”ÑT•S•ÈÛÛ[X[™Ù]™[ÊÛÛ[X[™ÚY]šXÙWÚYİ]KY\ÜØYÙJHSQTÊËËËÊIÂˆ
-K˜š[™
-ÛÛ[X[™šY]]™]šXÙWÚY™^İ]KY\ÜØYÙJBˆJNÂˆYˆ
-\™\İ[ÖÌK›Y]OË˜Ú[™Ù\ÊH›İÈ™]È\Q\œ›ÜŠ	ĞÓÓSPS‘ÔPÑIË	ÓHÛÛ[X[™HHÚ[™ğêNÈ™[\Ù^ˆÛÛˆ0ê]]‰ËJNÂˆ™]\›ˆİXØÙ\ÜÊØÛÛ[X[™ˆÜX›X×ÚYˆX›XÒYİ]Nˆ™^İ]_K[™XYWİ\›Z[˜[ˆ˜[Ù_KŒXY\œÊNÂŸB‚˜\Ş[˜È[˜İ[ÛˆÛÛ[X[™İ]\Ê[‹]][œ]XY\œÊHÂˆÛÛœİX›XÒYHİš[™Ê[œ]˜ÛÛ[X[™ÚY	ÉÊKš[J
-NÂˆÛÛœİÛÛ[X[™H]ØZ][‹‘‹œ™\\™Jˆ	ÔÑSPÕX›X×ÚY™\]Y\İ\—Û›ÙWØÛÙK^Xİ]Ü—Û›ÙWØÛÙK\™Ù]Û›ÙWØÛÙKÜ\˜][Û‹\™Ù]ÜÛ™K	Âˆ
-È	Ø[[İ[İ]K™\İ[ÛY\ÜØYÙKÜ\˜]Ü—İ˜[œØXİ[Û—ÚYÜ™X]YØ]İ\YØ]ÛÛ\]YØ]\]YØ]	Âˆ
-È	Ñ”“ÓHÛÛ[X[™ÈÒT‘HX›X×ÚYHÈS‘
-™\]Y\İ\—Û›ÙWØÛÙHHÈÔˆ^Xİ]Ü—Û›ÙWØÛÙHHÊIÂˆ
-K˜š[™
-X›XÒY]]››ÙWØÛÙK]]››ÙWØÛÙJK™š\œİ
+async function createCommand(env, auth, input, headers) {
+  const requestType = String(input.request_type || '').trim().toUpperCase();
+  const clientId = String(input.client_request_id || '').trim();
+  if (!/^[A-Za-z0-9_-]{16,80}$/.test(clientId)) {
+    throw new ApiError('INVALID_REQUEST_ID', 'ClÃ© anti-doublon invalide.', 422);
+  }
+  const previous = await env.DB.prepare(
+    'SELECT public_id, state, created_at FROM commands '
+    + 'WHERE requester_node_code = ? AND client_request_id = ?'
+  ).bind(auth.node_code, clientId).first();
+  if (previous) return success({command: previous, duplicate: true}, 200, headers);
 
-NÂˆYˆ
-XÛÛ[X[™
-H›İÈ™]È\Q\œ›ÜŠ	ĞÓÓSPS‘Ó“ÕÑ“ÕS‘	Ë	ĞÛÛ[X[™H[›İ]˜X›K‰Ë
-NÂˆ™]\›ˆİXØÙ\ÜÊØÛÛ[X[™ˆÛÛ[X[™šY]ÊÛÛ[X[™
-_KŒXY\œÊNÂŸB‚™[˜İ[ÛˆÛÛ[X[™šY]ÊÛÛ[X[™
-HÂˆÛÛœİÙ^\ÈHÂˆ	ÜX›X×ÚY	Ë	Ü™\]Y\İ\—Û›ÙWØÛÙIË	Ù^Xİ]Ü—Û›ÙWØÛÙIË	İ\™Ù]Û›ÙWØÛÙIË	ÛÜ\˜][Û‰Ëˆ	İ\™Ù]ÜÛ™IË	Ø[[İ[	Ë	Üİ]IË	Ü™\İ[ÛY\ÜØYÙIË	ÛÜ\˜]Ü—İ˜[œØXİ[Û—ÚY	Ë	ØÜ™X]YØ]	Ëˆ	Üİ\YØ]	Ë	ØÛÛ\]YØ]	Ë	İ\]YØ]	ÂˆNÂˆ™]\›ˆØš™Xİ™œ›ÛQ[šY\ÊÙ^\Ë™š[\ŠÙ^HOˆÙ^H[ˆÛÛ[X[™
-K›X\
-Ù^HOˆÚÙ^KÛÛ[X[™ÚÙ^WWJJNÂŸB‚˜\Ş[˜È[˜İ[Ûˆ™XYœÛÛŠ™\]Y\İ
-HÂˆÛÛœİ^H]ØZ]™\]Y\İ^
+  const values = await resolveCommand(env, auth, input, requestType);
+  const publicId = crypto.randomUUID();
+  try {
+    await env.DB.batch([
+      env.DB.prepare(
+        'INSERT INTO commands(public_id, client_request_id, requester_node_code, executor_node_code, '
+        + 'target_node_code, operation, target_phone, amount, ussd_code, requires_pin) '
+        + 'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      ).bind(
+        publicId, clientId, auth.node_code, values.executor, values.targetNode,
+        values.operation, values.targetPhone, values.amount, values.ussd, values.requiresPin
+      ),
+      env.DB.prepare(
+        "INSERT INTO command_events(command_id, device_id, state, message) "
+        + "SELECT id, ?, 'PENDING', 'Commande crÃ©Ã©e et contrÃ´lÃ©e par le serveur.' "
+        + 'FROM commands WHERE public_id = ?'
+      ).bind(auth.device_id, publicId)
+    ]);
+  } catch (error) {
+    const duplicate = await env.DB.prepare(
+      'SELECT public_id, state, created_at FROM commands '
+      + 'WHERE requester_node_code = ? AND client_request_id = ?'
+    ).bind(auth.node_code, clientId).first();
+    if (duplicate) return success({command: duplicate, duplicate: true}, 200, headers);
+    throw error;
+  }
+  return success({
+    command: {public_id: publicId, state: 'PENDING', executor_node_code: values.executor},
+    duplicate: false
+  }, 201, headers);
+}
 
-NÂˆYˆ
-]^š[J
-JH™]\›ˆßNÂˆYˆ
-^›[™İˆM—ÌÎ
-H›İÈ™]È\Q\œ›ÜŠ	Ğ“ÑWÕÓ×ÓT‘ÑIË	Ô™\]pêH›Ü›Û[Z[™]\ÙK‰ËLÊNÂˆHÂˆÛÛœİ˜[YHH”ÓÓ‹œ\œÙJ^
-NÂˆYˆ
-]˜[YH\œ˜^Kš\Ğ\œ˜^J˜[YJH\[Ùˆ˜[YHOOH	ÛØš™Xİ	ÊH›İÈ™]È\œ›ÜŠ	Û›İ[Øš™Xİ	ÊNÂˆ™]\›ˆ˜[YNÂˆHØ]Ú
-ÊHÂˆ›İÈ™]È\Q\œ›ÜŠ	ÒS•SQÒ”ÓÓ‰Ë	ĞÛÜœÈ”ÓÓˆ[˜[YK‰Ë
-NÂˆBŸB‚™[˜İ[Ûˆ›ÙPÛÙJ˜[YJHÂˆÛÛœİ›ÙHHİš[™Ê˜[YH	ÉÊKš[J
-KÕ\\Ø\ÙJ
-NÂˆYˆ
-K×–ĞKVŒNW×ËW^ÌËIË\İ
-›ÙJJH›İÈ™]È\Q\œ›ÜŠ	ÒS•SQÓ“ÑIË	ĞÛÙH±dİY[˜[YK‰ËŒŠNÂˆ™]\›ˆ›ÙNÂŸB‚™[˜İ[ÛˆÛ™J˜[YJHÂˆÛÛœİ›Ü›X[^™YHİš[™Ê˜[YH	ÉÊKœ™\XÙJ×ÙË	ÉÊNÂˆYˆ
-K×—Î_IË\İ
-›Ü›X[^™Y
-JH›İÈ™]È\Q\œ›ÜŠ	ÒS•SQÔÓ‘IË	ÓH[pê\›ÈÚ]ÛÛ[š\ˆHÚY™œ™\Ë‰ËŒŠNÂˆ™]\›ˆ›Ü›X[^™YÂŸB‚™[˜İ[Ûˆ[[İ[
-˜[YJHÂˆÛÛœİ^Hİš[™Ê˜[YHÏÈ	ÉÊKš[J
-NÂˆYˆ
-K×–ÌKNWWÌIË\İ
-^
-JH›İÈ™]È\Q\œ›ÜŠ	ÒS•SQĞSSÕS•	Ë	Ó[Û[[Y\ˆ[˜[YK‰ËŒŠNÂˆÛÛœİ[X™\ˆH[X™\Š^
-NÂˆYˆ
-S[X™\‹š\ÔØY™R[YÙ\Š[X™\ŠH[X™\ˆH[X™\ˆˆLÌÌ
-HÂˆ›İÈ™]È\Q\œ›ÜŠ	ÒS•SQĞSSÕS•	Ë	Ó[Û[ÜœÈ[Z]\Ë‰ËŒŠNÂˆBˆ™]\›ˆ[X™\ÂŸB‚™[˜İ[ÛˆÛX[•^
-˜[YKX^
-HÂˆ™]\›ˆİš[™Ê˜[YH	ÉÊKš[J
-KœÛXÙJX^
-NÂŸB‚˜\Ş[˜È[˜İ[ÛˆÚLMŠ˜[YJHÂˆÛÛœİ]\ÈH™]È^[˜ÛÙ\Š
-K™[˜ÛÙJ˜[YJNÂˆÛÛœİYÙ\İH]ØZ]Ü\ËœİXK™YÙ\İ
-	ÔÒKLM‰Ë]\ÊNÂˆ™]\›ˆË‹‹›™]ÈZ[\œ˜^JYÙ\İ
-WK›X\
-]HOˆ]KÔİš[™ÊMŠKœYİ\
-‹	Ì	ÊJKš›Ú[Š	ÉÊNÂŸB‚™[˜İ[Ûˆ˜[™ÛR^
-]PÛİ[
-HÂˆÛÛœİ]\ÈH™]ÈZ[\œ˜^J]PÛİ[
-NÂˆÜ\Ë™Ù]˜[™ÛU˜[Y\Ê]\ÊNÂˆ™]\›ˆË‹‹˜]\×K›X\
-]HOˆ]KÔİš[™ÊMŠKœYİ\
-‹	Ì	ÊJKš›Ú[Š	ÉÊNÂŸB‚™[˜İ[ÛˆÛÛœİ[[YQ\]X[
-YšYÚ
-HÂˆÛÛœİHH™]È^[˜ÛÙ\Š
-K™[˜ÛÙJY
-NÂˆÛÛœİˆH™]È^[˜ÛÙ\Š
-K™[˜ÛÙJšYÚ
-NÂˆ]Y™™\™[HK›[™İˆ‹›[™İÂˆÛÛœİ[™İHX]›X^
-K›[™İ‹›[™İ
-NÂˆ›Üˆ
-][™^HÈ[™^[™İÈ[™^
-ÏHJHÂˆY™™\™[H
-VÚ[™^	HK›[™İH
-Hˆ
-–Ú[™^	H‹›[™İH
-NÂˆBˆ™]\›ˆY™™\™[OOHÂŸB‚™[˜İ[Ûˆ\RXY\œÊ™\]Y\İ[ŠHÂˆÛÛœİXY\œÈH™]ÈXY\œÊÂˆ	ĞÛÛ[U\IÎˆ	Ø\XØ][Û‹ÚœÛÛÈÚ\œÙ]]]‹N	Ëˆ	ĞØXÚKPÛÛ›Û	Îˆ	Û›Ë\İÜ™KX^XYÙOL	Ëˆ	ÖPÛÛ[U\KSÜ[ÛœÉÎˆ	Û›ÜÛšY™‰Ëˆ	Ô™Y™\œ™\‹TÛXŞIÎˆ	Û›Ë\™Y™\œ™\‰Ëˆ	Ô\›Z\ÜÚ[ÛœËTÛXŞIÎˆ	ØØ[Y\˜OJ
-KZXÜ›ÜÛ™OJ
-KÙ[ÛØØ][ÛJ
-IÂˆJNÂˆÛÛœİÜšYÚ[ˆH™\]Y\İšXY\œË™Ù]
-	ÓÜšYÚ[‰ÊH	ÉÎÂˆÛÛœİ[İÙYHİš[™Ê[‹SÕÑQÓÔ’QÒSˆ	ÉÊKš[J
-NÂˆYˆ
-ÜšYÚ[ˆ	‰ˆ[İÙY	‰ˆÜšYÚ[ˆOOH[İÙY
-HÂˆXY\œËœÙ]
-	ĞXØÙ\ÜËPÛÛ›ÛP[İËSÜšYÚ[‰Ë[İÙY
-NÂˆXY\œËœÙ]
-	Õ˜\IË	ÓÜšYÚ[‰ÊNÂˆXY\œËœÙ]
-	ĞXØÙ\ÜËPÛÛ›ÛP[İËRXY\œÉË	ĞÛÛ[U\KQ]šXÙKUÚÙ[‹P›YSXYÚXËPÛY[	ÊNÂˆXY\œËœÙ]
-	ĞXØÙ\ÜËPÛÛ›ÛP[İËSY]ÙÉË	ÔÔÕÑUÔSÓ”ÉÊNÂˆBˆ™]\›ˆXY\œÎÂŸB‚™[˜İ[ÛˆİXØÙ\ÜÊ]Kİ]\ËXY\œÊHÂˆ™]\›ˆ™]È™\ÜÛœÙJ”ÓÓ‹œİš[™ÚYJÛÚÎˆYK]_JKÜİ]\ËXY\œßJNÂŸB‚™[˜İ[Ûˆ˜Z[\™JÛÙKY\ÜØYÙKİ]\ËXY\œÊHÂˆ™]\›ˆ™]È™\ÜÛœÙJ”ÓÓ‹œİš[™ÚYJÛÚÎˆ˜[ÙK\œ›ÜˆØÛÙKY\ÜØYÙ__JKÜİ]\ËXY\œßJNÂŸB‚˜Û\ÜÈ\Q\œ›Üˆ^[™È\œ›ÜˆÂˆÛÛœİXİÜŠÛÙKY\ÜØYÙKİ]\ÊHÂˆİ\\ŠY\ÜØYÙJNÂˆ\Ë›˜[YHH	Ğ\Q\œ›Ü‰ÎÂˆ\Ë˜ÛÙHHÛÙNÂˆ\Ëœİ]\ÈHİ]\ÎÂˆBŸB
+async function resolveCommand(env, auth, input, requestType) {
+  const requester = auth.node_code;
+  if (requestType === 'REQUEST_SUPPLY') {
+    if (!['DSM', 'POS'].includes(auth.role) || !auth.parent_node_code) {
+      throw new ApiError('REQUEST_NOT_ALLOWED', 'Ce compte ne peut pas demander une recharge supÃ©rieure.', 403);
+    }
+    const value = amount(input.amount);
+    return {
+      executor: auth.parent_node_code, targetNode: requester, targetPhone: auth.phone_number,
+      amount: value, operation: 'DISTRIBUTION_TRANSFER',
+      ussd: `*550*2*${auth.phone_number}*${value}#`, requiresPin: 1
+    };
+  }
+  if (requestType === 'SUPPLY_CHILD') {
+    if (!['DAE', 'DSM'].includes(auth.role)) {
+      throw new ApiError('REQUEST_NOT_ALLOWED', 'Seul un DAE ou DSM peut approvisionner un enfant.', 403);
+    }
+    const targetNode = nodeCode(input.target_node_code);
+    const child = await env.DB.prepare(
+      'SELECT node_code, phone_number FROM nodes '
+      + 'WHERE node_code = ? AND parent_node_code = ? AND active = 1'
+    ).bind(targetNode, requester).first();
+    if (!child) throw new ApiError('CHILD_NOT_FOUND', 'Ce compte nâ€™est pas un enfant direct actif.', 422);
+    const value = amount(input.amount);
+    return {
+      executor: requester, targetNode, targetPhone: child.phone_number, amount: value,
+      operation: 'DISTRIBUTION_TRANSFER', ussd: `*550*2*${child.phone_number}*${value}#`, requiresPin: 1
+    };
+  }
+  if (requestType === 'RETAIL_SALE') {
+    if (auth.role !== 'POS') throw new ApiError('REQUEST_NOT_ALLOWED', 'Vente dÃ©tail rÃ©servÃ©e aux PoS.', 403);
+    const targetPhone = phone(input.target_phone);
+    const value = amount(input.amount);
+    return {
+      executor: requester, targetNode: null, targetPhone, amount: value,
+      operation: 'RETAIL_TRANSFER', ussd: `*550*1*${targetPhone}*${value}#`, requiresPin: 1
+    };
+  }
+  if (requestType === 'TEST_NUMBER') {
+    return {
+      executor: requester, targetNode: null, targetPhone: null, amount: null,
+      operation: 'TEST_NUMBER', ussd: '*825*3*3#', requiresPin: 0
+    };
+  }
+  throw new ApiError('INVALID_REQUEST_TYPE', 'Type de commande inconnu.', 422);
+}
+
+async function leaseCommand(env, auth, headers) {
+  if (!['ROBOT', 'HYBRID'].includes(auth.mode)) {
+    throw new ApiError('NOT_A_ROBOT', 'Cet appareil nâ€™est pas autorisÃ© Ã  louer des commandes.', 403);
+  }
+
+  await env.DB.prepare(
+    "UPDATE commands SET state = CASE WHEN attempt < max_attempts THEN 'PENDING' ELSE 'FAILED' END, "
+    + "result_message = CASE WHEN attempt < max_attempts THEN 'Lease expirÃ© avant composition.' "
+    + "ELSE 'Robot indisponible aprÃ¨s plusieurs leases.' END, lease_token_hash = NULL, leased_until = NULL, "
+    + "completed_at = CASE WHEN attempt >= max_attempts THEN strftime('%Y-%m-%dT%H:%M:%fZ', 'now') ELSE completed_at END, "
+    + "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') "
+    + "WHERE executor_node_code = ? AND state = 'LEASED' AND leased_until < strftime('%Y-%m-%dT%H:%M:%fZ', 'now')"
+  ).bind(auth.node_code).run();
+
+  const leaseToken = randomHex(24);
+  const command = await env.DB.prepare(
+    "UPDATE commands SET state = 'LEASED', attempt = attempt + 1, lease_token_hash = ?, "
+    + "leased_until = strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '+120 seconds'), "
+    + "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') "
+    + "WHERE id = (SELECT id FROM commands WHERE executor_node_code = ? AND state = 'PENDING' ORDER BY id LIMIT 1) "
+    + "AND state = 'PENDING' RETURNING id, public_id, operation, target_phone, amount, ussd_code, requires_pin"
+  ).bind(await sha256(leaseToken), auth.node_code).first();
+  if (!command) return success({available: false}, 200, headers);
+
+  await env.DB.prepare(
+    "INSERT INTO command_events(command_id, device_id, state, message) VALUES(?, ?, 'LEASED', 'Commande rÃ©servÃ©e au Robot.')"
+  ).bind(command.id, auth.device_id).run();
+  return success({
+    available: true,
+    command: {
+      public_id: command.public_id,
+      lease_token: leaseToken,
+      operation: command.operation,
+      target_phone: command.target_phone,
+      amount: command.amount,
+      ussd_code: command.ussd_code,
+      requires_pin: Boolean(command.requires_pin)
+    }
+  }, 200, headers);
+}
+
+async function commandEvent(env, auth, input, headers) {
+  if (!['ROBOT', 'HYBRID'].includes(auth.mode)) {
+    throw new ApiError('NOT_A_ROBOT', 'Ã‰vÃ©nement rÃ©servÃ© au Robot exÃ©cuteur.', 403);
+  }
+  const publicId = String(input.command_id || '').trim();
+  const leaseToken = String(input.lease_token || '').trim();
+  const nextState = String(input.state || '').trim().toUpperCase();
+  if (!EVENT_STATES.has(nextState)) throw new ApiError('INVALID_STATE', 'Ã‰tat de commande invalide.', 422);
+
+  const command = await env.DB.prepare('SELECT * FROM commands WHERE public_id = ?').bind(publicId).first();
+  if (!command || command.executor_node_code !== auth.node_code) {
+    throw new ApiError('COMMAND_NOT_FOUND', 'Commande introuvable pour ce Robot.', 404);
+  }
+  if (!command.lease_token_hash || command.lease_token_hash !== await sha256(leaseToken)) {
+    throw new ApiError('LEASE_INVALID', 'Lease invalide ou expirÃ©.', 409);
+  }
+  if (TERMINAL_STATES.has(command.state)) {
+    return success({command: commandView(command), already_terminal: true}, 200, headers);
+  }
+  if (!VALID_TRANSITIONS[command.state]?.has(nextState)) {
+    throw new ApiError('INVALID_TRANSITION', `Transition ${command.state} vers ${nextState} refusÃ©e.`, 409);
+  }
+
+  const message = cleanText(input.message, 2000);
+  const suppliedOperatorId = String(input.operator_transaction_id || '').trim();
+  const operatorId = /^[A-Za-z0-9_-]{6,64}$/.test(suppliedOperatorId) ? suppliedOperatorId : null;
+  const terminal = TERMINAL_STATES.has(nextState);
+  const results = await env.DB.batch([
+    env.DB.prepare(
+      'UPDATE commands SET state = ?, result_message = ?, operator_transaction_id = ?, '
+      + "started_at = CASE WHEN ? = 'DIALING' AND started_at IS NULL THEN strftime('%Y-%m-%dT%H:%M:%fZ', 'now') ELSE started_at END, "
+      + "completed_at = CASE WHEN ? = 1 THEN strftime('%Y-%m-%dT%H:%M:%fZ', 'now') ELSE completed_at END, "
+      + 'leased_until = CASE WHEN ? = 1 THEN NULL ELSE leased_until END, '
+      + "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') "
+      + 'WHERE id = ? AND state = ?'
+    ).bind(nextState, message, operatorId, nextState, terminal ? 1 : 0, terminal ? 1 : 0, command.id, command.state),
+    env.DB.prepare(
+      'INSERT INTO command_events(command_id, device_id, state, message) VALUES(?, ?, ?, ?)'
+    ).bind(command.id, auth.device_id, nextState, message)
+  ]);
+  if (!results[0].meta?.changes) throw new ApiError('COMMAND_RACE', 'La commande a changÃ©; relisez son Ã©tat.', 409);
+  return success({command: {public_id: publicId, state: nextState}, already_terminal: false}, 200, headers);
+}
+
+async function commandStatus(env, auth, input, headers) {
+  const publicId = String(input.command_id || '').trim();
+  const command = await env.DB.prepare(
+    'SELECT public_id, requester_node_code, executor_node_code, target_node_code, operation, target_phone, '
+    + 'amount, state, result_message, operator_transaction_id, created_at, started_at, completed_at, updated_at '
+    + 'FROM commands WHERE public_id = ? AND (requester_node_code = ? OR executor_node_code = ?)'
+  ).bind(publicId, auth.node_code, auth.node_code).first();
+  if (!command) throw new ApiError('COMMAND_NOT_FOUND', 'Commande introuvable.', 404);
+  return success({command: commandView(command)}, 200, headers);
+}
+
+function commandView(command) {
+  const keys = [
+    'public_id', 'requester_node_code', 'executor_node_code', 'target_node_code', 'operation',
+    'target_phone', 'amount', 'state', 'result_message', 'operator_transaction_id', 'created_at',
+    'started_at', 'completed_at', 'updated_at'
+  ];
+  return Object.fromEntries(keys.filter(key => key in command).map(key => [key, command[key]]));
+}
+
+async function readJson(request) {
+  const text = await request.text();
+  if (!text.trim()) return {};
+  if (text.length > 16_384) throw new ApiError('BODY_TOO_LARGE', 'RequÃªte trop volumineuse.', 413);
+  try {
+    const value = JSON.parse(text);
+    if (!value || Array.isArray(value) || typeof value !== 'object') throw new Error('not-object');
+    return value;
+  } catch (_) {
+    throw new ApiError('INVALID_JSON', 'Corps JSON invalide.', 400);
+  }
+}
+
+function nodeCode(value) {
+  const node = String(value || '').trim().toUpperCase();
+  if (!/^[A-Z0-9\/_-]{3,64}$/.test(node)) throw new ApiError('INVALID_NODE', 'Code nÅ“ud invalide.', 422);
+  return node;
+}
+
+function phone(value) {
+  const normalized = String(value || '').replace(/\D/g, '');
+  if (!/^\d{9}$/.test(normalized)) throw new ApiError('INVALID_PHONE', 'Le numÃ©ro doit contenir 9 chiffres.', 422);
+  return normalized;
+}
+
+function amount(value) {
+  const text = String(value ?? '').trim();
+  if (!/^[1-9]\d{0,8}$/.test(text)) throw new ApiError('INVALID_AMOUNT', 'Montant entier invalide.', 422);
+  const number = Number(text);
+  if (!Number.isSafeInteger(number) || number < 1 || number > 50_000_000) {
+    throw new ApiError('INVALID_AMOUNT', 'Montant hors limites.', 422);
+  }
+  return number;
+}
+
+function cleanText(value, max) {
+  return String(value || '').trim().slice(0, max);
+}
+
+async function sha256(value) {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function randomHex(byteCount) {
+  const bytes = new Uint8Array(byteCount);
+  crypto.getRandomValues(bytes);
+  return [...bytes].map(byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function constantTimeEqual(left, right) {
+  const a = new TextEncoder().encode(left);
+  const b = new TextEncoder().encode(right);
+  let different = a.length ^ b.length;
+  const length = Math.max(a.length, b.length);
+  for (let index = 0; index < length; index += 1) {
+    different |= (a[index % a.length] || 0) ^ (b[index % b.length] || 0);
+  }
+  return different === 0;
+}
+
+function apiHeaders(request, env) {
+  const headers = new Headers({
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'no-store, max-age=0',
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'no-referrer',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
+  });
+  const origin = request.headers.get('Origin') || '';
+  const allowed = String(env.ALLOWED_ORIGIN || '').trim();
+  if (origin && allowed && origin === allowed) {
+    headers.set('Access-Control-Allow-Origin', allowed);
+    headers.set('Vary', 'Origin');
+    headers.set('Access-Control-Allow-Headers', 'Content-Type, X-Device-Token, X-BlueMagic-Client');
+    headers.set('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+  }
+  return headers;
+}
+
+function success(data, status, headers) {
+  return new Response(JSON.stringify({ok: true, data}), {status, headers});
+}
+
+function failure(code, message, status, headers) {
+  return new Response(JSON.stringify({ok: false, error: {code, message}}), {status, headers});
+}
+
+class ApiError extends Error {
+  constructor(code, message, status) {
+    super(message);
+    this.name = 'ApiError';
+    this.code = code;
+    this.status = status;
+  }
+}

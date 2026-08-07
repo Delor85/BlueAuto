@@ -1,42 +1,84 @@
-˛∫(∑˙k°¯•zXß{ﬂ›zˇÁ∫YOzπ¢≤»®ù◊ßâÁZ[\‹ù\‹Ÿ\ùúõ€H	€õŸNò\‹Ÿ\ù‹›öX›	Œ¬ö[\‹ù‹ôXYö[_Húõ€H	€õŸNôúÀ‹õ€Z\Ÿ\…Œ¬ö[\‹ù”Z[öYõ\ô_Húõ€H	€Z[öYõ\ôIŒ¬Çò€€ú›RTíSë◊‘—P‘ëUH	⁄[ùY‹ò][€ã\Z\ö[ôÀ\ŸX‹ô]LLåÕMâŒ¬ò€€ú›YàHô]»Z[öYõ\ôJ¬à[Ÿ[\ŒàùYKàÿ‹ö\]àô]»Tì
-	Àãã‹‹òÀ⁄[ô^öú…À[\‹ùõY]Kù\õ
-Kú]ò[YKà€€\]Xö[]Q]Nà	ÃåçãLL…ÀàQ]Xò\Ÿ\Œà…—â◊Kàö[ô[ô‹Œà‘RTíSë◊‘—P‘ëUS’—Q”‘íQ“Séà	…ﬂBüJN¬ÇùûH¬à€€ú›àH]ÿZ]YãôŸ]Q]Xò\ŸJ	—â N¬à€€ú›ÿ⁄[XHH]ÿZ]ôXYö[Jô]»Tì
-	Àãã€ZY‹ò][€úÀÃW⁄[ö]X[ú‹[	À[\‹ùõY]Kù\õ
-K	›]é	 N¬àõ‹à
-€€ú››][Y[ùŸàÿ⁄[XKú‹]
-	Œ… KõX\
-ò[YHOàò[YKùö[J
-JKôö[\äõ€€X[äJH¬à]ÿZ]ãúô\\ôJ›][Y[ù
-Kúù[ä
-N¬àBÇà€€ú›X[H]ÿZ]ô\]Y\›
-	⁄X[	 N¬à\‹Ÿ\ùô\]X[
-X[õ⁄ÀùYJN¬à\‹Ÿ\ùô\]X[
-X[ô]Kô]Xò\ŸK	€€õ[ôI N¬Çà€€ú›YHH]ÿZ]Z\ä¬àõŸWÿ€ŸNà	—QKUT’	Àõ€Nà	—QIÀ[ŸNà	‘ì–ì’	Àà€ôW€ù[Xô\éà	ÕéNLIÀ]öXŸW€ò[YNà	‘õÿõ›\›	¬àJN¬à€€ú›€HH]ÿZ]Z\ä¬àõŸWÿ€ŸNà	—”KUT’	À\ô[ù€õŸWÿ€ŸNà	—QKUT’	Àõ€Nà	—”IÀ[ŸNà	‘ëSS’IÀà€ôW€ù[Xô\éà	ÕéNLâÀ]öXŸW€ò[YNà	’0Í[0ÍX€€[X[ôH\›	¬àJN¬Çà€€ú›‹ôX]YH]ÿZ]ô\]Y\›
-	ÿ‹ôX]Wÿ€€[X[ô	À¬àô\]Y\››\Nà	‘ëTUQT’‘’TIÀ[[›[ùà	ÕL	À€Y[ù‹ô\]Y\›⁄Yà	⁄[ùY‹ò][€ã]\›LI¬àK€Kô]Kô]öXŸW›⁄Ÿ[äN¬à\‹Ÿ\ùô\]X[
-‹ôX]Yô]Kò€€[X[ôú›]K	‘SëSë… N¬Çà€€ú›\Xÿ]HH]ÿZ]ô\]Y\›
-	ÿ‹ôX]Wÿ€€[X[ô	À¬àô\]Y\››\Nà	‘ëTUQT’‘’TIÀ[[›[ùà	ÕL	À€Y[ù‹ô\]Y\›⁄Yà	⁄[ùY‹ò][€ã]\›LI¬àK€Kô]Kô]öXŸW›⁄Ÿ[äN¬à\‹Ÿ\ùô\]X[
-\Xÿ]Kô]Kô\Xÿ]KùYJN¬à\‹Ÿ\ùô\]X[
-\Xÿ]Kô]Kò€€[X[ôúXõX◊⁄Y‹ôX]Yô]Kò€€[X[ôúXõX◊⁄Y
-N¬Çà€€ú›X\ŸYH]ÿZ]ô\]Y\›
-	€X\ŸWÿ€€[X[ô	ÀﬂKYKô]Kô]öXŸW›⁄Ÿ[äN¬à\‹Ÿ\ùô\]X[
-X\ŸYô]Kò]òZ[XõKùYJN¬à\‹Ÿ\ùô\]X[
-X\ŸYô]Kò€€[X[ôù\‹Ÿÿ€ŸK	 çML
-åäçéNLäçL… N¬à\‹Ÿ\ùô\]X[
-X\ŸYô]Kò€€[X[ôúô\]Z\ô\◊‹[ãùYJN¬Çàõ‹à
-€€ú››]HŸà…—PSSë…À	–U–RUSë◊‘SâÀ	‘Só‘’PìRUQ	À	–U–RUSë◊‘ëT’S	À	‘’P–—QQQ	◊JH¬à€€ú›]ô[ùH]ÿZ]ô\]Y\›
-	ÿ€€[X[ôŸ]ô[ù	À¬à€€[X[ô⁄Yà‹ôX]Yô]Kò€€[X[ôúXõX◊⁄YàX\ŸW›⁄Ÿ[éàX\ŸYô]Kò€€[X[ôõX\ŸW›⁄Ÿ[ãà›]KàY\‹ÿYŸNà\›	‹›]_XàKYKô]Kô]öXŸW›⁄Ÿ[äN¬à\‹Ÿ\ùô\]X[
-]ô[ùô]Kò€€[X[ôú›]K›]JN¬àBÇà€€ú››]\»H]ÿZ]ô\]Y\›
-	ÿ€€[X[ô‹›]\…À¬à€€[X[ô⁄Yà‹ôX]Yô]Kò€€[X[ôúXõX◊⁄YàK€Kô]Kô]öXŸW›⁄Ÿ[äN¬à\‹Ÿ\ùô\]X[
-›]\Àô]Kò€€[X[ôú›]K	‘’P–—QQQ	 N¬à\‹Ÿ\ùô\]X[
-›]\Àô]Kò€€[X[ôò[[›[ùL
-N¬à€€ú€€KõŸ 	–€›Yõ\ôH[ùY‹ò][€éàX[Z\ö[ôÀY[\›[òﬁKX\ŸH[ôù[›]Hõ›»“… N¬üHö[ò[H¬à]ÿZ]Yãô\‹‹ŸJ
-N¬üBÇò\ﬁ[ò»ù[ò›[€àZ\ä^[ÿY
-H¬àô]\õàô\]Y\›
-	‹Z\óŸ]öXŸIÀÀããú^[ÿYZ\ö[ô◊‹ŸX‹ô]àRTíSë◊‘—P‘ëUJN¬üBÇò\ﬁ[ò»ù[ò›[€àô\]Y\›
-X›[€ã^[ÿYHﬂK⁄Ÿ[àH	… H¬à€€ú›XY\ú»H…–€€ù[ùU\IŒà	ÿ\Xÿ][€ã⁄ú€€âﬂN¬àYà
-⁄Ÿ[äHXY\ú÷…÷Q]öXŸKU⁄Ÿ[â◊HH⁄Ÿ[é¬à€€ú›ô\‹€úŸHH]ÿZ]Yãô\‹]⁄ô]⁄
-ãÀÿõYK[XY⁄XÀù\›ÿ\OÿX›[€èIÿX›[€üX¬àY]Ÿà	‘‘’	ÀXY\úÀõŸNàî””ãú›ö[ô⁄YûJ^[ÿY
-BàJN¬à€€ú›õŸHH]ÿZ]ô\‹€úŸKöú€€ä
-N¬à\‹Ÿ\ùô\]X[
-ô\‹€úŸKú›]\»ùYKî””ãú›ö[ô⁄YûJõŸJJN¬à\‹Ÿ\ùô\]X[
-õŸKõ⁄ÀùYKî””ãú›ö[ô⁄YûJõŸJJN¬àô]\õàõŸN¬üB
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {Miniflare} from 'miniflare';
+
+const PAIRING_SECRET = 'integration-pairing-secret-123456';
+const mf = new Miniflare({
+  modules: true,
+  scriptPath: new URL('../src/index.js', import.meta.url).pathname,
+  compatibilityDate: '2026-08-07',
+  d1Databases: ['DB'],
+  bindings: {PAIRING_SECRET, ALLOWED_ORIGIN: ''}
+});
+
+try {
+  const db = await mf.getD1Database('DB');
+  const schema = await readFile(new URL('../migrations/0001_initial.sql', import.meta.url), 'utf8');
+  for (const statement of schema.split(';').map(value => value.trim()).filter(Boolean)) {
+    await db.prepare(statement).run();
+  }
+
+  const health = await request('health');
+  assert.equal(health.ok, true);
+  assert.equal(health.data.database, 'online');
+
+  const dae = await pair({
+    node_code: 'DAE-TEST', role: 'DAE', mode: 'ROBOT',
+    phone_number: '699000001', device_name: 'Robot test'
+  });
+  const dsm = await pair({
+    node_code: 'DSM-TEST', parent_node_code: 'DAE-TEST', role: 'DSM', mode: 'REMOTE',
+    phone_number: '699000002', device_name: 'T√©l√©commande test'
+  });
+
+  const created = await request('create_command', {
+    request_type: 'REQUEST_SUPPLY', amount: '500', client_request_id: 'integration-test-0001'
+  }, dsm.data.device_token);
+  assert.equal(created.data.command.state, 'PENDING');
+
+  const duplicate = await request('create_command', {
+    request_type: 'REQUEST_SUPPLY', amount: '500', client_request_id: 'integration-test-0001'
+  }, dsm.data.device_token);
+  assert.equal(duplicate.data.duplicate, true);
+  assert.equal(duplicate.data.command.public_id, created.data.command.public_id);
+
+  const leased = await request('lease_command', {}, dae.data.device_token);
+  assert.equal(leased.data.available, true);
+  assert.equal(leased.data.command.ussd_code, '*550*2*699000002*500#');
+  assert.equal(leased.data.command.requires_pin, true);
+
+  for (const state of ['DIALING', 'AWAITING_PIN', 'PIN_SUBMITTED', 'AWAITING_RESULT', 'SUCCEEDED']) {
+    const event = await request('command_event', {
+      command_id: created.data.command.public_id,
+      lease_token: leased.data.command.lease_token,
+      state,
+      message: `test ${state}`
+    }, dae.data.device_token);
+    assert.equal(event.data.command.state, state);
+  }
+
+  const status = await request('command_status', {
+    command_id: created.data.command.public_id
+  }, dsm.data.device_token);
+  assert.equal(status.data.command.state, 'SUCCEEDED');
+  assert.equal(status.data.command.amount, 500);
+  console.log('Cloudflare integration: health, pairing, idempotency, lease and full state flow OK');
+} finally {
+  await mf.dispose();
+}
+
+async function pair(payload) {
+  return request('pair_device', {...payload, pairing_secret: PAIRING_SECRET});
+}
+
+async function request(action, payload = {}, token = '') {
+  const headers = {'Content-Type': 'application/json'};
+  if (token) headers['X-Device-Token'] = token;
+  const response = await mf.dispatchFetch(`http://blue-magic.test/api?action=${action}`, {
+    method: 'POST', headers, body: JSON.stringify(payload)
+  });
+  const body = await response.json();
+  assert.equal(response.status < 400, true, JSON.stringify(body));
+  assert.equal(body.ok, true, JSON.stringify(body));
+  return body;
+}

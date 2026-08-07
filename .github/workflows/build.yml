@@ -1,1 +1,65 @@
-şº(·úk¡ø¥zX§{ßİzÿçºYOz¹¢²È¨×§‰ç[˜[YNˆZ[›YHXYÚXÈTÂ‚›Û‚ˆ\Ú‚ˆœ˜[˜Ú\ÎˆÛXZ[—Bˆ[Ü™\]Y\İ‚ˆœ˜[˜Ú\ÎˆÛXZ[—BˆÛÜšÙ›İ×Ù\Ü]Ú‚‚œ\›Z\ÜÚ[ÛœÎ‚ˆÛÛ[Îˆ™XY‚š›ØœÎ‚ˆÙ\™\‹\XÚØYÙ\Î‚ˆ[œË[ÛˆX[K[]\İˆİ\Î‚ˆH˜[YNˆ°êXİ\0ê\™\ˆHÛÙBˆ\Ù\ÎˆXİ[ÛœËØÚXÚÛİ]‚ˆH˜[YNˆ°ê\šYšY\ˆH˜XÚÙ[™ÛİY›\™BˆÛÜšÚ[™ËY\™XİÜNˆÛİY›\™Bˆ[ˆˆœH[œİ[ˆœH[ˆÚXÚÂ‚ˆH˜[YNˆÜ°êY\ˆ\È\]Y]ÈÙ\™]\‚ˆ[ˆˆš\\\ˆ›YSXYÚXËR[™š[š]Qœ™YKZØÜËš\ØÜÂˆš\\\ˆ›YSXYÚXËPÛİY›\™KX˜XÚÙ[™š\ÛİY›\™B‚ˆH˜[YNˆX›Y\ˆ\È\]Y]ÈÙ\™]\‚ˆ\Ù\ÎˆXİ[ÛœËİ\ØYX\Y˜XİˆÚ]‚ˆ˜[YNˆ›YKSXYÚXË]Œ‹TÙ\™]\œÂˆ]ˆˆ›YSXYÚXËR[™š[š]Qœ™YKZØÜËš\ˆ›YSXYÚXËPÛİY›\™KX˜XÚÙ[™š\ˆY‹[›ËYš[\ËY›İ[™ˆ\œ›Ü‚‚ˆ[™›ÚYYXYËX\Î‚ˆ[œË[ÛˆX[K[]\İˆİ\Î‚ˆH˜[YNˆ°êXİ\0ê\™\ˆHÛÙBˆ\Ù\ÎˆXİ[ÛœËØÚXÚÛİ]‚ˆH˜[YNˆ[œİ[\ˆ˜]˜HMÂˆ\Ù\ÎˆXİ[ÛœËÜÙ]\Z˜]˜PˆÚ]‚ˆ\İšX][Ûˆ[]\š[‚ˆ˜]˜K]™\œÚ[Ûˆ	ÌMÉÂ‚ˆH˜[YNˆ[œİ[\ˆÜ˜YHŒ‚ˆ\Ù\ÎˆÜ˜YKØXİ[ÛœËÜÙ]\YÜ˜YPˆÚ]‚ˆÜ˜YK]™\œÚ[Ûˆ	ÎŒ‰Â‚ˆH˜[YNˆÛÛ\[\ˆ8 &PTÈH\İˆ[ˆÜ˜YHK[›ËYY[[Ûˆ˜\˜\ÜÙ[X›QXYÂ‚ˆH˜[YNˆX›Y\ˆ8 &PTÈÛÛ[YH\Y˜Xİˆ\Ù\ÎˆXİ[ÛœËİ\ØYX\Y˜XİˆÚ]‚ˆ˜[YNˆ›YKSXYÚXË]Œ‹T›Ø›İPÛÜ™Bˆ]ˆ\ØZ[Ûİ]]ËØ\ËÙXYËØ\YXYË˜\ÂˆY‹[›ËYš[\ËY›İ[™ˆ\œ›Ü‚
+name: Build Blue Magic APK
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  server-packages:
+    runs-on: ubuntu-latest
+    steps:
+      - name: RÃ©cupÃ©rer le code
+        uses: actions/checkout@v4
+
+      - name: VÃ©rifier le backend Cloudflare
+        working-directory: cloudflare
+        run: |
+          npm install
+          npm run check
+
+      - name: CrÃ©er les paquets serveur
+        run: |
+          zip -qr BlueMagic-InfinityFree-htdocs.zip htdocs
+          zip -qr BlueMagic-Cloudflare-backend.zip cloudflare
+
+      - name: Publier les paquets serveur
+        uses: actions/upload-artifact@v4
+        with:
+          name: Blue-Magic-v2-Serveurs
+          path: |
+            BlueMagic-InfinityFree-htdocs.zip
+            BlueMagic-Cloudflare-backend.zip
+          if-no-files-found: error
+
+  android-debug-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: RÃ©cupÃ©rer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Installer Gradle 8.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+
+      - name: Compiler lâ€™APK de test
+        run: gradle --no-daemon :app:assembleDebug
+
+      - name: Publier lâ€™APK comme artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Blue-Magic-v2-Robot-Core
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

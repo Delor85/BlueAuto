@@ -1,12 +1,17 @@
-şº(·úk¡ø¥zX§{ßİzÿçºYOz¹¢²È¨×§‰ç\XÚØYÙHÛÛKœ›Ùš]ÛÜ˜›YX]]ÎÂ‚š[\Ü[™›ÚY˜ÛÛ[œ›ØYØ\İ™XÙZ]™\Âš[\Ü[™›ÚY˜ÛÛ[ÛÛ^Âš[\Ü[™›ÚY˜ÛÛ[’[[Â‚œX›XÈÛ\ÜÈ›Ûİ™XÙZ]™\ˆ^[™Èœ›ØYØ\İ™XÙZ]™\ˆÂˆİ™\œšYBˆX›XÈ›ÚYÛ”™XÙZ]™JÛÛ^ÛÛ^[[[[
-HÂˆYˆ
-\ÛÛ™šYËš\ÔZ\™Y
-ÛÛ^
-Bˆ	‰ˆ\ÛÛ™šYËš\Ô›Ø›İ[ÙJÛÛ^
-Bˆ	‰ˆ\ÛÛ™šYËœ›Ø›İ[˜X›Y
-ÛÛ^
-Bˆ	‰ˆP\ÛÛ™šYËœ[›ØÚÙY
-ÛÛ^
-JHÂˆ›Ø›İÙ\šXÙKœİ\
-ÛÛ^
-NÂˆBˆBŸB
+package com.profitloop.blueauto;
+
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+
+public class BootReceiver extends BroadcastReceiver {
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        if (AppConfig.isPaired(context)
+                && AppConfig.isRobotMode(context)
+                && AppConfig.robotEnabled(context)
+                && !AppConfig.pinBlocked(context)) {
+            RobotService.start(context);
+        }
+    }
+}

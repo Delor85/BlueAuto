@@ -1,24 +1,64 @@
-şº(·úk¡ø¥zX§{ßİzÿçºYOz¹¢²È¨×§‰çOÜ™XÛ\™JİšXİİ\\ÏLJNÂ‚‰Y\ÜØYÙHH	ÉÎÂ‰İXØÙ\ÜÈH˜[ÙNÂ‰ÛÛ™šYÑš[HH×ÑT—×Èˆ	ËØÛÛ™šYËœ	ÎÂšYˆ
-Z\×Ùš[J	ÛÛ™šYÑš[JJHÂˆ	Y\ÜØYÙHH	ĞÜ°êY^ˆ8 &XX›Ü™ÛÛ™šYËœ0è\\ˆHÛÛ™šYË™^[\Kœ‰ÎÂŸH[ÙHÂˆ	ÛÛ™šYÈH™\]Z\™H	ÛÛ™šYÑš[NÂˆYˆ
-[\J	ÛÛ™šYÖÉØ\	×VÉÜÙ]\Ù[˜X›Y	×JJHÂˆ	Y\ÜØYÙHH	Ò[œİ[][Ûˆ0ê\ØXİ]°êYH[œÈÛÛ™šYËœ‰ÎÂˆH[ÙZYˆ
+<?php
+declare(strict_types=1);
 
-	ÔÑT•‘T–ÉÔ‘TUQTÕÓQUÑ	×HÏÈ	ÑÑU	ÊHOOH	ÔÔÕ	ÊHÂˆ	›İšYYH
-İš[™ÊJ	ÔÔÕÉÜZ\š[™×ÜÙXÜ™]	×HÏÈ	ÉÊNÂˆ	^XİYH
-İš[™ÊJ	ÛÛ™šYÖÉØ\	×VÉÜZ\š[™×ÜÙXÜ™]	×HÏÈ	ÉÊNÂˆYˆ
-İ›[Š	^XİY
-HZ\ÚÙ\]X[Ê	^XİY	›İšYY
-JHÂˆ	Y\ÜØYÙHH	ÔÙXÜ™]8 &X\Z\˜YÙH[˜ÛÜœ™Xİ‰ÎÂˆH[ÙHÂˆHÂˆ	ˆH	ÛÛ™šYÖÉÙ]X˜\ÙI×NÂˆ	ÈH™]ÈÊˆ›^\Ü[šÜİ^É–ÉÚÜİ	×_NÜÜHˆˆ
-	–ÉÜÜ	×HÏÈÌÌŠHˆÙ›˜[YO^É–ÉÛ˜[YI×_NØÚ\œÙ]]]X‹ˆ	–Éİ\Ù\‰×Kˆ	–ÉÜ\ÜİÛÜ™	×KˆÔÎU—ÑT”“SÑHOˆÎ‘T”“SÑWÑVÑTSÓ‹ÎU—ÑSUSUWÔ‘TT‘TÈOˆ˜[ÙWBˆ
-NÂˆ	Ü[Hš[WÙÙ]ØÛÛ[Ê×ÑT—×Èˆ	ËÜØÚ[XKœÜ[	ÊNÂˆYˆ
-	Ü[OOH˜[ÙJH›İÈ™]È[[YQ^Ù\[ÛŠ	ÜØÚ[XKœÜ[[›İ]˜X›K‰ÊNÂˆ	İ][Y[ÈH™Y×ÜÜ]
-	ËÎ×ÊŠÎ—×Ÿ	
-KÉË	Ü[
-NÂˆ›Ü™XXÚ
-	İ][Y[È\È	İ][Y[
-HÂˆYˆ
-š[J	İ][Y[
-HOOH	ÉÊH	ËO™^XÊ	İ][Y[
-NÂˆBˆ	İXØÙ\ÜÈHYNÂˆ	Y\ÜØYÙHH	Ğ˜\ÙH[š]X[\ğêYKˆ\ÜÙ^ˆXZ[[˜[Ù]\Ù[˜X›Y0è˜[ÙH[œÈÛÛ™šYËœ‰ÎÂˆHØ]Ú
-›İØX›H	\œ›ÜŠHÂˆ	Y\ÜØYÙHH	ğâXÚXÈ^TÔSˆ	Èˆ[ÜXÚX[Ú\œÊ	\œ›Ü‹O™Ù]Y\ÜØYÙJ
-KS•ÔUSÕTË	ÕU‹N	ÊNÂˆBˆBˆBŸBÏYØİ\H[‚[[™ÏH™œˆ‚XY‚ˆY]HÚ\œÙ]H]‹N‚ˆY]H˜[YOHšY]ÜÜˆÛÛ[HÚYY]šXÙK]ÚY[š]X[\ØØ[OLH‚ˆ]O’[œİ[][Ûˆ›YHXYÚXÏİ]O‚ˆİ[O‚ˆ›Ù^Ù›ÛŒMœŞ\İ[K]ZNØ˜XÚÙÜ›İ[™ˆÌŒÌLØÛÛÜˆÙ™™ÛX^]ÚYLÛX\™Ú[]]ÎÜY[™ÎŒŒBˆXZ[Ø˜XÚÙÜ›İ[™ˆÌYŒÌÎÜY[™ÎŒØ›Ü™\‹\˜Y]\ÎŒMœØ›Ü™\Œ\ÛÛYØÍXLN_Bˆ[œ]]ÛİÚYŒL	NØ›Ş\Ú^š[™Î˜›Ü™\‹X›ŞÜY[™ÎŒMÛX\™Ú[‹]ÜŒLœØ›Ü™\‹\˜Y]\ÎBˆ]ÛØ˜XÚÙÜ›İ[™ˆØÍXLNNØ›Ü™\ŒÙ›Û]ÙZYÚK›ÚŞØÛÛÜˆÍ™˜ÙŒ_K˜˜YØÛÛÜˆÙ™NBˆÜİ[O‚ÚXY‚›ÙOXZ[‚ˆO›YHXYÚXÈ8 %[œİ[][Ûˆ^TÔSÚO‚ˆÛ\ÜÏHÏH	İXØÙ\ÜÈÈ	ÛÚÉÈˆ	Ø˜Y	ÈÏˆÏH[ÜXÚX[Ú\œÊ	Y\ÜØYÙKS•ÔUSÕTË	ÕU‹N	ÊHÏÜ‚ˆÜYˆ
-IİXØÙ\ÜÊNˆÏ‚ˆ›Ü›HY]ÙHœÜİ‚ˆX™[”ÙXÜ™]8 &X\Z\˜YÙH0êYš[šH[œÈÛÛ™šYËœÛX™[‚ˆ[œ]\OHœ\ÜİÛÜ™ˆ˜[YOHœZ\š[™×ÜÙXÜ™]ˆ™\]Z\™Y]]ØÛÛ\]OH›Ù™ˆ‚ˆ]Ûˆ\OHœİX›Z]’[š]X[\Ù\ˆ\ÈX›\ÏØ]Û‚ˆÙ›Ü›O‚ˆÜ[™YÈÏ‚ÛXZ[Ø›ÙOÚ[‚
+$message = '';
+$success = false;
+$configFile = __DIR__ . '/config.php';
+if (!is_file($configFile)) {
+    $message = 'CrÃ©ez dâ€™abord config.php Ã  partir de config.example.php.';
+} else {
+    $config = require $configFile;
+    if (empty($config['app']['setup_enabled'])) {
+        $message = 'Installation dÃ©sactivÃ©e dans config.php.';
+    } elseif (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+        $provided = (string)($_POST['pairing_secret'] ?? '');
+        $expected = (string)($config['app']['pairing_secret'] ?? '');
+        if (strlen($expected) < 24 || !hash_equals($expected, $provided)) {
+            $message = 'Secret dâ€™appairage incorrect.';
+        } else {
+            try {
+                $db = $config['database'];
+                $pdo = new PDO(
+                    "mysql:host={$db['host']};port=" . ($db['port'] ?? 3306) . ";dbname={$db['name']};charset=utf8mb4",
+                    $db['user'],
+                    $db['password'],
+                    [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_EMULATE_PREPARES => false]
+                );
+                $sql = file_get_contents(__DIR__ . '/schema.sql');
+                if ($sql === false) throw new RuntimeException('schema.sql introuvable.');
+                $statements = preg_split('/;\\s*(?:\\r?\\n|$)/', $sql);
+                foreach ($statements as $statement) {
+                    if (trim($statement) !== '') $pdo->exec($statement);
+                }
+                $success = true;
+                $message = 'Base initialisÃ©e. Passez maintenant setup_enabled Ã  false dans config.php.';
+            } catch (Throwable $error) {
+                $message = 'Ã‰chec MySQL : ' . htmlspecialchars($error->getMessage(), ENT_QUOTES, 'UTF-8');
+            }
+        }
+    }
+}
+?><!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Installation Blue Magic</title>
+    <style>
+        body{font:16px system-ui;background:#0b0c10;color:#fff;max-width:650px;margin:40px auto;padding:20px}
+        main{background:#1f2833;padding:24px;border-radius:16px;border:1px solid #c5a059}
+        input,button{width:100%;box-sizing:border-box;padding:14px;margin-top:12px;border-radius:8px}
+        button{background:#c5a059;border:0;font-weight:800}.ok{color:#66fcf1}.bad{color:#ff8a80}
+    </style>
+</head>
+<body><main>
+    <h1>Blue Magic â€” installation MySQL</h1>
+    <p class="<?= $success ? 'ok' : 'bad' ?>"><?= htmlspecialchars($message, ENT_QUOTES, 'UTF-8') ?></p>
+    <?php if (!$success): ?>
+    <form method="post">
+        <label>Secret dâ€™appairage dÃ©fini dans config.php</label>
+        <input type="password" name="pairing_secret" required autocomplete="off">
+        <button type="submit">Initialiser les tables</button>
+    </form>
+    <?php endif; ?>
+</main></body></html>

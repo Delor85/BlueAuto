@@ -1,4 +1,9 @@
-şº(·úk¡ø¥zX§{ßİzÿçºYOz¹¢²È¨×§‰çHÈ˜XÚÙ[™ÛİY›\™H8 %Ü[Ûˆ™XÛÛ[X[™0êYB‚ÙHÜÜÚY\ˆ0ê\ÚYH
-Š›Hpê›YHTH›YHXYÚXÈŒŠŠˆİ\ˆÛİY›\™HÛÜšÙ\œÈ
-ÈH]Ù\]\ÜÚH8 &Z[\™˜XÙHÙX‹ˆ8 &X\XØ][Ûˆ[™›ÚY][\ÙHÚ[\[Y[[™HT“Y™°ê\™[H‚‚˜Î‹ËØ›YK[XYÚXËX\K›İ™K\Ûİ\ËYÛXZ[™O‹ÛÜšÙ\œË™]‹Ø\X‚“HSˆØ[][¸ &Y\İ˜[XZ\È[›ŞpêH0èÛİY›\™Kˆ[™\İHÚY™œ°êH[œÈHÙ^\İÜ™HH0ê[0ê\Û™H›Ø›İ‚‚“H›ØğêY\™HÛÛ\0êK[œğêYHİ\ˆ[ˆ™[ZY\ˆ0ê\ÚY[Y[ÙH›İ]™H[œÈØØÜËÒS”ÕSUSÓ—ĞÓÕQ“T‘K›YJ‹‹ÙØÜËÒS”ÕSUSÓ—ĞÓÕQ“T‘K›Y
-K‚
+# Backend Cloudflare â€” option recommandÃ©e
+
+Ce dossier dÃ©ploie **la mÃªme API Blue Magic v2** sur Cloudflare Workers + D1 et sert aussi lâ€™interface web. Lâ€™application Android utilise simplement une URL diffÃ©rente :
+
+`https://blue-magic-api.<votre-sous-domaine>.workers.dev/api`
+
+Le PIN Camtel nâ€™est jamais envoyÃ© Ã  Cloudflare. Il reste chiffrÃ© dans le Keystore du tÃ©lÃ©phone Robot.
+
+La procÃ©dure complÃ¨te, pensÃ©e pour un premier dÃ©ploiement, se trouve dans [`docs/INSTALLATION_CLOUDFLARE.md`](../docs/INSTALLATION_CLOUDFLARE.md).

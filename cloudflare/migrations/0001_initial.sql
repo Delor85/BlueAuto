@@ -1,32 +1,70 @@
-Ч╨(╥Зk║Ь╔zX╖{ъщzЪГ╨YOz╧╒╡х╗²в╖┴ГT░QсPH⌡э≥ZYш≈зы^\хHс▌б┌░т▒PUHP⌠HQ┬⌠уVTух⌡ы\х
-┬⌡ыWьшыHV▓SPT√HяVH⌠у∙S┬⌡шHV⌠у∙SрPрх
-⌡шHS┬
-	яQIк	ясIк	ттийJK┬ш≥Wш²[X≥\┬V⌠у∙SS▓TUQHрPрх
-[≥щ
-ш≥Wш²[X≥\┼HHJK┬\≥[²ш⌡ыWьшыHV▒Q▒T▒S░яTх⌡ы\й⌡ыWьшыJHс┬TUHпTппQHс┬SUH▒Tу▓Pу┬Xщ]≥HS∙QяT┬⌠у∙SQ░USHрPрх
-Xщ]≥HS┬
-JJK┬э≥X]Yь]V⌠у∙SQ░US
-щ≥²[YJ	иVKI[KIY	R┴SN┴Y√┴к	ш⌡щийJK┬\]Yь]V⌠у∙SQ░US
-щ≥²[YJ	иVKI[KIY	R┴SN┴Y√┴к	ш⌡щийJB┼Nб┌░т▒PUHS▒VQ┬⌠уVTухYш⌡ы\вэ\≥[²с┬⌡ы\й\≥[²ш⌡ыWьшыJNб┌░т▒PUHP⌠HQ┬⌠уVTух] Xы\х
-┬] XыWзYV▓SPT√HяVH⌠у∙S┬⌡ыWьшыHV⌠у∙S▒Q▒T▒S░яTх⌡ы\й⌡ыWьшыJHс┬TUHпTппQHс┬SUHпTппQK┬[ыHV⌠у∙SрPрх
-[ыHS┬
-	т▒SSуIк	т⌠п⌠у	к	рP■▓Q	йJK┬] XыWш≤[YHV⌠у∙SQ░US	ик┬зы[≈з\зV⌠у∙SS▓TUQK┬Xщ]≥HS∙QяT┬⌠у∙SQ░USHрPрх
-Xщ]≥HS┬
-JJK┬⌡ь⌡щы[≤X⌡YS∙QяT┬⌠у∙SQ░USрPрх
-⌡ь⌡щы[≤X⌡YS┬
-JJK┬\щ≥\°з[ш┬V⌠у∙SQ░US	ик┬[≥⌡зYщ≥\°з[ш┬V⌠у∙SQ░US	ик┬] XыWш[ы[V⌠у∙SQ░US	ик┬\щэыY[≈ь]V┬э≥X]Yь]V⌠у∙SQ░US
-щ≥²[YJ	иVKI[KIY	R┴SN┴Y√┴к	ш⌡щийJB┼Nб┌░т▒PUHS▒VQ┬⌠уVTухYы] Xы\вш⌡ыWш[ыHс┬] Xы\й⌡ыWьшыK[ыKXщ]≥JNб┌░т▒PUHP⌠HQ┬⌠уVTухшш[X[≥х
-┬YS∙QяT┬▓SPT√HяVHUUрS░т▒SQS∙┬X⌡XвзYV⌠у∙SS▓TUQK┬шY[²э≥\]Y\щзYV⌠у∙S┬≥\]Y\щ\≈ш⌡ыWьшыHV⌠у∙S▒Q▒T▒S░яTх⌡ы\й⌡ыWьшыJK┬^Xщ]э≈ш⌡ыWьшыHV⌠у∙S▒Q▒T▒S░яTх⌡ы\й⌡ыWьшыJK┬\≥ы]ш⌡ыWьшыHV▒Q▒T▒S░яTх⌡ы\й⌡ыWьшыJK┬э\≤][ш┬V⌠у∙SрPрх
-э\≤][ш┬S┬
-	яTу▓P∙USс≈у░S■я▒T┴к	т▒URSу░S■я▒T┴к	уTус∙SP▒T┴йJK┬\≥ы]эш≥HV┬[[щ[²S∙QяT▀┬\эыьшыHV⌠у∙S┬≥\]Z\≥\вэ[┬S∙QяT┬⌠у∙SQ░USHрPрх
-≥\]Z\≥\вэ[┬S┬
-JJK┬щ]HV⌠у∙SQ░US	тS▒S▒ик┬][\S∙QяT┬⌠у∙SQ░US┬X^ь][\хS∙QяT┬⌠у∙SQ░US▀┬X\ыWщзы[≈з\зV┬X\ыYщ[²[V┬≥\щ[шY\эьYыHV┬э\≤]э≈щ≤[°ьXщ[ш≈зYV┬э≥X]Yь]V⌠у∙SQ░US
-щ≥²[YJ	иVKI[KIY	R┴SN┴Y√┴к	ш⌡щийJK┬щ\²Yь]V┬шш\]Yь]V┬\]Yь]V⌠у∙SQ░US
-щ≥²[YJ	иVKI[KIY	R┴SN┴Y√┴к	ш⌡щийJK┬S▓TUQJ≥\]Y\щ\≈ш⌡ыWьшыKшY[²э≥\]Y\щзY
-B┼Nб┌░т▒PUHS▒VQ┬⌠уVTухYьшш[X[≥вы^Xщ]э≈э]Y]YB┬с┬шш[X[≥й^Xщ]э≈ш⌡ыWьшыKщ]KY
-Nб┌░т▒PUHP⌠HQ┬⌠уVTухшш[X[≥ы]≥[²х
-┬YS∙QяT┬▓SPT√HяVHUUрS░т▒SQS∙┬шш[X[≥зYS∙QяT┬⌠у∙S▒Q▒T▒S░яTхшш[X[≥йY
-Hс┬SUHпTппQK┬] XыWзYV▒Q▒T▒S░яTх] Xы\й] XыWзY
-Hс┬SUHяU∙S┬щ]HV⌠у∙S┬Y\эьYыHV┬э≥X]Yь]V⌠у∙SQ░US
-щ≥²[YJ	иVKI[KIY	R┴SN┴Y√┴к	ш⌡щийJB┼Nб┌░т▒PUHS▒VQ┬⌠уVTухYы]≥[²вьшш[X[≥с┬шш[X[≥ы]≥[²йшш[X[≥зYY
-Nб
+PRAGMA foreign_keys = ON;
+
+CREATE TABLE IF NOT EXISTS nodes (
+    node_code TEXT PRIMARY KEY NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('DAE', 'DSM', 'POS')),
+    phone_number TEXT NOT NULL UNIQUE CHECK (length(phone_number) = 9),
+    parent_node_code TEXT REFERENCES nodes(node_code) ON UPDATE CASCADE ON DELETE RESTRICT,
+    active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_nodes_parent ON nodes(parent_node_code);
+
+CREATE TABLE IF NOT EXISTS devices (
+    device_id TEXT PRIMARY KEY NOT NULL,
+    node_code TEXT NOT NULL REFERENCES nodes(node_code) ON UPDATE CASCADE ON DELETE CASCADE,
+    mode TEXT NOT NULL CHECK (mode IN ('REMOTE', 'ROBOT', 'HYBRID')),
+    device_name TEXT NOT NULL DEFAULT '',
+    token_hash TEXT NOT NULL UNIQUE,
+    active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
+    robot_enabled INTEGER NOT NULL DEFAULT 0 CHECK (robot_enabled IN (0, 1)),
+    app_version TEXT NOT NULL DEFAULT '',
+    android_version TEXT NOT NULL DEFAULT '',
+    device_model TEXT NOT NULL DEFAULT '',
+    last_seen_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_devices_node_mode ON devices(node_code, mode, active);
+
+CREATE TABLE IF NOT EXISTS commands (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    public_id TEXT NOT NULL UNIQUE,
+    client_request_id TEXT NOT NULL,
+    requester_node_code TEXT NOT NULL REFERENCES nodes(node_code),
+    executor_node_code TEXT NOT NULL REFERENCES nodes(node_code),
+    target_node_code TEXT REFERENCES nodes(node_code),
+    operation TEXT NOT NULL CHECK (operation IN ('DISTRIBUTION_TRANSFER', 'RETAIL_TRANSFER', 'TEST_NUMBER')),
+    target_phone TEXT,
+    amount INTEGER,
+    ussd_code TEXT NOT NULL,
+    requires_pin INTEGER NOT NULL DEFAULT 1 CHECK (requires_pin IN (0, 1)),
+    state TEXT NOT NULL DEFAULT 'PENDING',
+    attempt INTEGER NOT NULL DEFAULT 0,
+    max_attempts INTEGER NOT NULL DEFAULT 2,
+    lease_token_hash TEXT,
+    leased_until TEXT,
+    result_message TEXT,
+    operator_transaction_id TEXT,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    started_at TEXT,
+    completed_at TEXT,
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    UNIQUE(requester_node_code, client_request_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_commands_executor_queue
+    ON commands(executor_node_code, state, id);
+
+CREATE TABLE IF NOT EXISTS command_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    command_id INTEGER NOT NULL REFERENCES commands(id) ON DELETE CASCADE,
+    device_id TEXT REFERENCES devices(device_id) ON DELETE SET NULL,
+    state TEXT NOT NULL,
+    message TEXT,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_events_command ON command_events(command_id, id);

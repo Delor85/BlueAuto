@@ -1,148 +1,165 @@
-şº(·úk¡ø¥zX§{ßİzÿçºYOz¹¢²È¨×§‰çJ
+(() => {
+    'use strict';
 
-HOˆÂˆ	İ\ÙHİšXİ	ÎÂ‚ˆÛÛœİT“RSSH™]ÈÙ]
-ÉÔÕPĞÑQQQ	Ë	ÑRSQ	Ë	ÕS’Ó“ÕÓ‰Ë	Ğ“ĞÒÑQ	×JNÂˆÛÛœİİ]SX™[ÈHÂˆS‘S‘Îˆ	Ñ[ˆ][IËPTÑQˆ	Ô°ê\Ù\°êYH]H›Ø›İ	ËPSS‘Îˆ	ĞÛÛ\ÜÚ][ÛˆTÔÑ	ËˆUĞRUS‘×ÔSˆ	Õ°ê\šYšXØ][ÛˆHÜ]\	ËS—ÔÕP“RUQˆ	ÔSˆ˜[Y0êIËˆUĞRUS‘×Ô‘TÕSˆ	ĞÛÛ™š\›X][ÛˆØ[][	ËÕPĞÑQQQˆ	Ô°ê]\ÜÚYIËRSQˆ	ğâXÚXÉËˆS’Ó“ÕÓˆ	ğà°ê\šYšY\‰Ë“ĞÒÑQˆ	Ô›Ø›İ›Ü]pêH8 %S‰ÂˆNÂˆ]ÛÛ™šYİ\˜][ÛˆHßNÂˆ]ÛÛ[X[™ÈHØYÛÛ[X[™Ê
-NÂ‚ˆÛÛœİ	HYOˆØİ[Y[™Ù][[Y[RY
-Y
-NÂˆÛÛœİœšYÙP]˜Z[X›HH
+    const TERMINAL = new Set(['SUCCEEDED', 'FAILED', 'UNKNOWN', 'BLOCKED']);
+    const stateLabels = {
+        PENDING: 'En attente', LEASED: 'RÃ©servÃ©e au Robot', DIALING: 'Composition USSD',
+        AWAITING_PIN: 'VÃ©rification du pop-up', PIN_SUBMITTED: 'PIN validÃ©',
+        AWAITING_RESULT: 'Confirmation Camtel', SUCCEEDED: 'RÃ©ussie', FAILED: 'Ã‰chec',
+        UNKNOWN: 'Ã€ vÃ©rifier', BLOCKED: 'Robot bloquÃ© â€” PIN'
+    };
+    let configuration = {};
+    let commands = loadCommands();
 
-HOˆ\[ÙˆÚ[™İË[™›ÚYœšYÙHOOH	İ[™Yš[™Y	ÎÂ‚ˆÚ[™İË›YSXYÚXÓ˜]]™HHÂˆÛÛÛ[X[™Ü™X]Y
-]JHÂˆÙ]\ŞJ˜[ÙJNÂˆYˆ
-]K™\œ›ÜŠH™]\›ˆÚİÕØ\İ
-]K›Y\ÜØYÙH	ĞÜ°êX][Ûˆ[\ÜÜÚX›K‰ÊNÂˆÛÛœİÛÛ[X[™H]K˜ÛÛ[X[™ßNÂˆYˆ
-XÛÛ[X[™œX›X×ÚY
-H™]\›ˆÚİÕØ\İ
-	Ô°ê\ÛœÙHHÛÛ[X[™H[˜ÛÛ\0êK‰ÊNÂˆ\Ù\ÛÛ[X[™
-ÛÛ[X[™
-NÂˆÚİÕØ\İ
-]K™\XØ]HÈ	ĞÙ]H[X[™H^\İZ]0êZ°è‰Èˆ	ĞÛÛ[X[™HğêXİ\š\ğêYHÜ°êpêYK‰ÊNÂˆ™[™\ÛÛ[X[™Ê
-NÂˆKˆÛÛÛ[X[™İ]\Ê]JHÂˆYˆ
-]K™\œ›ÜŠH™]\›ÂˆYˆ
-]K˜ÛÛ[X[™
-HÂˆ\Ù\ÛÛ[X[™
-]K˜ÛÛ[X[™
-NÂˆ™[™\ÛÛ[X[™Ê
-NÂˆBˆBˆNÂ‚ˆ[˜İ[Ûˆ[š]X[^™J
-HÂˆYˆ
-XœšYÙP]˜Z[X›J
-JHÂˆ	
-	Û˜]]™P˜YÙIÊK^ÛÛ[H	ÓU’QĞUUTˆÑUS	ÎÂˆ	
-	Øœ›İÜÙ\“›İXÙIÊK˜Û\ÜÓ\İœ™[[İ™J	ÚY[‰ÊNÂˆØİ[Y[œ]Y\TÙ[XİÜ[
-	Ø]Û–Ù]KXXİ[Û—IÊK™›Ü‘XXÚ
-]ÛˆOˆ]Û‹™\ØX›YHYJNÂˆ™[™\ÛÛ[X[™Ê
-NÂˆ™]\›ÂˆBˆHÂˆÛÛ™šYİ\˜][ÛˆH”ÓÓ‹œ\œÙJÚ[™İË[™›ÚYœšYÙK™Ù]ÛÛ™šYİ\˜][ÛŠ
-H	ŞßIÊNÂˆHØ]Ú
-ÊHÂˆÛÛ™šYİ\˜][ÛˆHßNÂˆBˆ	
-	Û˜]]™P˜YÙIÊK^ÛÛ[H	ÔÓ•UQˆPÕQ‰ÎÂˆ	
-	Û˜]]™P˜YÙIÊK˜Û\ÜÓ˜[YHH	Ø˜YÙH˜YÙK[ÚÉÎÂˆ	
-	Øœ›İÜÙ\“›İXÙIÊK˜Û\ÜÓ\İ˜Y
-	ÚY[‰ÊNÂˆ	
-	Û›ÙPÛÙIÊK^ÛÛ[HÛÛ™šYİ\˜][Û‹››ÙWØÛÙH	Ó±dİY›ÛˆÛÛ™šYİ\°êIÎÂˆ	
-	Û›ÙSY]IÊK^ÛÛ[H	ØÛÛ™šYİ\˜][Û‹œ›ÛH	ø %	ßH8 (ˆ	ØÛÛ™šYİ\˜][Û‹›[ÙH	ø %	ßXÂˆ	
-	Ü›Ø›İİ]IÊK^ÛÛ[HÛÛ™šYİ\˜][Û‹œ›Ø›İÙ[˜X›YÈ	Ô“Ğ“ÕPÕQ‰Èˆ	Ô“Ğ“ÕT”°â•0âIÎÂˆYˆ
-ÛÛ™šYİ\˜][Û‹œ[—Ø›ØÚÙY
-HÂˆ	
-	Ù˜][›İXÙIÊK^ÛÛ[H	ĞT”°â•8 &UT‘ÑSÑHˆH°ê\ÙX]HHÚYÛ˜[0êH[ˆSˆ[˜ÛÜœ™XİˆÛÜœšYÙ^ˆHSˆ[œÈH›Û™H˜]]™H]˜[İ]H™\š\ÙK‰ÎÂˆ	
-	Ù˜][›İXÙIÊK˜Û\ÜÓ\İœ™[[İ™J	ÚY[‰ÊNÂˆBˆYˆ
-ÉÑÓIË	ÔÔÉ×Kš[˜ÛY\ÊÛÛ™šYİ\˜][Û‹œ›ÛJJH	
-	Ü™\]Y\İİ\PØ\™	ÊK˜Û\ÜÓ\İœ™[[İ™J	ÚY[‰ÊNÂˆYˆ
-ÉÑQIË	ÑÓI×Kš[˜ÛY\ÊÛÛ™šYİ\˜][Û‹œ›ÛJJH	
-	Üİ\PÚ[Ø\™	ÊK˜Û\ÜÓ\İœ™[[İ™J	ÚY[‰ÊNÂˆYˆ
-ÛÛ™šYİ\˜][Û‹œ›ÛHOOH	ÔÔÉÊH	
-	Ü™]Z[Ø\™	ÊK˜Û\ÜÓ\İœ™[[İ™J	ÚY[‰ÊNÂˆš[™Xİ[ÛœÊ
-NÂˆ™[™\ÛÛ[X[™Ê
-NÂˆ™Yœ™\ÚÛÛ[X[™Ê
-NÂˆÚ[™İËœÙ][\˜[
+    const $ = id => document.getElementById(id);
+    const bridgeAvailable = () => typeof window.AndroidBridge !== 'undefined';
 
+    window.BlueMagicNative = {
+        onCommandCreated(data) {
+            setBusy(false);
+            if (data.error) return showToast(data.message || 'CrÃ©ation impossible.');
+            const command = data.command || {};
+            if (!command.public_id) return showToast('RÃ©ponse de commande incomplÃ¨te.');
+            upsertCommand(command);
+            showToast(data.duplicate ? 'Cette demande existait dÃ©jÃ .' : 'Commande sÃ©curisÃ©e crÃ©Ã©e.');
+            renderCommands();
+        },
+        onCommandStatus(data) {
+            if (data.error) return;
+            if (data.command) {
+                upsertCommand(data.command);
+                renderCommands();
+            }
+        }
+    };
 
-HOˆÂˆYˆ
-Øİ[Y[š\ÚXš[]Tİ]HOOH	İš\ÚX›IÊH™Yœ™\ÚÛÛ[X[™Ê
-NÂˆKML
-NÂˆB‚ˆ[˜İ[Ûˆš[™Xİ[ÛœÊ
-HÂˆØİ[Y[œ]Y\TÙ[XİÜ[
-	Ø]Û–Ù]KXXİ[Û—IÊK™›Ü‘XXÚ
-]ÛˆOˆÂˆ]Û‹˜Y]™[\İ[™\Š	ØÛXÚÉË
+    function initialize() {
+        if (!bridgeAvailable()) {
+            $('nativeBadge').textContent = 'NAVIGATEUR SEUL';
+            $('browserNotice').classList.remove('hidden');
+            document.querySelectorAll('button[data-action]').forEach(button => button.disabled = true);
+            renderCommands();
+            return;
+        }
+        try {
+            configuration = JSON.parse(window.AndroidBridge.getConfiguration() || '{}');
+        } catch (_) {
+            configuration = {};
+        }
+        $('nativeBadge').textContent = 'PONT NATIF ACTIF';
+        $('nativeBadge').className = 'badge badge-ok';
+        $('browserNotice').classList.add('hidden');
+        $('nodeCode').textContent = configuration.node_code || 'NÅ“ud non configurÃ©';
+        $('nodeMeta').textContent = `${configuration.role || 'â€”'} â€¢ ${configuration.mode || 'â€”'}`;
+        $('robotState').textContent = configuration.robot_enabled ? 'ROBOT ACTIF' : 'ROBOT ARRÃŠTÃ‰';
+        if (configuration.pin_blocked) {
+            $('fatalNotice').textContent = 'ARRÃŠT Dâ€™URGENCE : le rÃ©seau a signalÃ© un PIN incorrect. Corrigez le PIN dans la zone native avant toute reprise.';
+            $('fatalNotice').classList.remove('hidden');
+        }
+        if (['DSM', 'POS'].includes(configuration.role)) $('requestSupplyCard').classList.remove('hidden');
+        if (['DAE', 'DSM'].includes(configuration.role)) $('supplyChildCard').classList.remove('hidden');
+        if (configuration.role === 'POS') $('retailCard').classList.remove('hidden');
+        bindActions();
+        renderCommands();
+        refreshCommands();
+        window.setInterval(() => {
+            if (document.visibilityState === 'visible') refreshCommands();
+        }, 15000);
+    }
 
-HOˆ^Xİ]J]Û‹™]\Ù]˜Xİ[ÛŠJNÂˆJNÂˆ	
-	Ü™Yœ™\ÚÛÛ[X[™ÉÊK˜Y]™[\İ[™\Š	ØÛXÚÉË™Yœ™\ÚÛÛ[X[™ÊNÂˆB‚ˆ[˜İ[Ûˆ^Xİ]JXİ[ÛŠHÂˆYˆ
-XœšYÙP]˜Z[X›J
-HÛÛ™šYİ\˜][Û‹œ[—Ø›ØÚÙY
-H™]\›Âˆ]™\]Y\İ\HH	ÉË\™Ù]›ÙHH	ÉË\™Ù]Û™HH	ÉË[[İ[H	ÉÎÂˆYˆ
-Xİ[ÛˆOOH	Ü™\]Y\İ\İ\IÊHÂˆ™\]Y\İ\HH	Ô‘TUQTÕÔÕTIÎÂˆ[[İ[H	
-	Ü™\]Y\İİ\P[[İ[	ÊK˜[YKš[J
-NÂˆH[ÙHYˆ
-Xİ[ÛˆOOH	Üİ\KXÚ[	ÊHÂˆ™\]Y\İ\HH	ÔÕTWĞÒS	ÎÂˆ\™Ù]›ÙHH	
-	ØÚ[›ÙIÊK˜[YKš[J
-KÕ\\Ø\ÙJ
-NÂˆ[[İ[H	
-	ØÚ[[[İ[	ÊK˜[YKš[J
-NÂˆH[ÙHYˆ
-Xİ[ÛˆOOH	Ü™]Z[\Ø[IÊHÂˆ™\]Y\İ\HH	Ô‘URSÔĞSIÎÂˆ\™Ù]Û™HH	
-	Ü™]Z[Û™IÊK˜[YKœ™\XÙJ×ÙË	ÉÊNÂˆ[[İ[H	
-	Ü™]Z[[[İ[	ÊK˜[YKš[J
-NÂˆH[ÙHYˆ
-Xİ[ÛˆOOH	İ\İ[[X™\‰ÊHÂˆ™\]Y\İ\HH	ÕTÕÓ•SP‘T‰ÎÂˆBˆYˆ
-™\]Y\İ\HOOH	ÕTÕÓ•SP‘T‰È	‰ˆK×–ÌKNWWÌIË\İ
-[[İ[
-JHÂˆ™]\›ˆÚİÕØ\İ
-	ÔØZ\Ú\ÜÙ^ˆ[ˆ[Û[[Y\ˆ˜[YK‰ÊNÂˆBˆYˆ
-™\]Y\İ\HOOH	ÔÕTWĞÒS	È	‰ˆ]\™Ù]›ÙJH™]\›ˆÚİÕØ\İ
-	ÔØZ\Ú\ÜÙ^ˆHÛÙH±dİY[™˜[‰ÊNÂˆYˆ
-™\]Y\İ\HOOH	Ô‘URSÔĞSIÈ	‰ˆK×—Î_IË\İ
-\™Ù]Û™JJH™]\›ˆÚİÕØ\İ
-	ÓH[pê\›ÈÛY[Ú]]›Ú\ˆHÚY™œ™\Ë‰ÊNÂ‚ˆÙ]\ŞJYJNÂˆÚ[™İË[™›ÚYœšYÙK˜Ü™X]PÛÛ[X[™
-™\]Y\İ\K\™Ù]›ÙK\™Ù]Û™K[[İ[™\]Y\İY
+    function bindActions() {
+        document.querySelectorAll('button[data-action]').forEach(button => {
+            button.addEventListener('click', () => execute(button.dataset.action));
+        });
+        $('refreshCommands').addEventListener('click', refreshCommands);
+    }
 
-JNÂˆB‚ˆ[˜İ[Ûˆ™Yœ™\ÚÛÛ[X[™Ê
-HÂˆYˆ
-XœšYÙP]˜Z[X›J
-JH™]\›ÂˆÛÛ[X[™Ë™š[\ŠÛÛ[X[™OˆUT“RSSš\ÊÛÛ[X[™œİ]JJK™›Ü‘XXÚ
-ÛÛ[X[™OˆÂˆÚ[™İË[™›ÚYœšYÙK™Ù]ÛÛ[X[™İ]\ÊÛÛ[X[™œX›X×ÚY
-NÂˆJNÂˆB‚ˆ[˜İ[Ûˆ\Ù\ÛÛ[X[™
-ÛÛ[X[™
-HÂˆÛÛœİ[™^HÛÛ[X[™Ë™š[™[™^
-][HOˆ][KœX›X×ÚYOOHÛÛ[X[™œX›X×ÚY
-NÂˆYˆ
-[™^H
-HÛÛ[X[™ÖÚ[™^HHË‹‹˜ÛÛ[X[™ÖÚ[™^K‹‹˜ÛÛ[X[™NÂˆ[ÙHÛÛ[X[™Ë[œÚY
-ÛÛ[X[™
-NÂˆÛÛ[X[™ÈHÛÛ[X[™ËœÛXÙJŒ
-NÂˆØØ[İÜ˜YÙKœÙ]][J	Ø›YWÛXYÚX×Ü™XÙ[ØÛÛ[X[™×İŒ‰Ë”ÓÓ‹œİš[™ÚYJÛÛ[X[™ÊJNÂˆB‚ˆ[˜İ[ÛˆØYÛÛ[X[™Ê
-HÂˆHÂˆÛÛœİ˜[YHH”ÓÓ‹œ\œÙJØØ[İÜ˜YÙK™Ù]][J	Ø›YWÛXYÚX×Ü™XÙ[ØÛÛ[X[™×İŒ‰ÊH	Ö×IÊNÂˆ™]\›ˆ\œ˜^Kš\Ğ\œ˜^J˜[YJHÈ˜[YHˆ×NÂˆHØ]Ú
-ÊHÂˆ™]\›ˆ×NÂˆBˆB‚ˆ[˜İ[Ûˆ™[™\ÛÛ[X[™Ê
-HÂˆYˆ
-XÛÛ[X[™Ë›[™İ
-HÂˆ	
-	ØÛÛ[X[™\İ	ÊKš[›™\’SH	ÏÛ\ÜÏH›]]Y]Xİ[™HÛÛ[X[™Hİ\ˆÙH0ê[0ê\Û™KÜ‰ÎÂˆ™]\›ÂˆBˆ	
-	ØÛÛ[X[™\İ	ÊKš[›™\’SHÛÛ[X[™Ë›X\
-ÛÛ[X[™OˆÂˆÛÛœİİ]HH\ØØ\R[
-ÛÛ[X[™œİ]H	ÔS‘S‘ÉÊNÂˆÛÛœİ]Z[H\ØØ\R[
-ÛÛ[X[™œ™\İ[ÛY\ÜØYÙHÛÛ[X[™›Ü\˜][Ûˆ	ĞÛÛ[X[™HğêXİ\š\ğêYIÊNÂˆ™]\›ˆ\XÛHÛ\ÜÏH˜ÛÛ[X[™Z][H]ˆÛ\ÜÏH˜ÛÛ[X[™Z][K]Ü˜ˆ
-ÈÜ[ˆÛ\ÜÏH˜ÛÛ[X[™ZY‰Ù\ØØ\R[
-ÛÛ[X[™œX›X×ÚY	ÉÊ_OÜÜ[˜ˆ
-ÈÜ[ˆÛ\ÜÏH˜ÛÛ[X[™\İ]Hİ]KIÜİ]_H‰Ù\ØØ\R[
-İ]SX™[ÖØÛÛ[X[™œİ]WHÛÛ[X[™œİ]H	ø %	Ê_OÜÜ[˜ˆ
-ÈÙ]]ˆÛ\ÜÏH˜ÛÛ[X[™Y]Z[‰Ù]Z[OÙ]Ø\XÛO˜ÂˆJKš›Ú[Š	ÉÊNÂˆB‚ˆ[˜İ[Ûˆ™\]Y\İY
+    function execute(action) {
+        if (!bridgeAvailable() || configuration.pin_blocked) return;
+        let requestType = '', targetNode = '', targetPhone = '', amount = '';
+        if (action === 'request-supply') {
+            requestType = 'REQUEST_SUPPLY';
+            amount = $('requestSupplyAmount').value.trim();
+        } else if (action === 'supply-child') {
+            requestType = 'SUPPLY_CHILD';
+            targetNode = $('childNode').value.trim().toUpperCase();
+            amount = $('childAmount').value.trim();
+        } else if (action === 'retail-sale') {
+            requestType = 'RETAIL_SALE';
+            targetPhone = $('retailPhone').value.replace(/\D/g, '');
+            amount = $('retailAmount').value.trim();
+        } else if (action === 'test-number') {
+            requestType = 'TEST_NUMBER';
+        }
+        if (requestType !== 'TEST_NUMBER' && !/^[1-9]\d{0,8}$/.test(amount)) {
+            return showToast('Saisissez un montant entier valide.');
+        }
+        if (requestType === 'SUPPLY_CHILD' && !targetNode) return showToast('Saisissez le code nÅ“ud enfant.');
+        if (requestType === 'RETAIL_SALE' && !/^\d{9}$/.test(targetPhone)) return showToast('Le numÃ©ro client doit avoir 9 chiffres.');
 
-HÂˆYˆ
-Ú[™İË˜Ü\È	‰ˆ\[ÙˆÚ[™İË˜Ü\Ëœ˜[™ÛUURQOOH	Ù[˜İ[Û‰ÊH™]\›ˆÚ[™İË˜Ü\Ëœ˜[™ÛUURQ
+        setBusy(true);
+        window.AndroidBridge.createCommand(requestType, targetNode, targetPhone, amount, requestId());
+    }
 
-NÂˆ™]\›ˆ™\WÉÑ]K››İÊ
-_WÉÓX]œ˜[™ÛJ
-KÔİš[™ÊÍŠKœÛXÙJ‹M
-_XÂˆB‚ˆ[˜İ[ÛˆÙ]\ŞJ˜[YJHÂˆØİ[Y[œ]Y\TÙ[XİÜ[
-	Ø]Û–Ù]KXXİ[Û—IÊK™›Ü‘XXÚ
-]ÛˆOˆ]Û‹™\ØX›YH˜[YJNÂˆB‚ˆ[˜İ[ÛˆÚİÕØ\İ
-Y\ÜØYÙJHÂˆÛÛœİØ\İH	
-	İØ\İ	ÊNÂˆØ\İ^ÛÛ[HY\ÜØYÙNÂˆØ\İ˜Û\ÜÓ\İœ™[[İ™J	ÚY[‰ÊNÂˆÚ[™İËœÙ][Y[İ]
+    function refreshCommands() {
+        if (!bridgeAvailable()) return;
+        commands.filter(command => !TERMINAL.has(command.state)).forEach(command => {
+            window.AndroidBridge.getCommandStatus(command.public_id);
+        });
+    }
 
+    function upsertCommand(command) {
+        const index = commands.findIndex(item => item.public_id === command.public_id);
+        if (index >= 0) commands[index] = {...commands[index], ...command};
+        else commands.unshift(command);
+        commands = commands.slice(0, 20);
+        localStorage.setItem('blue_magic_recent_commands_v2', JSON.stringify(commands));
+    }
 
-HOˆØ\İ˜Û\ÜÓ\İ˜Y
-	ÚY[‰ÊKÍL
-NÂˆB‚ˆ[˜İ[Ûˆ\ØØ\R[
-˜[YJHÂˆ™]\›ˆİš[™Ê˜[YJKœ™\XÙJÖÉ‰È—KÙËÚ\˜Xİ\ˆOˆ
-ÉÉ‰Î‰É˜[\ÉË	Ï	Î‰É›ÉË	Ï‰Î‰É™İÉË‰È‰ÉˆÌÎNÉË	È‰Î‰Éœ][İÉßVØÚ\˜Xİ\—JJNÂˆB‚ˆØİ[Y[˜Y]™[\İ[™\Š	ÑÓPÛÛ[ØYY	Ë[š]X[^™JNÂˆYˆ
-	ÜÙ\šXÙUÛÜšÙ\‰È[ˆ˜]šYØ]ÜŠHÚ[™İË˜Y]™[\İ[™\Š	ÛØY	Ë
+    function loadCommands() {
+        try {
+            const value = JSON.parse(localStorage.getItem('blue_magic_recent_commands_v2') || '[]');
+            return Array.isArray(value) ? value : [];
+        } catch (_) {
+            return [];
+        }
+    }
 
-HOˆ˜]šYØ]Ü‹œÙ\šXÙUÛÜšÙ\‹œ™YÚ\İ\Š	ÜİËšœÉÊJNÂŸJJ
-NÂ
+    function renderCommands() {
+        if (!commands.length) {
+            $('commandList').innerHTML = '<p class="muted">Aucune commande sur ce tÃ©lÃ©phone.</p>';
+            return;
+        }
+        $('commandList').innerHTML = commands.map(command => {
+            const state = escapeHtml(command.state || 'PENDING');
+            const detail = escapeHtml(command.result_message || command.operation || 'Commande sÃ©curisÃ©e');
+            return `<article class="command-item"><div class="command-item-top">`
+                + `<span class="command-id">${escapeHtml(command.public_id || '')}</span>`
+                + `<span class="command-state state-${state}">${escapeHtml(stateLabels[command.state] || command.state || 'â€”')}</span>`
+                + `</div><div class="command-detail">${detail}</div></article>`;
+        }).join('');
+    }
+
+    function requestId() {
+        if (window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
+        return `req_${Date.now()}_${Math.random().toString(36).slice(2, 14)}`;
+    }
+
+    function setBusy(value) {
+        document.querySelectorAll('button[data-action]').forEach(button => button.disabled = value);
+    }
+
+    function showToast(message) {
+        const toast = $('toast');
+        toast.textContent = message;
+        toast.classList.remove('hidden');
+        window.setTimeout(() => toast.classList.add('hidden'), 3500);
+    }
+
+    function escapeHtml(value) {
+        return String(value).replace(/[&<>'"]/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[character]));
+    }
+
+    document.addEventListener('DOMContentLoaded', initialize);
+    if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
+})();

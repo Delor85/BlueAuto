@@ -1,4 +1,11 @@
-şº(·úk¡ø¥zX§{ßİzÿçºYOz¹¢²È¨×§‰çSÜ[ÛœÈR[™^\Â‚š[\ÓX]Ú—ŠÛÛ™šY×œÛÛ™šY×™^[\WœØÚ[XWœÜ[Š—œÜ[]JI‚ˆ™\]Z\™H[[šYYÑš[\ÓX]Ú‚‚Y“[Ù[H[ÙÚXY\œË˜Ï‚ˆXY\ˆ[Ø^\ÈÙ]PÛÛ[U\KSÜ[ÛœÈ››ÜÛšY™ˆ‚ˆXY\ˆ[Ø^\ÈÙ]™Y™\œ™\‹TÛXŞH››Ë\™Y™\œ™\ˆ‚ˆXY\ˆ[Ø^\ÈÙ]\›Z\ÜÚ[ÛœËTÛXŞH˜Ø[Y\˜OJ
-KZXÜ›ÜÛ™OJ
-KÙ[ÛØØ][ÛJ
-H‚ÒY“[Ù[O‚
+Options -Indexes
+
+<FilesMatch "^(config\.php|config\.example\.php|schema\.sql|.*\.sqlite)$">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "no-referrer"
+    Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+</IfModule>

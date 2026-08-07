@@ -1,1 +1,28 @@
-şº(·úk¡ø¥zX§{ßİzÿçºYOz¹¢²È¨×§‰ç\YÚ[œÈÂˆY	ØÛÛK˜[™›ÚY˜\XØ][Û‰ÂŸB‚˜[™›ÚYÂˆ˜[Y\ÜXÙH	ØÛÛKœ›Ùš]ÛÜ˜›YX]]ÉÂˆÛÛ\[TÙÈÍ‚ˆY˜][ÛÛ™šYÈÂˆ\XØ][Û’Y˜ÛÛKœ›Ùš]ÛÜ˜›YX]]È‚ˆZ[”ÙÈŒÂˆ\™Ù]ÙÈÍˆ™\œÚ[ÛÛÙHŒˆ™\œÚ[Û“˜[YHŒ‹ŒŒ\›Ø›İXÛÜ™H‚ˆB‚ˆZ[\\ÈÂˆ™[X\ÙHÂˆZ[šYQ[˜X›Y˜[ÙBˆ›ÙİX\™š[\ÈÙ]Y˜][›ÙİX\™š[J	Ü›ÙİX\™X[™›ÚY[Ü[Z^™K	ÊK	Ü›ÙİX\™\[\Ëœ›ÉÂˆBˆB‚ˆÛÛ\[SÜ[ÛœÈÂˆÛİ\˜ÙPÛÛ\]Xš[]H˜]˜U™\œÚ[Û‹•‘T”ÒSÓ—ÌWÎˆ\™Ù]ÛÛ\]Xš[]H˜]˜U™\œÚ[Û‹•‘T”ÒSÓ—ÌWÎˆBŸB
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.profitloop.blueauto'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.profitloop.blueauto"
+        minSdk 23
+        targetSdk 34
+        versionCode 20
+        versionName "2.0.0-robot-core"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}

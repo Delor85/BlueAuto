@@ -1,1 +1,11 @@
-şº(·úk¡ø¥zX§{ßİzÿçºYOz¹¢²È¨×§‰ç^Âˆ›˜[YHˆ›YHXYÚXÈ‹ˆœÚÜÛ˜[YHˆ›YHXYÚXÈ‹ˆ™\ØÜš\[Ûˆˆ•0ê[0êXÛÛ[X[™HğêXİ\š\ğêYH\È›Ø›İÈH\İšX][Ûˆ›YHØ[][‹ˆœİ\İ\›ˆ‹‹Ú[™^š[‹ˆœØÛÜHˆ‹‹È‹ˆ™\Ü^Hˆœİ[™[Û™H‹ˆ›ÜšY[][ÛˆˆœÜ˜Z]\š[X\H‹ˆ˜˜XÚÙÜ›İ[™ØÛÛÜˆˆˆÌŒÌL‹ˆ[YWØÛÛÜˆˆˆÌŒÌL‚ŸB
+{
+  "name": "Blue Magic",
+  "short_name": "Blue Magic",
+  "description": "TÃ©lÃ©commande sÃ©curisÃ©e des Robots de distribution Blue Camtel",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0b0c10",
+  "theme_color": "#0b0c10"
+}

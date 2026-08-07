@@ -1,2 +1,56 @@
-şº(·úk¡ø¥zX§{ßİzÿçºYOz¹¢²È¨×§‰çHÈ›İØÛÛHH\İ\œ˜Z[ˆ8 %]˜[\™Ù[°êY[‚ˆÈÈØ]HH8 %Ù\™]\‚‚‹H\KœØXİ[ÛZX[™[›ÚYHH”ÓÓ‹˜[XZ\È[™HYÙHSÂ‹HH›Ø›İø &X\Z\™H]™péÛÚ][ˆ™]ÛˆÂ‹H]^™\ÜÚ[ÛœÈ˜\Y\Èİ\ˆ[™H[X[™H¸ &Y[˜pë›™[]x &][™HÛÛ[X[™H]™XÈHpê›YHÛ0êHÂ‹H[™H0ê[0êXÛÛ[X[™H™H]]\ÈÜ°êY\ˆ[ˆÜ™™Hİ\ˆ[ˆ±dİYÜœÈHØHpê\˜\˜ÚYK‚‚ˆÈÈØ]Hˆ8 %0ê[0ê\Û™H›Ø›İ‚‹H]]Üš\Ø][Ûˆ0ê[0ê\Û™HXØÛÜ™0êYHÂ‹HXØÙ\ÜÚXš[]0êH›YHXYÚXÈXİ]™HÂ‹Hİ\\œÜÚ][ÛˆXİ]™HÂ‹H˜]\šYHØ[œÈ™\İšXİ[ÛˆÂ‹H[™HÙ][HÒSHİHÒSH›YHÚÚ\ÚYHÛÛ[YHÒSH8 &X\[\ˆ0êY˜]]Â‹H]Xİ[ˆ0êXÜ˜[ˆH™\œ›İZ[YÙHğêXİ\š\ğêHÂ‹H›İYšXØ][Ûˆ›Ø›İ\›X[™[HÂ‹H\İ
-JŒÊŒÈØ[˜ğêH0è\İ[˜ÙK‚‚ˆÈÈØ]HÈ8 %ÛÛ™š\›X][ÛˆS‚‚‘Y™™XİY\ˆ8 &XX›Ü™[™H˜[œØXİ[ÛˆX[Y[HZ[š[X[H]›İ\ˆH^H^XİHÜ]\‚‚‹HHÜ]\^ÜÙH[ˆY]^0è8 &XXØÙ\ÜÚXš[]0êHÂ‹HH^HÛÛY[H[pê\›È\İ[˜]Z\™H0èHÚY™œ™\ÈÂ‹HH^HÛÛY[H[Û[[ˆÑHÂ‹HH›İ]ÛˆÜH[ˆX™[0êH™XÛÛ›HˆS•“ÖQT˜ÑS‘ÓÓ‘’T“QT˜SQT˜İHÒØÂ‹H›YHXYÚXÈ™[\]HSˆÙ][[Y[ÜœÜ]YH[pê\›È][Û[ÛÜœ™\ÜÛ™[Â‹H[ˆ[ÙYšX[›ÛÛZ\™[Y[H[Û[][™H[œÈ[ˆ[š\›Û›™[Y[Ø[œÈ›Û™ËH›Ø›İÚ][›[\‹Ü™Y\Ù\ˆ]™XÈÓÓ‘’T“PUSÓ—ÓRTÓPUÒÂ‹H™H\İ^ˆ˜[XZ\È›ÛÛZ\™[Y[[ˆX]]˜Z\ÈSˆİ\ˆ[™HÒSHH›ÙXİ[Û‹‚‚ˆÈÈØ]H8 %°ê\İ[]][KYİX›Û‚‚‹HİXØğêÈÜ\0ê]Xİ0êHÂ‹HİXØğêÈÓTÈ0ê]Xİ0êHØ[œÈÜ°êY\ˆ[ˆ]^pêYH°ê\İ[]Â‹HQØ[][^˜Z]ÚH°ê\Ù[Â‹HXœÙ[˜ÙHH°ê\İ[]\°êÈLŒÙXÛÛ™\È8¡¤ˆS’Ó“ÕÓ˜Ø[œÈ™]H]]ÛX]\]YHÂ‹HÛİ\\™H[\›™]\°êÈÛÛ\ÜÚ][Ûˆ8¡¤ˆS’Ó“ÕÓ˜İHİ]]0è˜\›ØÚ\ˆX[Y[[Y[˜[XZ\È›İ]™[H™XÚ\™ÙH]]ÛX]\]YHÂ‹HÚ[œH[X[™\ÈÚ[][[°êY\ÈÛÛ˜Z]0êY\È’Q“Ë[™HÙ][HÙ\ÜÚ[ÛˆTÔÑ0èH›Ú\Ë‚‚ˆÈÈXYÛ›ÜİXÈ˜\YB‚ŸŞ[\0íYHØ]\ÙH›Ø˜X›HXİ[ÛˆŸKK_KK_KK_ŸS•SQÔ‘TÔÓ”ÑX[™š[š]Qœ™YH™[›ÚYHSØÚ[[™ÙH]HÛY[˜]Yˆİ]œš\ˆ8 &PTH[œÈÙX•šY]Ë°ê\šYšY\ˆÛÛÚÚY\ÎÈÚH\œÚ\İ[ZYÜ™\ˆ8 &PTHŸšY[ˆ™Hø &[İ]œ™Hİ\ˆH0ê[X\œ˜YÙH8 &XXİ]š]0êH[ˆ\œšpê™K\[ˆ›Ü]pêHXØÛÜ™\ˆİ\\œÜÚ][Û‹Ø\™\ˆ›YHXYÚXÈš\ÚX›K™]\™\ˆ™\œ›İZ[YÙH0êXÜ˜[ˆŸS—Ñ’QSÓ“ÕÑ“ÕS‘\XØ][Ûˆ0ê[0ê\Û™HH˜XœšXØ[X\Ü]YHHÚ[\\İ\ˆ[ˆ]]™H[Ù0êKİ0ê[0ê\Û™HİHY\\ˆ\Èğê[Xİ]\œÈ0èÙH[Ù0êHŸÓÓ‘’T“WĞ•UÓ—Ó“ÕÑ“ÕS‘X™[0êKØ›İ]ÛˆÑSH›Ûˆ™XÛÛ›H™[]™\ˆH^H^Xİ]8 &ZY[YšX[8 &XXØÙ\ÜÚXš[]0êHŸÓÓ‘’T“PUSÓ—ÓRTÓPUÒ[pê\›ËÛ[Û[›Ü›X]0êHY™°ê\™[[Y[İH°êY[[Y[˜]^™H\È›Ü˜Ù\ÈØ\\™\ˆHÜ]\]Y\\ˆH\œÙ]\ˆŸÔ“Ó‘×ÔS˜SˆØØ[\œ›Û°êH\œ°ê\‹°ê\šYšY\ˆX[Y[[Y[[œ™YÚ\İ™\ˆH›ÛˆSÈ]Xİ[™H°ê\0ê]][ÛˆŸS’Ó“ÕÓ˜˜[œÙ™\ÜÜÚX›[Y[^0êXİ]0êHØ[œÈ™]]™HØ\0êYH°ê\šYšY\ˆÛÛH]Ú[œH\›špê™\È˜[œØXİ[ÛœÈ]˜[İ]H›İ]™[H[]]™H‚ˆÈÈÜš]0ê™HH\ÜØYÙH[ˆ›ÙXİ[Û‚‚“Hpê›YH[Ù0êHH0ê[0ê\Û™KHpê›YH™\œÚ[Ûˆ[™›ÚYHpê›YH\XØ][Ûˆ0ê[0ê\Û™H]Hpê›YHÒSHÚ]™[°ê]\ÜÚ\ˆ]H[Ú[œÈÌ˜[œØXİ[ÛœÈZ[š[X[\ÈÛÛœğêXİ]]™\ËHÛÛ\š\È[ˆ\İ°ê\ÙX]H[][ˆ™Y0ê[X\œ˜YÙKˆ[]YHÙHÙ]Z[¸ &Y\İ\È]Z[HŞ\İ0êYH™\İH[ˆ[İHİ\\š\ğêK‚
+# Protocole de test terrain â€” avant argent rÃ©el
+
+## Gate A â€” Serveur
+
+- `api.php?action=health` renvoie du JSON, jamais une page HTML ;
+- le Robot sâ€™appaire et reÃ§oit un jeton ;
+- deux pressions rapides sur une demande nâ€™entraÃ®nent quâ€™une commande avec la mÃªme clÃ© ;
+- une TÃ©lÃ©commande ne peut pas crÃ©er un ordre pour un nÅ“ud hors de sa hiÃ©rarchie.
+
+## Gate B â€” TÃ©lÃ©phone Robot
+
+- autorisation TÃ©lÃ©phone accordÃ©e ;
+- AccessibilitÃ© Blue Magic active ;
+- superposition active ;
+- batterie sans restriction ;
+- une seule SIM ou SIM Blue choisie comme SIM dâ€™appel par dÃ©faut ;
+- aucun Ã©cran de verrouillage sÃ©curisÃ© ;
+- notification Robot permanente ;
+- test `*825*3*3#` lancÃ© Ã  distance.
+
+## Gate C â€” Confirmation PIN
+
+Effectuer dâ€™abord une transaction manuelle minimale et noter le texte exact du pop-up.
+
+- le pop-up expose un `EditText` Ã  lâ€™accessibilitÃ© ;
+- le texte contient le numÃ©ro destinataire Ã  9 chiffres ;
+- le texte contient le montant en FCFA ;
+- le bouton porte un libellÃ© reconnu : `ENVOYER`, `SEND`, `CONFIRMER`, `VALIDER` ou `OK` ;
+- Blue Magic remplit le PIN seulement lorsque numÃ©ro et montant correspondent ;
+- en modifiant volontairement le montant attendu dans un environnement sans fonds, le Robot doit annuler/refuser avec `CONFIRMATION_MISMATCH` ;
+- ne testez jamais volontairement un mauvais PIN sur une SIM de production.
+
+## Gate D â€” RÃ©sultat et anti-doublon
+
+- succÃ¨s popup dÃ©tectÃ© ;
+- succÃ¨s SMS dÃ©tectÃ© sans crÃ©er un deuxiÃ¨me rÃ©sultat ;
+- ID Camtel extrait si prÃ©sent ;
+- absence de rÃ©sultat aprÃ¨s 120 secondes â†’ `UNKNOWN`, sans retry automatique ;
+- coupure Internet aprÃ¨s composition â†’ `UNKNOWN` ou statut Ã  rapprocher manuellement, jamais nouvelle recharge automatique ;
+- cinq demandes simultanÃ©es sont traitÃ©es FIFO, une seule session USSD Ã  la fois.
+
+## Diagnostic rapide
+
+| SymptÃ´me | Cause probable | Action |
+|---|---|---|
+| `INVALID_RESPONSE` | InfinityFree renvoie HTML/challenge au client natif | Ouvrir lâ€™API dans WebView, vÃ©rifier cookies; si persistant, migrer lâ€™API |
+| Rien ne sâ€™ouvre sur T1 | dÃ©marrage dâ€™activitÃ© en arriÃ¨re-plan bloquÃ© | accorder superposition, garder Blue Magic visible, retirer verrouillage Ã©cran |
+| `PIN_FIELD_NOT_FOUND` | application TÃ©lÃ©phone du fabricant masque le champ | tester un autre modÃ¨le/tÃ©lÃ©phone ou adapter les sÃ©lecteurs Ã  ce modÃ¨le |
+| `CONFIRM_BUTTON_NOT_FOUND` | libellÃ©/bouton OEM non reconnu | relever le texte exact et lâ€™identifiant dâ€™accessibilitÃ© |
+| `CONFIRMATION_MISMATCH` | numÃ©ro/montant formatÃ© diffÃ©remment ou rÃ©ellement faux | ne pas forcer; capturer le pop-up et adapter le parseur |
+| `WRONG_PIN` | PIN local erronÃ© | arrÃªter, vÃ©rifier manuellement, enregistrer le bon PIN; aucune rÃ©pÃ©tition |
+| `UNKNOWN` | transfert possiblement exÃ©cutÃ© sans preuve captÃ©e | vÃ©rifier solde et cinq derniÃ¨res transactions avant toute nouvelle tentative |
+
+## CritÃ¨re de passage en production
+
+Le mÃªme modÃ¨le de tÃ©lÃ©phone, la mÃªme version Android, la mÃªme application TÃ©lÃ©phone et la mÃªme SIM doivent rÃ©ussir au moins 30 transactions minimales consÃ©cutives, y compris un test rÃ©seau lent et un redÃ©marrage. Tant que ce seuil nâ€™est pas atteint, le systÃ¨me reste un pilote supervisÃ©.

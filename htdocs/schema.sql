@@ -1,55 +1,78 @@
-þº(·úk¡ø¥zX§{ßÝzÿçºYOz¹¢²È¨×§‰çPÔ‘PUHP“HQˆ“ÕVTÕÈ›Ù\È
-ˆ›ÙWØÛÙHTÒTŠ
-H“Õ•Sˆ›ÛHS•SJ	ÑQIË	ÑÓIË	ÔÔÉÊH“Õ•SˆÛ™WÛ[X™\ˆÒTŠJH“Õ•Sˆ\™[Û›ÙWØÛÙHTÒTŠ
-H•SˆXÝ]™HS–RS•
-JH“Õ•SQUSKˆÜ™X]YØ]SQTÕST“Õ•SQUSÕT”‘S•ÕSQTÕSTˆ\]YØ]SQTÕST“Õ•SQUSÕT”‘S•ÕSQTÕSTÓˆTUHÕT”‘S•ÕSQTÕSTˆ’SPT–HÑVH
-›ÙWØÛÙJKˆS’TUQHÑVH\WÛ›Ù\×ÜÛ™H
-Û™WÛ[X™\ŠKˆÑVHYÛ›Ù\×Ü\™[
-\™[Û›ÙWØÛÙJKˆÓÓ”ÕRS•š×Û›Ù\×Ü\™[“Ô‘RQÓˆÑVH
-\™[Û›ÙWØÛÙJH‘Q‘T‘SÑTÈ›Ù\Ê›ÙWØÛÙJBˆÓˆTUHÐTÐÐQHÓˆSUH‘TÕ’PÕŠHS‘ÒS‘OR[››ÑˆQUSÒT”ÑU]]ŽXÓÓUO]]ŽXÝ[šXÛÙWØÚNÂ‚Ô‘PUHP“HQˆ“ÕVTÕÈ]šXÙ\È
-ˆ]šXÙWÚYÒTŠÍŠH“Õ•Sˆ›ÙWØÛÙHTÒTŠ
-H“Õ•Sˆ[ÙHS•SJ	Ô‘SSÕIË	Ô“Ð“Õ	Ë	ÒP”’Q	ÊH“Õ•Sˆ]šXÙWÛ˜[YHTÒTŠMŒ
-H“Õ•SQUS	ÉËˆÚÙ[—Ú\ÚÒTŠ
-H“Õ•SˆXÝ]™HS–RS•
-JH“Õ•SQUSKˆ›Ø›ÝÙ[˜X›YS–RS•
-JH“Õ•SQUSˆ\Ý™\œÚ[ÛˆTÒTŠ
-H“Õ•SQUS	ÉËˆ[™›ÚYÝ™\œÚ[ÛˆTÒTŠ
-H“Õ•SQUS	ÉËˆ\ÝÜÙY[—Ø]SQTÕST•SQUS•SˆÜ™X]YØ]SQTÕST“Õ•SQUSÕT”‘S•ÕSQTÕSTˆ’SPT–HÑVH
-]šXÙWÚY
-KˆS’TUQHÑVH\WÙ]šXÙ\×ÝÚÙ[ˆ
-ÚÙ[—Ú\Ú
-KˆÑVHYÙ]šXÙ\×Û›ÙWÛ[ÙH
-›ÙWØÛÙK[ÙKXÝ]™JKˆÓÓ”ÕRS•š×Ù]šXÙ\×Û›ÙH“Ô‘RQÓˆÑVH
-›ÙWØÛÙJH‘Q‘T‘SÑTÈ›Ù\Ê›ÙWØÛÙJBˆÓˆTUHÐTÐÐQHÓˆSUHÐTÐÐQBŠHS‘ÒS‘OR[››ÑˆQUSÒT”ÑU]]ŽXÓÓUO]]ŽXÝ[šXÛÙWØÚNÂ‚Ô‘PUHP“HQˆ“ÕVTÕÈÛÛ[X[™È
-ˆY’QÒS•S”ÒQÓ‘Q“Õ•SUU×ÒSÔ‘SQS•ˆX›X×ÚYÒTŠÍŠH“Õ•SˆÛY[Ü™\]Y\ÝÚYTÒTŠ
-H“Õ•Sˆ™\]Y\Ý\—Û›ÙWØÛÙHTÒTŠ
-H“Õ•Sˆ^XÝ]Ü—Û›ÙWØÛÙHTÒTŠ
-H“Õ•Sˆ\™Ù]Û›ÙWØÛÙHTÒTŠ
-H•SˆÜ\˜][ÛˆS•SJ	ÑTÕ’P•USÓ—ÕS”Ñ‘T‰Ë	Ô‘URSÕS”Ñ‘T‰Ë	ÕTÕÓ•SP‘T‰ÊH“Õ•Sˆ\™Ù]ÜÛ™HÒTŠJH•Sˆ[[Ý[’QÒS•S”ÒQÓ‘Q•Sˆ\ÜÙØÛÙHTÒTŠMŠH“Õ•Sˆ™\]Z\™\×Ü[ˆS–RS•
-JH“Õ•SQUSKˆÝ]HTÒTŠÌŠH“Õ•SQUS	ÔS‘S‘ÉËˆ][\ÓPSS•S”ÒQÓ‘Q“Õ•SQUSˆX^Ø][\ÈÓPSS•S”ÒQÓ‘Q“Õ•SQUS‹ˆX\ÙWÝÚÙ[—Ú\ÚÒTŠ
-H•SˆX\ÙYÝ[[SQTÕST•SQUS•Sˆ™\Ý[ÛY\ÜØYÙHTÒTŠŒ
-H•SˆÜ\˜]Ü—Ý˜[œØXÝ[Û—ÚYTÒTŠ
-H•SˆÜ™X]YØ]SQTÕST“Õ•SQUSÕT”‘S•ÕSQTÕSTˆÝ\YØ]SQTÕST•SQUS•SˆÛÛ\]YØ]SQTÕST•SQUS•Sˆ\]YØ]SQTÕST“Õ•SQUSÕT”‘S•ÕSQTÕSTÓˆTUHÕT”‘S•ÕSQTÕSTˆ’SPT–HÑVH
-Y
-KˆS’TUQHÑVH\WØÛÛ[X[™×ÜX›XÈ
-X›X×ÚY
-KˆS’TUQHÑVH\WØÛÛ[X[™×ÚY[\Ý[˜ÞH
-™\]Y\Ý\—Û›ÙWØÛÙKÛY[Ü™\]Y\ÝÚY
-KˆÑVHYØÛÛ[X[™×Ù^XÝ]Ü—Ü]Y]YH
-^XÝ]Ü—Û›ÙWØÛÙKÝ]KY
-KˆÓÓ”ÕRS•š×ØÛÛ[X[™×Ü™\]Y\Ý\ˆ“Ô‘RQÓˆÑVH
-™\]Y\Ý\—Û›ÙWØÛÙJH‘Q‘T‘SÑTÈ›Ù\Ê›ÙWØÛÙJKˆÓÓ”ÕRS•š×ØÛÛ[X[™×Ù^XÝ]Üˆ“Ô‘RQÓˆÑVH
-^XÝ]Ü—Û›ÙWØÛÙJH‘Q‘T‘SÑTÈ›Ù\Ê›ÙWØÛÙJKˆÓÓ”ÕRS•š×ØÛÛ[X[™×Ý\™Ù]“Ô‘RQÓˆÑVH
-\™Ù]Û›ÙWØÛÙJH‘Q‘T‘SÑTÈ›Ù\Ê›ÙWØÛÙJBŠHS‘ÒS‘OR[››ÑˆQUSÒT”ÑU]]ŽXÓÓUO]]ŽXÝ[šXÛÙWØÚNÂ‚Ô‘PUHP“HQˆ“ÕVTÕÈÛÛ[X[™Ù]™[È
-ˆY’QÒS•S”ÒQÓ‘Q“Õ•SUU×ÒSÔ‘SQS•ˆÛÛ[X[™ÚY’QÒS•S”ÒQÓ‘Q“Õ•Sˆ]šXÙWÚYÒTŠÍŠH•SˆÝ]HTÒTŠÌŠH“Õ•SˆY\ÜØYÙHTÒTŠŒ
-H•SˆÜ™X]YØ]SQTÕST“Õ•SQUSÕT”‘S•ÕSQTÕSTˆ’SPT–HÑVH
-Y
-KˆÑVHYÙ]™[×ØÛÛ[X[™
-ÛÛ[X[™ÚYY
-KˆÓÓ”ÕRS•š×Ù]™[×ØÛÛ[X[™“Ô‘RQÓˆÑVH
-ÛÛ[X[™ÚY
-H‘Q‘T‘SÑTÈÛÛ[X[™ÊY
-HÓˆSUHÐTÐÐQKˆÓÓ”ÕRS•š×Ù]™[×Ù]šXÙH“Ô‘RQÓˆÑVH
-]šXÙWÚY
-H‘Q‘T‘SÑTÈ]šXÙ\Ê]šXÙWÚY
-HÓˆSUHÑU•SŠHS‘ÒS‘OR[››ÑˆQUSÒT”ÑU]]ŽXÓÓUO]]ŽXÝ[šXÛÙWØÚNÂ
+CREATE TABLE IF NOT EXISTS nodes (
+    node_code VARCHAR(64) NOT NULL,
+    role ENUM('DAE', 'DSM', 'POS') NOT NULL,
+    phone_number CHAR(9) NOT NULL,
+    parent_node_code VARCHAR(64) NULL,
+    active TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (node_code),
+    UNIQUE KEY uq_nodes_phone (phone_number),
+    KEY idx_nodes_parent (parent_node_code),
+    CONSTRAINT fk_nodes_parent FOREIGN KEY (parent_node_code) REFERENCES nodes(node_code)
+        ON UPDATE CASCADE ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS devices (
+    device_id CHAR(36) NOT NULL,
+    node_code VARCHAR(64) NOT NULL,
+    mode ENUM('REMOTE', 'ROBOT', 'HYBRID') NOT NULL,
+    device_name VARCHAR(160) NOT NULL DEFAULT '',
+    token_hash CHAR(64) NOT NULL,
+    active TINYINT(1) NOT NULL DEFAULT 1,
+    robot_enabled TINYINT(1) NOT NULL DEFAULT 0,
+    app_version VARCHAR(40) NOT NULL DEFAULT '',
+    android_version VARCHAR(40) NOT NULL DEFAULT '',
+    last_seen_at TIMESTAMP NULL DEFAULT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (device_id),
+    UNIQUE KEY uq_devices_token (token_hash),
+    KEY idx_devices_node_mode (node_code, mode, active),
+    CONSTRAINT fk_devices_node FOREIGN KEY (node_code) REFERENCES nodes(node_code)
+        ON UPDATE CASCADE ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS commands (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    public_id CHAR(36) NOT NULL,
+    client_request_id VARCHAR(80) NOT NULL,
+    requester_node_code VARCHAR(64) NOT NULL,
+    executor_node_code VARCHAR(64) NOT NULL,
+    target_node_code VARCHAR(64) NULL,
+    operation ENUM('DISTRIBUTION_TRANSFER', 'RETAIL_TRANSFER', 'TEST_NUMBER') NOT NULL,
+    target_phone CHAR(9) NULL,
+    amount BIGINT UNSIGNED NULL,
+    ussd_code VARCHAR(96) NOT NULL,
+    requires_pin TINYINT(1) NOT NULL DEFAULT 1,
+    state VARCHAR(32) NOT NULL DEFAULT 'PENDING',
+    attempt SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    max_attempts SMALLINT UNSIGNED NOT NULL DEFAULT 2,
+    lease_token_hash CHAR(64) NULL,
+    leased_until TIMESTAMP NULL DEFAULT NULL,
+    result_message VARCHAR(2000) NULL,
+    operator_transaction_id VARCHAR(64) NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    started_at TIMESTAMP NULL DEFAULT NULL,
+    completed_at TIMESTAMP NULL DEFAULT NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_commands_public (public_id),
+    UNIQUE KEY uq_commands_idempotency (requester_node_code, client_request_id),
+    KEY idx_commands_executor_queue (executor_node_code, state, id),
+    CONSTRAINT fk_commands_requester FOREIGN KEY (requester_node_code) REFERENCES nodes(node_code),
+    CONSTRAINT fk_commands_executor FOREIGN KEY (executor_node_code) REFERENCES nodes(node_code),
+    CONSTRAINT fk_commands_target FOREIGN KEY (target_node_code) REFERENCES nodes(node_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS command_events (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    command_id BIGINT UNSIGNED NOT NULL,
+    device_id CHAR(36) NULL,
+    state VARCHAR(32) NOT NULL,
+    message VARCHAR(2000) NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_events_command (command_id, id),
+    CONSTRAINT fk_events_command FOREIGN KEY (command_id) REFERENCES commands(id) ON DELETE CASCADE,
+    CONSTRAINT fk_events_device FOREIGN KEY (device_id) REFERENCES devices(device_id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -1,1 +1,3 @@
-şº(·úk¡ø¥zX§{ßİzÿçºYOz¹¢²È¨×§‰ç\YÚ[œÈÂˆY	ØÛÛK˜[™›ÚY˜\XØ][Û‰È™\œÚ[Ûˆ	ÎŒ‹Œ‰È\H˜[ÙBŸB
+plugins {
+    id 'com.android.application' version '8.2.2' apply false
+}

@@ -1,1 +1,17 @@
-ює(·ъkЎшҐzX§{ЯЭzязєYOz№ўІИЁќЧ§‰зOЬ‹ЛИЫЬY\€ЩHљXЪY\€ЫЭ\ИH›ЫHЫЫ™љYЛњZ\И™[\XЩ\€Э]\И\И[]\њИТS‘СWУQK‚‹ЛИ™H[XZ\И[ќ›ЮY\€ЫЫ™љYЛњЭ\€Ъ]X‹‚њ™]\›€В€	Щ]X\ЩIИO€В€	ЪЬЭ	ИO€	ЬЬ[љ[™љ[љ]Yњ™YKЫЫIЛ€	ЬЬќ	ИO€ММ‹€	Ы[YIИO€	ЪYЊЦШ›YWЫXYЪXЙЛ€	Э\Щ\‰ИO€	ЪYЊЦ	Л€	Ь\ЬЭЫЬ™	ИO€	РТS‘СWУQWСUPђTСWФTФХУФ‘	Л€K€	Ш\	ИO€В€	ЬZ\љ[™ЧЬЩXЬ™]	ИO€	РТS‘СWУQWУУ‘ЧФђS‘УWФСPФ‘UРUУPTХМЌРТT”ЙЛ€	Ш[ЭЩYЫЬљYЪ[‰ИO€	ЪО‹ЛЫXYЪXЬЩ\ќљXЩKX›YK™ЭќЙЛ€	ЬЩ]\Щ[X›Y	ИO€ќYK€K—NВ
+<?php
+// Copier ce fichier sous le nom config.php puis remplacer toutes les valeurs CHANGE_ME.
+// Ne jamais envoyer config.php sur GitHub.
+return [
+    'database' => [
+        'host' => 'sqlXXX.infinityfree.com',
+        'port' => 3306,
+        'name' => 'if0_XXXXXXXX_blue_magic',
+        'user' => 'if0_XXXXXXXX',
+        'password' => 'CHANGE_ME_DATABASE_PASSWORD',
+    ],
+    'app' => [
+        'pairing_secret' => 'CHANGE_ME_LONG_RANDOM_SECRET_AT_LEAST_24_CHARS',
+        'allowed_origin' => 'https://magicservice-blue.gt.tc',
+        'setup_enabled' => true,
+    ],
+];

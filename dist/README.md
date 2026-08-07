@@ -1,5 +1,7 @@
-şº(·úk¡ø¥zX§{ßİzÿçºYOz¹¢²È¨×§‰çHÈ\]Y]È0ê[0êXÚ\™ÙXX›\Â‚‹H›YSXYÚXË]Œ‹\Ûİ\˜ÙKš\ˆ›Ú™]ÛÛ\][™›ÚY
-È]^˜XÚÙ[™È
-ÈØİ[Y[][Û‹‚‹H›YSXYÚXË]Œ‹R[™š[š]Qœ™YKZØÜËš\ˆÛÛ[H0è^˜Z\™HZ\È[›ŞY\ˆ[œÈØÜØİ\ˆ[™š[š]Qœ™YK‚‹H›YSXYÚXË]Œ‹PÛİY›\™KX˜XÚÙ[™š\ˆ˜XÚÙ[™™XÛÛ[X[™0êHÛÜšÙ\œÈ
-ÈH][\™˜XÙHÙX‹‚‚”İ\ˆÚ]X‹İ]œ™^ˆHšXÚY\ˆ’TÛİZZ]0êHZ\ÈÛ\]Y^ˆİ\ˆ8 &ZXğí™H
-Š‘İÛ›ØY˜]Èš[JŠ‹ˆ¸ &]][\Ù^ˆ\È\È’T]˜[8 &X]›Ú\ˆHH›ØğêY\™H8 &Z[œİ[][ÛˆÛÜœ™\ÜÛ™[H[œÈØÜËØ‚
+# Paquets tÃ©lÃ©chargeables
+
+- `BlueMagic-v2-source.zip` : projet complet Android + deux backends + documentation.
+- `BlueMagic-v2-InfinityFree-htdocs.zip` : contenu Ã  extraire puis envoyer dans `htdocs` sur InfinityFree.
+- `BlueMagic-v2-Cloudflare-backend.zip` : backend recommandÃ© Workers + D1 et interface web.
+
+Sur GitHub, ouvrez le fichier ZIP souhaitÃ© puis cliquez sur lâ€™icÃ´ne **Download raw file**. Nâ€™utilisez pas les ZIP avant dâ€™avoir lu la procÃ©dure dâ€™installation correspondante dans `docs/`.

@@ -1,226 +1,365 @@
-þº(·úk¡ø¥zX§{ßÝzÿçºYOz¹¢²È¨×§‰ç\XÚØYÙHÛÛKœ›Ùš]ÛÜ˜›YX]]ÎÂ‚š[\Ü[™›ÚY“X[šY™\ÝÂš[\Ü[™›ÚY˜\“›ÝYšXØ][ÛŽÂš[\Ü[™›ÚY˜\“›ÝYšXØ][ÛÚ[›™[Âš[\Ü[™›ÚY˜\“›ÝYšXØ][Û“X[˜YÙ\ŽÂš[\Ü[™›ÚY˜\”[™[™Ò[[Âš[\Ü[™›ÚY˜\”Ù\šXÙNÂš[\Ü[™›ÚY˜ÛÛ[ÛÛ^Âš[\Ü[™›ÚY˜ÛÛ[’[[Âš[\Ü[™›ÚY˜ÛÛ[œK”XÚØYÙSX[˜YÙ\ŽÂš[\Ü[™›ÚY›™]•\šNÂš[\Ü[™›ÚY›ÜËZ[Âš[\Ü[™›ÚY›ÜË’Pš[™\ŽÂš[\Ü[™›ÚY›ÜË”ÝÙ\“X[˜YÙ\ŽÂ‚š[\ÜÜ™ËšœÛÛ‹’”ÓÓ“Øš™XÝÂ‚š[\Ü˜]˜K][˜ÛÛ˜Ý\œ™[‘^XÝ]ÜœÎÂš[\Ü˜]˜K][˜ÛÛ˜Ý\œ™[”ØÚY[Y^XÝ]Ü”Ù\šXÙNÂš[\Ü˜]˜K][˜ÛÛ˜Ý\œ™[•[YU[š]Âš[\Ü˜]˜K][˜ÛÛ˜Ý\œ™[˜]ÛZXË]ÛZXÐ›ÛÛX[ŽÂ‚œX›XÈÛ\ÜÈ›Ø›ÝÙ\šXÙH^[™ÈÙ\šXÙHÂˆÝ]XÈš[˜[Ýš[™ÈPÕSÓ—ÔÕT•H˜ÛÛKœ›Ùš]ÛÜ˜›YX]]Ë”ÕT•Ô“Ð“ÕŽÂˆÝ]XÈš[˜[Ýš[™ÈPÕSÓ—ÔÕÔH˜ÛÛKœ›Ùš]ÛÜ˜›YX]]Ë”ÕÔÔ“Ð“ÕŽÂˆÝ]XÈš[˜[Ýš[™ÈPÕSÓ—ÔS—ÔÕP“RUQH˜ÛÛKœ›Ùš]ÛÜ˜›YX]]Ë”S—ÔÕP“RUQŽÂˆÝ]XÈš[˜[Ýš[™ÈPÕSÓ—ÓÔTUÔ—Ô‘TÕSH˜ÛÛKœ›Ùš]ÛÜ˜›YX]]Ë“ÔTUÔ—Ô‘TÕSŽÂˆÝ]XÈš[˜[Ýš[™ÈVWÔÕPÐÑTÔÈHœÝXØÙ\ÜÈŽÂˆÝ]XÈš[˜[Ýš[™ÈVWÓQTÔÐQÑHH›Y\ÜØYÙHŽÂˆÝ]XÈš[˜[Ýš[™ÈVWÑT”“Ô—ÐÓÑHH™\œ›Ü—ØÛÙHŽÂˆÝ]XÈš[˜[Ýš[™ÈVWÕS”ÐPÕSÓ—ÒQH˜[œØXÝ[Û—ÚYŽÂ‚ˆš]˜]HÝ]XÈš[˜[Ýš[™ÈÒS“‘SÒQH˜›YWÛXYÚX×Ü›Ø›ÝŽÂˆš]˜]HÝ]XÈš[˜[[“ÕQ’PÐUSÓ—ÒQHMLŽÂ‚ˆš]˜]HØÚY[Y^XÝ]Ü”Ù\šXÙH^XÝ]ÜŽÂˆš]˜]H\PÛY[\NÂˆš]˜]Hš[˜[]ÛZXÐ›ÛÛX[ˆÞXÛT[›š[™ÈH™]È]ÛZXÐ›ÛÛX[Š˜[ÙJNÂˆš]˜]HÛ™È\ÝX\™X]]HÂˆš]˜]HÛ™È˜XÚÛÙ™“\ÈH\ÛÛ™šYË’QWÔÓÓTÎÂˆš]˜]HÝÙ\“X[˜YÙ\‹•ØZÙSØÚÈÛÛ[X[™ØZÙSØÚÎÂ‚ˆÝ™\œšYBˆX›XÈ›ÚYÛÜ™X]J
-HÂˆÝ\\‹›ÛÜ™X]J
-NÂˆ\HH™]È\PÛY[
-\ÊNÂˆ^XÝ]ÜˆH^XÝ]ÜœË›™]ÔÚ[™ÛU™XYØÚY[Y^XÝ]ÜŠ
-NÂˆÜ™X]S›ÝYšXØ][ÛÚ[›™[
+package com.profitloop.blueauto;
 
-NÂˆÝ\›Ü™YÜ›Ý[™
-“ÕQ’PÐUSÓ—ÒQ›ÝYšXØ][ÛŠ”›Ø›Ý[ˆ°ê\\˜][Û¸ )ˆŠJNÂˆB‚ˆÝ™\œšYBˆX›XÈ[Û”Ý\ÛÛ[X[™
-[[[[[›YÜË[Ý\Y
-HÂˆÝš[™ÈXÝ[ÛˆH[[OH[ÈPÕSÓ—ÔÕT•ˆ[[™Ù]XÝ[ÛŠ
-NÂˆYˆ
-PÕSÓ—ÔÕÔ™\]X[ÊXÝ[ÛŠJHÂˆ\ÛÛ™šYËœÙ]›Ø›Ý[˜X›Y
-\Ë˜[ÙJNÂˆ\]S›ÝYšXØ][ÛŠ”›Ø›Ý\œ°ê0êHŠNÂˆÝÜÙ[Š
-NÂˆ™]\›ˆÕT•Ó“ÕÔÕPÒÖNÂˆB‚ˆYˆ
-PÕSÓ—ÔS—ÔÕP“RUQ™\]X[ÊXÝ[ÛŠJHÂˆ[™[™ÐÛÛ[X[™ÝÜ™K\]TÝ]J\Ë[™[™ÐÛÛ[X[™ÝÜ™K”S—ÔÕP“RUQ
-NÂˆ^XÝ]Ü‹™^XÝ]J
+import android.Manifest;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.app.Service;
+import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Build;
+import android.os.IBinder;
+import android.os.PowerManager;
 
-HOˆ™\Ü›ÙÜ™\ÜÊ”S—ÔÕP“RUQ‹”SˆØØ[[š™XÝ0êH]˜[Y][Ûˆ[›ÞpêYKˆŠJNÂˆ™]\›ˆÕT•ÔÕPÒÖNÂˆB‚ˆYˆ
-PÕSÓ—ÓÔTUÔ—Ô‘TÕS™\]X[ÊXÝ[ÛŠJHÂˆ›ÛÛX[ˆÝXØÙ\ÜÈH[[™Ù]›ÛÛX[‘^˜JVWÔÕPÐÑTÔË˜[ÙJNÂˆÝš[™ÈY\ÜØYÙHH[[™Ù]Ýš[™Ñ^˜JVWÓQTÔÐQÑJNÂˆÝš[™ÈÛÙHH[[™Ù]Ýš[™Ñ^˜JVWÑT”“Ô—ÐÓÑJNÂˆÝš[™È˜[œØXÝ[Û’YH[[™Ù]Ýš[™Ñ^˜JVWÕS”ÐPÕSÓ—ÒQ
-NÂˆ^XÝ]Ü‹™^XÝ]J
+import org.json.JSONObject;
 
-HOˆš[š\ÚÛÛ[X[™
-ÝXØÙ\ÜËÛÙKY\ÜØYÙK˜[œØXÝ[Û’Y
-JNÂˆ™]\›ˆÕT•ÔÕPÒÖNÂˆB‚ˆ\ÛÛ™šYËœÙ]›Ø›Ý[˜X›Y
-\ËYJNÂˆ\]S›ÝYšXØ][ÛŠ\ÛÛ™šYËœ[›ØÚÙY
-\ÊHÈ”›Ø›Ý›Ü]pêHˆ°ê\šYšY\ˆHSˆˆˆ”›Ø›ÝXÝYˆŠNÂˆØÚY[PÞXÛJ
-NÂˆ™]\›ˆÕT•ÔÕPÒÖNÂˆB‚ˆÝ™\œšYBˆX›XÈPš[™\ˆÛš[™
-[[[[
-HÂˆ™]\›ˆ[ÂˆB‚ˆš]˜]H›ÚYØÚY[PÞXÛJÛ™È[^S\ÊHÂˆYˆ
-^XÝ]ÜˆOH[^XÝ]Ü‹š\ÔÚ]ÝÛŠ
-HP\ÛÛ™šYËœ›Ø›Ý[˜X›Y
-\ÊJH™]\›ŽÂˆ^XÝ]Ü‹œØÚY[J\ÎŽœ[ÞXÛKX]›X^
-[^S\ÊK[YU[š]“RSTÑPÓÓ‘ÊNÂˆB‚ˆš]˜]H›ÚY[ÞXÛJ
-HÂˆYˆ
-XÞXÛT[›š[™Ë˜ÛÛ\\™P[™Ù]
-˜[ÙKYJJH™]\›ŽÂˆÛ™È™^[^HH\ÛÛ™šYË’QWÔÓÓTÎÂˆžHÂˆYˆ
-P\ÛÛ™šYËš\ÔZ\™Y
-\ÊHP\ÛÛ™šYËš\Ô›Ø›Ý[ÙJ\ÊJHÂˆ\]S›ÝYšXØ][ÛŠÛÛ™šYÝ\˜][Ûˆ›Ø›Ý[˜ÛÛ\0êHŠNÂˆ™^[^HHŒÌÂˆ™]\›ŽÂˆBˆYˆ
-Þ\Ý[K˜Ý\œ™[[YSZ[\Ê
-HH\ÝX\™X]]H\ÛÛ™šYË’PT•‘PUÓTÊHÂˆ\KšX\™X]
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-NÂˆ\ÝX\™X]]HÞ\Ý[K˜Ý\œ™[[YSZ[\Ê
-NÂˆB‚ˆ”ÓÓ“Øš™XÝ[™[™ÈH[™[™ÐÛÛ[X[™ÝÜ™K™Ù]
-\ÊNÂˆYˆ
-[™[™ÈOH[	‰ˆ[™[™ÐÛÛ[X[™ÝÜ™K”‘TÔ•ÔS‘S‘Ë™\]X[Êˆ[™[™Ë›ÜÝš[™Ê›ØØ[ÜÝ]H‹ˆŠJJHÂˆ™]žQš[˜[™\Ü
-[™[™ÊNÂˆ™^[^HH[™[™ÐÛÛ[X[™ÝÜ™K™Ù]
-\ÊHOH[È—ÌˆMWÌÂˆ™]\›ŽÂˆBˆYˆ
-\ÛÛ™šYËœ[›ØÚÙY
-\ÊJHÂˆ\]S›ÝYšXØ][ÛŠT”°â•8 &UT‘ÑSÑHˆSˆ0èÛÜœšYÙ\ˆŠNÂˆ™^[^HHŒÌÂˆ™]\›ŽÂˆBˆYˆ
-[™[™ÐÛÛ[X[™ÝÜ™Kš\Ñ^\™Y
-[™[™ÊJHÂˆš[š\ÚÛÛ[X[™
-˜[ÙK”‘TÕSÕSQSÕU‹ˆ]XÝ[™HÛÛ™š\›X][ÛˆšXX›H™péÝYH[œÈH0ê[ZKˆ°ê\šYšXØ][ÛˆX[Y[H™\]Z\ÙKˆ‹ˆŠNÂˆ™^[^HHWÌÂˆ™]\›ŽÂˆB‚ˆYˆ
-[™[™ÈOH[
-HÂˆ™^[^HH×ÌÂˆ™]\›ŽÂˆB‚ˆ”ÓÓ“Øš™XÝX\ÙHH\K›X\ÙPÛÛ[X[™
+public class RobotService extends Service {
+    static final String ACTION_START = "com.profitloop.blueauto.START_ROBOT";
+    static final String ACTION_STOP = "com.profitloop.blueauto.STOP_ROBOT";
+    static final String ACTION_PIN_SUBMITTED = "com.profitloop.blueauto.PIN_SUBMITTED";
+    static final String ACTION_OPERATOR_RESULT = "com.profitloop.blueauto.OPERATOR_RESULT";
+    static final String EXTRA_SUCCESS = "success";
+    static final String EXTRA_MESSAGE = "message";
+    static final String EXTRA_ERROR_CODE = "error_code";
+    static final String EXTRA_TRANSACTION_ID = "transaction_id";
 
-NÂˆYˆ
-[X\ÙK›Ü›ÛÛX[Š˜]˜Z[X›H‹˜[ÙJJHÂˆ˜XÚÛÙ™“\ÈH\ÛÛ™šYË’QWÔÓÓTÎÂˆ™^[^HH\ÛÛ™šYË’QWÔÓÓTÎÂˆ\]S›ÝYšXØ][ÛŠ”›Ø›ÝXÝYˆ8 %]XÝ[™HÛÛ[X[™HŠNÂˆ™]\›ŽÂˆB‚ˆ”ÓÓ“Øš™XÝÛÛ[X[™HX\ÙK›Ü”ÓÓ“Øš™XÝ
-˜ÛÛ[X[™ŠNÂˆYˆ
-ÛÛ[X[™OH[
-H›ÝÈ™]È[YØ[Ý]Q^Ù\[ÛŠÛÛ[X[™HÝpêYHXœÙ[KˆŠNÂˆÛÛ[X[™œ]
-›ØØ[ÜÝ]H‹[™[™ÐÛÛ[X[™ÝÜ™K“PTÑQ
-NÂˆÛÛ[X[™œ]
-›X\ÙYØ]‹Þ\Ý[K˜Ý\œ™[[YSZ[\Ê
-JNÂˆÛÛ[X[™œ]
-œÝ]WØÚ[™ÙYØ]‹Þ\Ý[K˜Ý\œ™[[YSZ[\Ê
-JNÂˆ[™[™ÐÛÛ[X[™ÝÜ™KœØ]™J\ËÛÛ[X[™
-NÂˆ^XÝ]PÛÛ[X[™
-ÛÛ[X[™
-NÂˆ™^[^HH×ÌÂˆ˜XÚÛÙ™“\ÈH\ÛÛ™šYË’QWÔÓÓTÎÂˆHØ]Ú
-^Ù\[Ûˆ\œ›ÜŠHÂˆ\]S›ÝYšXØ][ÛŠ”Ù\™]\ˆ[™\ÜÛšX›H8 %›Ý]™[H[]]™HY™°ê\°êYHŠNÂˆ˜XÚÛÙ™“\ÈHX]›Z[ŠŒÌX]›X^
-\ÛÛ™šYË’QWÔÓÓTË˜XÚÛÙ™“\È
-ˆ“
-JNÂˆ™^[^HH˜XÚÛÙ™“\ÎÂˆHš[˜[HÂˆÞXÛT[›š[™ËœÙ]
-˜[ÙJNÂˆØÚY[PÞXÛJ™^[^JNÂˆBˆB‚ˆš]˜]H›ÚY^XÝ]PÛÛ[X[™
-”ÓÓ“Øš™XÝÛÛ[X[™
-HÂˆžHÂˆÝš[™È\ÜÙH\ÜÙÛÛ[X[™˜XÝÜžK˜Z[[™˜[Y]JÛÛ[X[™
-NÂˆ›ÛÛX[ˆ™\]Z\™\Ô[ˆH\ÜÙÛÛ[X[™˜XÝÜžKœ™\]Z\™\Ô[ŠÛÛ[X[™
-NÂˆYˆ
-™\]Z\™\Ô[ˆ	‰ˆTÙXÝ\™T[”ÝÜ™Kš\Ô[Š\ÊJHÂˆš[š\ÚÛÛ[X[™
-˜[ÙK”S—Ó“ÕÐÓÓ‘’QÕT‘Q‹]XÝ[ˆSˆÜ0ê\˜]]\ˆÚY™œ°êHÝ\ˆÙH›Ø›Ýˆ‹ˆŠNÂˆ™]\›ŽÂˆBˆYˆ
-™\]Z\™\Ô[ˆ	‰ˆP›YPXØÙ\ÜÚXš[]TÙ\šXÙKš\Ñ[˜X›Y
-\ÊJHÂˆš[š\ÚÛÛ[X[™
-˜[ÙKPÐÑTÔÒP’SUWÑTÐP“Q‹”Ù\šXÙH8 &XXØÙ\ÜÚXš[]0êH›YHXYÚXÈ0ê\ØXÝ]°êKˆ‹ˆŠNÂˆ™]\›ŽÂˆBˆYˆ
-ÚXÚÔÙ[”\›Z\ÜÚ[ÛŠX[šY™\Ýœ\›Z\ÜÚ[Û‹ÐSÔÓ‘JHOHXÚØYÙSX[˜YÙ\‹”T“RTÔÒSÓ—ÑÔS•Q
-HÂˆš[š\ÚÛÛ[X[™
-˜[ÙKÐSÔT“RTÔÒSÓ—ÓRTÔÒS‘È‹]]Üš\Ø][Ûˆ0ê[0ê\Û™H›ÛˆXØÛÜ™0êYKˆ‹ˆŠNÂˆ™]\›ŽÂˆB‚ˆXÜ]Z\™PÛÛ[X[™ØZÙSØÚÊ
-NÂˆ[™[™ÐÛÛ[X[™ÝÜ™K\]TÝ]J\Ë[™[™ÐÛÛ[X[™ÝÜ™K‘PSS‘ÊNÂˆ\KœÙ[™]™[
-ÛÛ[X[™‘PSS‘È‹ÛÛ\ÜÚ][ÛˆTÔÑ0êXÛ[˜Ú0êYHÝ\ˆH›Ø›Ýˆ‹ˆŠNÂˆ\]S›ÝYšXØ][ÛŠÛÛ[X[™H[ˆÛÝ\œÈˆˆ
-ÈÛÛ[X[™›ÜÝš[™ÊœX›X×ÚY‹ˆŠJNÂ‚ˆÝš[™È™^H™\]Z\™\Ô[ˆÈ[™[™ÐÛÛ[X[™ÝÜ™KUÐRUS‘×ÔSˆˆ[™[™ÐÛÛ[X[™ÝÜ™KUÐRUS‘×Ô‘TÕSÂˆ[™[™ÐÛÛ[X[™ÝÜ™K\]TÝ]J\Ë™^
-NÂˆ\KœÙ[™]™[
-ÛÛ[X[™™^™\]Z\™\Ô[‚ˆÈ‘[ˆ][HHH™[°ê™HHÛÛ™š\›X][ÛˆS‹ˆ‚ˆˆ‘[ˆ][HH°ê\Ý[]Ü0ê\˜]]\‹ˆ‹ˆŠNÂ‚ˆÝš[™È[˜ÛÙYH\ÜÙœ™\XÙJˆÈ‹\šK™[˜ÛÙJˆÈŠJNÂˆ[[Ø[H™]È[[
-[[PÕSÓ—ÐÐS\šKœ\œÙJ[ˆˆ
-È[˜ÛÙY
-JNÂˆØ[˜Y›YÜÊ[[‘“Q×ÐPÕU’UWÓ‘U×ÕTÒÈ[[‘“Q×ÐPÕU’UWÐÓPT—ÕÔ
-NÂˆYˆ
-Ø[œ™\ÛÛ™PXÝ]š]JÙ]XÚØYÙSX[˜YÙ\Š
-JHOH[
-HÂˆš[š\ÚÛÛ[X[™
-˜[ÙK““×ÑPSTˆ‹]XÝ[™H\XØ][Ûˆ0ê[0ê\Û™HÛÛ\]X›Kˆ‹ˆŠNÂˆ™]\›ŽÂˆBˆÝ\XÝ]š]JØ[
-NÂˆHØ]Ú
-ÙXÝ\š]Q^Ù\[ÛˆÙXÝ\š]Q\œ›ÜŠHÂˆš[š\ÚÛÛ[X[™
-˜[ÙKÓÓSPS‘ÒS•QÔ’UWÑRST‘H‹ÙXÝ\š]Q\œ›Ü‹™Ù]Y\ÜØYÙJ
-KˆŠNÂˆHØ]Ú
-^Ù\[Ûˆ\œ›ÜŠHÂˆš[š\ÚÛÛ[X[™
-˜[ÙK‘PSÑRST‘H‹ØY™SY\ÜØYÙJ\œ›ÜŠKˆŠNÂˆBˆB‚ˆš]˜]H›ÚY™\Ü›ÙÜ™\ÜÊÝš[™ÈÝ]KÝš[™ÈY\ÜØYÙJHÂˆ”ÓÓ“Øš™XÝÛÛ[X[™H[™[™ÐÛÛ[X[™ÝÜ™K™Ù]
-\ÊNÂˆYˆ
-ÛÛ[X[™OH[
-H™]\›ŽÂˆžHÂˆ\KœÙ[™]™[
-ÛÛ[X[™Ý]KY\ÜØYÙKˆŠNÂˆYˆ
-”S—ÔÕP“RUQ‹™\]X[ÊÝ]JJHÂˆ[™[™ÐÛÛ[X[™ÝÜ™K\]TÝ]J\Ë[™[™ÐÛÛ[X[™ÝÜ™KUÐRUS‘×Ô‘TÕS
-NÂˆ\KœÙ[™]™[
-ÛÛ[X[™UÐRUS‘×Ô‘TÕS‹•˜[Y][Ûˆ[›ÞpêYNÈ][HÛÛ™š\›X][ÛˆØ[][ˆ‹ˆŠNÂˆBˆHØ]Ú
-^Ù\[ÛˆYÛ›Ü™Y
-HÂˆBˆB‚ˆš]˜]H›ÚYš[š\ÚÛÛ[X[™
-›ÛÛX[ˆÝXØÙ\ÜËÝš[™È\œ›ÜÛÙKÝš[™ÈY\ÜØYÙKÝš[™È˜[œØXÝ[Û’Y
-HÂˆ”ÓÓ“Øš™XÝÛÛ[X[™H[™[™ÐÛÛ[X[™ÝÜ™K™Ù]
-\ÊNÂˆYˆ
-ÛÛ[X[™OH[
-H™]\›ŽÂˆÝš[™ÈÛÙHH\œ›ÜÛÙHOH[Èˆˆˆ\œ›ÜÛÙNÂˆÝš[™ÈÝ]NÂˆYˆ
-ÝXØÙ\ÜÊHÂˆÝ]HH”ÕPÐÑQQQŽÂˆH[ÙHYˆ
-•Ô“Ó‘×ÔSˆ‹™\]X[ÊÛÙJJHÂˆÝ]HH“ÐÒÑQŽÂˆ\ÛÛ™šYËœÙ][›ØÚÙY
-\ËYJNÂˆH[ÙHYˆ
-”‘TÕSÕSQSÕU‹™\]X[ÊÛÙJJHÂˆÝ]HH•S’Ó“ÕÓˆŽÂˆH[ÙHÂˆÝ]HH‘RSQŽÂˆB‚ˆ›ÛÛX[ˆ™\ÜYH˜[ÙNÂˆžHÂˆÝš[™È]Z[H
-Y\ÜØYÙHOH[ÈˆˆˆY\ÜØYÙJNÂˆYˆ
-XÛÙKš\Ñ[\J
-JH]Z[HÛÙH
-Èˆ8 %ˆ
-È]Z[Âˆ\KœÙ[™]™[
-ÛÛ[X[™Ý]K]Z[˜[œØXÝ[Û’YOH[Èˆˆˆ˜[œØXÝ[Û’Y
-NÂˆ™\ÜYHYNÂˆHØ]Ú
-^Ù\[ÛˆYÛ›Ü™Y
-HÂˆžHÂˆÛÛ[X[™œ]
-›ØØ[ÜÝ]H‹[™[™ÐÛÛ[X[™ÝÜ™K”‘TÔ•ÔS‘S‘ÊNÂˆÛÛ[X[™œ]
-™š[˜[ÜÝ]H‹Ý]JNÂˆÛÛ[X[™œ]
-™š[˜[ÛY\ÜØYÙH‹Y\ÜØYÙHOH[ÈˆˆˆY\ÜØYÙJNÂˆÛÛ[X[™œ]
-™š[˜[Ù\œ›Ü—ØÛÙH‹ÛÙJNÂˆÛÛ[X[™œ]
-™š[˜[Ý˜[œØXÝ[Û—ÚY‹˜[œØXÝ[Û’YOH[Èˆˆˆ˜[œØXÝ[Û’Y
-NÂˆÛÛ[X[™œ]
-œÝ]WØÚ[™ÙYØ]‹Þ\Ý[K˜Ý\œ™[[YSZ[\Ê
-JNÂˆ[™[™ÐÛÛ[X[™ÝÜ™KœØ]™J\ËÛÛ[X[™
-NÂˆHØ]Ú
-^Ù\[ÛˆYÛ›Ü™YYØZ[ŠHÂˆBˆBˆYˆ
-™\ÜY
-HÂˆ[™[™ÐÛÛ[X[™ÝÜ™K˜ÛX\Š\ÊNÂˆBˆ™[X\ÙPÛÛ[X[™ØZÙSØÚÊ
-NÂˆ\]S›ÝYšXØ][ÛŠ™\ÜYˆÈ
-ÝXØÙ\ÜÈÈ‘\›špê™HÛÛ[X[™H°ê]\ÜÚYHˆ‚ˆ
-\ÛÛ™šYËœ[›ØÚÙY
-\ÊHÈT”°â•8 &UT‘ÑSÑHˆSˆ[˜ÛÜœ™XÝˆˆ‘\›špê™HÛÛ[X[™H0è°ê\šYšY\ˆŠJBˆˆ”°ê\Ý[]Ø[H8 %Þ[˜Ú›Ûš\Ø][ÛˆÙ\™]\ˆ[ˆ][HŠNÂˆØÚY[PÞXÛJ™\ÜYÈ—ÌˆMWÌ
-NÂˆB‚ˆš]˜]H›ÚY™]žQš[˜[™\Ü
-”ÓÓ“Øš™XÝÛÛ[X[™
-HÂˆÝš[™ÈÝ]HHÛÛ[X[™›ÜÝš[™Ê™š[˜[ÜÝ]H‹•S’Ó“ÕÓˆŠNÂˆÝš[™ÈY\ÜØYÙHHÛÛ[X[™›ÜÝš[™Ê™š[˜[ÛY\ÜØYÙH‹ˆŠNÂˆÝš[™ÈÛÙHHÛÛ[X[™›ÜÝš[™Ê™š[˜[Ù\œ›Ü—ØÛÙH‹ˆŠNÂˆÝš[™È˜[œØXÝ[Û’YHÛÛ[X[™›ÜÝš[™Ê™š[˜[Ý˜[œØXÝ[Û—ÚY‹ˆŠNÂˆžHÂˆÝš[™È]Z[HÛÙKš\Ñ[\J
-HÈY\ÜØYÙHˆÛÙH
-Èˆ8 %ˆ
-ÈY\ÜØYÙNÂˆ\KœÙ[™]™[
-ÛÛ[X[™Ý]K]Z[˜[œØXÝ[Û’Y
-NÂˆ[™[™ÐÛÛ[X[™ÝÜ™K˜ÛX\Š\ÊNÂˆ\]S›ÝYšXØ][ÛŠ”°ê\Ý[]Þ[˜Ú›Ûš\ðêH8 %›Ø›Ý°êŠNÂˆHØ]Ú
-^Ù\[ÛˆYÛ›Ü™Y
-HÂˆ\]S›ÝYšXØ][ÛŠ”°ê\Ý[][ˆ][HHÞ[˜Ú›Ûš\Ø][ÛˆŠNÂˆBˆB‚ˆš]˜]H›ÚYXÜ]Z\™PÛÛ[X[™ØZÙSØÚÊ
-HÂˆ™[X\ÙPÛÛ[X[™ØZÙSØÚÊ
-NÂˆÝÙ\“X[˜YÙ\ˆX[˜YÙ\ˆH
-ÝÙ\“X[˜YÙ\ŠHÙ]Þ\Ý[TÙ\šXÙJÕÑT—ÔÑT•’PÑJNÂˆYˆ
-X[˜YÙ\ˆOH[
-HÂˆÛÛ[X[™ØZÙSØÚÈHX[˜YÙ\‹›™]ÕØZÙSØÚÊÝÙ\“X[˜YÙ\‹”T•PSÕÐRÑWÓÐÒËˆ›YSXYÚXÎXÝ]™U\ÜÙÛÛ[X[™ŠNÂˆÛÛ[X[™ØZÙSØÚË˜XÜ]Z\™J\ÛÛ™šYËÓÓSPS‘ÕSQSÕUÓTÈ
-ÈMWÌ
-NÂˆBˆB‚ˆš]˜]H›ÚY™[X\ÙPÛÛ[X[™ØZÙSØÚÊ
-HÂˆYˆ
-ÛÛ[X[™ØZÙSØÚÈOH[	‰ˆÛÛ[X[™ØZÙSØÚËš\Ò[
+    private static final String CHANNEL_ID = "blue_magic_robot";
+    private static final int NOTIFICATION_ID = 5502;
 
-JHÛÛ[X[™ØZÙSØÚËœ™[X\ÙJ
-NÂˆÛÛ[X[™ØZÙSØÚÈH[ÂˆB‚ˆš]˜]H›ÚYÜ™X]S›ÝYšXØ][ÛÚ[›™[
+    private ScheduledExecutorService executor;
+    private ApiClient api;
+    private final AtomicBoolean cycleRunning = new AtomicBoolean(false);
+    private long lastHeartbeatAt = 0L;
+    private long backoffMs = AppConfig.IDLE_POLL_MS;
+    private PowerManager.WakeLock commandWakeLock;
 
-HÂˆYˆ
-Z[•‘T”ÒSÓ‹”Ñ×ÒS•HZ[•‘T”ÒSÓ—ÐÓÑTË“ÊHÂˆ›ÝYšXØ][Û“X[˜YÙ\ˆX[˜YÙ\ˆHÙ]Þ\Ý[TÙ\šXÙJ›ÝYšXØ][Û“X[˜YÙ\‹˜Û\ÜÊNÂˆ›ÝYšXØ][ÛÚ[›™[Ú[›™[H™]È›ÝYšXØ][ÛÚ[›™[
-ˆÒS“‘SÒQˆÙ]Ýš[™Ê‹œÝš[™Ëœ›Ø›ÝØÚ[›™[Û˜[YJKˆ›ÝYšXØ][Û“X[˜YÙ\‹’STÔ•SÑWÓÕÊNÂˆÚ[›™[œÙ]\ØÜš\[ÛŠ°â]]H0ê[0ê\Û™H›Ø›Ý›YHXYÚXÈŠNÂˆX[˜YÙ\‹˜Ü™X]S›ÝYšXØ][ÛÚ[›™[
-Ú[›™[
-NÂˆBˆB‚ˆš]˜]H›ÝYšXØ][Ûˆ›ÝYšXØ][ÛŠÝš[™È^
-HÂˆ[[Ü[ˆH™]È[[
-\ËXZ[XÝ]š]K˜Û\ÜÊNÂˆ[™[™Ò[[[™[™ÈH[™[™Ò[[™Ù]XÝ]š]J\ËKÜ[‹ˆ[™[™Ò[[‘“Q×ÕTUWÐÕT”‘S•[™[™Ò[[‘“Q×ÒSSUUP“JNÂˆ›ÝYšXØ][Û‹Z[\ˆZ[\ˆHZ[•‘T”ÒSÓ‹”Ñ×ÒS•HZ[•‘T”ÒSÓ—ÐÓÑTË“ÂˆÈ™]È›ÝYšXØ][Û‹Z[\Š\ËÒS“‘SÒQ
-Bˆˆ™]È›ÝYšXØ][Û‹Z[\Š\ÊNÂˆ™]\›ˆZ[\‚ˆœÙ]ÛÛ[]J›YHXYÚXÈ8 %ˆ
-È\ÛÛ™šYË››ÙPÛÙJ\ÊJBˆœÙ]ÛÛ[^
-^
-BˆœÙ]ÛX[XÛÛŠ[™›ÚY”‹™˜]ØX›KœÝ]Û›ÝYžWÜÞ[˜ÊBˆœÙ]Û™ÛÚ[™ÊYJBˆœÙ]ÛÛ[[[
-[™[™ÊBˆ˜Z[
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        api = new ApiClient(this);
+        executor = Executors.newSingleThreadScheduledExecutor();
+        createNotificationChannel();
+        startForeground(NOTIFICATION_ID, notification("Robot en prÃ©parationâ€¦"));
+    }
 
-NÂˆB‚ˆš]˜]H›ÚY\]S›ÝYšXØ][ÛŠÝš[™È^
-HÂˆ›ÝYšXØ][Û“X[˜YÙ\ˆX[˜YÙ\ˆH
-›ÝYšXØ][Û“X[˜YÙ\ŠHÙ]Þ\Ý[TÙ\šXÙJ“ÕQ’PÐUSÓ—ÔÑT•’PÑJNÂˆYˆ
-X[˜YÙ\ˆOH[
-HX[˜YÙ\‹››ÝYžJ“ÕQ’PÐUSÓ—ÒQ›ÝYšXØ][ÛŠ^
-JNÂˆB‚ˆÝ]XÈ›ÚYÝ\
-ÛÛ^ÛÛ^
-HÂˆ[[[[H™]È[[
-ÛÛ^›Ø›ÝÙ\šXÙK˜Û\ÜÊKœÙ]XÝ[ÛŠPÕSÓ—ÔÕT•
-NÂˆYˆ
-Z[•‘T”ÒSÓ‹”Ñ×ÒS•HZ[•‘T”ÒSÓ—ÐÓÑTË“ÊHÛÛ^œÝ\›Ü™YÜ›Ý[™Ù\šXÙJ[[
-NÂˆ[ÙHÛÛ^œÝ\Ù\šXÙJ[[
-NÂˆB‚ˆÝ]XÈ›ÚYÝÜ
-ÛÛ^ÛÛ^
-HÂˆ\ÛÛ™šYËœÙ]›Ø›Ý[˜X›Y
-ÛÛ^˜[ÙJNÂˆÛÛ^œÝÜÙ\šXÙJ™]È[[
-ÛÛ^›Ø›ÝÙ\šXÙK˜Û\ÜÊJNÂˆB‚ˆÝ]XÈ›ÚY[”ÝX›Z]Y
-ÛÛ^ÛÛ^
-HÂˆÙ[™Ù\šXÙPXÝ[ÛŠÛÛ^™]È[[
-ÛÛ^›Ø›ÝÙ\šXÙK˜Û\ÜÊKœÙ]XÝ[ÛŠPÕSÓ—ÔS—ÔÕP“RUQ
-JNÂˆB‚ˆÝ]XÈ›ÚYÜ\˜]Ü”™\Ý[
-ÛÛ^ÛÛ^›ÛÛX[ˆÝXØÙ\ÜËÝš[™È\œ›ÜÛÙKˆÝš[™ÈY\ÜØYÙKÝš[™È˜[œØXÝ[Û’Y
-HÂˆ[[[[H™]È[[
-ÛÛ^›Ø›ÝÙ\šXÙK˜Û\ÜÊBˆœÙ]XÝ[ÛŠPÕSÓ—ÓÔTUÔ—Ô‘TÕS
-Bˆœ]^˜JVWÔÕPÐÑTÔËÝXØÙ\ÜÊBˆœ]^˜JVWÑT”“Ô—ÐÓÑK\œ›ÜÛÙJBˆœ]^˜JVWÓQTÔÐQÑKY\ÜØYÙJBˆœ]^˜JVWÕS”ÐPÕSÓ—ÒQ˜[œØXÝ[Û’Y
-NÂˆÙ[™Ù\šXÙPXÝ[ÛŠÛÛ^[[
-NÂˆB‚ˆš]˜]HÝ]XÈ›ÚYÙ[™Ù\šXÙPXÝ[ÛŠÛÛ^ÛÛ^[[[[
-HÂˆYˆ
-Z[•‘T”ÒSÓ‹”Ñ×ÒS•HZ[•‘T”ÒSÓ—ÐÓÑTË“ÊHÛÛ^œÝ\›Ü™YÜ›Ý[™Ù\šXÙJ[[
-NÂˆ[ÙHÛÛ^œÝ\Ù\šXÙJ[[
-NÂˆB‚ˆš]˜]HÝ]XÈÝš[™ÈØY™SY\ÜØYÙJ^Ù\[Ûˆ\œ›ÜŠHÂˆÝš[™ÈY\ÜØYÙHH\œ›Ü‹™Ù]Y\ÜØYÙJ
-NÂˆ™]\›ˆY\ÜØYÙHOH[Y\ÜØYÙKš[J
-Kš\Ñ[\J
-HÈ\œ›Ü‹™Ù]Û\ÜÊ
-K™Ù]Ú[\S˜[YJ
-HˆY\ÜØYÙNÂˆB‚ˆÝ™\œšYBˆX›XÈ›ÚYÛ‘\Ý›ÞJ
-HÂˆYˆ
-^XÝ]ÜˆOH[
-H^XÝ]Ü‹œÚ]ÝÛ“›ÝÊ
-NÂˆ™[X\ÙPÛÛ[X[™ØZÙSØÚÊ
-NÂˆÝ\\‹›Û‘\Ý›ÞJ
-NÂˆBŸB
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        String action = intent == null ? ACTION_START : intent.getAction();
+        if (ACTION_STOP.equals(action)) {
+            AppConfig.setRobotEnabled(this, false);
+            updateNotification("Robot arrÃªtÃ©");
+            stopSelf();
+            return START_NOT_STICKY;
+        }
+
+        if (ACTION_PIN_SUBMITTED.equals(action)) {
+            PendingCommandStore.updateState(this, PendingCommandStore.PIN_SUBMITTED);
+            executor.execute(() -> reportProgress("PIN_SUBMITTED", "PIN local injectÃ© et validation envoyÃ©e."));
+            return START_STICKY;
+        }
+
+        if (ACTION_OPERATOR_RESULT.equals(action)) {
+            boolean success = intent.getBooleanExtra(EXTRA_SUCCESS, false);
+            String message = intent.getStringExtra(EXTRA_MESSAGE);
+            String code = intent.getStringExtra(EXTRA_ERROR_CODE);
+            String transactionId = intent.getStringExtra(EXTRA_TRANSACTION_ID);
+            executor.execute(() -> finishCommand(success, code, message, transactionId));
+            return START_STICKY;
+        }
+
+        AppConfig.setRobotEnabled(this, true);
+        updateNotification(AppConfig.pinBlocked(this) ? "Robot bloquÃ© : vÃ©rifier le PIN" : "Robot actif");
+        scheduleCycle(0L);
+        return START_STICKY;
+    }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
+
+    private void scheduleCycle(long delayMs) {
+        if (executor == null || executor.isShutdown() || !AppConfig.robotEnabled(this)) return;
+        executor.schedule(this::runCycle, Math.max(0L, delayMs), TimeUnit.MILLISECONDS);
+    }
+
+    private void runCycle() {
+        if (!cycleRunning.compareAndSet(false, true)) return;
+        long nextDelay = AppConfig.IDLE_POLL_MS;
+        try {
+            if (!AppConfig.isPaired(this) || !AppConfig.isRobotMode(this)) {
+                updateNotification("Configuration Robot incomplÃ¨te");
+                nextDelay = 60_000L;
+                return;
+            }
+            if (System.currentTimeMillis() - lastHeartbeatAt >= AppConfig.HEARTBEAT_MS) {
+                api.heartbeat();
+                lastHeartbeatAt = System.currentTimeMillis();
+            }
+
+            JSONObject pending = PendingCommandStore.get(this);
+            if (pending != null && PendingCommandStore.REPORT_PENDING.equals(
+                    pending.optString("local_state", ""))) {
+                retryFinalReport(pending);
+                nextDelay = PendingCommandStore.get(this) == null ? 2_000L : 15_000L;
+                return;
+            }
+            if (AppConfig.pinBlocked(this)) {
+                updateNotification("ARRÃŠT Dâ€™URGENCE : PIN Ã  corriger");
+                nextDelay = 60_000L;
+                return;
+            }
+            if (PendingCommandStore.isExpired(pending)) {
+                finishCommand(false, "RESULT_TIMEOUT",
+                        "Aucune confirmation fiable reÃ§ue dans le dÃ©lai. VÃ©rification manuelle requise.", "");
+                nextDelay = 5_000L;
+                return;
+            }
+
+            if (pending != null) {
+                nextDelay = 3_000L;
+                return;
+            }
+
+            JSONObject lease = api.leaseCommand();
+            if (!lease.optBoolean("available", false)) {
+                backoffMs = AppConfig.IDLE_POLL_MS;
+                nextDelay = AppConfig.IDLE_POLL_MS;
+                updateNotification("Robot actif â€” aucune commande");
+                return;
+            }
+
+            JSONObject command = lease.optJSONObject("command");
+            if (command == null) throw new IllegalStateException("Commande louÃ©e absente.");
+            command.put("local_state", PendingCommandStore.LEASED);
+            command.put("leased_at", System.currentTimeMillis());
+            command.put("state_changed_at", System.currentTimeMillis());
+            PendingCommandStore.save(this, command);
+            executeCommand(command);
+            nextDelay = 3_000L;
+            backoffMs = AppConfig.IDLE_POLL_MS;
+        } catch (Exception error) {
+            updateNotification("Serveur indisponible â€” nouvelle tentative diffÃ©rÃ©e");
+            backoffMs = Math.min(60_000L, Math.max(AppConfig.IDLE_POLL_MS, backoffMs * 2L));
+            nextDelay = backoffMs;
+        } finally {
+            cycleRunning.set(false);
+            scheduleCycle(nextDelay);
+        }
+    }
+
+    private void executeCommand(JSONObject command) {
+        try {
+            String ussd = UssdCommandFactory.buildAndValidate(command);
+            boolean requiresPin = UssdCommandFactory.requiresPin(command);
+            if (requiresPin && !SecurePinStore.hasPin(this)) {
+                finishCommand(false, "PIN_NOT_CONFIGURED", "Aucun PIN opÃ©rateur chiffrÃ© sur ce Robot.", "");
+                return;
+            }
+            if (requiresPin && !BlueAccessibilityService.isEnabled(this)) {
+                finishCommand(false, "ACCESSIBILITY_DISABLED", "Service dâ€™accessibilitÃ© Blue Magic dÃ©sactivÃ©.", "");
+                return;
+            }
+            if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
+                finishCommand(false, "CALL_PERMISSION_MISSING", "Autorisation TÃ©lÃ©phone non accordÃ©e.", "");
+                return;
+            }
+
+            acquireCommandWakeLock();
+            PendingCommandStore.updateState(this, PendingCommandStore.DIALING);
+            api.sendEvent(command, "DIALING", "Composition USSD dÃ©clenchÃ©e sur le Robot.", "");
+            updateNotification("Commande en cours : " + command.optString("public_id", ""));
+
+            String next = requiresPin ? PendingCommandStore.AWAITING_PIN : PendingCommandStore.AWAITING_RESULT;
+            PendingCommandStore.updateState(this, next);
+            api.sendEvent(command, next, requiresPin
+                    ? "En attente de la fenÃªtre de confirmation PIN."
+                    : "En attente du rÃ©sultat opÃ©rateur.", "");
+
+            String encoded = ussd.replace("#", Uri.encode("#"));
+            Intent call = new Intent(Intent.ACTION_CALL, Uri.parse("tel:" + encoded));
+            call.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            if (call.resolveActivity(getPackageManager()) == null) {
+                finishCommand(false, "NO_DIALER", "Aucune application TÃ©lÃ©phone compatible.", "");
+                return;
+            }
+            startActivity(call);
+        } catch (SecurityException securityError) {
+            finishCommand(false, "COMMAND_INTEGRITY_FAILURE", securityError.getMessage(), "");
+        } catch (Exception error) {
+            finishCommand(false, "DIAL_FAILURE", safeMessage(error), "");
+        }
+    }
+
+    private void reportProgress(String state, String message) {
+        JSONObject command = PendingCommandStore.get(this);
+        if (command == null) return;
+        try {
+            api.sendEvent(command, state, message, "");
+            if ("PIN_SUBMITTED".equals(state)) {
+                PendingCommandStore.updateState(this, PendingCommandStore.AWAITING_RESULT);
+                api.sendEvent(command, "AWAITING_RESULT", "Validation envoyÃ©e; attente confirmation Camtel.", "");
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void finishCommand(boolean success, String errorCode, String message, String transactionId) {
+        JSONObject command = PendingCommandStore.get(this);
+        if (command == null) return;
+        String code = errorCode == null ? "" : errorCode;
+        String state;
+        if (success) {
+            state = "SUCCEEDED";
+        } else if ("WRONG_PIN".equals(code)) {
+            state = "BLOCKED";
+            AppConfig.setPinBlocked(this, true);
+        } else if ("RESULT_TIMEOUT".equals(code)) {
+            state = "UNKNOWN";
+        } else {
+            state = "FAILED";
+        }
+
+        boolean reported = false;
+        try {
+            String detail = (message == null ? "" : message);
+            if (!code.isEmpty()) detail = code + " â€” " + detail;
+            api.sendEvent(command, state, detail, transactionId == null ? "" : transactionId);
+            reported = true;
+        } catch (Exception ignored) {
+            try {
+                command.put("local_state", PendingCommandStore.REPORT_PENDING);
+                command.put("final_state", state);
+                command.put("final_message", message == null ? "" : message);
+                command.put("final_error_code", code);
+                command.put("final_transaction_id", transactionId == null ? "" : transactionId);
+                command.put("state_changed_at", System.currentTimeMillis());
+                PendingCommandStore.save(this, command);
+            } catch (Exception ignoredAgain) {
+            }
+        }
+        if (reported) {
+            PendingCommandStore.clear(this);
+        }
+        releaseCommandWakeLock();
+        updateNotification(reported
+                ? (success ? "DerniÃ¨re commande rÃ©ussie" :
+                (AppConfig.pinBlocked(this) ? "ARRÃŠT Dâ€™URGENCE : PIN incorrect" : "DerniÃ¨re commande Ã  vÃ©rifier"))
+                : "RÃ©sultat obtenu â€” synchronisation serveur en attente");
+        scheduleCycle(reported ? 2_000L : 15_000L);
+    }
+
+    private void retryFinalReport(JSONObject command) {
+        String state = command.optString("final_state", "UNKNOWN");
+        String message = command.optString("final_message", "");
+        String code = command.optString("final_error_code", "");
+        String transactionId = command.optString("final_transaction_id", "");
+        try {
+            String detail = code.isEmpty() ? message : code + " â€” " + message;
+            api.sendEvent(command, state, detail, transactionId);
+            PendingCommandStore.clear(this);
+            updateNotification("RÃ©sultat synchronisÃ© â€” Robot prÃªt");
+        } catch (Exception ignored) {
+            updateNotification("RÃ©sultat en attente de synchronisation");
+        }
+    }
+
+    private void acquireCommandWakeLock() {
+        releaseCommandWakeLock();
+        PowerManager manager = (PowerManager) getSystemService(POWER_SERVICE);
+        if (manager != null) {
+            commandWakeLock = manager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
+                    "BlueMagic:ActiveUssdCommand");
+            commandWakeLock.acquire(AppConfig.COMMAND_TIMEOUT_MS + 15_000L);
+        }
+    }
+
+    private void releaseCommandWakeLock() {
+        if (commandWakeLock != null && commandWakeLock.isHeld()) commandWakeLock.release();
+        commandWakeLock = null;
+    }
+
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            NotificationChannel channel = new NotificationChannel(
+                    CHANNEL_ID,
+                    getString(R.string.robot_channel_name),
+                    NotificationManager.IMPORTANCE_LOW);
+            channel.setDescription("Ã‰tat du tÃ©lÃ©phone Robot Blue Magic");
+            manager.createNotificationChannel(channel);
+        }
+    }
+
+    private Notification notification(String text) {
+        Intent open = new Intent(this, MainActivity.class);
+        PendingIntent pending = PendingIntent.getActivity(this, 1, open,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        Notification.Builder builder = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                ? new Notification.Builder(this, CHANNEL_ID)
+                : new Notification.Builder(this);
+        return builder
+                .setContentTitle("Blue Magic â€” " + AppConfig.nodeCode(this))
+                .setContentText(text)
+                .setSmallIcon(android.R.drawable.stat_notify_sync)
+                .setOngoing(true)
+                .setContentIntent(pending)
+                .build();
+    }
+
+    private void updateNotification(String text) {
+        NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        if (manager != null) manager.notify(NOTIFICATION_ID, notification(text));
+    }
+
+    static void start(Context context) {
+        Intent intent = new Intent(context, RobotService.class).setAction(ACTION_START);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent);
+        else context.startService(intent);
+    }
+
+    static void stop(Context context) {
+        AppConfig.setRobotEnabled(context, false);
+        context.stopService(new Intent(context, RobotService.class));
+    }
+
+    static void pinSubmitted(Context context) {
+        sendServiceAction(context, new Intent(context, RobotService.class).setAction(ACTION_PIN_SUBMITTED));
+    }
+
+    static void operatorResult(Context context, boolean success, String errorCode,
+                               String message, String transactionId) {
+        Intent intent = new Intent(context, RobotService.class)
+                .setAction(ACTION_OPERATOR_RESULT)
+                .putExtra(EXTRA_SUCCESS, success)
+                .putExtra(EXTRA_ERROR_CODE, errorCode)
+                .putExtra(EXTRA_MESSAGE, message)
+                .putExtra(EXTRA_TRANSACTION_ID, transactionId);
+        sendServiceAction(context, intent);
+    }
+
+    private static void sendServiceAction(Context context, Intent intent) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent);
+        else context.startService(intent);
+    }
+
+    private static String safeMessage(Exception error) {
+        String message = error.getMessage();
+        return message == null || message.trim().isEmpty() ? error.getClass().getSimpleName() : message;
+    }
+
+    @Override
+    public void onDestroy() {
+        if (executor != null) executor.shutdownNow();
+        releaseCommandWakeLock();
+        super.onDestroy();
+    }
+}

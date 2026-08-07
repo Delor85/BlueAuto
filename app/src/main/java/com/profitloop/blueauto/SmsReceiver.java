@@ -1,83 +1,86 @@
-şº(·úk¡ø¥zX§{ßİzÿçºYOz¹¢²È¨×§‰ç\XÚØYÙHÛÛKœ›Ùš]ÛÜ˜›YX]]ÎÂ‚š[\Ü[™›ÚY˜ÛÛ[œ›ØYØ\İ™XÙZ]™\Âš[\Ü[™›ÚY˜ÛÛ[ÛÛ^Âš[\Ü[™›ÚY˜ÛÛ[’[[Âš[\Ü[™›ÚY›ÜË[™NÂš[\Ü[™›ÚY[\ÛK”Û\ÓY\ÜØYÙNÂ‚š[\ÜÜ™ËšœÛÛ‹’”ÓÓ“Øš™XİÂ‚š[\Ü˜]˜K][“ØØ[NÂš[\Ü˜]˜K][œ™YÙ^“X]Ú\Âš[\Ü˜]˜K][œ™YÙ^”]\›Â‚œX›XÈÛ\ÜÈÛ\Ô™XÙZ]™\ˆ^[™Èœ›ØYØ\İ™XÙZ]™\ˆÂˆš]˜]Hİ]XÈš[˜[]\›ˆÒQH]\›‹˜ÛÛ\[JŠÚJJÎ˜[œØXİ[Û—ÊšY˜[œØXİ[ÛšY
-JÎ—ÊÚ\ÊO×Ê–ÎˆËWO×ÊŠÍ‹JHŠNÂ‚ˆİ™\œšYBˆX›XÈ›ÚYÛ”™XÙZ]™JÛÛ^ÛÛ^[[[[
-HÂˆYˆ
-H˜[™›ÚYœ›İšY\‹•[\ÛK”ÓT×Ô‘PÑRU‘Q‹™\]X[Ê[[™Ù]Xİ[ÛŠ
-JJH™]\›Âˆ”ÓÓ“Øš™XİÛÛ[X[™H[™[™ĞÛÛ[X[™İÜ™K™Ù]
-ÛÛ^
-NÂˆYˆ
-ÛÛ[X[™OH[
-H™]\›Â‚ˆ[™H^˜\ÈH[[™Ù]^˜\Ê
-NÂˆYˆ
-^˜\ÈOH[
-H™]\›ÂˆØš™Xİ×H\ÈH
-Øš™Xİ×JH^˜\Ë™Ù]
-œ\ÈŠNÂˆİš[™È›Ü›X]H^˜\Ë™Ù]İš[™Ê™›Ü›X]ŠNÂˆYˆ
-\ÈOH[
-H™]\›Â‚ˆİš[™ĞZ[\ˆ›ÙHH™]Èİš[™ĞZ[\Š
-NÂˆ›Üˆ
-Øš™XİHˆ\ÊHÂˆÛ\ÓY\ÜØYÙHÛ\ÈHÛ\ÓY\ÜØYÙK˜Ü™X]Qœ›ÛTJ
-]V×JHK›Ü›X]
-NÂˆYˆ
-Û\ÈOH[	‰ˆÛ\Ë™Ù]Y\ÜØYÙP›ÙJ
-HOH[
-H›ÙK˜\[™
-Û\Ë™Ù]Y\ÜØYÙP›ÙJ
-JNÂˆBˆ]˜[X]JÛÛ^ÛÛ[X[™›ÙKÔİš[™Ê
-JNÂˆB‚ˆš]˜]H›ÚY]˜[X]JÛÛ^ÛÛ^”ÓÓ“Øš™XİÛÛ[X[™İš[™ÈY\ÜØYÙJHÂˆİš[™ÈİÙ\ˆHY\ÜØYÙKÓİÙ\Ø\ÙJØØ[K”“ÓÕ
-NÂˆYˆ
-ÛÛZ[œĞ[JİÙ\‹Ü›Û™È[ˆÛÙH‹œ[ˆ[˜ÛÜœ™Xİ‹˜ÛÙH[ˆ[˜ÛÜœ™Xİ‹˜ÛÙH\œ›Û°êHŠJHÂˆ\ÛÛ™šYËœÙ][›ØÚÙY
-ÛÛ^YJNÂˆ›Ø›İÙ\šXÙK›Ü\˜]Ü”™\İ[
-ÛÛ^˜[ÙK•Ô“Ó‘×ÔSˆ‹™YXİ
-ÛÛ^Y\ÜØYÙJK˜[œØXİ[Û’Y
-Y\ÜØYÙJJNÂˆ™]\›ÂˆB‚ˆİš[™È^XİYÛ™HHÛÛ[X[™›Üİš[™Ê\™Ù]ÜÛ™H‹ˆŠKœ™\XÙP[
-—‹ˆŠNÂˆİš[™È^XİY[[İ[HÛÛ[X[™›Üİš[™Ê˜[[İ[‹ˆŠKœ™\XÙQš\œİ
-—Œ
-É‹ˆŠKœ™\XÙP[
-—‹ˆŠNÂˆİš[™ÈÛÛ\XİHİÙ\‹œ™\XÙP[
-–×Ë—ËWH‹ˆŠNÂˆ›ÛÛX[ˆÛÜœ™[]YH
-Y^XİYÛ™Kš\Ñ[\J
-H	‰ˆÛÛ\Xİ˜ÛÛZ[œÊ^XİYÛ™JJBˆ]˜[œØXİ[Û’Y
-Y\ÜØYÙJKš\Ñ[\J
-NÂˆYˆ
-XÛÜœ™[]Y
-H™]\›ÂˆYˆ
-Y^XİY[[İ[š\Ñ[\J
-H	‰ˆXÛÛZ[œĞ[[İ[
-İÙ\‹^XİY[[İ[
-JH™]\›Â‚ˆYˆ
-ÛÛZ[œĞ[JİÙ\‹œİXØÙ\ÜÙ[H‹œ›ØÙ\ÜÙYİXØÙ\ÜÙ[H‹œ™XÙZ]™Y‹[İH˜[œÙ™\ˆŠJHÂˆ›Ø›İÙ\šXÙK›Ü\˜]Ü”™\İ[
-ÛÛ^YKˆ‹™YXİ
-ÛÛ^Y\ÜØYÙJK˜[œØXİ[Û’Y
-Y\ÜØYÙJJNÂˆH[ÙHYˆ
-ÛÛZ[œĞ[JİÙ\‹™˜Z[Y‹š[œİY™šXÚY[‹››İ[›İYÚ‹™œ›Ş™[ˆ‹œİ\Ü[™Y‹š[˜[YŠJHÂˆ›Ø›İÙ\šXÙK›Ü\˜]Ü”™\İ[
-ÛÛ^˜[ÙK“ÔTUÔ—Ô‘R‘PÕQ‹™YXİ
-ÛÛ^Y\ÜØYÙJK˜[œØXİ[Û’Y
-Y\ÜØYÙJJNÂˆBˆB‚ˆš]˜]Hİ]XÈİš[™È™YXİ
-ÛÛ^ÛÛ^İš[™È˜[YJHÂˆHÂˆİš[™È[ˆHÙXİ\™T[”İÜ™Kœ™XY
-ÛÛ^
-NÂˆYˆ
-\[‹š\Ñ[\J
-JH˜[YHH˜[YKœ™\XÙJ[‹ŠŠŠŠˆŠNÂˆHØ]Ú
-^Ù\[ÛˆYÛ›Ü™Y
-HÂˆBˆ™]\›ˆ˜[YK›[™İ
+package com.profitloop.blueauto;
 
-HHNÈ˜[YHˆ˜[YKœİXœİš[™ÊN
-NÂˆB‚ˆš]˜]Hİ]XÈİš[™È˜[œØXİ[Û’Y
-İš[™È^
-HÂˆX]Ú\ˆX]Ú\ˆHÒQ›X]Ú\Š^
-NÂˆ™]\›ˆX]Ú\‹™š[™
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.os.Bundle;
+import android.telephony.SmsMessage;
 
-HÈX]Ú\‹™Ü›İ\
-JHˆˆÂˆB‚ˆš]˜]Hİ]XÈ›ÛÛX[ˆÛÛZ[œĞ[[İ[
-İš[™ÈY\ÜØYÙKİš[™È^XİY[[İ[
-HÂˆİš[™È›Ü›X[^™YHY\ÜØYÙKœ™\XÙJ‹‹ˆŠNÂˆ]\›ˆ]\›ˆH]\›‹˜ÛÛ\[JŠÚJJÏW
-Hˆ
-È]\›‹œ][İJ^XİY[[İ[
-Bˆ
-ÈŠÎ—Œ
-O×Ê‘ÑJÈWÊHŠNÂˆ™]\›ˆ]\›‹›X]Ú\Š›Ü›X[^™Y
-K™š[™
+import org.json.JSONObject;
 
-NÂˆB‚ˆš]˜]Hİ]XÈ›ÛÛX[ˆÛÛZ[œĞ[Jİš[™È˜[YKİš[™Ë‹‹ˆ™YY\ÊHÂˆ›Üˆ
-İš[™È™YYHˆ™YY\ÊHYˆ
-˜[YK˜ÛÛZ[œÊ™YYJJH™]\›ˆYNÂˆ™]\›ˆ˜[ÙNÂˆBŸB
+import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+public class SmsReceiver extends BroadcastReceiver {
+    private static final Pattern TX_ID = Pattern.compile("(?i)(?:transaction\\s*id|transactionid)(?:\\s+is)?\\s*[:#-]?\\s*(\\d{6,})");
+
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        if (!"android.provider.Telephony.SMS_RECEIVED".equals(intent.getAction())) return;
+        JSONObject command = PendingCommandStore.get(context);
+        if (command == null) return;
+
+        Bundle extras = intent.getExtras();
+        if (extras == null) return;
+        Object[] pdus = (Object[]) extras.get("pdus");
+        String format = extras.getString("format");
+        if (pdus == null) return;
+
+        StringBuilder body = new StringBuilder();
+        for (Object pdu : pdus) {
+            SmsMessage sms = SmsMessage.createFromPdu((byte[]) pdu, format);
+            if (sms != null && sms.getMessageBody() != null) body.append(sms.getMessageBody());
+        }
+        evaluate(context, command, body.toString());
+    }
+
+    private void evaluate(Context context, JSONObject command, String message) {
+        String lower = message.toLowerCase(Locale.ROOT);
+        if (containsAny(lower, "wrong pin code", "pin incorrect", "code pin incorrect", "code erronÃ©")) {
+            AppConfig.setPinBlocked(context, true);
+            RobotService.operatorResult(context, false, "WRONG_PIN", redact(context, message), transactionId(message));
+            return;
+        }
+
+        String expectedPhone = command.optString("target_phone", "").replaceAll("\\D", "");
+        String expectedAmount = command.optString("amount", "").replaceFirst("\\.0+$", "").replaceAll("\\D", "");
+        String compact = lower.replaceAll("[\\s,._-]", "");
+        boolean correlated = (!expectedPhone.isEmpty() && compact.contains(expectedPhone))
+                || !transactionId(message).isEmpty();
+        if (!correlated) return;
+        if (!expectedAmount.isEmpty() && !containsAmount(lower, expectedAmount)) return;
+
+        if (containsAny(lower, "successfully", "processed successfully", "received", "you transfer")) {
+            RobotService.operatorResult(context, true, "", redact(context, message), transactionId(message));
+        } else if (containsAny(lower, "failed", "insufficient", "not enough", "frozen", "suspended", "invalid")) {
+            RobotService.operatorResult(context, false, "OPERATOR_REJECTED", redact(context, message), transactionId(message));
+        }
+    }
+
+    private static String redact(Context context, String value) {
+        try {
+            String pin = SecurePinStore.read(context);
+            if (!pin.isEmpty()) value = value.replace(pin, "****");
+        } catch (Exception ignored) {
+        }
+        return value.length() <= 1800 ? value : value.substring(0, 1800);
+    }
+
+    private static String transactionId(String text) {
+        Matcher matcher = TX_ID.matcher(text);
+        return matcher.find() ? matcher.group(1) : "";
+    }
+
+    private static boolean containsAmount(String message, String expectedAmount) {
+        String normalized = message.replace(",", "");
+        Pattern pattern = Pattern.compile("(?i)(?<!\\d)" + Pattern.quote(expectedAmount)
+                + "(?:\\.00)?\\s*FCFA(?!\\w)");
+        return pattern.matcher(normalized).find();
+    }
+
+    private static boolean containsAny(String value, String... needles) {
+        for (String needle : needles) if (value.contains(needle)) return true;
+        return false;
+    }
+}

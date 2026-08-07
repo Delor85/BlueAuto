@@ -1,22 +1,55 @@
-şº(·úk¡ø¥zX§{ßİzÿçºYOz¹¢²È¨×§‰çHÈ\˜Ú]Xİ\™HH›ŞX]H›Ø›İ›YHXYÚXÈŒ‚‚ˆÈÈ0êXÚ\Ú[ÛˆÙ[˜[B‚“HÙ\™]\ˆ˜[œÜÜH[™H[[[Ûˆpê]Y\ˆ
-‘TUQTÕÔÕTXÕTWĞÒS‘URSÔĞSX
-H]›Ûˆ[ˆÛÙHTÔÑXœ™Kˆ[°ê\Ûİ]\È[pê\›ÜÈ]]Üš\ğê\È[œÈHpê\˜\˜ÚYKˆH›Ø›İ™XØ[İ[H[œİZ]HØØ[[Y[HÛÛ[X[™H]˜[HHÛÛ\ÜÙ\‹‚‚˜Y\›XZYœÙ\]Y[˜ÙQXYÜ˜[Bˆ\XÚ\[ˆ\È0ê[0êXÛÛ[X[™Bˆ\XÚ\[TH\ÈTHÓ^TÔSˆ\XÚ\[H\È›Ø›İ[™›ÚYˆ\XÚ\[SRH\È0ê[0ê\Û™HÈØ[][ˆ‹OTNˆÜ°êY\ˆÜ™™H
-ÈÛ0êH[KYİX›Û‚ˆTKKO•ˆQX›XÈÈS‘S‘ÂˆKOTNˆİY\ˆH\È[˜ÚY[ˆÜ™™BˆTKKO•Nˆ\˜[pê™\È
-ÈX\ÙH[\Ü˜Z\™BˆKO“SRNˆ
-ML
-ŒŠ›[pê\›Ê›[Û[ÂˆSRKKO•NˆÛÛ™š\›Y\ˆ[pê\›ËÛ[Û[
-È[X[™\ˆS‚ˆKO•Nˆ°ê\šYšY\ˆ0êXÜ˜[‹0êXÚY™œ™\ˆSˆØØ[ˆKO“SRNˆSˆ
-ÈS•“ÖQT‚ˆSRKKO•Nˆ°ê\İ[]›\ÚİHÓTÂˆKOTNˆÕPĞÑQQQÈRSQÈS’Ó“ÕÓˆÈ“ĞÒÑQˆTKKO•ˆİ]]]QØ[][˜‚ˆÈÈ˜\œšpê™\È[KY\œ™]\‚‚ŒKˆ
-Š’pê\˜\˜ÚYHÙ\™]\ŠŠˆˆ[ˆÓH™H]][X[™\ˆ]x &pèÛÛˆQH[œ™YÚ\İ°êNÈ[ˆÔÈ™H]][X[™\ˆ]x &pèÛÛˆÓK‚Œ‹ˆ
-Š”\È8 &UTÔÑ\˜š]˜Z\™JŠˆˆÙ][\È›Ú\ÈÜ0ê\˜][ÛœÈÛÛYZ\Ù\È[œÈÙH›ŞX]K‚ŒËˆ
-Š’Y[\İ[˜ÙJŠˆˆ[™HİX›H™\ÜÚ[Ûˆİ\ˆH›İ]Ûˆ]™XÈHpê›YHÛ0êH™HÜ°êYH\È]^Ü™™\Ë‚ˆ
-Š“X\ÙJŠˆˆ[ˆÙ][›Ø›İ]]°ê\Ù\™\ˆ[ˆÜ™™H[™[LŒÙXÛÛ™\Ë‚Kˆ
-Š”™XØ[İ[ØØ[
-Šˆˆ8 &X\XØ][Ûˆ™Y\ÙH[ˆ\ÜÙØÛÙXÙ\™]\ˆ[˜ÛÚ0ê\™[]™XÈ\ÈÚ[\ÈÚYÛ°ê\Ë‚‹ˆ
-Š•°ê\šYšXØ][ÛˆHÜ]\
-ŠˆˆHSˆ¸ &Y\İ[š™Xİ0êH]YHÚHH^HÛÛY[H[pê\›È0èHÚY™œ™\È]H[Û[][™\Ë‚Ëˆ
-Š”\ÈH™]Hš[˜[˜ÚY\ˆ]™]YÛJŠˆˆ\°êÈÛÛ\ÜÚ][Û‹[ˆ°ê\İ[]X[œ]X[\ÜÙH0èS’Ó“ÕÓ˜‚ˆ
-ŠÛİ\KXÚ\˜İZ]SŠŠˆˆÜ›Û™ÈSˆÛÙX\œ°êHH›Ø›İ0êÈH™[Zpê™HØØİ\œ™[˜ÙK‚‚ˆÈÈÛÛœÛÛ[X][Ûˆ°ê\ÙX]H]˜]\šYB‚‹HØØ][ÛˆHÛÛ[X[™Hİ]\È\ÈÙXÛÛ™\ÈÜœÜ]YHH›Ø›İ\İ\ÜÛšX›HÂ‹HX\™X]İ]\È\ÈŒÙXÛÛ™\ÈÂ‹H™]İ\ˆ^Û™[Y[\Ü]x &pèŒÙXÛÛ™\È\°êÈ\œ™]\ˆ°ê\ÙX]HÂ‹H]Xİ[ˆ[™È˜]˜TØÜš\İ]\È\ÈÙXÛÛ™\ÈÂ‹HØZÙSØÚÈ\Y[[š\]Y[Y[[™[[™H˜[œØXİ[Û‹[Z]0êH0èLÍHÙXÛÛ™\ÈÂ‹H›İYšXØ][Ûˆ\›X[™[HÜœÜ]YHH[ÙH›Ø›İ\İXİY‹‚‚ˆÈÈÛÛ\]Xš[]0êB‚‹H[™›ÚYˆ0èÈˆPÕSÓ—ĞĞS
-ÈÙ\šXÙH8 &XXØÙ\ÜÚXš[]0êHÂ‹H[™›ÚY]\Èˆpê›YHÚ[Z[ˆİ\ˆÛÛœÙ\™\ˆ[™HÙ\ÜÚ[Ûˆ[\˜Xİ]™Hš\ÚX›H]ÛÛ°íX›HÂ‹H[™›ÚYHˆ›ÛÛZ\™[Y[^ÛHHÙ]H™[Zpê™H™\œÚ[Ûˆ›Ø\İKØ\ˆHİØÚØYÙHQTËÑĞÓHHSˆ[œÈ[™›ÚYÙ^\İÜ™H\İØ\˜[H0è\\ˆ8 &P[™›ÚYˆÂ‹H0ê[0ê\Û™H›Ø›İ™XÛÛ[X[™0êHˆ[™HÙ][HÒSK\ÈH™\œ›İZ[YÙH0êXÜ˜[ˆğêXİ\š\ğêKÚ\™Ù]\ˆ\›X[™[Ü[Z\Ø][Ûˆ˜]\šYH0ê\ØXİ]°êYK‚‚ˆÈÈİ\œ][ÚH\ÈÙ[™\ÜÙ™\]Y\İ
+# Architecture du noyau Robot Blue Magic v2
 
-XÙ][Â‚“8 &PTKZ›İ]0êYH]Hš]™X]H‹™[›ÚYH[™H°ê\ÛœÙHİH[ˆ0êXÚXÈ0è[™H™\]pêHTÔÑˆ[H¸ &Y^ÜÙH\ÈHpê]ÙHX›\]YHØİ[Y[0êYH\›Y][8 &Y[›ŞY\ˆH°ê\ÛœÙHİZ]˜[H[œÈHpê›YHÙ\ÜÚ[Ûˆ[\˜Xİ]™KˆH™[°ê™HØ[][[Û°êYH[œÈHØZY\ˆ\ÈÚ\™Ù\È^YÙHÛ˜È8 &X]]ÛX]\Ø][ÛˆÛÛ°í0êYHHX[ÙİYHŞ\İ0êYK‚
+## DÃ©cision centrale
+
+Le serveur transporte une intention mÃ©tier (`REQUEST_SUPPLY`, `SUPPLY_CHILD`, `RETAIL_SALE`) et non un code USSD libre. Il rÃ©sout les numÃ©ros autorisÃ©s dans la hiÃ©rarchie. Le Robot recalcule ensuite localement la commande avant de la composer.
+
+```mermaid
+sequenceDiagram
+    participant T2 as TÃ©lÃ©commande
+    participant API as API PHP/MySQL
+    participant T1 as Robot Android
+    participant MMI as TÃ©lÃ©phone / Camtel
+    T2->>API: CrÃ©er ordre + clÃ© anti-doublon
+    API-->>T2: ID public / PENDING
+    T1->>API: Louer le plus ancien ordre
+    API-->>T1: ParamÃ¨tres + lease temporaire
+    T1->>MMI: *550*2*numÃ©ro*montant#
+    MMI-->>T1: Confirmer numÃ©ro/montant + demander PIN
+    T1->>T1: VÃ©rifier Ã©cran, dÃ©chiffrer PIN local
+    T1->>MMI: PIN + ENVOYER
+    MMI-->>T1: RÃ©sultat flash ou SMS
+    T1->>API: SUCCEEDED / FAILED / UNKNOWN / BLOCKED
+    API-->>T2: Statut et ID Camtel
+```
+
+## BarriÃ¨res anti-erreur
+
+1. **HiÃ©rarchie serveur** : un DSM ne peut demander quâ€™Ã  son DAE enregistrÃ©; un PoS ne peut demander quâ€™Ã  son DSM.
+2. **Pas dâ€™USSD arbitraire** : seules trois opÃ©rations sont admises dans ce noyau.
+3. **Idempotence** : une double pression sur le bouton avec la mÃªme clÃ© ne crÃ©e pas deux ordres.
+4. **Lease** : un seul Robot peut rÃ©server un ordre pendant 120 secondes.
+5. **Recalcul local** : lâ€™application refuse un `ussd_code` serveur incohÃ©rent avec les champs signÃ©s.
+6. **VÃ©rification du pop-up** : le PIN nâ€™est injectÃ© que si le texte contient le numÃ©ro Ã  9 chiffres et le montant attendus.
+7. **Pas de retry financier aveugle** : aprÃ¨s composition, un rÃ©sultat manquant passe Ã  `UNKNOWN`.
+8. **Coupe-circuit PIN** : `Wrong PIN code` arrÃªte le Robot dÃ¨s la premiÃ¨re occurrence.
+
+## Consommation rÃ©seau et batterie
+
+- location de commande toutes les 8 secondes lorsque le Robot est disponible ;
+- heartbeat toutes les 60 secondes ;
+- retour exponentiel jusquâ€™Ã  60 secondes aprÃ¨s erreur rÃ©seau ;
+- aucun ping JavaScript toutes les 4 secondes ;
+- WakeLock partiel uniquement pendant une transaction, limitÃ© Ã  135 secondes ;
+- notification permanente lorsque le mode Robot est actif.
+
+## CompatibilitÃ©
+
+- Android 6 Ã  7 : `ACTION_CALL` + service dâ€™accessibilitÃ© ;
+- Android 8 et plus : mÃªme chemin pour conserver une session interactive visible et contrÃ´lable ;
+- Android 5 : volontairement exclu de cette premiÃ¨re version robuste, car le stockage AES/GCM du PIN dans Android Keystore est garanti Ã  partir dâ€™Android 6 ;
+- tÃ©lÃ©phone Robot recommandÃ© : une seule SIM, pas de verrouillage Ã©cran sÃ©curisÃ©, chargeur permanent, optimisation batterie dÃ©sactivÃ©e.
+
+## Pourquoi pas `sendUssdRequest()` seul ?
+
+Lâ€™API, ajoutÃ©e au niveau 26, renvoie une rÃ©ponse ou un Ã©chec Ã  une requÃªte USSD. Elle nâ€™expose pas de mÃ©thode publique documentÃ©e permettant dâ€™envoyer la rÃ©ponse suivante dans la mÃªme session interactive. La fenÃªtre Camtel montrÃ©e dans le cahier des charges exige donc lâ€™automatisation contrÃ´lÃ©e du dialogue systÃ¨me.

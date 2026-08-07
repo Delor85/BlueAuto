@@ -1,32 +1,58 @@
-˛∫(∑˙k°¯•zXß{ﬂ›zˇÁ∫YOzπ¢≤»®ù◊ßâÁ\X⁄ÿYŸH€€KúõŸö]€‹òõYX]]Œ¬Çö[\‹ù‹ôÀöú€€ãíî””ìÿöôX›¬Çôö[ò[€\‹»\‹Ÿ€€[X[ôòX›‹ûH¬àö]ò]H\‹Ÿ€€[X[ôòX›‹ûJ
-HﬂBÇà›]X»›ö[ô»ùZ[[ôò[Y]Jî””ìÿöôX›€€[X[ô
-H¬à›ö[ô»‹\ò][€àH€€[X[ôõ‹›ö[ô õ‹\ò][€àãàäN¬à›ö[ô»€ôHHY⁄] €€[X[ôõ‹›ö[ô ù\ôŸ]‹€ôHãàäJN¬à›ö[ô»[[›[ùHY⁄] €€[X[ôõ‹›ö[ô ò[[›[ùãàäJN¬à›ö[ô»ùZ[¬Çà›⁄]⁄
-‹\ò][€äH¬àÿ\ŸHëT’íPïUS”ó’êSî—ëTàéÇàô\]Z\ôT€ôJ€ôJN¬àô\]Z\ôP[[›[ù
-[[›[ù
-N¬àùZ[HäçML
-åäàà
-»€ôH
-»äàà
-»[[›[ù
-»à»é¬àúôXZŒ¬àÿ\ŸHîëURS’êSî—ëTàéÇàô\]Z\ôT€ôJ€ôJN¬àô\]Z\ôP[[›[ù
-[[›[ù
-N¬àùZ[HäçML
-åJàà
-»€ôH
-»äàà
-»[[›[ù
-»à»é¬àúôXZŒ¬àÿ\ŸHïT’”ïSPëTàéÇàùZ[HäéçJå å»»é¬àúôXZŒ¬àYò][Çàõ›»ô]»[Yÿ[\ô›[Y[ù^Ÿ\[€äì‹0Í\ò][€àT‘—[ò€€õùYNàà
-»‹\ò][€äN¬àBÇà›ö[ô»Ÿ\ùô\ïò[YHH€€[X[ôõ‹›ö[ô ù\‹Ÿÿ€ŸHãàäN¬àYà
-\Ÿ\ùô\ïò[YKö\—[\J
-H	âàXùZ[ô\]X[ Ÿ\ùô\ïò[YJJH¬àõ›»ô]»ŸX›\ö]Q^Ÿ\[€äìH€€[X[ôHŸ\ùô]\àôH€‹úô\‹€ô\»]^\ò[pÍô\»⁄Y€∞Í\ÀàäN¬àBàô]\õàùZ[¬àBÇà›]X»õ€€X[àô\]Z\ô\‘[äî””ìÿöôX›€€[X[ô
-H¬à›ö[ô»‹\ò][€àH€€[X[ôõ‹›ö[ô õ‹\ò][€àãàäN¬àô]\õàëT’íPïUS”ó’êSî—ëTàãô\]X[ ‹\ò][€äHîëURS’êSî—ëTàãô\]X[ ‹\ò][€äN¬àBÇàö]ò]H›]X»›ö[ô»Y⁄] ›ö[ô»ò[YJH¬àYà
-ò[YHOHù[
-Hô]\õààé¬à[ùX⁄[X[Hò[YKö[ô^Ÿä	Àâ N¬àYà
-X⁄[X[èH
-Hò[YHHò[YKú›Xú›ö[ô X⁄[X[
-N¬àô]\õàò[YKúô\XŸP[
-ñ◊åNWHãàäN¬àBÇàö]ò]H›]X»õ⁄Yô\]Z\ôT€ôJ›ö[ô»€ôJH¬àYà
-\€ôKõX]⁄\ óŒ_HäJHõ›»ô]»[Yÿ[\ô›[Y[ù^Ÿ\[€äìù[pÍ\õ»⁄XõH[ùò[YKàäN¬àBÇàö]ò]H›]X»õ⁄Yô\]Z\ôP[[›[ù
-›ö[ô»[[›[ù
-H¬àYà
-X[[›[ùõX]⁄\ ñÃKNWWÃHäJHõ›»ô]»[Yÿ[\ô›[Y[ù^Ÿ\[€äì[€ù[ù[ùò[YKàäN¬àBüB
+package com.profitloop.blueauto;
+
+import org.json.JSONObject;
+
+final class UssdCommandFactory {
+    private UssdCommandFactory() {}
+
+    static String buildAndValidate(JSONObject command) {
+        String operation = command.optString("operation", "");
+        String phone = digits(command.optString("target_phone", ""));
+        String amount = digits(command.optString("amount", ""));
+        String built;
+
+        switch (operation) {
+            case "DISTRIBUTION_TRANSFER":
+                requirePhone(phone);
+                requireAmount(amount);
+                built = "*550*2*" + phone + "*" + amount + "#";
+                break;
+            case "RETAIL_TRANSFER":
+                requirePhone(phone);
+                requireAmount(amount);
+                built = "*550*1*" + phone + "*" + amount + "#";
+                break;
+            case "TEST_NUMBER":
+                built = "*825*3*3#";
+                break;
+            default:
+                throw new IllegalArgumentException("Op√©ration USSD inconnue: " + operation);
+        }
+
+        String serverValue = command.optString("ussd_code", "");
+        if (!serverValue.isEmpty() && !built.equals(serverValue)) {
+            throw new SecurityException("La commande serveur ne correspond pas aux param√®tres sign√©s.");
+        }
+        return built;
+    }
+
+    static boolean requiresPin(JSONObject command) {
+        String operation = command.optString("operation", "");
+        return "DISTRIBUTION_TRANSFER".equals(operation) || "RETAIL_TRANSFER".equals(operation);
+    }
+
+    private static String digits(String value) {
+        if (value == null) return "";
+        int decimal = value.indexOf('.');
+        if (decimal >= 0) value = value.substring(0, decimal);
+        return value.replaceAll("[^0-9]", "");
+    }
+
+    private static void requirePhone(String phone) {
+        if (!phone.matches("\\d{9}")) throw new IllegalArgumentException("Num√©ro cible invalide.");
+    }
+
+    private static void requireAmount(String amount) {
+        if (!amount.matches("[1-9]\\d{0,8}")) throw new IllegalArgumentException("Montant invalide.");
+    }
+}

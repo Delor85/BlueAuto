@@ -1,1 +1,7 @@
-ює(·ъkЎшҐzX§{ЯЭzязєYOz№ўІИЁќЧ§‰зOЮ[™\њЪ[ЫЏHЊKЊ€[ЫЩ[™ПHќ]‹NЏП‚Џ™\ЫЭ\Щ\П‚€Эљ[™И[YOH\Ы[YHЏђ›YHXYЪXПЬЭљ[™П‚€Эљ[™И[YOHXШЩ\ЬЪXљ[]WЬЩ\ќљXЩWЫ[YHЏђ]]ЫX]\Ш][Ы€S€›YHXYЪXПЬЭљ[™П‚€Эљ[™И[YOHXШЩ\ЬЪXљ[]WЬЩ\ќљXЩWЩ\ШЬљ\[Ы€Џ•°к\љYљYHHЫЫ™љ\›X][Ы€TФС›YK™[\]HS€ШШ[][YH[љ\]Y[Y[ќH[њШXЭ[Ы€][™YKЏЬЭљ[™П‚€Эљ[™И[YOHњ›Ш›ЭШЪ[›™[Ы[YHЏ”›Ш›Э›YHXYЪXПЬЭљ[™П‚ЏЬ™\ЫЭ\Щ\П‚
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Blue Magic</string>
+    <string name="accessibility_service_name">Automatisation PIN Blue Magic</string>
+    <string name="accessibility_service_description">VГ©rifie la confirmation USSD Blue, remplit le PIN local et valide uniquement la transaction attendue.</string>
+    <string name="robot_channel_name">Robot Blue Magic</string>
+</resources>

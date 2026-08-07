@@ -1,183 +1,222 @@
-şº(·úk¡ø¥zX§{ßİzÿçºYOz¹¢²È¨×§‰ç\XÚØYÙHÛÛKœ›Ùš]ÛÜ˜›YX]]ÎÂ‚š[\Ü[™›ÚY˜XØÙ\ÜÚXš[]\Ù\šXÙKXØÙ\ÜÚXš[]TÙ\šXÙNÂš[\Ü[™›ÚY˜ÛÛ[ÛÛ\Û™[˜[YNÂš[\Ü[™›ÚY˜ÛÛ[ÛÛ^Âš[\Ü[™›ÚY›ÜË[™NÂš[\Ü[™›ÚY›ÜË’[™\Âš[\Ü[™›ÚY›ÜË“ÛÜ\Âš[\Ü[™›ÚYœ›İšY\‹”Ù][™ÜÎÂš[\Ü[™›ÚY^•^][ÎÂš[\Ü[™›ÚYšY]Ë˜XØÙ\ÜÚXš[]KXØÙ\ÜÚXš[]Q]™[Âš[\Ü[™›ÚYšY]Ë˜XØÙ\ÜÚXš[]KXØÙ\ÜÚXš[]S›ÙR[™›ÎÂ‚š[\ÜÜ™ËšœÛÛ‹’”ÓÓ“Øš™XİÂ‚š[\Ü˜]˜K][\œ˜^S\İÂš[\Ü˜]˜K][“\İÂš[\Ü˜]˜K][“ØØ[NÂš[\Ü˜]˜K][œ™YÙ^“X]Ú\Âš[\Ü˜]˜K][œ™YÙ^”]\›Â‚œX›XÈÛ\ÜÈ›YPXØÙ\ÜÚXš[]TÙ\šXÙH^[™ÈXØÙ\ÜÚXš[]TÙ\šXÙHÂˆš]˜]Hİ]XÈš[˜[]\›ˆÒQH]\›‹˜ÛÛ\[JŠÚJJÎ˜[œØXİ[Û—ÊšY˜[œØXİ[ÛšY
-JÎ—ÊÚ\ÊO×Ê–ÎˆËWO×ÊŠÍ‹JHŠNÂˆš]˜]Hš[˜[[™\ˆ[™\ˆH™]È[™\ŠÛÜ\‹™Ù]XZ[“ÛÜ\Š
-JNÂˆš]˜]HÛ™È\İXİ[Û]HÂ‚ˆİ™\œšYBˆX›XÈ›ÚYÛXØÙ\ÜÚXš[]Q]™[
-XØÙ\ÜÚXš[]Q]™[]™[
-HÂˆ”ÓÓ“Øš™XİÛÛ[X[™H[™[™ĞÛÛ[X[™İÜ™K™Ù]
-\ÊNÂˆYˆ
-ÛÛ[X[™OH[Ş\İ[K˜İ\œ™[[YSZ[\Ê
-HH\İXİ[Û]Ì
-H™]\›Â‚ˆXØÙ\ÜÚXš[]S›ÙR[™›È›ÛİHÙ]›Ûİ[Xİ]™UÚ[™İÊ
-NÂˆYˆ
-›ÛİOH[
-H™]\›Âˆİš[™Èš\ÚX›HHÛÛXİ^
-›Ûİ
-NÂˆİš[™ÈİÙ\ˆHš\ÚX›KÓİÙ\Ø\ÙJØØ[K”“ÓÕ
-NÂ‚ˆYˆ
-ÛÛZ[œĞ[JİÙ\‹Ü›Û™È[ˆÛÙH‹œ[ˆ[˜ÛÜœ™Xİ‹˜ÛÙH[ˆ[˜ÛÜœ™Xİ‹˜ÛÙH\œ›Û°êHŠJHÂˆ\ÛÛ™šYËœÙ][›ØÚÙY
-\ËYJNÂˆ\İXİ[Û]HŞ\İ[K˜İ\œ™[[YSZ[\Ê
-NÂˆ›Ø›İÙ\šXÙK›Ü\˜]Ü”™\İ[
-\Ë˜[ÙK•Ô“Ó‘×ÔSˆ‹ØY™TØÜ™Y[•^
-š\ÚX›JK˜[œØXİ[Û’Y
-š\ÚX›JJNÂˆÛXÚÑš\œİ
-›Ûİ›ÚÈ‹™™\›Y\ˆ‹˜ÛÜÙHŠNÂˆ™]\›ÂˆB‚ˆYˆ
-ÛÛZ[œĞ[JİÙ\‹œ›ØÙ\ÜÙYİXØÙ\ÜÙ[H‹œ™\]Y\İ\È›ØÙ\ÜÙYİXØÙ\ÜÙ[H‹ˆœİXØÙ\ÜÙ[H˜[œÙ™\œ™Y‹˜[œÙ™\ˆİXØÙ\ÜÙ[H‹[İH˜[œÙ™\ˆŠJHÂˆ\İXİ[Û]HŞ\İ[K˜İ\œ™[[YSZ[\Ê
-NÂˆ›Ø›İÙ\šXÙK›Ü\˜]Ü”™\İ[
-\ËYKˆ‹ØY™TØÜ™Y[•^
-š\ÚX›JK˜[œØXİ[Û’Y
-š\ÚX›JJNÂˆÛXÚÑš\œİ
-›Ûİ›ÚÈ‹™™\›Y\ˆ‹˜ÛÜÙHŠNÂˆ™]\›ÂˆB‚ˆYˆ
-ÛÛZ[œĞ[JİÙ\‹š[œİY™šXÚY[‹››İ[›İYÚ‹˜[œØXİ[Ûˆ˜Z[Y‹œ™\]Y\İ˜Z[Y‹ˆ›Ü\˜]Üˆ\Èœ›Ş™[ˆ‹›Ü\˜]Üˆ\Èİ\Ü[™Y‹š[˜[Y[[İ[‹°êXÚXÈŠJHÂˆ\İXİ[Û]HŞ\İ[K˜İ\œ™[[YSZ[\Ê
-NÂˆ›Ø›İÙ\šXÙK›Ü\˜]Ü”™\İ[
-\Ë˜[ÙK“ÔTUÔ—Ô‘R‘PÕQ‹ØY™TØÜ™Y[•^
-š\ÚX›JK˜[œØXİ[Û’Y
-š\ÚX›JJNÂˆÛXÚÑš\œİ
-›Ûİ›ÚÈ‹™™\›Y\ˆ‹˜ÛÜÙHŠNÂˆ™]\›ÂˆB‚ˆİš[™Èİ]HHÛÛ[X[™›Üİš[™Ê›ØØ[Üİ]H‹[™[™ĞÛÛ[X[™İÜ™K“PTÑQ
-NÂˆYˆ
-•TÕÓ•SP‘Tˆ‹™\]X[ÊÛÛ[X[™›Üİš[™Ê›Ü\˜][ÛˆŠJBˆ	‰ˆ[™[™ĞÛÛ[X[™İÜ™KUĞRUS‘×Ô‘TÕS™\]X[Êİ]JBˆ	‰ˆ[İÙ\‹˜ÛÛZ[œÊœ[ˆŠBˆ	‰ˆİÙ\‹›X]Ú\ÊŠÜÊKŠ—Î_KŠˆŠJHÂˆ\İXİ[Û]HŞ\İ[K˜İ\œ™[[YSZ[\Ê
-NÂˆ›Ø›İÙ\šXÙK›Ü\˜]Ü”™\İ[
-\ËYKˆ‹ØY™TØÜ™Y[•^
-š\ÚX›JK˜[œØXİ[Û’Y
-š\ÚX›JJNÂˆÛXÚÑš\œİ
-›Ûİ›ÚÈ‹™™\›Y\ˆ‹˜ÛÜÙHŠNÂˆ™]\›ÂˆBˆYˆ
-U\ÜÙÛÛ[X[™˜XİÜKœ™\]Z\™\Ô[ŠÛÛ[X[™
-BˆJ[™[™ĞÛÛ[X[™İÜ™K‘PSS‘Ë™\]X[Êİ]JH[™[™ĞÛÛ[X[™İÜ™KUĞRUS‘×ÔS‹™\]X[Êİ]JJJHÂˆ™]\›ÂˆB‚ˆYˆ
-Z\Ô[”›Û\
-İÙ\ŠJH™]\›Â‚ˆİš[™È^XİYÛ™HHÛÛ[X[™›Üİš[™Ê\™Ù]ÜÛ™H‹ˆŠKœ™\XÙP[
-—‹ˆŠNÂˆİš[™È^XİY[[İ[HÛÛ[X[™›Üİš[™Ê˜[[İ[‹ˆŠKœ™\XÙQš\œİ
-—Œ
-É‹ˆŠKœ™\XÙP[
-—‹ˆŠNÂˆYˆ
-XÛÛ™š\›X][Û“X]Ú\ÊİÙ\‹^XİYÛ™K^XİY[[İ[
-JHÂˆ\İXİ[Û]HŞ\İ[K˜İ\œ™[[YSZ[\Ê
-NÂˆÛXÚÑš\œİ
-›Ûİ˜[›[\ˆ‹˜Ø[˜Ù[ŠNÂˆ›Ø›İÙ\šXÙK›Ü\˜]Ü”™\İ[
-\Ë˜[ÙKÓÓ‘’T“PUSÓ—ÓRTÓPUÒ‹ˆ“H[pê\›ÈİHH[Û[Y™šXÚ0êH\ˆØ[][™HÛÜœ™\ÜÛ™\È0è8 &[Ü™™H][™Kˆ‹ˆŠNÂˆ™]\›ÂˆB‚ˆHÂˆİš[™È[ˆHÙXİ\™T[”İÜ™Kœ™XY
-\ÊNÂˆXØÙ\ÜÚXš[]S›ÙR[™›ÈšY[Hš[™Y]X›J›Ûİ
-NÂˆYˆ
-šY[OH[
-HÂˆ\İXİ[Û]HŞ\İ[K˜İ\œ™[[YSZ[\Ê
-NÂˆ›Ø›İÙ\šXÙK›Ü\˜]Ü”™\İ[
-\Ë˜[ÙK”S—Ñ’QSÓ“ÕÑ“ÕS‘‹ˆ“HÚ[\SˆHH™[°ê™HTÔÑ¸ &Y\İ\ÈXØÙ\ÜÚX›Hİ\ˆÙH0ê[0ê\Û™Kˆ‹ˆŠNÂˆ™]\›ÂˆB‚ˆ[™H\™ÜÈH™]È[™J
-NÂˆ\™ÜËœ]Ú\”Ù\]Y[˜ÙJXØÙ\ÜÚXš[]S›ÙR[™›ËPÕSÓ—ĞT‘ÕSQS•ÔÑUÕVĞÒT”ÑTUQSÑK[ŠNÂˆ›ÛÛX[ˆ[œÙ\YHšY[œ\™›Ü›PXİ[ÛŠXØÙ\ÜÚXš[]S›ÙR[™›ËPÕSÓ—ÔÑUÕV\™ÜÊNÂˆYˆ
-Z[œÙ\Y
-HÂˆ\İXİ[Û]HŞ\İ[K˜İ\œ™[[YSZ[\Ê
-NÂˆ›Ø›İÙ\šXÙK›Ü\˜]Ü”™\İ[
-\Ë˜[ÙK”S—ĞUUÑ’SÑRSQ‹ˆ[™›ÚYH™Y\ğêH8 &Z[š™Xİ[ÛˆğêXİ\š\ğêYHHS‹ˆ‹ˆŠNÂˆ™]\›ÂˆB‚ˆ\İXİ[Û]HŞ\İ[K˜İ\œ™[[YSZ[\Ê
-NÂˆ[™[™ĞÛÛ[X[™İÜ™K\]Tİ]J\Ë[™[™ĞÛÛ[X[™İÜ™K”S—ÔÕP“RUQ
-NÂˆ[™\‹œÜİ[^YY
+package com.profitloop.blueauto;
 
+import android.accessibilityservice.AccessibilityService;
+import android.content.ComponentName;
+import android.content.Context;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.provider.Settings;
+import android.text.TextUtils;
+import android.view.accessibility.AccessibilityEvent;
+import android.view.accessibility.AccessibilityNodeInfo;
 
-HOˆÂˆXØÙ\ÜÚXš[]S›ÙR[™›Èİ\œ™[HÙ]›Ûİ[Xİ]™UÚ[™İÊ
-NÂˆYˆ
-İ\œ™[OH[XÛXÚÑš\œİ
-İ\œ™[™[›ŞY\ˆ‹œÙ[™‹˜ÛÛ™š\›Y\ˆ‹˜ÛÛ™š\›H‹˜[Y\ˆ‹›ÚÈŠJHÂˆ›Ø›İÙ\šXÙK›Ü\˜]Ü”™\İ[
-\Ë˜[ÙKÓÓ‘’T“WĞ•UÓ—Ó“ÕÑ“ÕS‘‹ˆ“H›İ]ÛˆH˜[Y][ÛˆTÔÑ¸ &Y\İ\ÈXØÙ\ÜÚX›Hİ\ˆÙH0ê[0ê\Û™Kˆ‹ˆŠNÂˆ™]\›ÂˆBˆ›Ø›İÙ\šXÙKœ[”İX›Z]Y
-\ÊNÂˆKÍL
-NÂˆHØ]Ú
-^Ù\[Ûˆ\œ›ÜŠHÂˆ\İXİ[Û]HŞ\İ[K˜İ\œ™[[YSZ[\Ê
-NÂˆ›Ø›İÙ\šXÙK›Ü\˜]Ü”™\İ[
-\Ë˜[ÙK”S—ÑPÔ–TSÓ—ÑRSQ‹ˆ’[\ÜÜÚX›HH\™HHSˆÚY™œ°êHØØ[ˆ‹ˆŠNÂˆBˆB‚ˆš]˜]H›ÛÛX[ˆÛÛ™š\›X][Û“X]Ú\Êİš[™È^İš[™ÈÛ™Kİš[™È[[İ[
-HÂˆİš[™ÈÛÛ\XİH^œ™\XÙP[
-–×Ë—ËWH‹ˆŠNÂˆ›ÛÛX[ˆÛ™SX]Ú\ÈHÛ™K›[™İ
+import org.json.JSONObject;
 
-HOHH	‰ˆÛÛ\Xİ˜ÛÛZ[œÊÛ™JNÂˆİš[™È›Ü›X[^™Y[Û™^HH^œ™\XÙJ‹‹ˆŠNÂˆ›ÛÛX[ˆ[[İ[X]Ú\ÈHX[[İ[š\Ñ[\J
-H	‰ˆ]\›‹˜ÛÛ\[JˆŠÚJJÏW
-Hˆ
-È]\›‹œ][İJ[[İ[
-H
-ÈŠÎ—Œ
-O×Ê‘ÑJÈWÊHŠBˆ›X]Ú\Š›Ü›X[^™Y[Û™^JK™š[™
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-NÂˆ™]\›ˆÛ™SX]Ú\È	‰ˆ[[İ[X]Ú\ÎÂˆB‚ˆš]˜]Hİ]XÈ›ÛÛX[ˆ\Ô[”›Û\
-İš[™ÈİÙ\ŠHÂˆ™]\›ˆİÙ\‹˜ÛÛZ[œÊœ[ˆŠBˆ	‰ˆÛÛZ[œĞ[JİÙ\‹˜ÛÛ™š\›H‹˜ÛÛ™š\›Y\ˆ‹™[\ˆ‹œØZ\Ú\ˆ‹˜[œÙ™\ˆ˜[[˜ÙHŠNÂˆB‚ˆš]˜]Hİ]XÈXØÙ\ÜÚXš[]S›ÙR[™›Èš[™Y]X›JXØÙ\ÜÚXš[]S›ÙR[™›È›ÙJHÂˆYˆ
-›ÙHOH[
-H™]\›ˆ[ÂˆÚ\”Ù\]Y[˜ÙHÛ\ÜÓ˜[YHH›ÙK™Ù]Û\ÜÓ˜[YJ
-NÂˆYˆ
-›ÙKš\ÑY]X›J
-H
-Û\ÜÓ˜[YHOH[	‰ˆÛ\ÜÓ˜[YKÔİš[™Ê
-K˜ÛÛZ[œÊ‘Y]^ŠJJH™]\›ˆ›ÙNÂˆ›Üˆ
-[HHÈH›ÙK™Ù]Ú[Ûİ[
+public class BlueAccessibilityService extends AccessibilityService {
+    private static final Pattern TX_ID = Pattern.compile("(?i)(?:transaction\\s*id|transactionid)(?:\\s+is)?\\s*[:#-]?\\s*(\\d{6,})");
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private long lastActionAt = 0L;
 
-NÈJÊÊHÂˆXØÙ\ÜÚXš[]S›ÙR[™›È™\İ[Hš[™Y]X›J›ÙK™Ù]Ú[
-JJNÂˆYˆ
-™\İ[OH[
-H™]\›ˆ™\İ[ÂˆBˆ™]\›ˆ[ÂˆB‚ˆš]˜]Hİ]XÈ›ÛÛX[ˆÛXÚÑš\œİ
-XØÙ\ÜÚXš[]S›ÙR[™›È›Ûİİš[™Ë‹‹ˆX™[ÊHÂˆ\İXØÙ\ÜÚXš[]S›ÙR[™›Ïˆ›Ù\ÈH™]È\œ˜^S\İŠ
-NÂˆ›][Š›Ûİ›Ù\ÊNÂˆ›Üˆ
-İš[™ÈX™[ˆX™[ÊHÂˆ›Üˆ
-XØÙ\ÜÚXš[]S›ÙR[™›È›ÙHˆ›Ù\ÊHÂˆİš[™È^H›ÙK™Ù]^
+    @Override
+    public void onAccessibilityEvent(AccessibilityEvent event) {
+        JSONObject command = PendingCommandStore.get(this);
+        if (command == null || System.currentTimeMillis() - lastActionAt < 300L) return;
 
-HOH[Èˆˆˆ›ÙK™Ù]^
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (root == null) return;
+        String visible = collectText(root);
+        String lower = visible.toLowerCase(Locale.ROOT);
 
-KÔİš[™Ê
-Kš[J
-KÓİÙ\Ø\ÙJØØ[K”“ÓÕ
-NÂˆYˆ
-^™\]X[ÊX™[
-H^˜ÛÛZ[œÊX™[
-JHÂˆXØÙ\ÜÚXš[]S›ÙR[™›ÈÛXÚØX›HH›ÙNÂˆÚ[H
-ÛXÚØX›HOH[	‰ˆXÛXÚØX›Kš\ĞÛXÚØX›J
-JHÛXÚØX›HHÛXÚØX›K™Ù]\™[
+        if (containsAny(lower, "wrong pin code", "pin incorrect", "code pin incorrect", "code erronÃ©")) {
+            AppConfig.setPinBlocked(this, true);
+            lastActionAt = System.currentTimeMillis();
+            RobotService.operatorResult(this, false, "WRONG_PIN", safeScreenText(visible), transactionId(visible));
+            clickFirst(root, "ok", "fermer", "close");
+            return;
+        }
 
-NÂˆYˆ
-ÛXÚØX›HOH[	‰ˆÛXÚØX›Kœ\™›Ü›PXİ[ÛŠXØÙ\ÜÚXš[]S›ÙR[™›ËPÕSÓ—ĞÓPÒÊJH™]\›ˆYNÂˆBˆBˆBˆ™]\›ˆ˜[ÙNÂˆB‚ˆš]˜]Hİ]XÈ›ÚY›][ŠXØÙ\ÜÚXš[]S›ÙR[™›È›ÙK\İXØÙ\ÜÚXš[]S›ÙR[™›Ïˆİ]]
-HÂˆYˆ
-›ÙHOH[
-H™]\›Âˆİ]]˜Y
-›ÙJNÂˆ›Üˆ
-[HHÈH›ÙK™Ù]Ú[Ûİ[
+        if (containsAny(lower, "processed successfully", "request is processed successfully",
+                "successfully transferred", "transfer successfully", "you transfer")) {
+            lastActionAt = System.currentTimeMillis();
+            RobotService.operatorResult(this, true, "", safeScreenText(visible), transactionId(visible));
+            clickFirst(root, "ok", "fermer", "close");
+            return;
+        }
 
-NÈJÊÊH›][Š›ÙK™Ù]Ú[
-JKİ]]
-NÂˆB‚ˆš]˜]Hİ]XÈİš[™ÈÛÛXİ^
-XØÙ\ÜÚXš[]S›ÙR[™›È›Ûİ
-HÂˆ\İXØÙ\ÜÚXš[]S›ÙR[™›Ïˆ›Ù\ÈH™]È\œ˜^S\İŠ
-NÂˆ›][Š›Ûİ›Ù\ÊNÂˆİš[™ĞZ[\ˆ™\İ[H™]Èİš[™ĞZ[\Š
-NÂˆ›Üˆ
-XØÙ\ÜÚXš[]S›ÙR[™›È›ÙHˆ›Ù\ÊHÂˆÚ\”Ù\]Y[˜ÙH^H›ÙK™Ù]^
+        if (containsAny(lower, "insufficient", "not enough", "transaction failed", "request failed",
+                "operator is frozen", "operator is suspended", "invalid amount", "Ã©chec")) {
+            lastActionAt = System.currentTimeMillis();
+            RobotService.operatorResult(this, false, "OPERATOR_REJECTED", safeScreenText(visible), transactionId(visible));
+            clickFirst(root, "ok", "fermer", "close");
+            return;
+        }
 
-NÂˆYˆ
-U^][Ëš\Ñ[\J^
-JH™\İ[˜\[™
-^
-K˜\[™
-	È	ÊNÂˆÚ\”Ù\]Y[˜ÙH\ØÜš\[ÛˆH›ÙK™Ù]ÛÛ[\ØÜš\[ÛŠ
-NÂˆYˆ
-U^][Ëš\Ñ[\J\ØÜš\[ÛŠJH™\İ[˜\[™
-\ØÜš\[ÛŠK˜\[™
-	È	ÊNÂˆBˆ™]\›ˆ™\İ[Ôİš[™Ê
-Kš[J
-NÂˆB‚ˆš]˜]Hİš[™ÈØY™TØÜ™Y[•^
-İš[™È˜[YJHÂˆHÂˆİš[™È[ˆHÙXİ\™T[”İÜ™Kœ™XY
-\ÊNÂˆYˆ
-\[‹š\Ñ[\J
-JH˜[YHH˜[YKœ™\XÙJ[‹ŠŠŠŠˆŠNÂˆHØ]Ú
-^Ù\[ÛˆYÛ›Ü™Y
-HÂˆBˆ™]\›ˆ˜[YK›[™İ
+        String state = command.optString("local_state", PendingCommandStore.LEASED);
+        if ("TEST_NUMBER".equals(command.optString("operation"))
+                && PendingCommandStore.AWAITING_RESULT.equals(state)
+                && !lower.contains("pin")
+                && lower.matches("(?s).*\\d{9}.*")) {
+            lastActionAt = System.currentTimeMillis();
+            RobotService.operatorResult(this, true, "", safeScreenText(visible), transactionId(visible));
+            clickFirst(root, "ok", "fermer", "close");
+            return;
+        }
+        if (!UssdCommandFactory.requiresPin(command)
+                || !(PendingCommandStore.DIALING.equals(state) || PendingCommandStore.AWAITING_PIN.equals(state))) {
+            return;
+        }
 
-HHNÈ˜[YHˆ˜[YKœİXœİš[™ÊN
-NÂˆB‚ˆš]˜]Hİ]XÈİš[™È˜[œØXİ[Û’Y
-İš[™È^
-HÂˆX]Ú\ˆX]Ú\ˆHÒQ›X]Ú\Š^
-NÂˆ™]\›ˆX]Ú\‹™š[™
+        if (!isPinPrompt(lower)) return;
 
-HÈX]Ú\‹™Ü›İ\
-JHˆˆÂˆB‚ˆš]˜]Hİ]XÈ›ÛÛX[ˆÛÛZ[œĞ[Jİš[™È˜[YKİš[™Ë‹‹ˆ™YY\ÊHÂˆ›Üˆ
-İš[™È™YYHˆ™YY\ÊHYˆ
-˜[YK˜ÛÛZ[œÊ™YYJJH™]\›ˆYNÂˆ™]\›ˆ˜[ÙNÂˆB‚ˆİ]XÈ›ÛÛX[ˆ\Ñ[˜X›Y
-ÛÛ^ÛÛ^
-HÂˆİš[™È[˜X›YHÙ][™ÜË”ÙXİ\™K™Ù]İš[™ÊˆÛÛ^™Ù]ÛÛ[™\ÛÛ™\Š
-KÙ][™ÜË”ÙXİ\™K‘SP“QĞPĞÑTÔÒP’SUWÔÑT•’PÑTÊNÂˆYˆ
-[˜X›YOH[
-H™]\›ˆ˜[ÙNÂˆİš[™È^XİYH™]ÈÛÛ\Û™[˜[YJÛÛ^›YPXØÙ\ÜÚXš[]TÙ\šXÙK˜Û\ÜÊK™›][•Ôİš[™Ê
-NÂˆ^][Ë”Ú[\Tİš[™ÔÜ]\ˆÜ]\ˆH™]È^][Ë”Ú[\Tİš[™ÔÜ]\Š	Î‰ÊNÂˆÜ]\‹œÙ]İš[™Ê[˜X›Y
-NÂˆÚ[H
-Ü]\‹š\Ó™^
+        String expectedPhone = command.optString("target_phone", "").replaceAll("\\D", "");
+        String expectedAmount = command.optString("amount", "").replaceFirst("\\.0+$", "").replaceAll("\\D", "");
+        if (!confirmationMatches(lower, expectedPhone, expectedAmount)) {
+            lastActionAt = System.currentTimeMillis();
+            clickFirst(root, "annuler", "cancel");
+            RobotService.operatorResult(this, false, "CONFIRMATION_MISMATCH",
+                    "Le numÃ©ro ou le montant affichÃ© par Camtel ne correspond pas Ã  lâ€™ordre attendu.", "");
+            return;
+        }
 
-JHÂˆYˆ
-^XİY™\]X[ÒYÛ›Ü™PØ\ÙJÜ]\‹›™^
+        try {
+            String pin = SecurePinStore.read(this);
+            AccessibilityNodeInfo field = findEditable(root);
+            if (field == null) {
+                lastActionAt = System.currentTimeMillis();
+                RobotService.operatorResult(this, false, "PIN_FIELD_NOT_FOUND",
+                        "Le champ PIN de la fenÃªtre USSD nâ€™est pas accessible sur ce tÃ©lÃ©phone.", "");
+                return;
+            }
 
-JJH™]\›ˆYNÂˆBˆ™]\›ˆ˜[ÙNÂˆB‚ˆİ™\œšYBˆX›XÈ›ÚYÛ’[\œ\
+            Bundle args = new Bundle();
+            args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, pin);
+            boolean inserted = field.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
+            if (!inserted) {
+                lastActionAt = System.currentTimeMillis();
+                RobotService.operatorResult(this, false, "PIN_AUTOFILL_FAILED",
+                        "Android a refusÃ© lâ€™injection sÃ©curisÃ©e du PIN.", "");
+                return;
+            }
 
-HÂˆBŸB
+            lastActionAt = System.currentTimeMillis();
+            PendingCommandStore.updateState(this, PendingCommandStore.PIN_SUBMITTED);
+            handler.postDelayed(() -> {
+                AccessibilityNodeInfo current = getRootInActiveWindow();
+                if (current == null || !clickFirst(current, "envoyer", "send", "confirmer", "confirm", "valider", "ok")) {
+                    RobotService.operatorResult(this, false, "CONFIRM_BUTTON_NOT_FOUND",
+                            "Le bouton de validation USSD nâ€™est pas accessible sur ce tÃ©lÃ©phone.", "");
+                    return;
+                }
+                RobotService.pinSubmitted(this);
+            }, 350L);
+        } catch (Exception error) {
+            lastActionAt = System.currentTimeMillis();
+            RobotService.operatorResult(this, false, "PIN_DECRYPTION_FAILED",
+                    "Impossible de lire le PIN chiffrÃ© local.", "");
+        }
+    }
+
+    private boolean confirmationMatches(String text, String phone, String amount) {
+        String compact = text.replaceAll("[\\s,._-]", "");
+        boolean phoneMatches = phone.length() == 9 && compact.contains(phone);
+        String normalizedMoney = text.replace(",", "");
+        boolean amountMatches = !amount.isEmpty() && Pattern.compile(
+                "(?i)(?<!\\d)" + Pattern.quote(amount) + "(?:\\.00)?\\s*FCFA(?!\\w)")
+                .matcher(normalizedMoney).find();
+        return phoneMatches && amountMatches;
+    }
+
+    private static boolean isPinPrompt(String lower) {
+        return lower.contains("pin")
+                && containsAny(lower, "confirm", "confirmer", "enter", "saisir", "transfer balance");
+    }
+
+    private static AccessibilityNodeInfo findEditable(AccessibilityNodeInfo node) {
+        if (node == null) return null;
+        CharSequence className = node.getClassName();
+        if (node.isEditable() || (className != null && className.toString().contains("EditText"))) return node;
+        for (int i = 0; i < node.getChildCount(); i++) {
+            AccessibilityNodeInfo result = findEditable(node.getChild(i));
+            if (result != null) return result;
+        }
+        return null;
+    }
+
+    private static boolean clickFirst(AccessibilityNodeInfo root, String... labels) {
+        List<AccessibilityNodeInfo> nodes = new ArrayList<>();
+        flatten(root, nodes);
+        for (String label : labels) {
+            for (AccessibilityNodeInfo node : nodes) {
+                String text = node.getText() == null ? "" : node.getText().toString().trim().toLowerCase(Locale.ROOT);
+                if (text.equals(label) || text.contains(label)) {
+                    AccessibilityNodeInfo clickable = node;
+                    while (clickable != null && !clickable.isClickable()) clickable = clickable.getParent();
+                    if (clickable != null && clickable.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static void flatten(AccessibilityNodeInfo node, List<AccessibilityNodeInfo> output) {
+        if (node == null) return;
+        output.add(node);
+        for (int i = 0; i < node.getChildCount(); i++) flatten(node.getChild(i), output);
+    }
+
+    private static String collectText(AccessibilityNodeInfo root) {
+        List<AccessibilityNodeInfo> nodes = new ArrayList<>();
+        flatten(root, nodes);
+        StringBuilder result = new StringBuilder();
+        for (AccessibilityNodeInfo node : nodes) {
+            CharSequence text = node.getText();
+            if (!TextUtils.isEmpty(text)) result.append(text).append(' ');
+            CharSequence description = node.getContentDescription();
+            if (!TextUtils.isEmpty(description)) result.append(description).append(' ');
+        }
+        return result.toString().trim();
+    }
+
+    private String safeScreenText(String value) {
+        try {
+            String pin = SecurePinStore.read(this);
+            if (!pin.isEmpty()) value = value.replace(pin, "****");
+        } catch (Exception ignored) {
+        }
+        return value.length() <= 1800 ? value : value.substring(0, 1800);
+    }
+
+    private static String transactionId(String text) {
+        Matcher matcher = TX_ID.matcher(text);
+        return matcher.find() ? matcher.group(1) : "";
+    }
+
+    private static boolean containsAny(String value, String... needles) {
+        for (String needle : needles) if (value.contains(needle)) return true;
+        return false;
+    }
+
+    static boolean isEnabled(Context context) {
+        String enabled = Settings.Secure.getString(
+                context.getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+        if (enabled == null) return false;
+        String expected = new ComponentName(context, BlueAccessibilityService.class).flattenToString();
+        TextUtils.SimpleStringSplitter splitter = new TextUtils.SimpleStringSplitter(':');
+        splitter.setString(enabled);
+        while (splitter.hasNext()) {
+            if (expected.equalsIgnoreCase(splitter.next())) return true;
+        }
+        return false;
+    }
+
+    @Override
+    public void onInterrupt() {
+    }
+}

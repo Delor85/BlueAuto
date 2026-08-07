@@ -1,79 +1,103 @@
-şº(·úk¡ø¥zX§{ßİzÿçºYOz¹¢²È¨×§‰ç\XÚØYÙHÛÛKœ›Ùš]ÛÜ˜›YX]]ÎÂ‚š[\Ü[™›ÚY˜ÛÛ[ÛÛ^Âš[\Ü[™›ÚY˜ÛÛ[”Ú\™Y™Y™\™[˜Ù\ÎÂ‚š[\Ü˜]˜K›™]•T’NÂ‚™š[˜[Û\ÜÈ\ÛÛ™šYÈÂˆİ]XÈš[˜[İš[™È‘Q”ÈH˜›YWÛXYÚX×Û˜]]™WİŒˆÂˆİ]XÈš[˜[İš[™ÈQUSĞTHHšÎ‹ËÛXYÚXÜÙ\šXÙKX›YK™İËØ\KœÂˆİ]XÈš[˜[Û™ÈPT•‘PUÓTÈHÌÌÂˆİ]XÈš[˜[Û™ÈQWÔÓÓTÈHÌÌÂˆİ]XÈš[˜[Û™ÈÓÓSPS‘ÕSQSÕUÓTÈHLŒÌÂ‚ˆš]˜]H\ÛÛ™šYÊ
-HßB‚ˆİ]XÈÚ\™Y™Y™\™[˜Ù\È™YœÊÛÛ^ÛÛ^
-HÂˆ™]\›ˆÛÛ^™Ù]Ú\™Y™Y™\™[˜Ù\Ê‘Q”ËÛÛ^“SÑWÔ’UUJNÂˆB‚ˆİ]XÈİš[™È\U\›
-ÛÛ^ÛÛ^
-HÂˆ™]\›ˆ™YœÊÛÛ^
-K™Ù]İš[™Ê˜\Wİ\›‹QUSĞTJNÂˆB‚ˆİ]XÈ›ÚYÙ]\U\›
-ÛÛ^ÛÛ^İš[™È˜[YJHÂˆİš[™È›Ü›X[^™YH˜[YHOH[Èˆˆˆ˜[YKš[J
-NÂˆ›Ü›X[^™YH›Ü›X[^™Yœ™\XÙP[
-‹ÊÉ‹ˆŠNÂˆYˆ
-[›Ü›X[^™Y™[™ÕÚ]
-˜\KœŠH	‰ˆ[›Ü›X[^™Y™[™ÕÚ]
-‹Ø\HŠJHÂˆ›Ü›X[^™Y
-ÏH‹Ø\HÂˆBˆ™YœÊÛÛ^
-K™Y]
+package com.profitloop.blueauto;
 
-Kœ]İš[™Ê˜\Wİ\›‹›Ü›X[^™Y
-K˜\J
-NÂˆB‚ˆİ]XÈİš[™ÈÙX•\›
-ÛÛ^ÛÛ^
-HÂˆ™]\›ˆ\U\›
-ÛÛ^
-Kœ™\XÙQš\œİ
-‹ÊÎ˜\Wœ\JJÎ—ËŠŠOÉ‹‹Ú[™^š[ŠNÂˆB‚ˆİ]XÈİš[™È[İÙYÜİ
-ÛÛ^ÛÛ^
-HÂˆHÂˆ™]\›ˆ™]ÈT’JÙX•\›
-ÛÛ^
-JK™Ù]Üİ
+import android.content.Context;
+import android.content.SharedPreferences;
 
-NÂˆHØ]Ú
-^Ù\[ÛˆYÛ›Ü™Y
-HÂˆ™]\›ˆ›XYÚXÜÙ\šXÙKX›YK™İÈÂˆBˆB‚ˆİ]XÈİš[™ÈÚÙ[ŠÛÛ^ÛÛ^
-HÂˆ™]\›ˆ™YœÊÛÛ^
-K™Ù]İš[™Ê™]šXÙWİÚÙ[ˆ‹ˆŠNÂˆB‚ˆİ]XÈİš[™È\Ù\YÙ[
-ÛÛ^ÛÛ^
-HÂˆ™]\›ˆ™YœÊÛÛ^
-K™Ù]İš[™ÊÙXšY]×İ\Ù\—ØYÙ[‹ˆŠNÂˆB‚ˆİ]XÈ›ÚYÙ]\Ù\YÙ[
-ÛÛ^ÛÛ^İš[™È˜[YJHÂˆ™YœÊÛÛ^
-K™Y]
+import java.net.URI;
 
-Kœ]İš[™ÊÙXšY]×İ\Ù\—ØYÙ[‹˜[YHOH[Èˆˆˆ˜[YJK˜\J
-NÂˆB‚ˆİ]XÈİš[™È›ÙPÛÙJÛÛ^ÛÛ^
-HÂˆ™]\›ˆ™YœÊÛÛ^
-K™Ù]İš[™Ê››ÙWØÛÙH‹ˆŠNÂˆB‚ˆİ]XÈİš[™È[ÙJÛÛ^ÛÛ^
-HÂˆ™]\›ˆ™YœÊÛÛ^
-K™Ù]İš[™Ê™]šXÙWÛ[ÙH‹”‘SSÕHŠNÂˆB‚ˆİ]XÈİš[™È›ÛJÛÛ^ÛÛ^
-HÂˆ™]\›ˆ™YœÊÛÛ^
-K™Ù]İš[™Êœ›ÛH‹ˆŠNÂˆB‚ˆİ]XÈ›ÛÛX[ˆ\ÔZ\™Y
-ÛÛ^ÛÛ^
-HÂˆ™]\›ˆ]ÚÙ[ŠÛÛ^
-Kš\Ñ[\J
-H	‰ˆ[›ÙPÛÙJÛÛ^
-Kš\Ñ[\J
-NÂˆB‚ˆİ]XÈ›ÛÛX[ˆ\Ô›Ø›İ[ÙJÛÛ^ÛÛ^
-HÂˆİš[™È˜[YHH[ÙJÛÛ^
-NÂˆ™]\›ˆ”“Ğ“Õ‹™\]X[Ê˜[YJH’P”’Q‹™\]X[Ê˜[YJNÂˆB‚ˆİ]XÈ›ÛÛX[ˆ›Ø›İ[˜X›Y
-ÛÛ^ÛÛ^
-HÂˆ™]\›ˆ™YœÊÛÛ^
-K™Ù]›ÛÛX[Šœ›Ø›İÙ[˜X›Y‹˜[ÙJNÂˆB‚ˆİ]XÈ›ÚYÙ]›Ø›İ[˜X›Y
-ÛÛ^ÛÛ^›ÛÛX[ˆ[˜X›Y
-HÂˆ™YœÊÛÛ^
-K™Y]
+final class AppConfig {
+    static final String PREFS = "blue_magic_native_v2";
+    static final String DEFAULT_API = "https://magicservice-blue.gt.tc/api.php";
+    static final long HEARTBEAT_MS = 300_000L;
+    static final long IDLE_POLL_MS = 30_000L;
+    static final long COMMAND_TIMEOUT_MS = 120_000L;
 
-Kœ]›ÛÛX[Šœ›Ø›İÙ[˜X›Y‹[˜X›Y
-K˜\J
-NÂˆB‚ˆİ]XÈ›ÛÛX[ˆ[›ØÚÙY
-ÛÛ^ÛÛ^
-HÂˆ™]\›ˆ™YœÊÛÛ^
-K™Ù]›ÛÛX[Šœ[—Ø›ØÚÙY‹˜[ÙJNÂˆB‚ˆİ]XÈ›ÚYÙ][›ØÚÙY
-ÛÛ^ÛÛ^›ÛÛX[ˆ›ØÚÙY
-HÂˆ™YœÊÛÛ^
-K™Y]
+    private AppConfig() {}
 
-Kœ]›ÛÛX[Šœ[—Ø›ØÚÙY‹›ØÚÙY
-K˜\J
-NÂˆB‚ˆİ]XÈ›ÚYØ]™TZ\š[™ÊÛÛ^ÛÛ^İš[™ÈÚÙ[‹İš[™È›ÙPÛÙKİš[™È›ÛKİš[™È[ÙJHÂˆ™YœÊÛÛ^
-K™Y]
+    static SharedPreferences prefs(Context context) {
+        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+    }
 
-Bˆœ]İš[™Ê™]šXÙWİÚÙ[ˆ‹ÚÙ[ŠBˆœ]İš[™Ê››ÙWØÛÙH‹›ÙPÛÙJBˆœ]İš[™Êœ›ÛH‹›ÛJBˆœ]İš[™Ê™]šXÙWÛ[ÙH‹[ÙJBˆ˜\J
-NÂˆBŸB
+    static String apiUrl(Context context) {
+        return prefs(context).getString("api_url", DEFAULT_API);
+    }
+
+    static void setApiUrl(Context context, String value) {
+        String normalized = value == null ? "" : value.trim();
+        normalized = normalized.replaceAll("/+$", "");
+        if (!normalized.endsWith("api.php") && !normalized.endsWith("/api")) {
+            normalized += "/api";
+        }
+        prefs(context).edit().putString("api_url", normalized).apply();
+    }
+
+    static String webUrl(Context context) {
+        return apiUrl(context).replaceFirst("/(?:api\\.php|api)(?:\\?.*)?$", "/index.html");
+    }
+
+    static String allowedHost(Context context) {
+        try {
+            return new URI(webUrl(context)).getHost();
+        } catch (Exception ignored) {
+            return "magicservice-blue.gt.tc";
+        }
+    }
+
+    static String token(Context context) {
+        return prefs(context).getString("device_token", "");
+    }
+
+    static String userAgent(Context context) {
+        return prefs(context).getString("webview_user_agent", "");
+    }
+
+    static void setUserAgent(Context context, String value) {
+        prefs(context).edit().putString("webview_user_agent", value == null ? "" : value).apply();
+    }
+
+    static String nodeCode(Context context) {
+        return prefs(context).getString("node_code", "");
+    }
+
+    static String mode(Context context) {
+        return prefs(context).getString("device_mode", "REMOTE");
+    }
+
+    static String role(Context context) {
+        return prefs(context).getString("role", "");
+    }
+
+    static boolean isPaired(Context context) {
+        return !token(context).isEmpty() && !nodeCode(context).isEmpty();
+    }
+
+    static boolean isRobotMode(Context context) {
+        String value = mode(context);
+        return "ROBOT".equals(value) || "HYBRID".equals(value);
+    }
+
+    static boolean robotEnabled(Context context) {
+        return prefs(context).getBoolean("robot_enabled", false);
+    }
+
+    static void setRobotEnabled(Context context, boolean enabled) {
+        prefs(context).edit().putBoolean("robot_enabled", enabled).apply();
+    }
+
+    static boolean pinBlocked(Context context) {
+        return prefs(context).getBoolean("pin_blocked", false);
+    }
+
+    static void setPinBlocked(Context context, boolean blocked) {
+        prefs(context).edit().putBoolean("pin_blocked", blocked).apply();
+    }
+
+    static void savePairing(Context context, String token, String nodeCode, String role, String mode) {
+        prefs(context).edit()
+                .putString("device_token", token)
+                .putString("node_code", nodeCode)
+                .putString("role", role)
+                .putString("device_mode", mode)
+                .apply();
+    }
+}

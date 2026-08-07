@@ -1,27 +1,106 @@
-˛∫(∑˙k°¯•zXß{ﬂ›zˇÁ∫YOzπ¢≤»®ù◊ßâÁH»[ú›[][€à\»0Ë\»8†%õYHXY⁄X»åàõÿõ›€‹ôBÇêŸ]HõÿÍY\ôH€€[Y[òŸH\àHŸ\ùô]\ãZ\»8†&PTÀZ\»Hõÿõ›QKZ\»[ôH0Í[0ÍX€€[X[ôKàôH\›^à\»8†&X\ôŸ[ù∞ÍY[]ò[ù8†&X]õ⁄\à\õZ[∞ÍHH⁄X⁄€\›\úòZ[ãÇÇà»»Kàÿ]]ôYÿ\ô\à8†&X[ò⁄Y[õôHô\ú⁄[€à[ôö[ö]QúôYBÇåKà[ú»Hö[HX[òYŸ\ã›]úô^àÿ‹ÿÇåãà0Í[0ÍX⁄\ôŸ^à›]H‹‹⁄Y\à€›\»õ‹õYHíT]€€úŸ\ùô^ã[H‹ú»Y€ôKÇåÀàôH›\ö[Y^à\»[ò€‹ôH8†&X[ò⁄Y[à‹‹⁄Y\ãà‹∞ÍY^à⁄H‹‹⁄XõH[à€›\ÀY‹‹⁄Y\àHÿ]]ôYÿ\ôH]0ÍKÇçà\»[ò⁄Y[ú»öX⁄Y\ú»
-ãú‹[]X€€ùY[õô[ù\»€õ∞ÍY\»àôH\»XõY^àò[XZ\»›\à⁄]Xà]ôH\»Z\‹Ÿ^à\»0Í[0ÍX⁄\ôŸXXõ\ÀÇÇà»»ãà‹∞ÍY\àHò\ŸH^T‘S[ú»[ôö[ö]QúôYBÇåKà›]úô^àH[õôX]HH€€ù∞ÌH[ôö[ö]QúôYKÇåãà[^à[ú»
-äì^T‘S]Xò\Ÿ\ äãÇåÀà‹∞ÍY^à[ôHò\ŸHõ€[pÍYH\à^[\HõYW€XY⁄XÿÇçàõ›^à^X›[Y[ùà
-äì^T‘S‹›ò[YJäã
-äë]Xò\ŸHò[YJäã
-äì^T‘S\Ÿ\àò[YJäà]õ›ôH[›H\‹ŸHH€€\Kÿò\ŸKÇçKàHò\ŸH∏†&Y\›\»\[0ÍYH\ôX›[Y[ù\à[ôõ⁄YàŸ][\Kú0ÍXô\ôÍH›\à[ôö[ö]QúôYK¯†&^H€€õôX›KÇÇà»»Àà∞Í\\ô\à€€ôöYÀúÇåKà[ú»H\]Y]›]úô^àÿ‹Àÿ€€ôöYÀô^[\KúÇåãàòZ]\ÀY[à[ôH€‹YH\[0ÍYH€€ôöYÀúÇåÀàô[\XŸ^à\»⁄[úHò[]\ú»“Së—W”QXÇçà›\àZ\ö[ô◊‹ŸX‹ô]][\Ÿ^à]H[⁄[ú»çÿ\òX›0Íô\»[0ÍX]⁄\ô\ÀYô∞Í\ô[ù»Hõ›ôHSàÿ[][]H[›H\‹ŸH^T‘SÇçKà€€úŸ\ùô^à[›ŸY€‹öY⁄[ò0ËŒãÀ€XY⁄X‹Ÿ\ùöXŸKXõYKô›ùÿÇçãàZ\‹Ÿ^àõ›ö\€⁄\ô[Y[ùŸ]\Ÿ[òXõY0ËùYXÇçÀàôH0Í\‹Ÿ^àò[XZ\»€€ôöYÀú›\à⁄]Xé»[\›0ÍZ∞Ë^€H\àô⁄]Y€õ‹ôXÇÇà»»à0Í\ﬁY\àÿ‹ÿÇåKà[ùõﬁY^à[ú»Hÿ‹ÿ[ôö[ö]QúôYHà\KúŸ]\úÿ⁄[XKú‹[[ô^ö[\öúÿ›[Kò‹‹ÿ›ÀöúÿX[öYô\›öú€€òöXÿŸ\‹ÿ]õ›ôH€€ôöYÀúÇåãà∏†&Y[ùõﬁY^à\»\»[ò⁄Y[õô\»ò\Ÿ\»‘S]H[ú»Hõ›]ôX]H‹‹⁄Y\àXõXÀÇåÀà›]úô^àŒãÀ€XY⁄X‹Ÿ\ùöXŸKXõYKô›ùÀ‹Ÿ]\úÇçà[ùô^àHŸX‹ô]8†&X\Z\òYŸH0ÍYö[öH[ú»€€ôöYÀúÇçKà][ô^àHY\‹ÿYŸH
-äêò\ŸH[ö]X[\ÍYJäãÇçãà[ú»€€ôöYÀú\‹Ÿ^à[[pÍYX][Y[ùŸ]\Ÿ[òXõY0Ëò[ŸXÇçÀà›]úô^àŒãÀ€XY⁄X‹Ÿ\ùöXŸKXõYKô›ùÀÿ\KúÿX›[€èZX[àH∞Í\›[]][ôH\›[àî””à€€ù[ò[ùõ⁄»éùùYX]ô]Xò\ŸHéàõ€õ[ôHòÇÇî⁄H[ôHYŸHSHÍX›\ö]0ÍH\\òpÎù]HY]HHî””ã\ú∞Íù^àX⁄HàHö[òYŸH[ôö[ö]QúôYH[\0Íò⁄HH[ŸHTHò]YãàH[›]\à[ôõ⁄Y\›€€úŸ\ù∞ÍKXZ\»8†&PTH]úòH0ÍùôH0Í\XÍYHô\ú»[à0ÍXô\ôŸ[Y[ù€€∞È›H›\à\»€Y[ù»]]€X]\Í\ÀÇÇà»»Kà€€\[\à8†&PT»]ôX»⁄]XàX›[€ú¬Çê\∞Í»XõXÿ][€à]]‹ö\ÍYHH€ŸH[ú»õ›ôH0Í\0ÌÇÇåKà›]úô^àH0Í\0Ì⁄]Xà[‹éK–õYP]]ÿÇåãà€\]Y^à›\à
-äêX›[€ú äàZ\»
-äêùZ[õYHXY⁄X»T äãÇåÀà€\]Y^à›\à
-äîù[à€‹öŸõ› äãÇçà][ô^àHô]Hô\ùHõÿà[ôõ⁄YYXùYÀX\ÿÇçKà›]úô^àHõÿãŸX›[€à
-äê\ùYòX› äãZ\»0Í[0ÍX⁄\ôŸ^àõYKSXY⁄XÀ]åãTõÿõ›P€‹ôXÇçãà0ÍX€€\ô\‹Ÿ^à]∞ÍX›\0Í\ô^à\YXùYÀò\ÿÇÇì8†&PT»XùY»Ÿ\ù]H[›Kà[ôHô\ú⁄[€àö[ò[H]úòH0ÍùôH⁄Y€∞ÍYH]ôX»õ›ôHõ‹ôHŸ^\›‹ôH€€úŸ\ù∞ÍH‹ú»H⁄]XãÇÇà»»ãà[ú›[\à]∞Í\\ô\àH0Í[0Í\€ôHõÿõ›QH
-JBÇê€€ô][€ú»ôX€€[X[ô0ÍY\»à0Í[0Í\€ôH[ôõ⁄YäÀ[ôHŸ][H“SHX›]ôK⁄\ôŸ]\à\õX[ô[ù]X›[à€ŸHHô\úõ›Z[YŸH0ÍX‹ò[ã∞Í\ŸX]HõYH›XõH][ù\õô]›XõKÇÇåKà]]‹ö\Ÿ^à8†&Z[ú›[][€à8†&X\Xÿ][€ú»õ›ô[ò[ùHò]öYÿ]]\à›HŸ\›[€õòZ\ôHHöX⁄Y\ú»][\ÍKÇåãà[ú›[^à\YXùYÀò\ÿZ\»›]úô^à
-äêõYHXY⁄X äãÇåÀàÿZ\⁄\‹Ÿ^àÇàHTìTHàŒãÀ€XY⁄X‹Ÿ\ùöXŸKXõYKô›ùÀÿ\Kú¬àH±d›YàQKLX¬àHù[pÍ\õ»“SHà\»H⁄Yôúô\»HHX\›\à“SH¬àH›\0Í\öY]\ààöYH¬àH∞ÌHàQX¬àH[ŸHàì–ì’¬àHŸX‹ô]8†&X\Z\òYŸHàŸ[ZHH€€ôöYÀú¬àHSàÿ[][à\»⁄Yôúô\»^X›ÀÇçà\^Y^à›\à
-äê\Z\ô\àŸH0Í[0Í\€ôJäãÇçKà\^Y^à›\à
-äåKàUU‘íT–US”î äà]Xÿ€‹ô^àÇàH0Í[0Í\€ôH¬àH∞ÍXŸ\[€à”T»¬àHõ›YöXÿ][€ú»¬àHXÿŸ\‹⁄Xö[]0ÍHà
-äê]]€X]\ÿ][€àSàõYHXY⁄X äà¬àHYôöX⁄YŸH]KY\‹›\»\»]]ô\»\Xÿ][€ú»¬àHò]\öYHàõYHXY⁄X»à
-äîÿ[ú»ô\›öX›[€à»ôH\»‹[Z\Ÿ\ääãÇçãàô]ô[ô^à[ú»õYHXY⁄X»]\^Y^à›\à
-äåãà0‚SPTîëTàì–ì’
-äãÇçÀà∞Í\öYöY^àHõ›YöXÿ][€à\õX[ô[ùH
-äêõYHXY⁄X»8†%QKLJäãÇÇà»»Àà‹∞ÍY\à[à€€\H”H]ÿH0Í[0ÍX€€[X[ôH
-äBÇìH±d›Y\ô[ù⁄]^\›\à]ò[ù8†&Y[ôò[ùÇÇåKà[ú›[^à8†&PT»›\àãÇåãàÿZ\⁄\‹Ÿ^àà±d›Y”KLK—QKLXHù[pÍ\õ»HH“SH”K\ô[ùQKLX∞ÌH”X[ŸHëSS’XHpÍõYHŸX‹ô]8†&X\Z\òYŸKÇåÀàHSà]]ô\›\àöYH›\à[ôH\ôH0Í[0ÍX€€[X[ôHàHSàQHô\›HŸ][[Y[ù[ú»KÇçà\Z\ô^ãÇçKà8†&Z[ù\ôòXŸH[€ùôH
-äë[X[ô\à0Ë[€à›\0Í\öY]\ääãÇÇà»»àô[ZY\à\›ÿ[ú»\ôŸ[ùÇåKà[ú»à›H›\à8†&Z[ù\ôòXŸHH€€\HQK[òŸ^à
-äï\›\àH“SHõÿõ›
-äãÇåãàH⁄]€€\‹Ÿ\à
-éçJå å»ÿÇåÀàH∞Í\›[]⁄]\\òpÎùôH›\àH]H€€[X[ôH\‹Ÿ\à0Ë
-äî∞Í]\‹⁄YJäà›K⁄HHõ‹õX]∏†&Y\›\»[ò€‹ôHôX€€õùK
-ä∞‡∞Í\öYöY\ääàÿ[ú»ò[úÿX›[€àö[ò[ò⁄pÍôKÇçà⁄HöY[àôHŸH[òŸK€€ú›[^àÿ‹À’T’’TîêRSãõYÇÇà»»Kàô[ZY\à\›ö[ò[ò⁄Y\à€€ù∞Ì0ÍBÇåKà][\Ÿ^à[à”H€€õùH][à[€ù[ùZ[ö[X[]]‹ö\ÍK\à^[\HHê—êH⁄Hÿ[][8†&XXÿŸ\KÇåãàö[Y^à8†&pÍX‹ò[àHH]ôX»[à]^pÍYH\\ôZ[›\àÿ\ô\à[ôHô]]ôHH\›ÇåÀà›\àã[X[ô^àHôX⁄\ôŸKÇçà€€ù∞Ì^àö\›Y[[Y[ù]YHHYôöX⁄HHõ€àù[pÍ\õ»]Hõ€à[€ù[ù]ò[ù]YHõYHXY⁄X»ô[\\‹ŸHHSãÇçKà∞Í\öYöY^àH”T»›H‹\H›XÿÍ»]8†&RQHò[úÿX›[€ãÇçãà€€\\ô^àH€€H∞ÍY[\»]^“SKÇçÀà∞Í\0Í]^à^õ⁄\»]ôX»\»[€ù[ù»Z[ö[X]^]ò[ù›]H][\ÿ][€à€€[Y\ò⁄X[KÇ
+# Installation pas √† pas ‚Äî Blue Magic v2 Robot Core
+
+Cette proc√©dure commence par le serveur, puis l‚ÄôAPK, puis le Robot DAE, puis une T√©l√©commande. Ne testez pas d‚Äôargent r√©el avant d‚Äôavoir termin√© la checklist terrain.
+
+## 1. Sauvegarder l‚Äôancienne version InfinityFree
+
+1. Dans le File Manager, ouvrez `htdocs`.
+2. T√©l√©chargez tout le dossier sous forme ZIP et conservez-le hors ligne.
+3. Ne supprimez pas encore l‚Äôancien dossier. Cr√©ez si possible un sous-dossier de sauvegarde dat√©.
+4. Les anciens fichiers `*.sqlite` contiennent des donn√©es : ne les publiez jamais sur GitHub et ne les laissez pas t√©l√©chargeables.
+
+## 2. Cr√©er la base MySQL dans InfinityFree
+
+1. Ouvrez le panneau de contr√¥le InfinityFree.
+2. Allez dans **MySQL Databases**.
+3. Cr√©ez une base nomm√©e par exemple `blue_magic`.
+4. Notez exactement : **MySQL Host Name**, **Database Name**, **MySQL User Name** et votre mot de passe de compte/base.
+5. La base n‚Äôest pas appel√©e directement par Android : seul `api.php`, h√©berg√© sur InfinityFree, s‚Äôy connecte.
+
+## 3. Pr√©parer `config.php`
+
+1. Dans le paquet, ouvrez `htdocs/config.example.php`.
+2. Faites-en une copie appel√©e `config.php`.
+3. Remplacez les cinq valeurs `CHANGE_ME`.
+4. Pour `pairing_secret`, utilisez au moins 24 caract√®res al√©atoires, diff√©rents de votre PIN Camtel et du mot de passe MySQL.
+5. Conservez `allowed_origin` √† `https://magicservice-blue.gt.tc`.
+6. Laissez provisoirement `setup_enabled` √† `true`.
+7. Ne d√©posez jamais `config.php` sur GitHub; il est d√©j√† exclu par `.gitignore`.
+
+## 4. D√©ployer `htdocs`
+
+1. Envoyez dans le `htdocs` InfinityFree : `api.php`, `setup.php`, `schema.sql`, `index.html`, `app.js`, `style.css`, `sw.js`, `manifest.json`, `.htaccess` et votre `config.php`.
+2. N‚Äôenvoyez pas les anciennes bases SQLite dans le nouveau dossier public.
+3. Ouvrez `https://magicservice-blue.gt.tc/setup.php`.
+4. Entrez le secret d‚Äôappairage d√©fini dans `config.php`.
+5. Attendez le message **Base initialis√©e**.
+6. Dans `config.php`, passez imm√©diatement `setup_enabled` √† `false`.
+7. Ouvrez `https://magicservice-blue.gt.tc/api.php?action=health`. Le r√©sultat attendu est un JSON contenant `"ok":true` et `"database":"online"`.
+
+Si une page HTML de s√©curit√© appara√Æt au lieu du JSON, arr√™tez ici : le filtrage InfinityFree emp√™che le mode API natif. Le moteur Android est conserv√©, mais l‚ÄôAPI devra √™tre d√©plac√©e vers un h√©bergement con√ßu pour les clients automatis√©s.
+
+## 5. Compiler l‚ÄôAPK avec GitHub Actions
+
+Apr√®s publication autoris√©e du code dans votre d√©p√¥t :
+
+1. Ouvrez le d√©p√¥t GitHub `Delor85/BlueAuto`.
+2. Cliquez sur **Actions** puis **Build Blue Magic APK**.
+3. Cliquez sur **Run workflow**.
+4. Attendez le feu vert du job `android-debug-apk`.
+5. Ouvrez le job, section **Artifacts**, puis t√©l√©chargez `Blue-Magic-v2-Robot-Core`.
+6. D√©compressez et r√©cup√©rez `app-debug.apk`.
+
+L‚ÄôAPK debug sert au pilote. Une version finale devra √™tre sign√©e avec votre propre keystore conserv√© hors de GitHub.
+
+## 6. Installer et pr√©parer le t√©l√©phone Robot DAE (T1)
+
+Conditions recommand√©es : t√©l√©phone Android 6+, une seule SIM active, chargeur permanent, aucun code de verrouillage √©cran, r√©seau Blue stable et Internet stable.
+
+1. Autorisez l‚Äôinstallation d‚Äôapplications provenant du navigateur ou gestionnaire de fichiers utilis√©.
+2. Installez `app-debug.apk` puis ouvrez **Blue Magic**.
+3. Saisissez :
+   - URL API : `https://magicservice-blue.gt.tc/api.php` ;
+   - n≈ìud : `DAE-01` ;
+   - num√©ro SIM : les 9 chiffres de la Master SIM ;
+   - sup√©rieur : vide ;
+   - r√¥le : `DAE` ;
+   - mode : `ROBOT` ;
+   - secret d‚Äôappairage : celui de `config.php` ;
+   - PIN Camtel : les 4 chiffres exacts.
+4. Appuyez sur **Appairer ce t√©l√©phone**.
+5. Appuyez sur **1. AUTORISATIONS** et accordez :
+   - T√©l√©phone ;
+   - r√©ception SMS ;
+   - notifications ;
+   - Accessibilit√© > **Automatisation PIN Blue Magic** ;
+   - affichage au-dessus des autres applications ;
+   - Batterie > Blue Magic > **Sans restriction / Ne pas optimiser**.
+6. Revenez dans Blue Magic et appuyez sur **2. D√âMARRER ROBOT**.
+7. V√©rifiez la notification permanente **Blue Magic ‚Äî DAE-01**.
+
+## 7. Cr√©er un compte DSM et sa T√©l√©commande (T2)
+
+Le n≈ìud parent doit exister avant l‚Äôenfant.
+
+1. Installez l‚ÄôAPK sur T2.
+2. Saisissez : n≈ìud `DSM-01/DAE-01`, le num√©ro de la SIM DSM, parent `DAE-01`, r√¥le `DSM`, mode `REMOTE`, le m√™me secret d‚Äôappairage.
+3. Le PIN peut rester vide sur une pure T√©l√©commande : le PIN DAE reste seulement dans T1.
+4. Appairez.
+5. L‚Äôinterface montre **Demander √† mon sup√©rieur**.
+
+## 8. Premier test sans argent
+
+1. Dans T2 ou sur l‚Äôinterface du compte DAE, lancez **Tester la SIM Robot**.
+2. T1 doit composer `*825*3*3#`.
+3. Le r√©sultat doit appara√Ætre sur T1 et la commande passer √† **R√©ussie** ou, si le format n‚Äôest pas encore reconnu, **√Ä v√©rifier** sans transaction financi√®re.
+4. Si rien ne se lance, consultez `docs/TEST_TERRAIN.md`.
+
+## 9. Premier test financier contr√¥l√©
+
+1. Utilisez un DSM connu et un montant minimal autoris√©, par exemple 5 FCFA si Camtel l‚Äôaccepte.
+2. Filmez l‚Äô√©cran de T1 avec un deuxi√®me appareil pour garder une preuve du test.
+3. Sur T2, demandez la recharge.
+4. Contr√¥lez visuellement que T1 affiche le bon num√©ro et le bon montant avant que Blue Magic remplisse le PIN.
+5. V√©rifiez le SMS ou popup de succ√®s et l‚ÄôID de transaction.
+6. Comparez le solde r√©el des deux SIM.
+7. R√©p√©tez dix fois avec des montants minimaux avant toute utilisation commerciale.

@@ -1,258 +1,481 @@
-şº(·úk¡ø¥zX§{ßİzÿçºYOz¹¢²È¨×§‰çOÜ™XÛ\™JİšXİİ\\ÏLJNÂ‚˜ÛÛœİTWÕ‘T”ÒSÓˆH	Ì‹ŒŒ	ÎÂ‚šXY\Š	ĞÛÛ[U\Nˆ\XØ][Û‹ÚœÛÛÈÚ\œÙ]]]‹N	ÊNÂšXY\Š	ÖPÛÛ[U\KSÜ[ÛœÎˆ›ÜÛšY™‰ÊNÂšXY\Š	ĞØXÚKPÛÛ›Ûˆ›Ë\İÜ™KX^XYÙOL	ÊNÂšXY\Š	Ô™Y™\œ™\‹TÛXŞNˆ›Ë\™Y™\œ™\‰ÊNÂ‚‰ÛÛ™šYÑš[HH×ÑT—×Èˆ	ËØÛÛ™šYËœ	ÎÂšYˆ
-Z\×Ùš[J	ÛÛ™šYÑš[JJHÂˆ˜Z[
-	ÔÑT•‘T—Ó“ÕĞÓÓ‘’QÕT‘Q	Ë	ÓHšXÚY\ˆÛÛ™šYËœ\İXœÙ[‰ËLÊNÂŸB‰ÛÛ™šYÈH™\]Z\™H	ÛÛ™šYÑš[NÂ‚‰ÜšYÚ[ˆH	ÔÑT•‘T–ÉÒÓÔ’QÒS‰×HÏÈ	ÉÎÂ‰[İÙYÜšYÚ[ˆH
-İš[™ÊJ	ÛÛ™šYÖÉØ\	×VÉØ[İÙYÛÜšYÚ[‰×HÏÈ	ÉÊNÂšYˆ
-	ÜšYÚ[ˆOOH	ÉÈ	‰ˆ	[İÙYÜšYÚ[ˆOOH	ÉÈ	‰ˆ\ÚÙ\]X[Ê	[İÙYÜšYÚ[‹	ÜšYÚ[ŠJHÂˆXY\Š	ĞXØÙ\ÜËPÛÛ›ÛP[İËSÜšYÚ[ˆ	Èˆ	[İÙYÜšYÚ[ŠNÂˆXY\Š	Õ˜\NˆÜšYÚ[‰ÊNÂˆXY\Š	ĞXØÙ\ÜËPÛÛ›ÛP[İËRXY\œÎˆÛÛ[U\KQ]šXÙKUÚÙ[‹P›YSXYÚXËPÛY[	ÊNÂˆXY\Š	ĞXØÙ\ÜËPÛÛ›ÛP[İËSY]ÙÎˆÔÕÔSÓ”ÉÊNÂŸBšYˆ
+<?php
+declare(strict_types=1);
 
-	ÔÑT•‘T–ÉÔ‘TUQTÕÓQUÑ	×HÏÈ	ÑÑU	ÊHOOH	ÓÔSÓ”ÉÊHÂˆÜ™\ÜÛœÙWØÛÙJŒ
-NÂˆ^]ÂŸB‚HÂˆ	ˆH]X˜\ÙJ	ÛÛ™šYÊNÂˆ	Xİ[ÛˆHš[J
-İš[™ÊJ	ÑÑUÉØXİ[Û‰×HÏÈ	ÚX[	ÊJNÂˆ	[œ]H™XYœÛÛ›ÙJ
-NÂ‚ˆYˆ
-	Xİ[ÛˆOOH	ÚX[	ÊHÂˆ	‹Oœ]Y\J	ÔÑSPÕIÊNÂˆÚÊÉÜÙ\šXÙIÈOˆ	Ø›YK[XYÚXËX\IË	İ™\œÚ[Û‰ÈOˆTWÕ‘T”ÒSÓ‹	Ù]X˜\ÙIÈOˆ	ÛÛ›[™I×JNÂˆBˆYˆ
-	Xİ[ÛˆOOH	ÜZ\—Ù]šXÙIÊHÂˆZ\‘]šXÙJ	‹	ÛÛ™šYË	[œ]
-NÂˆB‚ˆ	]]H]][XØ]J	ŠNÂˆİÚ]Ú
-	Xİ[ÛŠHÂˆØ\ÙH	ÚX\™X]	Î‚ˆX\™X]
-	‹	]]	[œ]
-NÂˆœ™XZÎÂˆØ\ÙH	ØÜ™X]WØÛÛ[X[™	Î‚ˆÜ™X]PÛÛ[X[™
-	‹	]]	[œ]
-NÂˆœ™XZÎÂˆØ\ÙH	ÛX\ÙWØÛÛ[X[™	Î‚ˆX\ÙPÛÛ[X[™
-	‹	]]
-NÂˆœ™XZÎÂˆØ\ÙH	ØÛÛ[X[™Ù]™[	Î‚ˆÛÛ[X[™]™[
-	‹	]]	[œ]
-NÂˆœ™XZÎÂˆØ\ÙH	ØÛÛ[X[™Üİ]\ÉÎ‚ˆÛÛ[X[™İ]\Ê	‹	]]	[œ]
-NÂˆœ™XZÎÂˆY˜][‚ˆ˜Z[
-	ÕS’Ó“ÕÓ—ĞPÕSÓ‰Ë	ĞXİ[ÛˆTH[˜ÛÛ›YK‰Ë
-NÂˆBŸHØ]Ú
-\Q\œ›Üˆ	\œ›ÜŠHÂˆ˜Z[
-	\œ›Ü‹O˜\PÛÙK	\œ›Ü‹O™Ù]Y\ÜØYÙJ
-K	\œ›Ü‹Ošİ]\ÊNÂŸHØ]Ú
-›İØX›H	\œ›ÜŠHÂˆ\œ›Ü—ÛÙÊ	Ğ›YSXYÚXÈTNˆ	Èˆ	\œ›Ü‹O™Ù]Y\ÜØYÙJ
-JNÂˆ˜Z[
-	ÒS•T“SÑT”“Ô‰Ë	Ñ\œ™]\ˆ[\›™KˆÛÛœİ[^ˆH›İ\›˜[HÙ\™]\‹‰ËL
-NÂŸB‚™[˜İ[Ûˆ]X˜\ÙJ\œ˜^H	ÛÛ™šYÊNˆÂÂˆ	ˆH	ÛÛ™šYÖÉÙ]X˜\ÙI×HÏÈ×NÂˆ	ÜİH
-İš[™ÊJ	–ÉÚÜİ	×HÏÈ	ÉÊNÂˆ	ÜH
-[
-J	–ÉÜÜ	×HÏÈÌÌŠNÂˆ	˜[YHH
-İš[™ÊJ	–ÉÛ˜[YI×HÏÈ	ÉÊNÂˆ	\Ù\ˆH
-İš[™ÊJ	–Éİ\Ù\‰×HÏÈ	ÉÊNÂˆ	\ÜİÛÜ™H
-İš[™ÊJ	–ÉÜ\ÜİÛÜ™	×HÏÈ	ÉÊNÂˆYˆ
-	ÜİOOH	ÉÈ	˜[YHOOH	ÉÈ	\Ù\ˆOOH	ÉÊHÂˆ›İÈ™]È\Q\œ›ÜŠ	ÑUPTÑWÓ“ÕĞÓÓ‘’QÕT‘Q	Ë	Ô\˜[pê™\È^TÔS[˜ÛÛ\]Ë‰ËLÊNÂˆBˆ™]\›ˆ™]ÈÊˆ›^\Ü[šÜİ^ÉÜİNÜÜ^ÉÜNÙ›˜[YO^É˜[Y_NØÚ\œÙ]]]X‹ˆ	\Ù\‹ˆ	\ÜİÛÜ™ˆÂˆÎU—ÑT”“SÑHOˆÎ‘T”“SÑWÑVÑTSÓ‹ˆÎU—ÑQUSÑ‘UÒÓSÑHOˆÎ‘‘UÒĞTÔÓĞËˆÎU—ÑSUSUWÔ‘TT‘TÈOˆ˜[ÙKˆÎU—ÔT”ÒTÕS•Oˆ˜[ÙKˆBˆ
-NÂŸB‚™[˜İ[ÛˆZ\‘]šXÙJÈ	‹\œ˜^H	ÛÛ™šYË\œ˜^H	[œ]
-Nˆ™]™\‚Âˆ	›İšYYH
-İš[™ÊJ	[œ]ÉÜZ\š[™×ÜÙXÜ™]	×HÏÈ	ÉÊNÂˆ	^XİYH
-İš[™ÊJ	ÛÛ™šYÖÉØ\	×VÉÜZ\š[™×ÜÙXÜ™]	×HÏÈ	ÉÊNÂˆYˆ
-İ›[Š	^XİY
-HZ\ÚÙ\]X[Ê	^XİY	›İšYY
-JHÂˆ›İÈ™]È\Q\œ›ÜŠ	ÔRT’S‘×ÑS’QQ	Ë	ÔÙXÜ™]8 &X\Z\˜YÙH[˜ÛÜœ™Xİ‰ËÊNÂˆB‚ˆ	›ÙHH›ÙPÛÙJ	[œ]ÉÛ›ÙWØÛÙI×HÏÈ	ÉÊNÂˆ	\™[Hš[Jİİ\\Š
-İš[™ÊJ	[œ]ÉÜ\™[Û›ÙWØÛÙI×HÏÈ	ÉÊJJNÂˆ	›ÛHHİİ\\Šš[J
-İš[™ÊJ	[œ]ÉÜ›ÛI×HÏÈ	ÉÊJJNÂˆ	[ÙHHİİ\\Šš[J
-İš[™ÊJ	[œ]ÉÛ[ÙI×HÏÈ	ÉÊJJNÂˆ	Û™HHÛ™J	[œ]ÉÜÛ™WÛ[X™\‰×HÏÈ	ÉÊNÂˆ	]šXÙS˜[YHHX—ÜİXœİŠš[J
-İš[™ÊJ	[œ]ÉÙ]šXÙWÛ˜[YI×HÏÈ	Ğ[™›ÚY	ÊJKMŒ
-NÂˆYˆ
-Z[—Ø\œ˜^J	›ÛKÉÑQIË	ÑÓIË	ÔÔÉ×KYJJH›İÈ™]È\Q\œ›ÜŠ	ÒS•SQÔ“ÓIË	Ô°íH[˜[YK‰ËŒŠNÂˆYˆ
-Z[—Ø\œ˜^J	[ÙKÉÔ‘SSÕIË	Ô“Ğ“Õ	Ë	ÒP”’Q	×KYJJH›İÈ™]È\Q\œ›ÜŠ	ÒS•SQÓSÑIË	Ó[ÙH[˜[YK‰ËŒŠNÂˆYˆ
-	›ÛHOOH	ÑQIÊH	\™[H	ÉÎÂˆYˆ
-	›ÛHOOH	ÑQIÈ	‰ˆ	\™[OOH	ÉÊH›İÈ™]È\Q\œ›ÜŠ	ÔT‘S•Ô‘TURT‘Q	Ë	ÓHİ\0ê\šY]\ˆ\İØ›YØ]Ú\™K‰ËŒŠNÂ‚ˆ	‹O˜™YÚ[•˜[œØXİ[ÛŠ
-NÂˆHÂˆYˆ
-	\™[OOH	ÉÊHÂˆ	\™[İ]H	‹Oœ™\\™J	ÔÑSPÕ›ÙWØÛÙH”“ÓH›Ù\ÈÒT‘H›ÙWØÛÙHHÈS‘Xİ]™HHIÊNÂˆ	\™[İ]O™^Xİ]JÉ\™[JNÂˆYˆ
-I\™[İ]O™™]Ú
+const API_VERSION = '2.0.0';
 
-JH›İÈ™]È\Q\œ›ÜŠ	ÔT‘S•Ó“ÕÑ“ÕS‘	Ë	Ó±dİYİ\0ê\šY]\ˆ[›İ]˜X›K‰ËŒŠNÂˆBˆ	İ]H	‹Oœ™\\™J	ÔÑSPÕ
-ˆ”“ÓH›Ù\ÈÒT‘H›ÙWØÛÙHHÈ“ÔˆTUIÊNÂˆ	İ]O™^Xİ]JÉ›ÙWJNÂˆ	^\İ[™ÈH	İ]O™™]Ú
+header('Content-Type: application/json; charset=utf-8');
+header('X-Content-Type-Options: nosniff');
+header('Cache-Control: no-store, max-age=0');
+header('Referrer-Policy: no-referrer');
 
-NÂˆYˆ
-	^\İ[™ÊHÂˆ	Ø[YHH	^\İ[™ÖÉÜ›ÛI×HOOH	›ÛBˆ	‰ˆ	^\İ[™ÖÉÜÛ™WÛ[X™\‰×HOOH	Û™Bˆ	‰ˆ
-İš[™ÊJ	^\İ[™ÖÉÜ\™[Û›ÙWØÛÙI×HÏÈ	ÉÊHOOH	\™[ÂˆYˆ
-IØ[YJH›İÈ™]È\Q\œ›ÜŠ	Ó“ÑWÒQS•UWĞÓÓ‘“PÕ	Ë	ĞÙH±dİY^\İH]™XÈ[™H]]™HY[]0êK‰ËJNÂˆH[ÙHÂˆ	[œÙ\›ÙHH	‹Oœ™\\™Jˆ	ÒS”ÑT•S•È›Ù\Ê›ÙWØÛÙK›ÛKÛ™WÛ[X™\‹\™[Û›ÙWØÛÙJHSQTÊËËËÊIÂˆ
-NÂˆ	[œÙ\›ÙKO™^Xİ]JÉ›ÙK	›ÛK	Û™K	\™[OOH	ÉÈÈ[ˆ	\™[JNÂˆB‚ˆ	]šXÙRYH]ZY
+$configFile = __DIR__ . '/config.php';
+if (!is_file($configFile)) {
+    fail('SERVER_NOT_CONFIGURED', 'Le fichier config.php est absent.', 503);
+}
+$config = require $configFile;
 
-NÂˆ	ÚÙ[ˆHš[Œš^
-˜[™ÛWØ]\ÊÌŠJNÂˆ	[œÙ\]šXÙHH	‹Oœ™\\™Jˆ	ÒS”ÑT•S•È]šXÙ\Ê]šXÙWÚY›ÙWØÛÙK[ÙK]šXÙWÛ˜[YKÚÙ[—Ú\Ú\İÜÙY[—Ø]
-H	Âˆˆ	ÕSQTÊËËËËËÕT”‘S•ÕSQTÕST
-IÂˆ
-NÂˆ	[œÙ\]šXÙKO™^Xİ]JÉ]šXÙRY	›ÙK	[ÙK	]šXÙS˜[YK\Ú
-	ÜÚLM‰Ë	ÚÙ[ŠWJNÂˆ	‹O˜ÛÛ[Z]
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+$allowedOrigin = (string)($config['app']['allowed_origin'] ?? '');
+if ($origin !== '' && $allowedOrigin !== '' && hash_equals($allowedOrigin, $origin)) {
+    header('Access-Control-Allow-Origin: ' . $allowedOrigin);
+    header('Vary: Origin');
+    header('Access-Control-Allow-Headers: Content-Type, X-Device-Token, X-BlueMagic-Client');
+    header('Access-Control-Allow-Methods: POST, OPTIONS');
+}
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+}
 
-NÂˆÚÊÂˆ	Ù]šXÙWÚY	ÈOˆ	]šXÙRYˆ	Ù]šXÙWİÚÙ[‰ÈOˆ	ÚÙ[‹ˆ	Û›ÙWØÛÙIÈOˆ	›ÙKˆ	Ü›ÛIÈOˆ	›ÛKˆ	Û[ÙIÈOˆ	[ÙKˆKŒJNÂˆHØ]Ú
-›İØX›H	\œ›ÜŠHÂˆYˆ
-	‹Oš[•˜[œØXİ[ÛŠ
-JH	‹Oœ›Û˜XÚÊ
-NÂˆ›İÈ	\œ›ÜÂˆBŸB‚™[˜İ[Ûˆ]][XØ]JÈ	ŠNˆ\œ˜^BÂˆ	ÚÙ[ˆHš[J
-İš[™ÊJ	ÔÑT•‘T–ÉÒÖÑU’PÑWÕÒÑS‰×HÏÈ	ÉÊJNÂˆYˆ
-	ÚÙ[ˆOOH	ÉÊH›İÈ™]È\Q\œ›ÜŠ	ĞUUÔ‘TURT‘Q	Ë	Ò™]Ûˆ\\™Z[™\]Z\Ë‰ËJNÂˆ	İ]H	‹Oœ™\\™Jˆ	ÔÑSPÕ™]šXÙWÚY››ÙWØÛÙK›[ÙK˜Xİ]™HTÈ]šXÙWØXİ]™K	Âˆˆ	Û‹œ›ÛK‹œÛ™WÛ[X™\‹‹œ\™[Û›ÙWØÛÙK‹˜Xİ]™HTÈ›ÙWØXİ]™H	Âˆˆ	Ñ”“ÓH]šXÙ\È“ÒSˆ›Ù\ÈˆÓˆ‹››ÙWØÛÙHH››ÙWØÛÙHÒT‘HÚÙ[—Ú\ÚHÈSRUIÂˆ
-NÂˆ	İ]O™^Xİ]JÚ\Ú
-	ÜÚLM‰Ë	ÚÙ[ŠWJNÂˆ	]]H	İ]O™™]Ú
+try {
+    $db = database($config);
+    $action = trim((string)($_GET['action'] ?? 'health'));
+    $input = readJsonBody();
 
-NÂˆYˆ
-I]]J[
-I]]ÉÙ]šXÙWØXİ]™I×HJ[
-I]]ÉÛ›ÙWØXİ]™I×JHÂˆ›İÈ™]È\Q\œ›ÜŠ	ĞUUÒS•SQ	Ë	Ğ\\™Z[[˜ÛÛ›HİH0ê\ØXİ]°êK‰ËJNÂˆBˆ™]\›ˆ	]]ÂŸB‚™[˜İ[ÛˆX\™X]
-È	‹\œ˜^H	]]\œ˜^H	[œ]
-Nˆ™]™\‚Âˆ	İ]H	‹Oœ™\\™Jˆ	ÕTUH]šXÙ\ÈÑU\İÜÙY[—Ø]HÕT”‘S•ÕSQTÕST›Ø›İÙ[˜X›YHË	Âˆˆ	Ø\İ™\œÚ[ÛˆHË[™›ÚYİ™\œÚ[ÛˆHÈÒT‘H]šXÙWÚYHÉÂˆ
-NÂˆ	İ]O™^Xİ]JÂˆY[\J	[œ]ÉÜ›Ø›İÙ[˜X›Y	×JHÈHˆˆX—ÜİXœİŠ
-İš[™ÊJ	[œ]ÉØ\İ™\œÚ[Û‰×HÏÈ	ÉÊK
-KˆX—ÜİXœİŠ
-İš[™ÊJ	[œ]ÉØ[™›ÚYİ™\œÚ[Û‰×HÏÈ	ÉÊK
-Kˆ	]]ÉÙ]šXÙWÚY	×KˆJNÂˆÚÊÉÜÙ\™\—İ[YIÈOˆÛY]J	ØÉÊK	Û›ÙWØÛÙIÈOˆ	]]ÉÛ›ÙWØÛÙI×WJNÂŸB‚™[˜İ[ÛˆÜ™X]PÛÛ[X[™
-È	‹\œ˜^H	]]\œ˜^H	[œ]
-Nˆ™]™\‚Âˆ	™\]Y\İ\HHİİ\\Šš[J
-İš[™ÊJ	[œ]ÉÜ™\]Y\İİ\I×HÏÈ	ÉÊJJNÂˆ	ÛY[YHš[J
-İš[™ÊJ	[œ]ÉØÛY[Ü™\]Y\İÚY	×HÏÈ	ÉÊJNÂˆYˆ
-\™Y×ÛX]Ú
-	Ë×–ĞKV˜K^ŒNWËW^ÌM‹IÉË	ÛY[Y
-JHÂˆ›İÈ™]È\Q\œ›ÜŠ	ÒS•SQÔ‘TUQTÕÒQ	Ë	ĞÛ0êH[KYİX›Ûˆ[˜[YK‰ËŒŠNÂˆB‚ˆ	^\İ[™Ôİ]H	‹Oœ™\\™Jˆ	ÔÑSPÕX›X×ÚYİ]KÜ™X]YØ]”“ÓHÛÛ[X[™ÈÒT‘H™\]Y\İ\—Û›ÙWØÛÙHHÈS‘ÛY[Ü™\]Y\İÚYHÉÂˆ
-NÂˆ	^\İ[™Ôİ]O™^Xİ]JÉ]]ÉÛ›ÙWØÛÙI×K	ÛY[YJNÂˆ	^\İ[™ÈH	^\İ[™Ôİ]O™™]Ú
+    if ($action === 'health') {
+        $db->query('SELECT 1');
+        ok(['service' => 'blue-magic-api', 'version' => API_VERSION, 'database' => 'online']);
+    }
+    if ($action === 'pair_device') {
+        pairDevice($db, $config, $input);
+    }
 
-NÂˆYˆ
-	^\İ[™ÊHÚÊÉØÛÛ[X[™	ÈOˆ	^\İ[™Ë	Ù\XØ]IÈOˆYWJNÂ‚ˆ	™\]Y\İ\ˆH	]]ÉÛ›ÙWØÛÙI×NÂˆ	^Xİ]ÜˆH	ÉÎÂˆ	\™Ù]›ÙHH[Âˆ	\™Ù]Û™HH[Âˆ	[[İ[H[Âˆ	Ü\˜][ÛˆH	ÉÎÂˆ	\ÜÙH	ÉÎÂˆ	™\]Z\™\Ô[ˆHNÂ‚ˆYˆ
-	™\]Y\İ\HOOH	Ô‘TUQTÕÔÕTIÊHÂˆYˆ
-Z[—Ø\œ˜^J	]]ÉÜ›ÛI×KÉÑÓIË	ÔÔÉ×KYJH[\J	]]ÉÜ\™[Û›ÙWØÛÙI×JJHÂˆ›İÈ™]È\Q\œ›ÜŠ	Ô‘TUQTÕÓ“ÕĞSÕÑQ	Ë	ĞÙHÛÛ\H™H]]\È[X[™\ˆ[™H™XÚ\™ÙHİ\0ê\šY]\™K‰ËÊNÂˆBˆ	^Xİ]ÜˆH
-İš[™ÊI]]ÉÜ\™[Û›ÙWØÛÙI×NÂˆ	\™Ù]›ÙHH	™\]Y\İ\Âˆ	\™Ù]Û™HH
-İš[™ÊI]]ÉÜÛ™WÛ[X™\‰×NÂˆ	[[İ[H[[İ[
-	[œ]ÉØ[[İ[	×HÏÈ	ÉÊNÂˆ	Ü\˜][ÛˆH	ÑTÕ’P•USÓ—ÕS”Ñ‘T‰ÎÂˆ	\ÜÙHŠML
-ŒŠÉ\™Ù]Û™_JÉ[[İ[HÈÂˆH[ÙZYˆ
-	™\]Y\İ\HOOH	ÔÕTWĞÒS	ÊHÂˆYˆ
-Z[—Ø\œ˜^J	]]ÉÜ›ÛI×KÉÑQIË	ÑÓI×KYJJHÂˆ›İÈ™]È\Q\œ›ÜŠ	Ô‘TUQTÕÓ“ÕĞSÕÑQ	Ë	ÔÙ][[ˆQHİHÓH]]\›İš\Ú[Û›™\ˆ[ˆ[™˜[‰ËÊNÂˆBˆ	\™Ù]›ÙHH›ÙPÛÙJ	[œ]Éİ\™Ù]Û›ÙWØÛÙI×HÏÈ	ÉÊNÂˆ	Ú[İ]H	‹Oœ™\\™Jˆ	ÔÑSPÕ›ÙWØÛÙKÛ™WÛ[X™\ˆ”“ÓH›Ù\ÈÒT‘H›ÙWØÛÙHHÈS‘\™[Û›ÙWØÛÙHHÈS‘Xİ]™HHIÂˆ
-NÂˆ	Ú[İ]O™^Xİ]JÉ\™Ù]›ÙK	™\]Y\İ\—JNÂˆ	Ú[H	Ú[İ]O™™]Ú
+    $auth = authenticate($db);
+    switch ($action) {
+        case 'heartbeat':
+            heartbeat($db, $auth, $input);
+            break;
+        case 'create_command':
+            createCommand($db, $auth, $input);
+            break;
+        case 'lease_command':
+            leaseCommand($db, $auth);
+            break;
+        case 'command_event':
+            commandEvent($db, $auth, $input);
+            break;
+        case 'command_status':
+            commandStatus($db, $auth, $input);
+            break;
+        default:
+            fail('UNKNOWN_ACTION', 'Action API inconnue.', 404);
+    }
+} catch (ApiError $error) {
+    fail($error->apiCode, $error->getMessage(), $error->httpStatus);
+} catch (Throwable $error) {
+    error_log('BlueMagic API: ' . $error->getMessage());
+    fail('INTERNAL_ERROR', 'Erreur interne. Consultez le journal du serveur.', 500);
+}
 
-NÂˆYˆ
-IÚ[
-H›İÈ™]È\Q\œ›ÜŠ	ĞÒSÓ“ÕÑ“ÕS‘	Ë	ĞÙHÛÛ\H¸ &Y\İ\È[ˆ[™˜[\™XİXİY‹‰ËŒŠNÂˆ	^Xİ]ÜˆH	™\]Y\İ\Âˆ	\™Ù]Û™HH	Ú[ÉÜÛ™WÛ[X™\‰×NÂˆ	[[İ[H[[İ[
-	[œ]ÉØ[[İ[	×HÏÈ	ÉÊNÂˆ	Ü\˜][ÛˆH	ÑTÕ’P•USÓ—ÕS”Ñ‘T‰ÎÂˆ	\ÜÙHŠML
-ŒŠÉ\™Ù]Û™_JÉ[[İ[HÈÂˆH[ÙZYˆ
-	™\]Y\İ\HOOH	Ô‘URSÔĞSIÊHÂˆYˆ
-	]]ÉÜ›ÛI×HOOH	ÔÔÉÊH›İÈ™]È\Q\œ›ÜŠ	Ô‘TUQTÕÓ“ÕĞSÕÑQ	Ë	Õ™[H0ê]Z[°ê\Ù\°êYH]^ÔË‰ËÊNÂˆ	^Xİ]ÜˆH	™\]Y\İ\Âˆ	\™Ù]Û™HHÛ™J	[œ]Éİ\™Ù]ÜÛ™I×HÏÈ	ÉÊNÂˆ	[[İ[H[[İ[
-	[œ]ÉØ[[İ[	×HÏÈ	ÉÊNÂˆ	Ü\˜][ÛˆH	Ô‘URSÕS”Ñ‘T‰ÎÂˆ	\ÜÙHŠML
-ŒJÉ\™Ù]Û™_JÉ[[İ[HÈÂˆH[ÙZYˆ
-	™\]Y\İ\HOOH	ÕTÕÓ•SP‘T‰ÊHÂˆ	^Xİ]ÜˆH	™\]Y\İ\Âˆ	Ü\˜][ÛˆH	ÕTÕÓ•SP‘T‰ÎÂˆ	\ÜÙH	ÊJŒÊŒÈÉÎÂˆ	™\]Z\™\Ô[ˆHÂˆH[ÙHÂˆ›İÈ™]È\Q\œ›ÜŠ	ÒS•SQÔ‘TUQTÕÕTIË	Õ\HHÛÛ[X[™H[˜ÛÛ›K‰ËŒŠNÂˆB‚ˆ	X›XÒYH]ZY
+function database(array $config): PDO
+{
+    $db = $config['database'] ?? [];
+    $host = (string)($db['host'] ?? '');
+    $port = (int)($db['port'] ?? 3306);
+    $name = (string)($db['name'] ?? '');
+    $user = (string)($db['user'] ?? '');
+    $password = (string)($db['password'] ?? '');
+    if ($host === '' || $name === '' || $user === '') {
+        throw new ApiError('DATABASE_NOT_CONFIGURED', 'ParamÃ¨tres MySQL incomplets.', 503);
+    }
+    return new PDO(
+        "mysql:host={$host};port={$port};dbname={$name};charset=utf8mb4",
+        $user,
+        $password,
+        [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+            PDO::ATTR_PERSISTENT => false,
+        ]
+    );
+}
 
-NÂˆ	İ]H	‹Oœ™\\™Jˆ	ÒS”ÑT•S•ÈÛÛ[X[™ÊX›X×ÚYÛY[Ü™\]Y\İÚY™\]Y\İ\—Û›ÙWØÛÙK^Xİ]Ü—Û›ÙWØÛÙK	Âˆˆ	İ\™Ù]Û›ÙWØÛÙKÜ\˜][Û‹\™Ù]ÜÛ™K[[İ[\ÜÙØÛÙK™\]Z\™\×Ü[ŠH	Âˆˆ	ÕSQTÊËËËËËËËËËÊIÂˆ
-NÂˆ	İ]O™^Xİ]JÂˆ	X›XÒY	ÛY[Y	™\]Y\İ\‹	^Xİ]Ü‹	\™Ù]›ÙK	Ü\˜][Û‹ˆ	\™Ù]Û™K	[[İ[	\ÜÙ	™\]Z\™\Ô[‹ˆJNÂˆ	ÛÛ[X[™YH
-[
-I‹O›\İ[œÙ\Y
+function pairDevice(PDO $db, array $config, array $input): never
+{
+    $provided = (string)($input['pairing_secret'] ?? '');
+    $expected = (string)($config['app']['pairing_secret'] ?? '');
+    if (strlen($expected) < 24 || !hash_equals($expected, $provided)) {
+        throw new ApiError('PAIRING_DENIED', 'Secret dâ€™appairage incorrect.', 403);
+    }
 
-NÂˆ[œÙ\]™[
-	‹	ÛÛ[X[™Y	]]ÉÙ]šXÙWÚY	×K	ÔS‘S‘ÉË	ĞÛÛ[X[™HÜ°êpêYH]ÛÛ°í0êYH\ˆHÙ\™]\‹‰ÊNÂˆÚÊÂˆ	ØÛÛ[X[™	ÈOˆÉÜX›X×ÚY	ÈOˆ	X›XÒY	Üİ]IÈOˆ	ÔS‘S‘ÉË	Ù^Xİ]Ü—Û›ÙWØÛÙIÈOˆ	^Xİ]Ü—Kˆ	Ù\XØ]IÈOˆ˜[ÙKˆKŒJNÂŸB‚™[˜İ[ÛˆX\ÙPÛÛ[X[™
-È	‹\œ˜^H	]]
-Nˆ™]™\‚ÂˆYˆ
-Z[—Ø\œ˜^J	]]ÉÛ[ÙI×KÉÔ“Ğ“Õ	Ë	ÒP”’Q	×KYJJHÂˆ›İÈ™]È\Q\œ›ÜŠ	Ó“ÕĞWÔ“Ğ“Õ	Ë	ĞÙ]\\™Z[¸ &Y\İ\È]]Üš\ğêH0èİY\ˆ\ÈÛÛ[X[™\Ë‰ËÊNÂˆB‚ˆ	‹O˜™YÚ[•˜[œØXİ[ÛŠ
-NÂˆHÂˆ	^\™HH	‹Oœ™\\™Jˆ•TUHÛÛ[X[™ÈÑUİ]HHQŠ][\X^Ø][\Ë	ÔS‘S‘ÉË	ÑRSQ	ÊK‚ˆˆœ™\İ[ÛY\ÜØYÙHHQŠ][\X^Ø][\Ë	ÓX\ÙH^\°êH]˜[ÛÛ\ÜÚ][Û‹‰Ë	Ô›Ø›İ[™\ÜÛšX›H\°êÈ\ÚY]\œÈX\Ù\Ë‰ÊK‚ˆˆ›X\ÙWİÚÙ[—Ú\ÚH•SX\ÙYİ[[H•S‚ˆˆ•ÒT‘H^Xİ]Ü—Û›ÙWØÛÙHHÈS‘İ]HH	ÓPTÑQ	ÈS‘X\ÙYİ[[ÕT”‘S•ÕSQTÕST‚ˆ
-NÂˆ	^\™KO™^Xİ]JÉ]]ÉÛ›ÙWØÛÙI×WJNÂ‚ˆ	İ]H	‹Oœ™\\™Jˆ”ÑSPÕ
-ˆ”“ÓHÛÛ[X[™ÈÒT‘H^Xİ]Ü—Û›ÙWØÛÙHHÈS‘İ]HH	ÔS‘S‘ÉÈ‚ˆˆ	ÓÔ‘Tˆ–HYTĞÈSRUH“ÔˆTUIÂˆ
-NÂˆ	İ]O™^Xİ]JÉ]]ÉÛ›ÙWØÛÙI×WJNÂˆ	ÛÛ[X[™H	İ]O™™]Ú
+    $node = nodeCode($input['node_code'] ?? '');
+    $parent = trim(strtoupper((string)($input['parent_node_code'] ?? '')));
+    $role = strtoupper(trim((string)($input['role'] ?? '')));
+    $mode = strtoupper(trim((string)($input['mode'] ?? '')));
+    $phone = phone($input['phone_number'] ?? '');
+    $deviceName = mb_substr(trim((string)($input['device_name'] ?? 'Android')), 0, 160);
+    if (!in_array($role, ['DAE', 'DSM', 'POS'], true)) throw new ApiError('INVALID_ROLE', 'RÃ´le invalide.', 422);
+    if (!in_array($mode, ['REMOTE', 'ROBOT', 'HYBRID'], true)) throw new ApiError('INVALID_MODE', 'Mode invalide.', 422);
+    if ($role === 'DAE') $parent = '';
+    if ($role !== 'DAE' && $parent === '') throw new ApiError('PARENT_REQUIRED', 'Le supÃ©rieur est obligatoire.', 422);
 
-NÂˆYˆ
-IÛÛ[X[™
-HÂˆ	‹O˜ÛÛ[Z]
+    $db->beginTransaction();
+    try {
+        if ($parent !== '') {
+            $parentStmt = $db->prepare('SELECT node_code FROM nodes WHERE node_code = ? AND active = 1');
+            $parentStmt->execute([$parent]);
+            if (!$parentStmt->fetch()) throw new ApiError('PARENT_NOT_FOUND', 'NÅ“ud supÃ©rieur introuvable.', 422);
+        }
+        $stmt = $db->prepare('SELECT * FROM nodes WHERE node_code = ? FOR UPDATE');
+        $stmt->execute([$node]);
+        $existing = $stmt->fetch();
+        if ($existing) {
+            $same = $existing['role'] === $role
+                && $existing['phone_number'] === $phone
+                && (string)($existing['parent_node_code'] ?? '') === $parent;
+            if (!$same) throw new ApiError('NODE_IDENTITY_CONFLICT', 'Ce nÅ“ud existe avec une autre identitÃ©.', 409);
+        } else {
+            $insertNode = $db->prepare(
+                'INSERT INTO nodes(node_code, role, phone_number, parent_node_code) VALUES(?, ?, ?, ?)'
+            );
+            $insertNode->execute([$node, $role, $phone, $parent === '' ? null : $parent]);
+        }
 
-NÂˆÚÊÉØ]˜Z[X›IÈOˆ˜[ÙWJNÂˆB‚ˆ	X\ÙUÚÙ[ˆHš[Œš^
-˜[™ÛWØ]\Ê
-JNÂˆ	\]HH	‹Oœ™\\™Jˆ•TUHÛÛ[X[™ÈÑUİ]HH	ÓPTÑQ	Ë][\H][\
-ÈKX\ÙWİÚÙ[—Ú\ÚHË‚ˆˆ	ÛX\ÙYİ[[HUWĞQ
-ÕT”‘S•ÕSQTÕSTS•T•SLŒÑPÓÓ‘
-HÒT‘HYHÉÂˆ
-NÂˆ	\]KO™^Xİ]JÚ\Ú
-	ÜÚLM‰Ë	X\ÙUÚÙ[ŠK	ÛÛ[X[™ÉÚY	×WJNÂˆ[œÙ\]™[
-	‹
-[
-IÛÛ[X[™ÉÚY	×K	]]ÉÙ]šXÙWÚY	×K	ÓPTÑQ	Ë	ĞÛÛ[X[™H°ê\Ù\°êYH]H›Ø›İ‰ÊNÂˆ	‹O˜ÛÛ[Z]
+        $deviceId = uuid4();
+        $token = bin2hex(random_bytes(32));
+        $insertDevice = $db->prepare(
+            'INSERT INTO devices(device_id, node_code, mode, device_name, token_hash, last_seen_at) '
+            . 'VALUES(?, ?, ?, ?, ?, CURRENT_TIMESTAMP)'
+        );
+        $insertDevice->execute([$deviceId, $node, $mode, $deviceName, hash('sha256', $token)]);
+        $db->commit();
+        ok([
+            'device_id' => $deviceId,
+            'device_token' => $token,
+            'node_code' => $node,
+            'role' => $role,
+            'mode' => $mode,
+        ], 201);
+    } catch (Throwable $error) {
+        if ($db->inTransaction()) $db->rollBack();
+        throw $error;
+    }
+}
 
-NÂ‚ˆÚÊÂˆ	Ø]˜Z[X›IÈOˆYKˆ	ØÛÛ[X[™	ÈOˆÂˆ	ÜX›X×ÚY	ÈOˆ	ÛÛ[X[™ÉÜX›X×ÚY	×Kˆ	ÛX\ÙWİÚÙ[‰ÈOˆ	X\ÙUÚÙ[‹ˆ	ÛÜ\˜][Û‰ÈOˆ	ÛÛ[X[™ÉÛÜ\˜][Û‰×Kˆ	İ\™Ù]ÜÛ™IÈOˆ	ÛÛ[X[™Éİ\™Ù]ÜÛ™I×Kˆ	Ø[[İ[	ÈOˆ	ÛÛ[X[™ÉØ[[İ[	×Kˆ	İ\ÜÙØÛÙIÈOˆ	ÛÛ[X[™Éİ\ÜÙØÛÙI×Kˆ	Ü™\]Z\™\×Ü[‰ÈOˆ
-›ÛÛ
-IÛÛ[X[™ÉÜ™\]Z\™\×Ü[‰×KˆKˆJNÂˆHØ]Ú
-›İØX›H	\œ›ÜŠHÂˆYˆ
-	‹Oš[•˜[œØXİ[ÛŠ
-JH	‹Oœ›Û˜XÚÊ
-NÂˆ›İÈ	\œ›ÜÂˆBŸB‚™[˜İ[ÛˆÛÛ[X[™]™[
-È	‹\œ˜^H	]]\œ˜^H	[œ]
-Nˆ™]™\‚ÂˆYˆ
-Z[—Ø\œ˜^J	]]ÉÛ[ÙI×KÉÔ“Ğ“Õ	Ë	ÒP”’Q	×KYJJHÂˆ›İÈ™]È\Q\œ›ÜŠ	Ó“ÕĞWÔ“Ğ“Õ	Ë	ğâ]°ê[™[Y[°ê\Ù\°êH]H›Ø›İ^0êXİ]]\‹‰ËÊNÂˆBˆ	X›XÒYHš[J
-İš[™ÊJ	[œ]ÉØÛÛ[X[™ÚY	×HÏÈ	ÉÊJNÂˆ	X\ÙUÚÙ[ˆHš[J
-İš[™ÊJ	[œ]ÉÛX\ÙWİÚÙ[‰×HÏÈ	ÉÊJNÂˆ	™^İ]HHİİ\\Šš[J
-İš[™ÊJ	[œ]ÉÜİ]I×HÏÈ	ÉÊJJNÂˆ	[İÙYHÉÑPSS‘ÉË	ĞUĞRUS‘×ÔS‰Ë	ÔS—ÔÕP“RUQ	Ë	ĞUĞRUS‘×Ô‘TÕS	Ë	ÔÕPĞÑQQQ	Ë	ÑRSQ	Ë	ÕS’Ó“ÕÓ‰Ë	Ğ“ĞÒÑQ	×NÂˆYˆ
-Z[—Ø\œ˜^J	™^İ]K	[İÙYYJJH›İÈ™]È\Q\œ›ÜŠ	ÒS•SQÔÕUIË	ğâ]]HÛÛ[X[™H[˜[YK‰ËŒŠNÂ‚ˆ	‹O˜™YÚ[•˜[œØXİ[ÛŠ
-NÂˆHÂˆ	İ]H	‹Oœ™\\™J	ÔÑSPÕ
-ˆ”“ÓHÛÛ[X[™ÈÒT‘HX›X×ÚYHÈ“ÔˆTUIÊNÂˆ	İ]O™^Xİ]JÉX›XÒYJNÂˆ	ÛÛ[X[™H	İ]O™™]Ú
+function authenticate(PDO $db): array
+{
+    $token = trim((string)($_SERVER['HTTP_X_DEVICE_TOKEN'] ?? ''));
+    if ($token === '') throw new ApiError('AUTH_REQUIRED', 'Jeton appareil requis.', 401);
+    $stmt = $db->prepare(
+        'SELECT d.device_id, d.node_code, d.mode, d.active AS device_active, '
+        . 'n.role, n.phone_number, n.parent_node_code, n.active AS node_active '
+        . 'FROM devices d JOIN nodes n ON n.node_code = d.node_code WHERE d.token_hash = ? LIMIT 1'
+    );
+    $stmt->execute([hash('sha256', $token)]);
+    $auth = $stmt->fetch();
+    if (!$auth || !(int)$auth['device_active'] || !(int)$auth['node_active']) {
+        throw new ApiError('AUTH_INVALID', 'Appareil inconnu ou dÃ©sactivÃ©.', 401);
+    }
+    return $auth;
+}
 
-NÂˆYˆ
-IÛÛ[X[™	ÛÛ[X[™ÉÙ^Xİ]Ü—Û›ÙWØÛÙI×HOOH	]]ÉÛ›ÙWØÛÙI×JHÂˆ›İÈ™]È\Q\œ›ÜŠ	ĞÓÓSPS‘Ó“ÕÑ“ÕS‘	Ë	ĞÛÛ[X[™H[›İ]˜X›Hİ\ˆÙH›Ø›İ‰Ë
-NÂˆBˆYˆ
-Z\ÚÙ\]X[Ê
-İš[™ÊIÛÛ[X[™ÉÛX\ÙWİÚÙ[—Ú\Ú	×K\Ú
-	ÜÚLM‰Ë	X\ÙUÚÙ[ŠJJHÂˆ›İÈ™]È\Q\œ›ÜŠ	ÓPTÑWÒS•SQ	Ë	ÓX\ÙH[˜[YHİH^\°êK‰ËJNÂˆBˆYˆ
-[—Ø\œ˜^J	ÛÛ[X[™ÉÜİ]I×KÉÔÕPĞÑQQQ	Ë	ÑRSQ	Ë	ÕS’Ó“ÕÓ‰Ë	Ğ“ĞÒÑQ	×KYJJHÂˆ	‹O˜ÛÛ[Z]
+function heartbeat(PDO $db, array $auth, array $input): never
+{
+    $stmt = $db->prepare(
+        'UPDATE devices SET last_seen_at = CURRENT_TIMESTAMP, robot_enabled = ?, '
+        . 'app_version = ?, android_version = ? WHERE device_id = ?'
+    );
+    $stmt->execute([
+        !empty($input['robot_enabled']) ? 1 : 0,
+        mb_substr((string)($input['app_version'] ?? ''), 0, 40),
+        mb_substr((string)($input['android_version'] ?? ''), 0, 40),
+        $auth['device_id'],
+    ]);
+    ok(['server_time' => gmdate('c'), 'node_code' => $auth['node_code']]);
+}
 
-NÂˆÚÊÉØÛÛ[X[™	ÈOˆÛÛ[X[™šY]Ê	ÛÛ[X[™
-K	Ø[™XYWİ\›Z[˜[	ÈOˆYWJNÂˆB‚ˆ	˜[Y˜[œÚ][ÛœÈHÂˆ	ÓPTÑQ	ÈOˆÉÑPSS‘ÉË	ÑRSQ	×Kˆ	ÑPSS‘ÉÈOˆÉĞUĞRUS‘×ÔS‰Ë	ĞUĞRUS‘×Ô‘TÕS	Ë	ÔÕPĞÑQQQ	Ë	ÑRSQ	Ë	ÕS’Ó“ÕÓ‰Ë	Ğ“ĞÒÑQ	×Kˆ	ĞUĞRUS‘×ÔS‰ÈOˆÉÔS—ÔÕP“RUQ	Ë	ÑRSQ	Ë	ÕS’Ó“ÕÓ‰Ë	Ğ“ĞÒÑQ	×Kˆ	ÔS—ÔÕP“RUQ	ÈOˆÉĞUĞRUS‘×Ô‘TÕS	Ë	ÔÕPĞÑQQQ	Ë	ÑRSQ	Ë	ÕS’Ó“ÕÓ‰Ë	Ğ“ĞÒÑQ	×Kˆ	ĞUĞRUS‘×Ô‘TÕS	ÈOˆÉÔÕPĞÑQQQ	Ë	ÑRSQ	Ë	ÕS’Ó“ÕÓ‰Ë	Ğ“ĞÒÑQ	×KˆNÂˆYˆ
-Z[—Ø\œ˜^J	™^İ]K	˜[Y˜[œÚ][ÛœÖÉÛÛ[X[™ÉÜİ]I×WHÏÈ×KYJJHÂˆ›İÈ™]È\Q\œ›ÜŠ	ÒS•SQÕS”ÒUSÓ‰Ë•˜[œÚ][ÛˆÉÛÛ[X[™ÉÜİ]I×_H™\œÈÉ™^İ]_H™Y\ğêYKˆ‹JNÂˆB‚ˆ	Y\ÜØYÙHHX—ÜİXœİŠš[J
-İš[™ÊJ	[œ]ÉÛY\ÜØYÙI×HÏÈ	ÉÊJKŒ
-NÂˆ	Ü\˜]Ü’YHš[J
-İš[™ÊJ	[œ]ÉÛÜ\˜]Ü—İ˜[œØXİ[Û—ÚY	×HÏÈ	ÉÊJNÂˆYˆ
-	Ü\˜]Ü’YOOH	ÉÈ	‰ˆ\™Y×ÛX]Ú
-	Ë×–ĞKV˜K^ŒNWËW^Í‹IÉË	Ü\˜]Ü’Y
-JH	Ü\˜]Ü’YH	ÉÎÂˆ	\›Z[˜[H[—Ø\œ˜^J	™^İ]KÉÔÕPĞÑQQQ	Ë	ÑRSQ	Ë	ÕS’Ó“ÕÓ‰Ë	Ğ“ĞÒÑQ	×KYJNÂ‚ˆ	\]HH	‹Oœ™\\™Jˆ	ÕTUHÛÛ[X[™ÈÑUİ]HHË™\İ[ÛY\ÜØYÙHHËÜ\˜]Ü—İ˜[œØXİ[Û—ÚYH•SQŠË	×	ÊK	Âˆˆ	Üİ\YØ]HQŠÈH	ÑPSS‘×	ÈS‘İ\YØ]TÈ•SÕT”‘S•ÕSQTÕSTİ\YØ]
-K	Âˆˆ	ØÛÛ\]YØ]HQŠÈHKÕT”‘S•ÕSQTÕSTÛÛ\]YØ]
-K	Âˆˆ	ÛX\ÙYİ[[HQŠÈHK•SX\ÙYİ[[
-HÒT‘HYHÉÂˆ
-NÂˆ	\]KO™^Xİ]JÉ™^İ]K	Y\ÜØYÙK	Ü\˜]Ü’Y	™^İ]K	\›Z[˜[ÈHˆ	\›Z[˜[ÈHˆ	ÛÛ[X[™ÉÚY	×WJNÂˆ[œÙ\]™[
-	‹
-[
-IÛÛ[X[™ÉÚY	×K	]]ÉÙ]šXÙWÚY	×K	™^İ]K	Y\ÜØYÙJNÂˆ	‹O˜ÛÛ[Z]
+function createCommand(PDO $db, array $auth, array $input): never
+{
+    $requestType = strtoupper(trim((string)($input['request_type'] ?? '')));
+    $clientId = trim((string)($input['client_request_id'] ?? ''));
+    if (!preg_match('/^[A-Za-z0-9_-]{16,80}$/', $clientId)) {
+        throw new ApiError('INVALID_REQUEST_ID', 'ClÃ© anti-doublon invalide.', 422);
+    }
 
-NÂˆÚÊÉØÛÛ[X[™	ÈOˆÉÜX›X×ÚY	ÈOˆ	X›XÒY	Üİ]IÈOˆ	™^İ]WK	Ø[™XYWİ\›Z[˜[	ÈOˆ˜[ÙWJNÂˆHØ]Ú
-›İØX›H	\œ›ÜŠHÂˆYˆ
-	‹Oš[•˜[œØXİ[ÛŠ
-JH	‹Oœ›Û˜XÚÊ
-NÂˆ›İÈ	\œ›ÜÂˆBŸB‚™[˜İ[ÛˆÛÛ[X[™İ]\ÊÈ	‹\œ˜^H	]]\œ˜^H	[œ]
-Nˆ™]™\‚Âˆ	X›XÒYHš[J
-İš[™ÊJ	[œ]ÉØÛÛ[X[™ÚY	×HÏÈ	ÉÊJNÂˆ	İ]H	‹Oœ™\\™Jˆ	ÔÑSPÕX›X×ÚY™\]Y\İ\—Û›ÙWØÛÙK^Xİ]Ü—Û›ÙWØÛÙK\™Ù]Û›ÙWØÛÙKÜ\˜][Û‹\™Ù]ÜÛ™K	Âˆˆ	Ø[[İ[İ]K™\İ[ÛY\ÜØYÙKÜ\˜]Ü—İ˜[œØXİ[Û—ÚYÜ™X]YØ]İ\YØ]ÛÛ\]YØ]\]YØ]	Âˆˆ	Ñ”“ÓHÛÛ[X[™ÈÒT‘HX›X×ÚYHÈS‘
-™\]Y\İ\—Û›ÙWØÛÙHHÈÔˆ^Xİ]Ü—Û›ÙWØÛÙHHÊIÂˆ
-NÂˆ	İ]O™^Xİ]JÉX›XÒY	]]ÉÛ›ÙWØÛÙI×K	]]ÉÛ›ÙWØÛÙI×WJNÂˆ	ÛÛ[X[™H	İ]O™™]Ú
+    $existingStmt = $db->prepare(
+        'SELECT public_id, state, created_at FROM commands WHERE requester_node_code = ? AND client_request_id = ?'
+    );
+    $existingStmt->execute([$auth['node_code'], $clientId]);
+    $existing = $existingStmt->fetch();
+    if ($existing) ok(['command' => $existing, 'duplicate' => true]);
 
-NÂˆYˆ
-IÛÛ[X[™
-H›İÈ™]È\Q\œ›ÜŠ	ĞÓÓSPS‘Ó“ÕÑ“ÕS‘	Ë	ĞÛÛ[X[™H[›İ]˜X›K‰Ë
-NÂˆÚÊÉØÛÛ[X[™	ÈOˆÛÛ[X[™šY]Ê	ÛÛ[X[™
-WJNÂŸB‚™[˜İ[ÛˆÛÛ[X[™šY]Ê\œ˜^H	ÛÛ[X[™
-Nˆ\œ˜^BÂˆ	[İÙYHÉÜX›X×ÚY	Ë	Ü™\]Y\İ\—Û›ÙWØÛÙIË	Ù^Xİ]Ü—Û›ÙWØÛÙIË	İ\™Ù]Û›ÙWØÛÙIË	ÛÜ\˜][Û‰Ëˆ	İ\™Ù]ÜÛ™IË	Ø[[İ[	Ë	Üİ]IË	Ü™\İ[ÛY\ÜØYÙIË	ÛÜ\˜]Ü—İ˜[œØXİ[Û—ÚY	Ë	ØÜ™X]YØ]	Ëˆ	Üİ\YØ]	Ë	ØÛÛ\]YØ]	Ë	İ\]YØ]	×NÂˆ™]\›ˆ\œ˜^WÚ[\œÙXİÚÙ^J	ÛÛ[X[™\œ˜^WÙ›\
-	[İÙY
-JNÂŸB‚™[˜İ[Ûˆ[œÙ\]™[
-È	‹[	ÛÛ[X[™YÜİš[™È	]šXÙRYİš[™È	İ]Kİš[™È	Y\ÜØYÙJNˆ›ÚYÂˆ	İ]H	‹Oœ™\\™J	ÒS”ÑT•S•ÈÛÛ[X[™Ù]™[ÊÛÛ[X[™ÚY]šXÙWÚYİ]KY\ÜØYÙJHSQTÊËËËÊIÊNÂˆ	İ]O™^Xİ]JÉÛÛ[X[™Y	]šXÙRY	İ]KX—ÜİXœİŠ	Y\ÜØYÙKŒ
-WJNÂŸB‚™[˜İ[Ûˆ™XYœÛÛ›ÙJ
-Nˆ\œ˜^BÂˆ	˜]ÈHš[WÙÙ]ØÛÛ[Ê	Ü‹ËÚ[œ]	ÊNÂˆYˆ
-	˜]ÈOOH˜[ÙHš[J	˜]ÊHOOH	ÉÊH™]\›ˆ×NÂˆ	]HHœÛÛ—ÙXÛÙJ	˜]ËYJNÂˆYˆ
-Z\×Ø\œ˜^J	]JJH›İÈ™]È\Q\œ›ÜŠ	ÒS•SQÒ”ÓÓ‰Ë	ĞÛÜœÈ”ÓÓˆ[˜[YK‰Ë
-NÂˆ™]\›ˆ	]NÂŸB‚™[˜İ[Ûˆ›ÙPÛÙJZ^Y	˜[YJNˆİš[™ÂÂˆ	›ÙHHİİ\\Šš[J
-İš[™ÊI˜[YJJNÂˆYˆ
-\™Y×ÛX]Ú
-	Ë×–ĞKVŒNW×ËW^ÌËIÉË	›ÙJJH›İÈ™]È\Q\œ›ÜŠ	ÒS•SQÓ“ÑIË	ĞÛÙH±dİY[˜[YK‰ËŒŠNÂˆ™]\›ˆ	›ÙNÂŸB‚™[˜İ[ÛˆÛ™JZ^Y	˜[YJNˆİš[™ÂÂˆ	Û™HH™Y×Ü™\XÙJ	Ë×
-ËÉË	ÉË
-İš[™ÊI˜[YJNÂˆYˆ
-\™Y×ÛX]Ú
-	Ë×—Î_IÉË	Û™JJH›İÈ™]È\Q\œ›ÜŠ	ÒS•SQÔÓ‘IË	ÓH[pê\›ÈÚ]ÛÛ[š\ˆHÚY™œ™\Ë‰ËŒŠNÂˆ™]\›ˆ	Û™NÂŸB‚™[˜İ[Ûˆ[[İ[
-Z^Y	˜[YJNˆ[Âˆ	^Hš[J
-İš[™ÊI˜[YJNÂˆYˆ
-\™Y×ÛX]Ú
-	Ë×–ÌKNWWÌIÉË	^
-JH›İÈ™]È\Q\œ›ÜŠ	ÒS•SQĞSSÕS•	Ë	Ó[Û[[Y\ˆ[˜[YK‰ËŒŠNÂˆ	[[İ[H
-[
-I^ÂˆYˆ
-	[[İ[H	[[İ[ˆL
-H›İÈ™]È\Q\œ›ÜŠ	ÒS•SQĞSSÕS•	Ë	Ó[Û[ÜœÈ[Z]\Ë‰ËŒŠNÂˆ™]\›ˆ	[[İ[ÂŸB‚™[˜İ[Ûˆ]ZY
+    $requester = $auth['node_code'];
+    $executor = '';
+    $targetNode = null;
+    $targetPhone = null;
+    $amount = null;
+    $operation = '';
+    $ussd = '';
+    $requiresPin = 1;
 
-Nˆİš[™ÂÂˆ	]\ÈH˜[™ÛWØ]\ÊMŠNÂˆ	]\ÖÍ—HHÚŠ
-Ü™
-	]\ÖÍ—JH	ˆŠH
-NÂˆ	]\ÖÎHHÚŠ
-Ü™
-	]\ÖÎJH	ˆÙŠH
-NÂˆ	^Hš[Œš^
-	]\ÊNÂˆ™]\›ˆİXœİŠ	^
-Hˆ	ËIÈˆİXœİŠ	^
-Hˆ	ËIÈˆİXœİŠ	^L‹
-Bˆˆ	ËIÈˆİXœİŠ	^M‹
-Hˆ	ËIÈˆİXœİŠ	^ŒLŠNÂŸB‚™[˜İ[ÛˆÚÊ\œ˜^H	]K[	İ]\ÈHŒ
-Nˆ™]™\‚ÂˆÜ™\ÜÛœÙWØÛÙJ	İ]\ÊNÂˆXÚÈœÛÛ—Ù[˜ÛÙJÉÛÚÉÈOˆYK	Ù]IÈOˆ	]WK”ÓÓ—ÕS‘TĞĞTQÕS’PÓÑH”ÓÓ—ÕS‘TĞĞTQÔÓTÒTÊNÂˆ^]ÂŸB‚™[˜İ[Ûˆ˜Z[
-İš[™È	ÛÙKİš[™È	Y\ÜØYÙK[	İ]\ÊNˆ™]™\‚ÂˆÜ™\ÜÛœÙWØÛÙJ	İ]\ÊNÂˆXÚÈœÛÛ—Ù[˜ÛÙJÉÛÚÉÈOˆ˜[ÙK	Ù\œ›Ü‰ÈOˆÉØÛÙIÈOˆ	ÛÙK	ÛY\ÜØYÙIÈOˆ	Y\ÜØYÙWWKˆ”ÓÓ—ÕS‘TĞĞTQÕS’PÓÑH”ÓÓ—ÕS‘TĞĞTQÔÓTÒTÊNÂˆ^]ÂŸB‚™š[˜[Û\ÜÈ\Q\œ›Üˆ^[™È[[YQ^Ù\[Û‚ÂˆX›XÈİš[™È	\PÛÙNÂˆX›XÈ[	İ]\ÎÂ‚ˆX›XÈ[˜İ[Ûˆ×ØÛÛœİXİ
-İš[™È	\PÛÙKİš[™È	Y\ÜØYÙK[	İ]\ÊBˆÂˆ\™[—×ØÛÛœİXİ
-	Y\ÜØYÙJNÂˆ	\ËO˜\PÛÙHH	\PÛÙNÂˆ	\ËOšİ]\ÈH	İ]\ÎÂˆBŸB
+    if ($requestType === 'REQUEST_SUPPLY') {
+        if (!in_array($auth['role'], ['DSM', 'POS'], true) || empty($auth['parent_node_code'])) {
+            throw new ApiError('REQUEST_NOT_ALLOWED', 'Ce compte ne peut pas demander une recharge supÃ©rieure.', 403);
+        }
+        $executor = (string)$auth['parent_node_code'];
+        $targetNode = $requester;
+        $targetPhone = (string)$auth['phone_number'];
+        $amount = amount($input['amount'] ?? '');
+        $operation = 'DISTRIBUTION_TRANSFER';
+        $ussd = "*550*2*{$targetPhone}*{$amount}#";
+    } elseif ($requestType === 'SUPPLY_CHILD') {
+        if (!in_array($auth['role'], ['DAE', 'DSM'], true)) {
+            throw new ApiError('REQUEST_NOT_ALLOWED', 'Seul un DAE ou DSM peut approvisionner un enfant.', 403);
+        }
+        $targetNode = nodeCode($input['target_node_code'] ?? '');
+        $childStmt = $db->prepare(
+            'SELECT node_code, phone_number FROM nodes WHERE node_code = ? AND parent_node_code = ? AND active = 1'
+        );
+        $childStmt->execute([$targetNode, $requester]);
+        $child = $childStmt->fetch();
+        if (!$child) throw new ApiError('CHILD_NOT_FOUND', 'Ce compte nâ€™est pas un enfant direct actif.', 422);
+        $executor = $requester;
+        $targetPhone = $child['phone_number'];
+        $amount = amount($input['amount'] ?? '');
+        $operation = 'DISTRIBUTION_TRANSFER';
+        $ussd = "*550*2*{$targetPhone}*{$amount}#";
+    } elseif ($requestType === 'RETAIL_SALE') {
+        if ($auth['role'] !== 'POS') throw new ApiError('REQUEST_NOT_ALLOWED', 'Vente dÃ©tail rÃ©servÃ©e aux PoS.', 403);
+        $executor = $requester;
+        $targetPhone = phone($input['target_phone'] ?? '');
+        $amount = amount($input['amount'] ?? '');
+        $operation = 'RETAIL_TRANSFER';
+        $ussd = "*550*1*{$targetPhone}*{$amount}#";
+    } elseif ($requestType === 'TEST_NUMBER') {
+        $executor = $requester;
+        $operation = 'TEST_NUMBER';
+        $ussd = '*825*3*3#';
+        $requiresPin = 0;
+    } else {
+        throw new ApiError('INVALID_REQUEST_TYPE', 'Type de commande inconnu.', 422);
+    }
+
+    $publicId = uuid4();
+    $stmt = $db->prepare(
+        'INSERT INTO commands(public_id, client_request_id, requester_node_code, executor_node_code, '
+        . 'target_node_code, operation, target_phone, amount, ussd_code, requires_pin) '
+        . 'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    );
+    $stmt->execute([
+        $publicId, $clientId, $requester, $executor, $targetNode, $operation,
+        $targetPhone, $amount, $ussd, $requiresPin,
+    ]);
+    $commandId = (int)$db->lastInsertId();
+    insertEvent($db, $commandId, $auth['device_id'], 'PENDING', 'Commande crÃ©Ã©e et contrÃ´lÃ©e par le serveur.');
+    ok([
+        'command' => ['public_id' => $publicId, 'state' => 'PENDING', 'executor_node_code' => $executor],
+        'duplicate' => false,
+    ], 201);
+}
+
+function leaseCommand(PDO $db, array $auth): never
+{
+    if (!in_array($auth['mode'], ['ROBOT', 'HYBRID'], true)) {
+        throw new ApiError('NOT_A_ROBOT', 'Cet appareil nâ€™est pas autorisÃ© Ã  louer des commandes.', 403);
+    }
+
+    $db->beginTransaction();
+    try {
+        $expire = $db->prepare(
+            "UPDATE commands SET state = IF(attempt < max_attempts, 'PENDING', 'FAILED'), "
+            . "result_message = IF(attempt < max_attempts, 'Lease expirÃ© avant composition.', 'Robot indisponible aprÃ¨s plusieurs leases.'), "
+            . "lease_token_hash = NULL, leased_until = NULL "
+            . "WHERE executor_node_code = ? AND state = 'LEASED' AND leased_until < CURRENT_TIMESTAMP"
+        );
+        $expire->execute([$auth['node_code']]);
+
+        $stmt = $db->prepare(
+            "SELECT * FROM commands WHERE executor_node_code = ? AND state = 'PENDING' "
+            . 'ORDER BY id ASC LIMIT 1 FOR UPDATE'
+        );
+        $stmt->execute([$auth['node_code']]);
+        $command = $stmt->fetch();
+        if (!$command) {
+            $db->commit();
+            ok(['available' => false]);
+        }
+
+        $leaseToken = bin2hex(random_bytes(24));
+        $update = $db->prepare(
+            "UPDATE commands SET state = 'LEASED', attempt = attempt + 1, lease_token_hash = ?, "
+            . 'leased_until = DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 120 SECOND) WHERE id = ?'
+        );
+        $update->execute([hash('sha256', $leaseToken), $command['id']]);
+        insertEvent($db, (int)$command['id'], $auth['device_id'], 'LEASED', 'Commande rÃ©servÃ©e au Robot.');
+        $db->commit();
+
+        ok([
+            'available' => true,
+            'command' => [
+                'public_id' => $command['public_id'],
+                'lease_token' => $leaseToken,
+                'operation' => $command['operation'],
+                'target_phone' => $command['target_phone'],
+                'amount' => $command['amount'],
+                'ussd_code' => $command['ussd_code'],
+                'requires_pin' => (bool)$command['requires_pin'],
+            ],
+        ]);
+    } catch (Throwable $error) {
+        if ($db->inTransaction()) $db->rollBack();
+        throw $error;
+    }
+}
+
+function commandEvent(PDO $db, array $auth, array $input): never
+{
+    if (!in_array($auth['mode'], ['ROBOT', 'HYBRID'], true)) {
+        throw new ApiError('NOT_A_ROBOT', 'Ã‰vÃ©nement rÃ©servÃ© au Robot exÃ©cuteur.', 403);
+    }
+    $publicId = trim((string)($input['command_id'] ?? ''));
+    $leaseToken = trim((string)($input['lease_token'] ?? ''));
+    $nextState = strtoupper(trim((string)($input['state'] ?? '')));
+    $allowed = ['DIALING', 'AWAITING_PIN', 'PIN_SUBMITTED', 'AWAITING_RESULT', 'SUCCEEDED', 'FAILED', 'UNKNOWN', 'BLOCKED'];
+    if (!in_array($nextState, $allowed, true)) throw new ApiError('INVALID_STATE', 'Ã‰tat de commande invalide.', 422);
+
+    $db->beginTransaction();
+    try {
+        $stmt = $db->prepare('SELECT * FROM commands WHERE public_id = ? FOR UPDATE');
+        $stmt->execute([$publicId]);
+        $command = $stmt->fetch();
+        if (!$command || $command['executor_node_code'] !== $auth['node_code']) {
+            throw new ApiError('COMMAND_NOT_FOUND', 'Commande introuvable pour ce Robot.', 404);
+        }
+        if (!hash_equals((string)$command['lease_token_hash'], hash('sha256', $leaseToken))) {
+            throw new ApiError('LEASE_INVALID', 'Lease invalide ou expirÃ©.', 409);
+        }
+        if (in_array($command['state'], ['SUCCEEDED', 'FAILED', 'UNKNOWN', 'BLOCKED'], true)) {
+            $db->commit();
+            ok(['command' => commandView($command), 'already_terminal' => true]);
+        }
+
+        $validTransitions = [
+            'LEASED' => ['DIALING', 'FAILED'],
+            'DIALING' => ['AWAITING_PIN', 'AWAITING_RESULT', 'SUCCEEDED', 'FAILED', 'UNKNOWN', 'BLOCKED'],
+            'AWAITING_PIN' => ['PIN_SUBMITTED', 'FAILED', 'UNKNOWN', 'BLOCKED'],
+            'PIN_SUBMITTED' => ['AWAITING_RESULT', 'SUCCEEDED', 'FAILED', 'UNKNOWN', 'BLOCKED'],
+            'AWAITING_RESULT' => ['SUCCEEDED', 'FAILED', 'UNKNOWN', 'BLOCKED'],
+        ];
+        if (!in_array($nextState, $validTransitions[$command['state']] ?? [], true)) {
+            throw new ApiError('INVALID_TRANSITION', "Transition {$command['state']} vers {$nextState} refusÃ©e.", 409);
+        }
+
+        $message = mb_substr(trim((string)($input['message'] ?? '')), 0, 2000);
+        $operatorId = trim((string)($input['operator_transaction_id'] ?? ''));
+        if ($operatorId !== '' && !preg_match('/^[A-Za-z0-9_-]{6,64}$/', $operatorId)) $operatorId = '';
+        $terminal = in_array($nextState, ['SUCCEEDED', 'FAILED', 'UNKNOWN', 'BLOCKED'], true);
+
+        $update = $db->prepare(
+            'UPDATE commands SET state = ?, result_message = ?, operator_transaction_id = NULLIF(?, \'\'), '
+            . 'started_at = IF(? = \'DIALING\' AND started_at IS NULL, CURRENT_TIMESTAMP, started_at), '
+            . 'completed_at = IF(? = 1, CURRENT_TIMESTAMP, completed_at), '
+            . 'leased_until = IF(? = 1, NULL, leased_until) WHERE id = ?'
+        );
+        $update->execute([$nextState, $message, $operatorId, $nextState, $terminal ? 1 : 0, $terminal ? 1 : 0, $command['id']]);
+        insertEvent($db, (int)$command['id'], $auth['device_id'], $nextState, $message);
+        $db->commit();
+        ok(['command' => ['public_id' => $publicId, 'state' => $nextState], 'already_terminal' => false]);
+    } catch (Throwable $error) {
+        if ($db->inTransaction()) $db->rollBack();
+        throw $error;
+    }
+}
+
+function commandStatus(PDO $db, array $auth, array $input): never
+{
+    $publicId = trim((string)($input['command_id'] ?? ''));
+    $stmt = $db->prepare(
+        'SELECT public_id, requester_node_code, executor_node_code, target_node_code, operation, target_phone, '
+        . 'amount, state, result_message, operator_transaction_id, created_at, started_at, completed_at, updated_at '
+        . 'FROM commands WHERE public_id = ? AND (requester_node_code = ? OR executor_node_code = ?)'
+    );
+    $stmt->execute([$publicId, $auth['node_code'], $auth['node_code']]);
+    $command = $stmt->fetch();
+    if (!$command) throw new ApiError('COMMAND_NOT_FOUND', 'Commande introuvable.', 404);
+    ok(['command' => commandView($command)]);
+}
+
+function commandView(array $command): array
+{
+    $allowed = ['public_id', 'requester_node_code', 'executor_node_code', 'target_node_code', 'operation',
+        'target_phone', 'amount', 'state', 'result_message', 'operator_transaction_id', 'created_at',
+        'started_at', 'completed_at', 'updated_at'];
+    return array_intersect_key($command, array_flip($allowed));
+}
+
+function insertEvent(PDO $db, int $commandId, ?string $deviceId, string $state, string $message): void
+{
+    $stmt = $db->prepare('INSERT INTO command_events(command_id, device_id, state, message) VALUES(?, ?, ?, ?)');
+    $stmt->execute([$commandId, $deviceId, $state, mb_substr($message, 0, 2000)]);
+}
+
+function readJsonBody(): array
+{
+    $raw = file_get_contents('php://input');
+    if ($raw === false || trim($raw) === '') return [];
+    $data = json_decode($raw, true);
+    if (!is_array($data)) throw new ApiError('INVALID_JSON', 'Corps JSON invalide.', 400);
+    return $data;
+}
+
+function nodeCode(mixed $value): string
+{
+    $node = strtoupper(trim((string)$value));
+    if (!preg_match('/^[A-Z0-9\\/_-]{3,64}$/', $node)) throw new ApiError('INVALID_NODE', 'Code nÅ“ud invalide.', 422);
+    return $node;
+}
+
+function phone(mixed $value): string
+{
+    $phone = preg_replace('/\\D+/', '', (string)$value);
+    if (!preg_match('/^\\d{9}$/', $phone)) throw new ApiError('INVALID_PHONE', 'Le numÃ©ro doit contenir 9 chiffres.', 422);
+    return $phone;
+}
+
+function amount(mixed $value): int
+{
+    $text = trim((string)$value);
+    if (!preg_match('/^[1-9]\\d{0,8}$/', $text)) throw new ApiError('INVALID_AMOUNT', 'Montant entier invalide.', 422);
+    $amount = (int)$text;
+    if ($amount < 1 || $amount > 50000000) throw new ApiError('INVALID_AMOUNT', 'Montant hors limites.', 422);
+    return $amount;
+}
+
+function uuid4(): string
+{
+    $bytes = random_bytes(16);
+    $bytes[6] = chr((ord($bytes[6]) & 0x0f) | 0x40);
+    $bytes[8] = chr((ord($bytes[8]) & 0x3f) | 0x80);
+    $hex = bin2hex($bytes);
+    return substr($hex, 0, 8) . '-' . substr($hex, 8, 4) . '-' . substr($hex, 12, 4)
+        . '-' . substr($hex, 16, 4) . '-' . substr($hex, 20, 12);
+}
+
+function ok(array $data, int $status = 200): never
+{
+    http_response_code($status);
+    echo json_encode(['ok' => true, 'data' => $data], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+function fail(string $code, string $message, int $status): never
+{
+    http_response_code($status);
+    echo json_encode(['ok' => false, 'error' => ['code' => $code, 'message' => $message]],
+        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+final class ApiError extends RuntimeException
+{
+    public string $apiCode;
+    public int $httpStatus;
+
+    public function __construct(string $apiCode, string $message, int $httpStatus)
+    {
+        parent::__construct($message);
+        $this->apiCode = $apiCode;
+        $this->httpStatus = $httpStatus;
+    }
+}
