@@ -1,231 +1,409 @@
-package com.profitloop.blueauto;
+şº(·úk¡ø¥zX§{ßİzÿçºYOz¹¢²È¨×§‰ç\XÚØYÙHÛÛKœ›Ùš]ÛÜ˜›YX]]ÎÂ‚š[\Ü[™›ÚY“X[šY™\İÂš[\Ü[™›ÚY˜[››İ][Û‹”İ\™\ÜÓ[Âš[\Ü[™›ÚY˜\Xİ]š]NÂš[\Ü[™›ÚY˜ÛÛ[’[[Âš[\Ü[™›ÚY˜ÛÛ[œK”XÚØYÙSX[˜YÙ\Âš[\Ü[™›ÚY™Ü˜\XÜËÛÛÜÂš[\Ü[™›ÚY›™]•\šNÂš[\Ü[™›ÚY›ÜËZ[Âš[\Ü[™›ÚY›ÜË[™NÂš[\Ü[™›ÚYœ›İšY\‹”Ù][™ÜÎÂš[\Ü[™›ÚY^’[œ]\NÂš[\Ü[™›ÚYšY]Ë•šY]ÎÂš[\Ü[™›ÚYÙXšÚ]’˜]˜\ØÜš\[\™˜XÙNÂš[\Ü[™›ÚYÙXšÚ]•ÙX”™\Ûİ\˜ÙQ\œ›ÜÂš[\Ü[™›ÚYÙXšÚ]•ÙX”™\Ûİ\˜ÙT™\]Y\İÂš[\Ü[™›ÚYÙXšÚ]•ÙX”Ù][™ÜÎÂš[\Ü[™›ÚYÙXšÚ]•ÙX•šY]ÎÂš[\Ü[™›ÚYÙXšÚ]•ÙX•šY]ĞÛY[Âš[\Ü[™›ÚYÚYÙ]\œ˜^PY\\Âš[\Ü[™›ÚYÚYÙ]]ÛÂš[\Ü[™›ÚYÚYÙ]‘Y]^Âš[\Ü[™›ÚYÚYÙ]“[™X\“^[İ]Âš[\Ü[™›ÚYÚYÙ]”ØÜ›ÛšY]ÎÂš[\Ü[™›ÚYÚYÙ]”Ü[›™\Âš[\Ü[™›ÚYÚYÙ]•^šY]ÎÂš[\Ü[™›ÚYÚYÙ]•Ø\İÂ‚š[\ÜÜ™ËšœÛÛ‹’”ÓÓ“Øš™XİÂ‚š[\Ü˜]˜K][•URQÂ‚œX›XÈÛ\ÜÈXZ[Xİ]š]H^[™ÈXİ]š]HÂˆš]˜]Hİ]XÈš[˜[[‘TUQTÕĞÓÔ‘WÔT“RTÔÒSÓ”ÈHMLÂˆš]˜]Hİ]XÈš[˜[[ÓÓHÛÛÜ‹œ™ØŠNMËMŒJNÂˆš]˜]Hİ]XÈš[˜[[ÖPSˆHÛÛÜ‹œ™ØŠL‹L‹JNÂˆš]˜]Hİ]XÈš[˜[[ÕT‘PÑHHÛÛÜ‹œ™ØŠÌKLJNÂˆš]˜]Hİ]XÈš[˜[[PÒÑÔ“ÕS‘HÛÛÜ‹œ™ØŠLKL‹MŠNÂ‚ˆš]˜]H^šY]È˜]]™Tİ]\ÎÂˆš]˜]HÙX•šY]ÈÙX•šY]ÎÂ‚ˆİ™\œšYBˆ›İXİY›ÚYÛÜ™X]J[™HØ]™Y[œİ[˜ÙTİ]JHÂˆİ\\‹›ÛÜ™X]JØ]™Y[œİ[˜ÙTİ]JNÂˆYˆ
+\ÛÛ™šYËš\ÔZ\™Y
+\ÊJHÚİĞÛÛ›ÛØÜ™Y[Š
+NÂˆ[ÙHÚİÔZ\š[™ÔØÜ™Y[Š
+NÂˆB‚ˆš]˜]H›ÚYÚİÔZ\š[™ÔØÜ™Y[Š
+HÂˆØÜ›ÛšY]ÈØÜ›ÛH™]ÈØÜ›ÛšY]Ê\ÊNÂˆØÜ›ÛœÙ]˜XÚÙÜ›İ[™ÛÛÜŠPÒÑÔ“ÕS‘
+NÂˆ[™X\“^[İ]›Ü›HH™\XØ[ÛÛZ[™\Š
+NÂˆØÜ›Û˜YšY]Ê›Ü›JNÂ‚ˆ›Ü›K˜YšY]Ê]J“QHPQÒPÈ8 %TRTQÑHğâPÕT’TğâHŠJNÂˆ›Ü›K˜YšY]Ê[
+Ù]H0ê]\H˜]XÚHH0ê[0ê\Û™H0è[ˆÛÛ\HÙÚ\]YKˆHSˆØ[][™\İH[š\]Y[Y[[œÈHÙ^\İÜ™HH›Ø›İˆŠJNÂ‚ˆY]^\U\›HšY[
+•T“TH‹\ÛÛ™šYË˜\U\›
+\ÊK˜[ÙJNÂˆY]^›ÙPÛÙHHšY[
+ÛÙH±dİY
+^ˆQKLJH‹ˆ‹˜[ÙJNÂˆY]^Û™HHšY[
+“[pê\›ÈÒSHHÛÛ\H
+HÚY™œ™\ÊH‹ˆ‹˜[ÙJNÂˆY]^\™[HšY[
+ÛÙH±dİYİ\0ê\šY]\ˆ
+šYHİ\ˆ[ˆQJH‹ˆ‹˜[ÙJNÂˆÜ[›™\ˆ›ÛHHÜ[›™\Š™]Èİš[™Ö×^È‘QH‹‘ÓH‹”ÔÈŸJNÂˆÜ[›™\ˆ[ÙHHÜ[›™\Š™]Èİš[™Ö×^È”‘SSÕH‹”“Ğ“Õ‹’P”’QŸJNÂˆY]^Z\š[™ÔÙXÜ™]HšY[
+”ÙXÜ™]8 &X\Z\˜YÙHHÙ\™]\ˆ‹ˆ‹YJNÂˆY]^Ü\˜]Ü”[ˆHšY[
+”SˆØ[][ÚY™œ™\È
+›Ø›İÒXœšYJH‹ˆ‹YJNÂˆÜ\˜]Ü”[‹œÙ][œ]\J[œ]\K•TWĞÓTÔ×Ó•SP‘Tˆ[œ]\K•TWÓ•SP‘T—ÕT’PUSÓ—ÔTÔÕÓÔ‘
+NÂ‚ˆ›Ü›K˜YšY]Ê\U\›
+NÂˆ›Ü›K˜YšY]Ê›ÙPÛÙJNÂˆ›Ü›K˜YšY]ÊÛ™JNÂˆ›Ü›K˜YšY]Ê\™[
+NÂˆ›Ü›K˜YšY]ÊX™[
+”°íHHÛÛ\HŠJNÂˆ›Ü›K˜YšY]Ê›ÛJNÂˆ›Ü›K˜YšY]ÊX™[
+“[ÙHHÙH0ê[0ê\Û™HŠJNÂˆ›Ü›K˜YšY]Ê[ÙJNÂˆ›Ü›K˜YšY]ÊZ\š[™ÔÙXÜ™]
+NÂˆ›Ü›K˜YšY]ÊÜ\˜]Ü”[ŠNÂ‚ˆ^šY]È™YY˜XÚÈH[
+ÛÛœÙZ[ˆH0ê[0ê\Û™HÛÛ[˜[HÒSHH\İšX][ÛˆÚ]0ê™H“Ğ“ÕİHP”’QˆH0ê[0êXÛÛ[X[™HÚ]0ê™H‘SSÕKˆŠNÂˆ›Ü›K˜YšY]Ê™YY˜XÚÊNÂ‚ˆ]ÛˆZ\ˆHXİ[Û]ÛŠTRT‘TˆÑH0âS0âTÓ‘H‹ÓÓ
+NÂˆ›Ü›K˜YšY]ÊZ\ŠNÂˆZ\‹œÙ]ÛÛXÚÓ\İ[™\ŠˆOˆÂˆİš[™È›ÙHH›ÙPÛÙK™Ù]^
 
-import android.Manifest;
-import android.app.Activity;
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
-import android.graphics.Color;
-import android.net.Uri;
-import android.os.Bundle;
-import android.telephony.SmsMessage;
-import android.view.View;
-import android.view.WindowManager;
-import android.webkit.JavascriptInterface;
-import android.webkit.WebSettings;
-import android.webkit.WebView;
-import android.webkit.WebViewClient;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.LinearLayout;
-import android.widget.TextView;
-import android.widget.Toast;
+KÔİš[™Ê
+Kš[J
+KÕ\\Ø\ÙJ
+NÂˆİš[™ÈÚ[HHÛ™K™Ù]^
 
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
+KÔİš[™Ê
+Kš[J
+NÂˆİš[™È\™[›ÙHH\™[™Ù]^
 
-public class MainActivity extends Activity {
-    private WebView webView;
-    private EditText etNodeCode, etPairingKey;
-    private Button btnSave;
-    private TextView tvStatus;
-    private LinearLayout llConfig;
-    
-    private static final int REQUEST_PERMISSIONS = 1;
-    private static final String PREFS_NAME = "ProfitLoopPrefs";
-    private static final String KEY_NODE = "NodeCode";
-    private static final String KEY_KEY = "PairKey";
-private static final String API_URL = "https://magicservice-blue.gt.tc/api.php";
-    private String nodeCode = "";
-    private String pairingKey = "";
-    private BroadcastReceiver smsReceiver;
+KÔİš[™Ê
+Kš[J
+KÕ\\Ø\ÙJ
+NÂˆİš[™ÈÙ[XİY›ÛHH›ÛK™Ù]Ù[XİY][J
+KÔİš[™Ê
+NÂˆİš[™ÈÙ[XİY[ÙHH[ÙK™Ù]Ù[XİY][J
+KÔİš[™Ê
+NÂˆİš[™ÈÙXÜ™]HZ\š[™ÔÙXÜ™]™Ù]^
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+KÔİš[™Ê
+NÂˆİš[™È[ˆHÜ\˜]Ü”[‹™Ù]^
 
-        // UI Android Native de Secours / Configuration Initiale
-        LinearLayout mainLayout = new LinearLayout(this);
-        mainLayout.setOrientation(LinearLayout.VERTICAL);
-        mainLayout.setBackgroundColor(Color.parseColor("#0B0C10"));
-        mainLayout.setPadding(30, 30, 30, 30);
+KÔİš[™Ê
+Kš[J
+NÂ‚ˆYˆ
+[›ÙK›X]Ú\Ê–ĞKVŒNK×ËW^ÌËHŠH\Ú[K›X]Ú\Ê—Î_HŠHÙXÜ™]›[™İ
 
-        llConfig = new LinearLayout(this);
-        llConfig.setOrientation(LinearLayout.VERTICAL);
+H
+HÂˆ™YY˜XÚËœÙ]^
+•°ê\šYšY^ˆHÛÙH±dİYH[pê\›È0èHÚY™œ™\È]HÙXÜ™]
+Ø\˜Xİ0ê™\ÈZ[š[][JKˆŠNÂˆ™]\›ÂˆBˆYˆ
+X\U\›™Ù]^
 
-        tvStatus = new TextView(this);
-        tvStatus.setText("âš™ï¸ CONFIGURATION DU NOEUD PROFITLOOP");
-        tvStatus.setTextColor(Color.parseColor("#C5A059"));
-        tvStatus.setTextSize(16);
-        llConfig.addView(tvStatus);
+KÔİš[™Ê
+Kš[J
+KÓİÙ\Ø\ÙJ
+Kœİ\ÕÚ]
+šÎ‹ËÈŠJHÂˆ™YY˜XÚËœÙ]^
+“8 &UT“THÚ]ÛÛ[Y[˜Ù\ˆ\ˆÎ‹ËÈŠNÂˆ™]\›ÂˆBˆYˆ
 
-        etNodeCode = new EditText(this);
-        etNodeCode.setHint("Code NÅ“ud (Ex: POS-001/DSM-01/DAE-01)");
-        etNodeCode.setHintTextColor(Color.GRAY);
-        etNodeCode.setTextColor(Color.WHITE);
-        llConfig.addView(etNodeCode);
+”“Ğ“Õ‹™\]X[ÊÙ[XİY[ÙJH’P”’Q‹™\]X[ÊÙ[XİY[ÙJJH	‰ˆ\[‹›X]Ú\Ê—ÍHŠJHÂˆ™YY˜XÚËœÙ]^
+•[ˆ›Ø›İÚ]™XÙ]›Ú\ˆHSˆØ[][^Xİ0èÚY™œ™\ËˆŠNÂˆ™]\›ÂˆB‚ˆZ\‹œÙ][˜X›Y
+˜[ÙJNÂˆ™YY˜XÚËœÙ]^
+\Z\˜YÙH]™XÈHÙ\™]\¸ )ˆŠNÂˆ\ÛÛ™šYËœÙ]\U\›
+\Ë\U\›™Ù]^
 
-        etPairingKey = new EditText(this);
-        etPairingKey.setHint("ClÃ© de SÃ©curitÃ© RÃ©seau");
-        etPairingKey.setHintTextColor(Color.GRAY);
-        etPairingKey.setTextColor(Color.WHITE);
-        llConfig.addView(etPairingKey);
+KÔİš[™Ê
+JNÂˆ™]È™XY
 
-        btnSave = new Button(this);
-        btnSave.setText("VALIDER ET INITIALISER LE TERMINAL");
-        btnSave.setBackgroundColor(Color.parseColor("#C5A059"));
-        btnSave.setTextColor(Color.BLACK);
-        llConfig.addView(btnSave);
 
-        mainLayout.addView(llConfig);
+HOˆÂˆHÂˆ”ÓÓ“Øš™Xİ^[ØYH™]È”ÓÓ“Øš™Xİ
 
-        // Configuration de la WebView principale
-        webView = new WebView(this);
-        LinearLayout.LayoutParams webParam = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT);
-        webView.setLayoutParams(webParam);
-        mainLayout.addView(webView);
+NÂˆ^[ØYœ]
+››ÙWØÛÙH‹›ÙJNÂˆ^[ØYœ]
+œÛ™WÛ[X™\ˆ‹Ú[JNÂˆ^[ØYœ]
+œ\™[Û›ÙWØÛÙH‹\™[›ÙJNÂˆ^[ØYœ]
+œ›ÛH‹Ù[XİY›ÛJNÂˆ^[ØYœ]
+›[ÙH‹Ù[XİY[ÙJNÂˆ^[ØYœ]
+œZ\š[™×ÜÙXÜ™]‹ÙXÜ™]
+NÂˆ^[ØYœ]
+™]šXÙWÛ˜[YH‹Z[“PS•QPÕT‘Tˆ
+Èˆˆ
+ÈZ[“SÑS
+NÂˆ”ÓÓ“Øš™Xİ]HH™]È\PÛY[
+\ÊKœZ\Š^[ØY
+NÂˆİš[™ÈÚÙ[ˆH]K›Üİš[™Ê™]šXÙWİÚÙ[ˆ‹ˆŠNÂˆYˆ
+ÚÙ[‹š\Ñ[\J
+JH›İÈ™]È[YØ[İ]Q^Ù\[ÛŠ’™]Ûˆ\\™Z[XœÙ[ˆŠNÂˆ\ÛÛ™šYËœØ]™TZ\š[™Ê\ËÚÙ[‹›ÙKÙ[XİY›ÛKÙ[XİY[ÙJNÂˆYˆ
+\[‹š\Ñ[\J
+JHÙXİ\™T[”İÜ™KœØ]™J\Ë[ŠNÂˆ[“Û•ZU™XY
 
-        setContentView(mainLayout);
 
-        // Chargement des prÃ©fÃ©rences mÃ©morisÃ©es
-        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-        nodeCode = prefs.getString(KEY_NODE, "");
-        pairingKey = prefs.getString(KEY_KEY, "");
+HOˆÂˆØ\İ›XZÙU^
+\Ë•0ê[0ê\Û™H\Z\°êKˆ‹Ø\İ“S‘ÕÓÓ‘ÊKœÚİÊ
+NÂˆ™XÜ™X]J
+NÂˆJNÂˆHØ]Ú
+^Ù\[Ûˆ\œ›ÜŠHÂˆ[“Û•ZU™XY
 
-        configureWebView();
 
-        btnSave.setOnClickListener(v -> {
-            String inputNode = etNodeCode.getText().toString().trim();
-            String inputKey = etPairingKey.getText().toString().trim();
+HOˆÂˆZ\‹œÙ][˜X›Y
+YJNÂˆ™YY˜XÚËœÙ]^
+°âXÚXÈˆˆ
+È™XYX›J\œ›ÜŠJNÂˆJNÂˆBˆJKœİ\
 
-            if (!inputNode.isEmpty() && !inputKey.isEmpty()) {
-                SharedPreferences.Editor editor = prefs.edit();
-                editor.putString(KEY_NODE, inputNode);
-                editor.putString(KEY_KEY, inputKey);
-                editor.apply();
+NÂˆJNÂ‚ˆÙ]ÛÛ[šY]ÊØÜ›Û
+NÂˆB‚ˆİ\™\ÜÓ[
+”Ù]˜]˜TØÜš\[˜X›YŠBˆš]˜]H›ÚYÚİĞÛÛ›ÛØÜ™Y[Š
+HÂˆ[™X\“^[İ]YÙHH™\XØ[ÛÛZ[™\Š
+NÂˆYÙKœÙ]Y[™Ê
+LŠK
+LŠK
+LŠK
+
+JNÂˆ˜]]™Tİ]\ÈH[
+ˆŠNÂˆ˜]]™Tİ]\ËœÙ]^ÛÛÜŠÖPSŠNÂˆYÙK˜YšY]Ê˜]]™Tİ]\ÊNÂ‚ˆ[™X\“^[İ]]ÛœÈH™]È[™X\“^[İ]
+\ÊNÂˆ]ÛœËœÙ]ÜšY[][ÛŠ[™X\“^[İ]’Ô’V“Ó•S
+NÂˆ]Ûˆ™\\™HHXİ[Û]ÛŠŒKˆUUÔ’TĞUSÓ”È‹ÓÓ
+NÂˆ]ÛˆÙÙÛHHXİ[Û]ÛŠ\ÛÛ™šYËœ›Ø›İ[˜X›Y
+\ÊHÈT”°â•Tˆ“Ğ“ÕˆˆŒ‹ˆ0âSPT”‘Tˆ“Ğ“Õ‹ÖPSŠNÂˆ]ÛœË˜YšY]Ê™\\™KÙZYÚY
 
-                nodeCode = inputNode;
-                pairingKey = inputKey;
+JNÂˆ]ÛœË˜YšY]ÊÙÙÛKÙZYÚY
 
-                llConfig.setVisibility(View.GONE);
-                webView.setVisibility(View.VISIBLE);
-                webView.loadUrl("https://magicservice-blue.gt.tc/index.html");
-                Toast.makeText(this, "Terminal rattachÃ© avec succÃ¨s.", Toast.LENGTH_SHORT).show();
-            }
-        });
+JNÂˆYÙK˜YšY]Ê]ÛœÊNÂ‚ˆ[™X\“^[İ][”›İÈH™]È[™X\“^[İ]
+\ÊNÂˆ[”›İËœÙ]ÜšY[][ÛŠ[™X\“^[İ]’Ô’V“Ó•S
+NÂˆY]^™]Ô[ˆHšY[
+“›İ]™X]HSˆ
+ÚY™œ™\ÊH‹ˆ‹YJNÂˆ™]Ô[‹œÙ][œ]\J[œ]\K•TWĞÓTÔ×Ó•SP‘Tˆ[œ]\K•TWÓ•SP‘T—ÕT’PUSÓ—ÔTÔÕÓÔ‘
+NÂˆ]ÛˆØ]™T[ˆHXİ[Û]ÛŠ‘S”‘QÒTÕ‘TˆSˆ‹ÓÓ
+NÂˆ[”›İË˜YšY]Ê™]Ô[‹ÙZYÚY
 
-        if (!nodeCode.isEmpty()) {
-            llConfig.setVisibility(View.GONE);
-            webView.loadUrl("https://magicservice-blue.gt.tc/index.html");
-        } else {
-            webView.setVisibility(View.GONE);
-        }
+JNÂˆ[”›İË˜YšY]ÊØ]™T[‹ÙZYÚY
 
-        demanderPermissions();
-        startSmsListener();
-    }
+JNÂˆYˆ
+\ÛÛ™šYËš\Ô›Ø›İ[ÙJ\ÊJHYÙK˜YšY]Ê[”›İÊNÂ‚ˆÙX•šY]ÈH™]ÈÙX•šY]Ê\ÊNÂˆÙX•šY]ËœÙ]˜XÚÙÜ›İ[™ÛÛÜŠPÒÑÔ“ÕS‘
+NÂˆYÙK˜YšY]ÊÙX•šY]Ë™]È[™X\“^[İ]“^[İ]\˜[\Êˆ[™X\“^[İ]“^[İ]\˜[\Ë“PUÒÔT‘S•YŠJNÂˆÙ]ÛÛ[šY]ÊYÙJNÂ‚ˆ™\\™KœÙ]ÛÛXÚÓ\İ[™\ŠˆOˆ™\\™T›Ø›İ\›Z\ÜÚ[ÛœÊ
+JNÂˆÙÙÛKœÙ]ÛÛXÚÓ\İ[™\ŠˆOˆÂˆYˆ
+\ÛÛ™šYËœ›Ø›İ[˜X›Y
+\ÊJHÂˆ›Ø›İÙ\šXÙKœİÜ
+\ÊNÂˆÙÙÛKœÙ]^
+Œ‹ˆ0âSPT”‘Tˆ“Ğ“ÕŠNÂˆH[ÙHÂˆYˆ
+P\ÛÛ™šYËš\Ô›Ø›İ[ÙJ\ÊJHÂˆØ\İ
+ÙH0ê[0ê\Û™H\İ[ˆ[ÙH‘SSÕKˆŠNÂˆ™]\›ÂˆBˆYˆ
+TÙXİ\™T[”İÜ™Kš\Ô[Š\ÊJHÂˆØ\İ
+‘[œ™YÚ\İ™^ˆ8 &XX›Ü™HSˆØ[][ˆŠNÂˆ™]\›ÂˆBˆ™\]Y\İÛÜ™T\›Z\ÜÚ[ÛœÊ
+NÂˆYˆ
+P›YPXØÙ\ÜÚXš[]TÙ\šXÙKš\Ñ[˜X›Y
+\ÊJHÂˆØ\İ
+Xİ]™^ˆHÙ\šXÙH8 &XXØÙ\ÜÚXš[]0êH›YHXYÚXËˆŠNÂˆÜ[XØÙ\ÜÚXš[]TÙ][™ÜÊ
+NÂˆ™]\›ÂˆBˆYˆ
+Z[•‘T”ÒSÓ‹”Ñ×ÒS•HZ[•‘T”ÒSÓ—ĞÓÑTË“H	‰ˆTÙ][™ÜË˜Ø[‘˜]Óİ™\›^\Ê\ÊJHÂˆØ\İ
+]]Üš\Ù^ˆ›YHXYÚXÈ0èø &XY™šXÚ\ˆ]KY\Üİ\È\È]]™\È\XØ][ÛœËˆŠNÂˆÜ[“İ™\›^TÙ][™ÜÊ
+NÂˆ™]\›ÂˆBˆ›Ø›İÙ\šXÙKœİ\
+\ÊNÂˆÙÙÛKœÙ]^
+T”°â•Tˆ“Ğ“ÕŠNÂˆBˆ™Yœ™\Ú˜]]™Tİ]\Ê
+NÂˆJNÂ‚ˆØ]™T[‹œÙ]ÛÛXÚÓ\İ[™\ŠˆOˆÂˆİš[™È˜[YHH™]Ô[‹™Ù]^
 
-    private void configureWebView() {
-        WebSettings settings = webView.getSettings();
-        settings.setJavaScriptEnabled(true);
-        settings.setDomStorageEnabled(true);
-        webView.setWebViewClient(new WebViewClient());
-        // Injection du Pont JavaScript sÃ©curisÃ©
-        webView.addJavascriptInterface(new AndroidBridge(), "AndroidBridge");
-    }
+KÔİš[™Ê
+Kš[J
+NÂˆHÂˆÙXİ\™T[”İÜ™KœØ]™J\Ë˜[YJNÂˆ\ÛÛ™šYËœÙ][›ØÚÙY
+\Ë˜[ÙJNÂˆ™]Ô[‹œÙ]^
+ˆŠNÂˆØ\İ
+”SˆÚY™œ°êH[œ™YÚ\İ°êKˆ\œ°ê8 &]\™Ù[˜ÙH]°êKˆŠNÂˆ™Yœ™\Ú˜]]™Tİ]\Ê
+NÂˆHØ]Ú
+^Ù\[Ûˆ\œ›ÜŠHÂˆØ\İ
+™XYX›J\œ›ÜŠJNÂˆBˆJNÂ‚ˆÙX”Ù][™ÜÈÙ][™ÜÈHÙX•šY]Ë™Ù]Ù][™ÜÊ
+NÂˆÙ][™ÜËœÙ]˜]˜TØÜš\[˜X›Y
+YJNÂˆÙ][™ÜËœÙ]ÛTİÜ˜YÙQ[˜X›Y
+YJNÂˆ\ÛÛ™šYËœÙ]\Ù\YÙ[
+\ËÙ][™ÜË™Ù]\Ù\YÙ[İš[™Ê
+JNÂˆÙ][™ÜËœÙ][İÑš[PXØÙ\ÜÊ˜[ÙJNÂˆÙ][™ÜËœÙ][İĞÛÛ[XØÙ\ÜÊ˜[ÙJNÂˆYˆ
+Z[•‘T”ÒSÓ‹”Ñ×ÒS•HZ[•‘T”ÒSÓ—ĞÓÑTË’‘SWĞ‘PSŠHÂˆÙ][™ÜËœÙ][İÑš[PXØÙ\ÜÑœ›ÛQš[UT“Ê˜[ÙJNÂˆÙ][™ÜËœÙ][İÕ[š]™\œØ[XØÙ\ÜÑœ›ÛQš[UT“Ê˜[ÙJNÂˆBˆYˆ
+Z[•‘T”ÒSÓ‹”Ñ×ÒS•HZ[•‘T”ÒSÓ—ĞÓÑTË“ÓTÔ
+HÂˆÙ][™ÜËœÙ]Z^YÛÛ[[ÙJÙX”Ù][™ÜË“RVQĞÓÓ•S•Ó‘U‘T—ĞSÕÊNÂˆBˆÙX•šY]Ë˜Y˜]˜\ØÜš\[\™˜XÙJ™]È˜]]™PœšYÙJ
+K[™›ÚYœšYÙHŠNÂˆÙX•šY]ËœÙ]ÙX•šY]ĞÛY[
+™]ÈÙX•šY]ĞÛY[
 
-    // PONT JAVASCRIPT : Permet Ã  l'interface HTML/JS d'interagir avec le matÃ©riel
-    public class AndroidBridge {
-        @JavascriptInterface
-        public String getNativeNodeCode() { return nodeCode; }
+HÂˆİ™\œšYBˆİ\™\ÜÕØ\›š[™ÜÊ™\™XØ][ÛˆŠBˆX›XÈ›ÛÛX[ˆÚİ[İ™\œšYU\›ØY[™ÊÙX•šY]ÈšY]Ëİš[™È\›
+HÂˆ\šH\šHH\šKœ\œÙJ\›
+NÂˆ™]\›ˆHšÈ‹™\]X[ÒYÛ›Ü™PØ\ÙJ\šK™Ù]ØÚ[YJ
+JBˆP\ÛÛ™šYË˜[İÙYÜİ
+XZ[Xİ]š]K\ÊK™\]X[ÒYÛ›Ü™PØ\ÙJ\šK™Ù]Üİ
 
-        @JavascriptInterface
-        public String getNativePairKey() { return pairingKey; }
+JNÂˆB‚ˆİ™\œšYBˆX›XÈ›ÛÛX[ˆÚİ[İ™\œšYU\›ØY[™ÊÙX•šY]ÈšY]ËÙX”™\Ûİ\˜ÙT™\]Y\İ™\]Y\İ
+HÂˆ\šH\šHH™\]Y\İ™Ù]\›
 
-        @JavascriptInterface
-        public void executeUSSD(String codeUssd) {
-            runOnUiThread(() -> {
-                Toast.makeText(MainActivity.this, "ExÃ©cution USSD : " + codeUssd, Toast.LENGTH_LONG).show();
-                lancerAppelUssd(codeUssd);
-            });
-        }
-    }
+NÂˆ™]\›ˆHšÈ‹™\]X[ÒYÛ›Ü™PØ\ÙJ\šK™Ù]ØÚ[YJ
+JBˆP\ÛÛ™šYË˜[İÙYÜİ
+XZ[Xİ]š]K\ÊK™\]X[ÒYÛ›Ü™PØ\ÙJ\šK™Ù]Üİ
 
-    private void lancerAppelUssd(String code) {
-        if (checkSelfPermission(Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
-            // Remplacement du # de fin par son Ã©quivalent encodÃ© pour l'URI Android
-            String uriCode = code.replace("#", Uri.encode("#"));
-            Intent intent = new Intent(Intent.ACTION_CALL, Uri.parse("tel:" + uriCode));
-            startActivity(intent);
-        }
-    }
+JNÂˆB‚ˆİ™\œšYBˆX›XÈ›ÚYÛ”™XÙZ]™Y\œ›ÜŠÙX•šY]ÈšY]ËÙX”™\Ûİ\˜ÙT™\]Y\İ™\]Y\İÙX”™\Ûİ\˜ÙQ\œ›Üˆ\œ›ÜŠHÂˆYˆ
+™\]Y\İš\Ñ›Ü“XZ[‘œ˜[YJ
+JH˜]]™Tİ]\ËœÙ]^
+’[\™˜XÙHÙXˆ[™\ÜÛšX›NÈHÙ\šXÙH›Ø›İ˜]Yˆ]]ÛÛ[Y\‹ˆŠNÂˆB‚ˆJNÂˆÙX•šY]Ë›ØY\›
+\ÛÛ™šYËÙX•\›
+\ÊJNÂˆ™Yœ™\Ú˜]]™Tİ]\Ê
+NÂˆB‚ˆš]˜]H›ÚY™\\™T›Ø›İ\›Z\ÜÚ[ÛœÊ
+HÂˆ™\]Y\İÛÜ™T\›Z\ÜÚ[ÛœÊ
+NÂˆYˆ
+P›YPXØÙ\ÜÚXš[]TÙ\šXÙKš\Ñ[˜X›Y
+\ÊJHÂˆÜ[XØÙ\ÜÚXš[]TÙ][™ÜÊ
+NÂˆ™]\›ÂˆBˆYˆ
+Z[•‘T”ÒSÓ‹”Ñ×ÒS•HZ[•‘T”ÒSÓ—ĞÓÑTË“H	‰ˆTÙ][™ÜË˜Ø[‘˜]Óİ™\›^\Ê\ÊJHÂˆÜ[“İ™\›^TÙ][™ÜÊ
+NÂˆ™]\›ÂˆBˆHÂˆİ\Xİ]š]J™]È[[
+Ù][™ÜËPÕSÓ—ÒQÓ“Ô‘WĞUT–WÓÔSRVUSÓ—ÔÑUS‘ÔÊJNÂˆHØ]Ú
+^Ù\[ÛˆYÛ›Ü™Y
+HÂˆØ\İ
+“İ]œ™^ˆ˜]\šYHˆ›YHXYÚXÈˆØ[œÈ™\İšXİ[Û‹ˆŠNÂˆBˆB‚ˆš]˜]H›ÚY™\]Y\İÛÜ™T\›Z\ÜÚ[ÛœÊ
+HÂˆYˆ
+Z[•‘T”ÒSÓ‹”Ñ×ÒS•Z[•‘T”ÒSÓ—ĞÓÑTË“JH™]\›ÂˆYˆ
+Z[•‘T”ÒSÓ‹”Ñ×ÒS•HÌÊHÂˆ™\]Y\İ\›Z\ÜÚ[ÛœÊ™]Èİš[™Ö×^ÓX[šY™\İœ\›Z\ÜÚ[Û‹ĞSÔÓ‘KˆX[šY™\İœ\›Z\ÜÚ[Û‹”‘PÑRU‘WÔÓTËX[šY™\İœ\›Z\ÜÚ[Û‹”ÔÕÓ“ÕQ’PĞUSÓ”ßK‘TUQTÕĞÓÔ‘WÔT“RTÔÒSÓ”ÊNÂˆH[ÙHÂˆ™\]Y\İ\›Z\ÜÚ[ÛœÊ™]Èİš[™Ö×^ÓX[šY™\İœ\›Z\ÜÚ[Û‹ĞSÔÓ‘KˆX[šY™\İœ\›Z\ÜÚ[Û‹”‘PÑRU‘WÔÓTßK‘TUQTÕĞÓÔ‘WÔT“RTÔÒSÓ”ÊNÂˆBˆB‚ˆš]˜]H›ÚYÜ[XØÙ\ÜÚXš[]TÙ][™ÜÊ
+HÂˆİ\Xİ]š]J™]È[[
+Ù][™ÜËPÕSÓ—ĞPĞÑTÔÒP’SUWÔÑUS‘ÔÊJNÂˆB‚ˆš]˜]H›ÚYÜ[“İ™\›^TÙ][™ÜÊ
+HÂˆ[[[[H™]È[[
+Ù][™ÜËPÕSÓ—ÓPSQÑWÓÕ‘T“VWÔT“RTÔÒSÓ‹ˆ\šKœ\œÙJœXÚØYÙNˆˆ
+ÈÙ]XÚØYÙS˜[YJ
+JJNÂˆİ\Xİ]š]J[[
+NÂˆB‚ˆš]˜]H›ÚY™Yœ™\Ú˜]]™Tİ]\Ê
+HÂˆYˆ
+˜]]™Tİ]\ÈOH[
+H™]\›Âˆ›ÛÛX[ˆİ™\›^HHZ[•‘T”ÒSÓ‹”Ñ×ÒS•Z[•‘T”ÒSÓ—ĞÓÑTË“HÙ][™ÜË˜Ø[‘˜]Óİ™\›^\Ê\ÊNÂˆ˜]]™Tİ]\ËœÙ]^
+“±dİYˆ
+È\ÛÛ™šYË››ÙPÛÙJ\ÊBˆ
+Èˆ8 (ˆˆ
+È\ÛÛ™šYË›[ÙJ\ÊBˆ
+Èˆ8 (ˆ›Ø›İˆ
+È
+\ÛÛ™šYËœ›Ø›İ[˜X›Y
+\ÊHÈPÕQˆˆˆT”°â•0âHŠBˆ
+Èˆ8 (ˆXØÙ\ÜÚXš[]0êHˆ
+È
+›YPXØÙ\ÜÚXš[]TÙ\šXÙKš\Ñ[˜X›Y
+\ÊHÈ“ÒÈˆˆ°àPÕU‘TˆŠBˆ
+Èˆ8 (ˆİ\\œÜÚ][Ûˆˆ
+È
+İ™\›^HÈ“ÒÈˆˆ°àPÕU‘TˆŠBˆ
+È
+\ÛÛ™šYËœ[›ØÚÙY
+\ÊHÈ—¸¦åSˆ“ÔUpâHˆÛÜœšYÙ\ˆ]˜[İ]H›İ]™[H˜[œØXİ[ÛˆˆˆˆŠJNÂˆB‚ˆİ™\œšYBˆ›İXİY›ÚYÛ”™\İ[YJ
+HÂˆİ\\‹›Û”™\İ[YJ
+NÂˆ™Yœ™\Ú˜]]™Tİ]\Ê
+NÂˆB‚ˆİ™\œšYBˆ›İXİY›ÚYÛ‘\İ›ŞJ
+HÂˆYˆ
+ÙX•šY]ÈOH[
+HÂˆÙX•šY]Ëœ™[[İ™R˜]˜\ØÜš\[\™˜XÙJ[™›ÚYœšYÙHŠNÂˆÙX•šY]Ë™\İ›ŞJ
+NÂˆBˆİ\\‹›Û‘\İ›ŞJ
+NÂˆB‚ˆX›XÈš[˜[Û\ÜÈ˜]]™PœšYÙHÂˆ˜]˜\ØÜš\[\™˜XÙBˆX›XÈİš[™ÈÙ]ÛÛ™šYİ\˜][ÛŠ
+HÂˆHÂˆ”ÓÓ“Øš™Xİ˜[YHH™]È”ÓÓ“Øš™Xİ
 
-    private void startSmsListener() {
-        IntentFilter filter = new IntentFilter("android.provider.Telephony.SMS_RECEIVED");
-        smsReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                Bundle bundle = intent.getExtras();
-                if (bundle != null) {
-                    Object[] pdus = (Object[]) bundle.get("pdus");
-                    if (pdus != null) {
-                        for (Object pdu : pdus) {
-                            SmsMessage sms = SmsMessage.createFromPdu((byte[]) pdu);
-                            String body = sms.getMessageBody();
-                            // Routage asynchrone immÃ©diat du SMS reÃ§u vers le serveur central
-                            transmettreSmsAuServeurBrut(body);
-                        }
-                    }
-                }
-            }
-        };
-        registerReceiver(smsReceiver, filter);
-    }
+NÂˆ˜[YKœ]
+››ÙWØÛÙH‹\ÛÛ™šYË››ÙPÛÙJXZ[Xİ]š]K\ÊJNÂˆ˜[YKœ]
+œ›ÛH‹\ÛÛ™šYËœ›ÛJXZ[Xİ]š]K\ÊJNÂˆ˜[YKœ]
+›[ÙH‹\ÛÛ™šYË›[ÙJXZ[Xİ]š]K\ÊJNÂˆ˜[YKœ]
+œ›Ø›İÙ[˜X›Y‹\ÛÛ™šYËœ›Ø›İ[˜X›Y
+XZ[Xİ]š]K\ÊJNÂˆ˜[YKœ]
+œ[—Ø›ØÚÙY‹\ÛÛ™šYËœ[›ØÚÙY
+XZ[Xİ]š]K\ÊJNÂˆ˜[YKœ]
+˜XØÙ\ÜÚXš[]WÙ[˜X›Y‹›YPXØÙ\ÜÚXš[]TÙ\šXÙKš\Ñ[˜X›Y
+XZ[Xİ]š]K\ÊJNÂˆ™]\›ˆ˜[YKÔİš[™Ê
+NÂˆHØ]Ú
+^Ù\[ÛˆYÛ›Ü™Y
+HÂˆ™]\›ˆßHÂˆBˆB‚ˆ˜]˜\ØÜš\[\™˜XÙBˆX›XÈ›ÚYÜ™X]PÛÛ[X[™
+İš[™È™\]Y\İ\Kİš[™È\™Ù]›ÙKİš[™È\™Ù]Û™Kˆİš[™È[[İ[İš[™ÈÛY[™\]Y\İY
+HÂˆ™]È™XY
 
-    private void transmettreSmsAuServeurBrut(final String messageSms) {
-        new Thread(() -> {
-            try {
-                URL url = new URL(API_URL + "?action=incoming_sms");
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-                conn.setDoOutput(true);
 
-                String jsonInputString = "{\"message\": \"" + messageSms.replace("\"", "\\\"") + "\", \"noeud\": \"" + nodeCode + "\"}";
+HOˆÂˆHÂˆ”ÓÓ“Øš™Xİ^[ØYH™]È”ÓÓ“Øš™Xİ
 
-                try (OutputStream os = conn.getOutputStream()) {
-                    byte[] input = jsonInputString.getBytes(StandardCharsets.UTF_8);
-                    os.write(input, 0, input.length);
-                }
-                conn.getResponseCode(); // Valide l'envoi
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }).start();
-    }
+NÂˆ^[ØYœ]
+œ™\]Y\İİ\H‹™\]Y\İ\HOH[Èˆˆˆ™\]Y\İ\JNÂˆ^[ØYœ]
+\™Ù]Û›ÙWØÛÙH‹\™Ù]›ÙHOH[Èˆˆˆ\™Ù]›ÙKš[J
+KÕ\\Ø\ÙJ
+JNÂˆ^[ØYœ]
+\™Ù]ÜÛ™H‹\™Ù]Û™HOH[Èˆˆˆ\™Ù]Û™Kš[J
+JNÂˆ^[ØYœ]
+˜[[İ[‹[[İ[OH[Èˆˆˆ[[İ[š[J
+JNÂˆ^[ØYœ]
+˜ÛY[Ü™\]Y\İÚY‹˜[Y™\]Y\İY
+ÛY[™\]Y\İY
+JNÂˆ”ÓÓ“Øš™Xİ]HH™]È\PÛY[
+XZ[Xİ]š]K\ÊK˜Ü™X]PÛÛ[X[™
+^[ØY
+NÂˆØ[˜XÚÊ›ÛÛÛ[X[™Ü™X]Y‹]JNÂˆHØ]Ú
+^Ù\[Ûˆ\œ›ÜŠHÂˆØ[˜XÚÑ\œ›ÜŠ›ÛÛÛ[X[™Ü™X]Y‹\œ›ÜŠNÂˆBˆJKœİ\
 
-    private void demanderPermissions() {
-        if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED ||
-            checkSelfPermission(Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED ||
-            checkSelfPermission(Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{
-                    Manifest.permission.CALL_PHONE,
-                    Manifest.permission.RECEIVE_SMS,
-                    Manifest.permission.READ_SMS
-            }, REQUEST_PERMISSIONS);
-        }
-    }
+NÂˆB‚ˆ˜]˜\ØÜš\[\™˜XÙBˆX›XÈ›ÚYÙ]ÛÛ[X[™İ]\Êİš[™ÈÛÛ[X[™Y
+HÂˆ™]È™XY
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if (smsReceiver != null) unregisterReceiver(smsReceiver);
-    }
-}
+
+HOˆÂˆHÂˆØ[˜XÚÊ›ÛÛÛ[X[™İ]\È‹™]È\PÛY[
+XZ[Xİ]š]K\ÊK˜ÛÛ[X[™İ]\ÊÛÛ[X[™Y
+JNÂˆHØ]Ú
+^Ù\[Ûˆ\œ›ÜŠHÂˆØ[˜XÚÑ\œ›ÜŠ›ÛÛÛ[X[™İ]\È‹\œ›ÜŠNÂˆBˆJKœİ\
+
+NÂˆB‚ˆ˜]˜\ØÜš\[\™˜XÙBˆX›XÈ›ÚYİ\›Ø›İ
+
+HÂˆ[“Û•ZU™XY
+
+
+HOˆ›Ø›İÙ\šXÙKœİ\
+XZ[Xİ]š]K\ÊJNÂˆB‚ˆ˜]˜\ØÜš\[\™˜XÙBˆX›XÈ›ÚYİÜ›Ø›İ
+
+HÂˆ[“Û•ZU™XY
+
+
+HOˆ›Ø›İÙ\šXÙKœİÜ
+XZ[Xİ]š]K\ÊJNÂˆBˆB‚ˆš]˜]H›ÚYØ[˜XÚÊİš[™ÈY]Ù”ÓÓ“Øš™Xİ]JHÂˆ[“Û•ZU™XY
+
+
+HOˆÂˆYˆ
+ÙX•šY]ÈOH[
+H™]\›Âˆİš[™ÈœÛÛˆH”ÓÓ“Øš™Xİœ][İJ]KÔİš[™Ê
+JNÂˆÙX•šY]Ë™]˜[X]R˜]˜\ØÜš\
+Ú[™İË›YSXYÚXÓ˜]]™I‰Ú[™İË›YSXYÚXÓ˜]]™Kˆ‚ˆ
+ÈY]Ù
+ÈŠ”ÓÓ‹œ\œÙJˆ
+ÈœÛÛˆ
+ÈŠJNÈ‹[
+NÂˆJNÂˆB‚ˆš]˜]H›ÚYØ[˜XÚÑ\œ›ÜŠİš[™ÈY]Ù^Ù\[Ûˆ\œ›ÜŠHÂˆHÂˆ”ÓÓ“Øš™Xİ]HH™]È”ÓÓ“Øš™Xİ
+
+NÂˆ]Kœ]
+™\œ›Üˆ‹YJNÂˆ]Kœ]
+›Y\ÜØYÙH‹™XYX›J\œ›ÜŠJNÂˆØ[˜XÚÊY]Ù]JNÂˆHØ]Ú
+^Ù\[ÛˆYÛ›Ü™Y
+HÂˆBˆB‚ˆš]˜]Hİ]XÈİš[™È˜[Y™\]Y\İY
+İš[™È˜[YJHÂˆYˆ
+˜[YHOH[	‰ˆ˜[YK›X]Ú\Ê–ĞKV˜K^ŒNWËW^ÌM‹HŠJH™]\›ˆ˜[YNÂˆ™]\›ˆURQœ˜[™ÛUURQ
+
+KÔİš[™Ê
+NÂˆB‚ˆš]˜]H[™X\“^[İ]™\XØ[ÛÛZ[™\Š
+HÂˆ[™X\“^[İ]^[İ]H™]È[™X\“^[İ]
+\ÊNÂˆ^[İ]œÙ]ÜšY[][ÛŠ[™X\“^[İ]•‘T•PĞS
+NÂˆ^[İ]œÙ]˜XÚÙÜ›İ[™ÛÛÜŠPÒÑÔ“ÕS‘
+NÂˆ^[İ]œÙ]Y[™Ê
+N
+K
+
+K
+N
+K
+
+JNÂˆ™]\›ˆ^[İ]ÂˆB‚ˆš]˜]H^šY]È]Jİš[™È^
+HÂˆ^šY]ÈšY]ÈHX™[
+^
+NÂˆšY]ËœÙ]^Ú^™JŒ
+NÂˆšY]ËœÙ]^ÛÛÜŠÓÓ
+NÂˆšY]ËœÙ]Y[™Ê
+MŠJNÂˆ™]\›ˆšY]ÎÂˆB‚ˆš]˜]H^šY]È[
+İš[™È^
+HÂˆ^šY]ÈšY]ÈHX™[
+^
+NÂˆšY]ËœÙ]^ÛÛÜŠÛÛÜ‹“ÔVJNÂˆšY]ËœÙ]^Ú^™JLÊNÂˆšY]ËœÙ]Y[™Ê
+ŠK
+LŠJNÂˆ™]\›ˆšY]ÎÂˆB‚ˆš]˜]H^šY]ÈX™[
+İš[™È^
+HÂˆ^šY]ÈšY]ÈH™]È^šY]Ê\ÊNÂˆšY]ËœÙ]^
+^
+NÂˆšY]ËœÙ]^ÛÛÜŠÛÛÜ‹•ÒUJNÂˆ™]\›ˆšY]ÎÂˆB‚ˆš]˜]HY]^šY[
+İš[™È[İš[™È˜[YK›ÛÛX[ˆÙXÜ™]
+HÂˆY]^šY]ÈH™]ÈY]^
+\ÊNÂˆšY]ËœÙ][
+[
+NÂˆšY]ËœÙ]^
+˜[YJNÂˆšY]ËœÙ]^ÛÛÜŠÛÛÜ‹•ÒUJNÂˆšY]ËœÙ][^ÛÛÜŠÛÛÜ‹‘ÔVJNÂˆšY]ËœÙ]Ú[™ÛS[™JYJNÂˆšY]ËœÙ]˜XÚÙÜ›İ[™ÛÛÜŠÕT‘PÑJNÂˆšY]ËœÙ]Y[™Ê
+LŠK
+L
+K
+LŠK
+L
+JNÂˆYˆ
+ÙXÜ™]
+HšY]ËœÙ][œ]\J[œ]\K•TWĞÓTÔ×ÕV[œ]\K•TWÕVÕT’PUSÓ—ÔTÔÕÓÔ‘
+NÂˆ[™X\“^[İ]“^[İ]\˜[\È\˜[\ÈH™]È[™X\“^[İ]“^[İ]\˜[\Êˆ[™X\“^[İ]“^[İ]\˜[\Ë“PUÒÔT‘S•[™X\“^[İ]“^[İ]\˜[\Ë•ÔTĞÓÓ•S•
+NÂˆ\˜[\ËœÙ]X\™Ú[œÊ
+JK
+ÊJNÂˆšY]ËœÙ]^[İ]\˜[\Ê\˜[\ÊNÂˆ™]\›ˆšY]ÎÂˆB‚ˆš]˜]HÜ[›™\ˆÜ[›™\Šİš[™Ö×H˜[Y\ÊHÂˆÜ[›™\ˆÜ[›™\ˆH™]ÈÜ[›™\Š\ÊNÂˆ\œ˜^PY\\İš[™ÏˆY\\ˆH™]È\œ˜^PY\\Š\Ëˆ[™›ÚY”‹›^[İ]œÚ[\WÜÜ[›™\—Ù›ÜİÛ—Ú][K˜[Y\ÊNÂˆÜ[›™\‹œÙ]Y\\ŠY\\ŠNÂˆÜ[›™\‹œÙ]˜XÚÙÜ›İ[™ÛÛÜŠÛÛÜ‹•ÒUJNÂˆ™]\›ˆÜ[›™\ÂˆB‚ˆš]˜]H]ÛˆXİ[Û]ÛŠİš[™È^[ÛÛÜŠHÂˆ]Ûˆ]ÛˆH™]È]ÛŠ\ÊNÂˆ]Û‹œÙ]^
+^
+NÂˆ]Û‹œÙ]^ÛÛÜŠÛÛÜ‹“PÒÊNÂˆ]Û‹œÙ]˜XÚÙÜ›İ[™ÛÛÜŠÛÛÜŠNÂˆ]Û‹œÙ][Ø\Ê˜[ÙJNÂˆ]Û‹œÙ]Z[’ZYÚ
+
+
+JNÂˆ™]\›ˆ]ÛÂˆB‚ˆš]˜]H[™X\“^[İ]“^[İ]\˜[\ÈÙZYÚY
+
+HÂˆ[™X\“^[İ]“^[İ]\˜[\È\˜[\ÈH™]È[™X\“^[İ]“^[İ]\˜[\Êˆ[™X\“^[İ]“^[İ]\˜[\Ë•ÔTĞÓÓ•S•YŠNÂˆ\˜[\ËœÙ]X\™Ú[œÊ
+ÊK
+
+K
+ÊK
+
+JNÂˆ™]\›ˆ\˜[\ÎÂˆB‚ˆš]˜]H[
+[˜[YJHÂˆ™]\›ˆX]œ›İ[™
+˜[YH
+ˆÙ]™\Ûİ\˜Ù\Ê
+K™Ù]\Ü^SY]šXÜÊ
+K™[œÚ]JNÂˆB‚ˆš]˜]H›ÚYØ\İ
+İš[™È˜[YJHÂˆØ\İ›XZÙU^
+\Ë˜[YKØ\İ“S‘ÕÓÓ‘ÊKœÚİÊ
+NÂˆB‚ˆš]˜]Hİ]XÈİš[™È™XYX›J^Ù\[Ûˆ\œ›ÜŠHÂˆİš[™ÈY\ÜØYÙHH\œ›Ü‹™Ù]Y\ÜØYÙJ
+NÂˆ™]\›ˆY\ÜØYÙHOH[Y\ÜØYÙKš[J
+Kš\Ñ[\J
+HÈ\œ›Ü‹™Ù]Û\ÜÊ
+K™Ù]Ú[\S˜[YJ
+HˆY\ÜØYÙNÂˆBŸB
