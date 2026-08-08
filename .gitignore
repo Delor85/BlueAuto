@@ -11,3 +11,4 @@ cloudflare/.env*
 !cloudflare/.dev.vars.example
 *.jks
 *.keystore
+.pilot-signing/
