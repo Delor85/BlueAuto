@@ -1,4 +1,4 @@
-# Blue Magic v2.1 — correctif terrain PIN, multi-SIM et multi-comptes
+# Blue Magic v2.2 — PIN renforcé, Android 6 et Robots simultanés
 
 Blue Magic automatise, sur un téléphone Android dédié, les transferts de crédit de distribution Blue/Camtel qui nécessitent désormais deux étapes :
 
@@ -17,9 +17,13 @@ Cette version reconstruit en priorité le trajet critique **Télécommande → s
 - une absence de confirmation devient `UNKNOWN` et n’est jamais retentée automatiquement, afin d’éviter une double recharge ;
 - un seul message « Wrong PIN » bloque immédiatement le Robot.
 - au repos, un Robot interroge la file toutes les 30 secondes et envoie un heartbeat toutes les 5 minutes, soit environ 3 168 requêtes par jour; les boucles rapides ne sont utilisées que pendant une commande.
-- le détecteur PIN inspecte toutes les fenêtres Android accessibles, y compris lorsque le clavier est la fenêtre active ;
+- le détecteur PIN inspecte toutes les fenêtres Android accessibles, réacquiert le champ à chaque tentative, vérifie la saisie et possède une méthode de secours locale temporaire ;
 - chaque compte choisit explicitement SIM 1, SIM 2, SIM 3 ou SIM 4 selon le téléphone ;
-- plusieurs comptes DAE, DSM et PoS peuvent être conservés sur le même téléphone et activés l’un après l’autre ;
+- plusieurs comptes DAE, DSM et PoS peuvent être conservés sur le même téléphone ; tous les profils Robots démarrés restent actifs même lorsqu’un compte Remote est affiché ;
+- deux Robots associés à deux SIM d’un même téléphone partagent un ordonnanceur FIFO et n’ouvrent jamais deux sessions USSD en même temps ;
+- l’interface de commande utilise du JavaScript ES5 compatible avec l’ancien WebView d’Android 6 ;
+- les codes courts sont résolus dans leur branche (`DSM7` → `DSM7_SU2`, `POS5` → `POS5_DSM7_SU2`) ;
+- les commandes récentes affichent leur horodatage local ;
 - `ROBOT` est polyvalent (exécution + création de commandes) ; `REMOTE` reste uniquement télécommande.
 
 ## Structure
