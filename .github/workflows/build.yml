@@ -55,6 +55,12 @@ jobs:
         with:
           gradle-version: '8.2'
 
+      - name: Conserver la signature pilote entre les mises à jour
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: blue-magic-pilot-debug-keystore-v1
+
       - name: Compiler l’APK de test
         run: gradle --no-daemon :app:assembleDebug
 

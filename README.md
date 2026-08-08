@@ -32,6 +32,8 @@ Cette version reconstruit en priorité le trajet critique **Télécommande → s
 - `docs/TEST_TERRAIN.md` : validation obligatoire avant argent réel ;
 - `.github/workflows/build.yml` : compilation automatique de l’APK de test.
 
+La signature de l’APK pilote est conservée dans le cache privé de GitHub Actions afin que les correctifs suivants puissent être installés comme des mises à jour. Cette signature de test ne doit jamais être utilisée pour une publication commerciale.
+
 ## Limite technique honnête
 
 Android ne fournit pas d’API publique universelle pour répondre à la deuxième étape d’une session USSD interactive. `TelephonyManager.sendUssdRequest()` sait obtenir une réponse à une requête, mais ne fournit pas de méthode publique pour continuer la session avec le PIN. Blue Magic utilise donc `ACTION_CALL` puis un `AccessibilityService` contrôlé et limité à la transaction attendue. Le comportement de la fenêtre MMI dépend du fabricant et de l’application Téléphone : un essai sur le modèle exact du Robot est obligatoire.
