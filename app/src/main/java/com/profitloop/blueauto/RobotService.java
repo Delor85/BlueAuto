@@ -15,6 +15,9 @@ import android.os.PowerManager;
 
 import org.json.JSONObject;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -22,9 +25,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class RobotService extends Service {
     static final String ACTION_START = "com.profitloop.blueauto.START_ROBOT";
+    static final String ACTION_WAKE = "com.profitloop.blueauto.WAKE_ROBOTS";
     static final String ACTION_STOP = "com.profitloop.blueauto.STOP_ROBOT";
     static final String ACTION_PIN_SUBMITTED = "com.profitloop.blueauto.PIN_SUBMITTED";
     static final String ACTION_OPERATOR_RESULT = "com.profitloop.blueauto.OPERATOR_RESULT";
+    static final String EXTRA_PROFILE_ID = "profile_id";
     static final String EXTRA_SUCCESS = "success";
     static final String EXTRA_MESSAGE = "message";
     static final String EXTRA_ERROR_CODE = "error_code";
@@ -34,33 +39,41 @@ public class RobotService extends Service {
     private static final int NOTIFICATION_ID = 5502;
 
     private ScheduledExecutorService executor;
-    private ApiClient api;
     private final AtomicBoolean cycleRunning = new AtomicBoolean(false);
-    private long lastHeartbeatAt = 0L;
+    private final Map<String, Long> lastHeartbeatByProfile = new HashMap<>();
     private long backoffMs = AppConfig.IDLE_POLL_MS;
+    private int roundRobinIndex = 0;
     private PowerManager.WakeLock commandWakeLock;
 
     @Override
     public void onCreate() {
         super.onCreate();
-        api = new ApiClient(this);
         executor = Executors.newSingleThreadScheduledExecutor();
         createNotificationChannel();
-        startForeground(NOTIFICATION_ID, notification("Robot en préparation…"));
+        startForeground(NOTIFICATION_ID, notification("Robots en préparation…"));
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        String action = intent == null ? ACTION_START : intent.getAction();
+        String action = intent == null ? ACTION_WAKE : intent.getAction();
+        String profileId = profileId(intent);
+
         if (ACTION_STOP.equals(action)) {
-            AppConfig.setRobotEnabled(this, false);
-            updateNotification("Robot arrêté");
-            stopSelf();
-            return START_NOT_STICKY;
+            if (!profileId.isEmpty()) AppConfig.setRobotEnabled(this, profileId, false);
+            if (!AppConfig.anyRobotEnabled(this)) {
+                updateNotification("Tous les Robots sont arrêtés");
+                stopSelf();
+                return START_NOT_STICKY;
+            }
+            updateNotification(robotSummary("Robot arrêté; autres Robots actifs"));
+            scheduleCycle(0L);
+            return START_STICKY;
         }
 
         if (ACTION_PIN_SUBMITTED.equals(action)) {
-            executor.execute(() -> reportProgress("PIN_SUBMITTED", "PIN local injecté et validation envoyée."));
+            final String targetProfile = profileId;
+            executor.execute(() -> reportProgress(targetProfile, "PIN_SUBMITTED",
+                    "PIN local injecté et validation envoyée."));
             return START_STICKY;
         }
 
@@ -69,12 +82,19 @@ public class RobotService extends Service {
             String message = intent.getStringExtra(EXTRA_MESSAGE);
             String code = intent.getStringExtra(EXTRA_ERROR_CODE);
             String transactionId = intent.getStringExtra(EXTRA_TRANSACTION_ID);
-            executor.execute(() -> finishCommand(success, code, message, transactionId));
+            final String targetProfile = profileId;
+            executor.execute(() -> finishCommand(targetProfile, success, code, message, transactionId));
             return START_STICKY;
         }
 
-        AppConfig.setRobotEnabled(this, true);
-        updateNotification(AppConfig.pinBlocked(this) ? "Robot bloqué : vérifier le PIN" : "Robot actif");
+        if (ACTION_START.equals(action) && !profileId.isEmpty()) {
+            AppConfig.setRobotEnabled(this, profileId, true);
+        }
+        if (!AppConfig.anyRobotEnabled(this)) {
+            stopSelf();
+            return START_NOT_STICKY;
+        }
+        updateNotification(robotSummary("Surveillance active"));
         scheduleCycle(0L);
         return START_STICKY;
     }
@@ -85,7 +105,7 @@ public class RobotService extends Service {
     }
 
     private void scheduleCycle(long delayMs) {
-        if (executor == null || executor.isShutdown() || !AppConfig.robotEnabled(this)) return;
+        if (executor == null || executor.isShutdown() || !AppConfig.anyRobotEnabled(this)) return;
         executor.schedule(this::runCycle, Math.max(0L, delayMs), TimeUnit.MILLISECONDS);
     }
 
@@ -93,59 +113,74 @@ public class RobotService extends Service {
         if (!cycleRunning.compareAndSet(false, true)) return;
         long nextDelay = AppConfig.IDLE_POLL_MS;
         try {
-            if (!AppConfig.isPaired(this) || !AppConfig.isRobotMode(this)) {
-                updateNotification("Configuration Robot incomplète");
-                nextDelay = 60_000L;
-                return;
-            }
-            if (System.currentTimeMillis() - lastHeartbeatAt >= AppConfig.HEARTBEAT_MS) {
-                api.heartbeat();
-                lastHeartbeatAt = System.currentTimeMillis();
-            }
-
-            JSONObject pending = PendingCommandStore.get(this);
-            if (pending != null && PendingCommandStore.REPORT_PENDING.equals(
-                    pending.optString("local_state", ""))) {
-                retryFinalReport(pending);
-                nextDelay = PendingCommandStore.get(this) == null ? 2_000L : 15_000L;
-                return;
-            }
-            if (AppConfig.pinBlocked(this)) {
-                updateNotification("ARRÊT D’URGENCE : PIN à corriger");
-                nextDelay = 60_000L;
-                return;
-            }
-            if (PendingCommandStore.isExpired(pending)) {
-                finishCommand(false, "RESULT_TIMEOUT",
-                        "Aucune confirmation fiable reçue dans le délai. Vérification manuelle requise.", "");
-                nextDelay = 5_000L;
+            List<String> profiles = AppConfig.enabledRobotProfileIds(this);
+            if (profiles.isEmpty()) {
+                stopSelf();
                 return;
             }
 
-            if (pending != null) {
-                nextDelay = 3_000L;
+            JSONObject activeUssd = PendingCommandStore.getActiveUssd(this);
+            if (activeUssd != null) {
+                String owner = activeUssd.optString("local_profile_id", "");
+                if (PendingCommandStore.isExpired(activeUssd)) {
+                    finishCommand(owner, false, "RESULT_TIMEOUT",
+                            "Aucune confirmation fiable reçue dans le délai. Vérification manuelle requise.", "");
+                    nextDelay = 5_000L;
+                } else {
+                    nextDelay = 2_000L;
+                }
                 return;
             }
 
-            JSONObject lease = api.leaseCommand();
-            if (!lease.optBoolean("available", false)) {
+            for (String profileId : profiles) {
+                JSONObject pending = PendingCommandStore.get(this, profileId);
+                if (pending != null && PendingCommandStore.REPORT_PENDING.equals(
+                        pending.optString("local_state", ""))) {
+                    retryFinalReport(profileId, pending);
+                    nextDelay = PendingCommandStore.get(this, profileId) == null ? 1_000L : 15_000L;
+                    return;
+                }
+            }
+
+            int count = profiles.size();
+            for (int offset = 0; offset < count; offset++) {
+                int index = (roundRobinIndex + offset) % count;
+                String profileId = profiles.get(index);
+                if (!AppConfig.isPaired(this, profileId) || !AppConfig.isRobotMode(this, profileId)) continue;
+
+                ApiClient api = ApiClient.forProfile(this, profileId);
+                long lastHeartbeat = lastHeartbeatByProfile.containsKey(profileId)
+                        ? lastHeartbeatByProfile.get(profileId) : 0L;
+                if (System.currentTimeMillis() - lastHeartbeat >= AppConfig.HEARTBEAT_MS) {
+                    api.heartbeat();
+                    lastHeartbeatByProfile.put(profileId, System.currentTimeMillis());
+                }
+
+                if (AppConfig.pinBlocked(this, profileId)) continue;
+                if (PendingCommandStore.get(this, profileId) != null) continue;
+
+                JSONObject lease = api.leaseCommand();
+                if (!lease.optBoolean("available", false)) continue;
+
+                JSONObject command = lease.optJSONObject("command");
+                if (command == null) throw new IllegalStateException("Commande louée absente.");
+                command.put("local_profile_id", profileId);
+                command.put("local_state", PendingCommandStore.LEASED);
+                command.put("leased_at", System.currentTimeMillis());
+                command.put("state_changed_at", System.currentTimeMillis());
+                PendingCommandStore.save(this, profileId, command);
+                roundRobinIndex = (index + 1) % count;
+                executeCommand(profileId, command, api);
+                nextDelay = 2_000L;
                 backoffMs = AppConfig.IDLE_POLL_MS;
-                nextDelay = AppConfig.IDLE_POLL_MS;
-                updateNotification("Robot actif — aucune commande");
                 return;
             }
 
-            JSONObject command = lease.optJSONObject("command");
-            if (command == null) throw new IllegalStateException("Commande louée absente.");
-            command.put("local_state", PendingCommandStore.LEASED);
-            command.put("leased_at", System.currentTimeMillis());
-            command.put("state_changed_at", System.currentTimeMillis());
-            PendingCommandStore.save(this, command);
-            executeCommand(command);
-            nextDelay = 3_000L;
             backoffMs = AppConfig.IDLE_POLL_MS;
+            nextDelay = AppConfig.IDLE_POLL_MS;
+            updateNotification(robotSummary("Aucune commande en attente"));
         } catch (Exception error) {
-            updateNotification("Serveur indisponible — nouvelle tentative différée");
+            updateNotification(robotSummary("Serveur indisponible — nouvelle tentative"));
             backoffMs = Math.min(60_000L, Math.max(AppConfig.IDLE_POLL_MS, backoffMs * 2L));
             nextDelay = backoffMs;
         } finally {
@@ -154,69 +189,78 @@ public class RobotService extends Service {
         }
     }
 
-    private void executeCommand(JSONObject command) {
+    private void executeCommand(String profileId, JSONObject command, ApiClient api) {
         try {
             String ussd = UssdCommandFactory.buildAndValidate(command);
             boolean requiresPin = UssdCommandFactory.requiresPin(command);
-            if (requiresPin && !SecurePinStore.hasPin(this)) {
-                finishCommand(false, "PIN_NOT_CONFIGURED", "Aucun PIN opérateur chiffré sur ce Robot.", "");
+            if (requiresPin && !SecurePinStore.hasPin(this, profileId)) {
+                finishCommand(profileId, false, "PIN_NOT_CONFIGURED",
+                        "Aucun PIN opérateur chiffré sur ce Robot.", "");
                 return;
             }
             if (requiresPin && !BlueAccessibilityService.isEnabled(this)) {
-                finishCommand(false, "ACCESSIBILITY_DISABLED", "Service d’accessibilité Blue Magic désactivé.", "");
+                finishCommand(profileId, false, "ACCESSIBILITY_DISABLED",
+                        "Service d’accessibilité Blue Magic désactivé.", "");
                 return;
             }
             if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
-                finishCommand(false, "CALL_PERMISSION_MISSING", "Autorisation Téléphone non accordée.", "");
+                finishCommand(profileId, false, "CALL_PERMISSION_MISSING",
+                        "Autorisation Téléphone non accordée.", "");
                 return;
             }
             if (SimCallManager.slotCount(this) > 1
                     && checkSelfPermission(Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
-                finishCommand(false, "SIM_PERMISSION_MISSING",
+                finishCommand(profileId, false, "SIM_PERMISSION_MISSING",
                         "Autorisation État du téléphone requise pour sélectionner la SIM.", "");
                 return;
             }
 
             acquireCommandWakeLock();
-            PendingCommandStore.updateState(this, PendingCommandStore.DIALING);
+            PendingCommandStore.updateState(this, profileId, PendingCommandStore.DIALING);
             api.sendEvent(command, "DIALING", "Composition USSD déclenchée sur le Robot.", "");
-            updateNotification("Commande en cours : " + command.optString("public_id", ""));
+            updateNotification("Commande " + AppConfig.nodeCode(this, profileId) + " en cours");
 
             String next = requiresPin ? PendingCommandStore.AWAITING_PIN : PendingCommandStore.AWAITING_RESULT;
-            PendingCommandStore.updateState(this, next);
+            PendingCommandStore.updateState(this, profileId, next);
             api.sendEvent(command, next, requiresPin
                     ? "En attente de la fenêtre de confirmation PIN."
                     : "En attente du résultat opérateur.", "");
 
             try {
-                SimCallManager.placeUssdCall(this, ussd, AppConfig.simSlot(this));
+                SimCallManager.placeUssdCall(this, ussd, AppConfig.simSlot(this, profileId));
+                if (requiresPin) BlueAccessibilityService.kick(this);
             } catch (SecurityException permissionError) {
-                finishCommand(false, "SIM_PERMISSION_MISSING", safeMessage(permissionError), "");
+                finishCommand(profileId, false, "SIM_PERMISSION_MISSING", safeMessage(permissionError), "");
             } catch (IllegalStateException slotError) {
-                finishCommand(false, "SIM_SELECTION_FAILED", safeMessage(slotError), "");
+                finishCommand(profileId, false, "SIM_SELECTION_FAILED", safeMessage(slotError), "");
             }
         } catch (SecurityException securityError) {
-            finishCommand(false, "COMMAND_INTEGRITY_FAILURE", securityError.getMessage(), "");
+            finishCommand(profileId, false, "COMMAND_INTEGRITY_FAILURE", securityError.getMessage(), "");
         } catch (Exception error) {
-            finishCommand(false, "DIAL_FAILURE", safeMessage(error), "");
+            finishCommand(profileId, false, "DIAL_FAILURE", safeMessage(error), "");
         }
     }
 
-    private void reportProgress(String state, String message) {
-        JSONObject command = PendingCommandStore.get(this);
+    private void reportProgress(String profileId, String state, String message) {
+        if (profileId == null || profileId.isEmpty()) return;
+        JSONObject command = PendingCommandStore.get(this, profileId);
         if (command == null) return;
         try {
+            ApiClient api = ApiClient.forProfile(this, profileId);
             api.sendEvent(command, state, message, "");
             if ("PIN_SUBMITTED".equals(state)) {
-                PendingCommandStore.updateState(this, PendingCommandStore.AWAITING_RESULT);
-                api.sendEvent(command, "AWAITING_RESULT", "Validation envoyée; attente confirmation Camtel.", "");
+                PendingCommandStore.updateState(this, profileId, PendingCommandStore.AWAITING_RESULT);
+                api.sendEvent(command, "AWAITING_RESULT",
+                        "Validation envoyée; attente confirmation Camtel.", "");
             }
         } catch (Exception ignored) {
         }
     }
 
-    private void finishCommand(boolean success, String errorCode, String message, String transactionId) {
-        JSONObject command = PendingCommandStore.get(this);
+    private void finishCommand(String profileId, boolean success, String errorCode,
+                               String message, String transactionId) {
+        if (profileId == null || profileId.isEmpty()) return;
+        JSONObject command = PendingCommandStore.get(this, profileId);
         if (command == null) return;
         String code = errorCode == null ? "" : errorCode;
         String state;
@@ -224,7 +268,7 @@ public class RobotService extends Service {
             state = "SUCCEEDED";
         } else if ("WRONG_PIN".equals(code)) {
             state = "BLOCKED";
-            AppConfig.setPinBlocked(this, true);
+            AppConfig.setPinBlocked(this, profileId, true);
         } else if ("RESULT_TIMEOUT".equals(code)) {
             state = "UNKNOWN";
         } else {
@@ -233,9 +277,10 @@ public class RobotService extends Service {
 
         boolean reported = false;
         try {
-            String detail = (message == null ? "" : message);
+            String detail = message == null ? "" : message;
             if (!code.isEmpty()) detail = code + " — " + detail;
-            api.sendEvent(command, state, detail, transactionId == null ? "" : transactionId);
+            ApiClient.forProfile(this, profileId).sendEvent(
+                    command, state, detail, transactionId == null ? "" : transactionId);
             reported = true;
         } catch (Exception ignored) {
             try {
@@ -245,33 +290,33 @@ public class RobotService extends Service {
                 command.put("final_error_code", code);
                 command.put("final_transaction_id", transactionId == null ? "" : transactionId);
                 command.put("state_changed_at", System.currentTimeMillis());
-                PendingCommandStore.save(this, command);
+                PendingCommandStore.save(this, profileId, command);
             } catch (Exception ignoredAgain) {
             }
         }
-        if (reported) {
-            PendingCommandStore.clear(this);
-        }
+        if (reported) PendingCommandStore.clear(this, profileId);
         releaseCommandWakeLock();
+        BlueAccessibilityService.kick(this);
         updateNotification(reported
-                ? (success ? "Dernière commande réussie" :
-                (AppConfig.pinBlocked(this) ? "ARRÊT D’URGENCE : PIN incorrect" : "Dernière commande à vérifier"))
-                : "Résultat obtenu — synchronisation serveur en attente");
-        scheduleCycle(reported ? 2_000L : 15_000L);
+                ? (success ? "Dernière commande réussie — " + AppConfig.nodeCode(this, profileId)
+                : (AppConfig.pinBlocked(this, profileId) ? "PIN incorrect — Robot bloqué"
+                : "Dernière commande à vérifier — " + AppConfig.nodeCode(this, profileId)))
+                : "Résultat obtenu — synchronisation en attente");
+        scheduleCycle(reported ? 1_000L : 15_000L);
     }
 
-    private void retryFinalReport(JSONObject command) {
+    private void retryFinalReport(String profileId, JSONObject command) {
         String state = command.optString("final_state", "UNKNOWN");
         String message = command.optString("final_message", "");
         String code = command.optString("final_error_code", "");
         String transactionId = command.optString("final_transaction_id", "");
         try {
             String detail = code.isEmpty() ? message : code + " — " + message;
-            api.sendEvent(command, state, detail, transactionId);
-            PendingCommandStore.clear(this);
-            updateNotification("Résultat synchronisé — Robot prêt");
+            ApiClient.forProfile(this, profileId).sendEvent(command, state, detail, transactionId);
+            PendingCommandStore.clear(this, profileId);
+            updateNotification(robotSummary("Résultat synchronisé"));
         } catch (Exception ignored) {
-            updateNotification("Résultat en attente de synchronisation");
+            updateNotification(robotSummary("Résultat en attente de synchronisation"));
         }
     }
 
@@ -294,10 +339,8 @@ public class RobotService extends Service {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationManager manager = getSystemService(NotificationManager.class);
             NotificationChannel channel = new NotificationChannel(
-                    CHANNEL_ID,
-                    getString(R.string.robot_channel_name),
-                    NotificationManager.IMPORTANCE_LOW);
-            channel.setDescription("État du téléphone Robot Blue Magic");
+                    CHANNEL_ID, getString(R.string.robot_channel_name), NotificationManager.IMPORTANCE_LOW);
+            channel.setDescription("État des téléphones Robots Blue Magic");
             manager.createNotificationChannel(channel);
         }
     }
@@ -306,16 +349,18 @@ public class RobotService extends Service {
         Intent open = new Intent(this, MainActivity.class);
         PendingIntent pending = PendingIntent.getActivity(this, 1, open,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        Notification.Builder builder = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
-                ? new Notification.Builder(this, CHANNEL_ID)
-                : new Notification.Builder(this);
-        return builder
-                .setContentTitle("Blue Magic — " + AppConfig.nodeCode(this))
+        return (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                ? new Notification.Builder(this, CHANNEL_ID) : new Notification.Builder(this))
+                .setContentTitle("Blue Magic — " + AppConfig.enabledRobotCount(this) + " Robot(s) actif(s)")
                 .setContentText(text)
                 .setSmallIcon(android.R.drawable.stat_notify_sync)
                 .setOngoing(true)
                 .setContentIntent(pending)
                 .build();
+    }
+
+    private String robotSummary(String detail) {
+        return AppConfig.enabledRobotCount(this) + " Robot(s) — " + detail;
     }
 
     private void updateNotification(String text) {
@@ -324,24 +369,31 @@ public class RobotService extends Service {
     }
 
     static void start(Context context) {
-        Intent intent = new Intent(context, RobotService.class).setAction(ACTION_START);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent);
-        else context.startService(intent);
+        String profileId = AppConfig.profileId(context);
+        sendServiceAction(context, new Intent(context, RobotService.class)
+                .setAction(ACTION_START).putExtra(EXTRA_PROFILE_ID, profileId));
+    }
+
+    static void startEnabled(Context context) {
+        sendServiceAction(context, new Intent(context, RobotService.class).setAction(ACTION_WAKE));
     }
 
     static void stop(Context context) {
-        AppConfig.setRobotEnabled(context, false);
-        context.stopService(new Intent(context, RobotService.class));
+        String profileId = AppConfig.profileId(context);
+        sendServiceAction(context, new Intent(context, RobotService.class)
+                .setAction(ACTION_STOP).putExtra(EXTRA_PROFILE_ID, profileId));
     }
 
-    static void pinSubmitted(Context context) {
-        sendServiceAction(context, new Intent(context, RobotService.class).setAction(ACTION_PIN_SUBMITTED));
+    static void pinSubmitted(Context context, String profileId) {
+        sendServiceAction(context, new Intent(context, RobotService.class)
+                .setAction(ACTION_PIN_SUBMITTED).putExtra(EXTRA_PROFILE_ID, profileId));
     }
 
-    static void operatorResult(Context context, boolean success, String errorCode,
+    static void operatorResult(Context context, String profileId, boolean success, String errorCode,
                                String message, String transactionId) {
         Intent intent = new Intent(context, RobotService.class)
                 .setAction(ACTION_OPERATOR_RESULT)
+                .putExtra(EXTRA_PROFILE_ID, profileId)
                 .putExtra(EXTRA_SUCCESS, success)
                 .putExtra(EXTRA_ERROR_CODE, errorCode)
                 .putExtra(EXTRA_MESSAGE, message)
@@ -352,6 +404,12 @@ public class RobotService extends Service {
     private static void sendServiceAction(Context context, Intent intent) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent);
         else context.startService(intent);
+    }
+
+    private static String profileId(Intent intent) {
+        if (intent == null) return "";
+        String profileId = intent.getStringExtra(EXTRA_PROFILE_ID);
+        return profileId == null ? "" : profileId;
     }
 
     private static String safeMessage(Exception error) {

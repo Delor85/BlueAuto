@@ -62,7 +62,7 @@ public class MainActivity extends Activity {
         form.addView(help("Cette étape rattache le téléphone à un compte logique. Le PIN Camtel reste uniquement dans le Keystore du Robot."));
 
         EditText apiUrl = field("URL API", AppConfig.apiUrl(this), false);
-        EditText nodeCode = field("Code nœud (ex. DAE-01)", "", false);
+        EditText nodeCode = field("Code local (ex. SU2, DSM7 ou POS5)", "", false);
         EditText phone = field("Numéro SIM du compte (9 chiffres)", "", false);
         EditText parent = field("Code nœud supérieur (vide pour un DAE)", "", false);
         Spinner role = spinner(new String[]{"DAE", "DSM", "POS"});
@@ -144,8 +144,9 @@ public class MainActivity extends Activity {
                     JSONObject data = new ApiClient(this, selectedApiUrl, "").pair(payload);
                     String token = data.optString("device_token", "");
                     String deviceId = data.optString("device_id", "");
+                    String canonicalNode = data.optString("node_code", node);
                     if (token.isEmpty()) throw new IllegalStateException("Jeton appareil absent.");
-                    AppConfig.savePairing(this, deviceId, token, node, sim, parentNode,
+                    AppConfig.savePairing(this, deviceId, token, canonicalNode, sim, parentNode,
                             selectedRole, selectedMode, selectedApiUrl, selectedSlot);
                     if (!pin.isEmpty()) SecurePinStore.save(this, pin);
                     runOnUiThread(() -> {
@@ -212,8 +213,6 @@ public class MainActivity extends Activity {
 
         accounts.setOnClickListener(v -> showAccountManager());
         addAccount.setOnClickListener(v -> {
-            if (!canChangeProfile()) return;
-            RobotService.stop(this);
             showPairingScreen(true);
         });
 
@@ -312,8 +311,6 @@ public class MainActivity extends Activity {
                         showSimSlotChooser();
                         return;
                     }
-                    if (!canChangeProfile()) return;
-                    RobotService.stop(this);
                     if (AppConfig.activateProfile(this, ids[index])) recreate();
                 })
                 .setPositiveButton("Ajouter", null)
@@ -322,13 +319,11 @@ public class MainActivity extends Activity {
                 .create();
         dialog.setOnShowListener(ignored -> {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
-                if (!canChangeProfile()) return;
-                RobotService.stop(this);
                 dialog.dismiss();
                 showPairingScreen(true);
             });
             dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> {
-                if (!canChangeProfile()) return;
+                if (!canModifyActiveProfile()) return;
                 new AlertDialog.Builder(this)
                         .setTitle("Supprimer " + AppConfig.nodeCode(this) + " ?")
                         .setMessage("Le compte sera retiré uniquement de ce téléphone. Son PIN local chiffré sera effacé.")
@@ -351,7 +346,7 @@ public class MainActivity extends Activity {
                 .setTitle("SIM utilisée par " + AppConfig.nodeCode(this))
                 .setSingleChoiceItems(slots, selected[0], (dialog, which) -> selected[0] = which)
                 .setPositiveButton("ENREGISTRER", (dialog, which) -> {
-                    if (!canChangeProfile()) return;
+                    if (!canModifyActiveProfile()) return;
                     AppConfig.updateActiveSimSlot(this, selected[0]);
                     recreate();
                 })
@@ -359,9 +354,9 @@ public class MainActivity extends Activity {
                 .show();
     }
 
-    private boolean canChangeProfile() {
-        if (PendingCommandStore.get(this) != null) {
-            toast("Compte verrouillé : attendez la fin de la commande en cours avant de changer de compte.");
+    private boolean canModifyActiveProfile() {
+        if (PendingCommandStore.get(this, AppConfig.profileId(this)) != null) {
+            toast("Ce compte exécute une commande : attendez sa fin avant de le modifier.");
             return false;
         }
         return true;
@@ -370,14 +365,17 @@ public class MainActivity extends Activity {
     private void prepareRobotPermissions() {
         requestCorePermissions();
         if (!BlueAccessibilityService.isEnabled(this)) {
+            toast("Dans Accessibilité : touchez Blue Magic, puis activez « Utiliser le service ».");
             openAccessibilitySettings();
             return;
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+            toast("Activez le bouton « Autoriser l’affichage par-dessus les autres applications ».");
             openOverlaySettings();
             return;
         }
         try {
+            toast("Dans Batterie : ouvrez Blue Magic et choisissez « Sans restriction » si ce choix existe.");
             startActivity(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
         } catch (Exception ignored) {
             toast("Ouvrez Batterie > Blue Magic > Sans restriction.");
@@ -397,10 +395,12 @@ public class MainActivity extends Activity {
     }
 
     private void openAccessibilitySettings() {
+        toast("Cherchez Blue Magic, ouvrez-le, puis activez « Utiliser le service ».");
         startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
     }
 
     private void openOverlaySettings() {
+        toast("Activez le bouton d’autorisation affiché pour Blue Magic.");
         Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                 Uri.parse("package:" + getPackageName()));
         startActivity(intent);
@@ -415,6 +415,7 @@ public class MainActivity extends Activity {
                 + " • Robot " + (AppConfig.robotEnabled(this) ? "ACTIF" : "ARRÊTÉ")
                 + " • Accessibilité " + (BlueAccessibilityService.isEnabled(this) ? "OK" : "À ACTIVER")
                 + " • Superposition " + (overlay ? "OK" : "À ACTIVER")
+                + "\nRobots actifs sur ce téléphone : " + AppConfig.enabledRobotCount(this)
                 + (AppConfig.pinBlocked(this) ? "\n⛔ PIN BLOQUÉ : corriger avant toute nouvelle transaction" : ""));
     }
 

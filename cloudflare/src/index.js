@@ -1,4 +1,4 @@
-const API_VERSION = '2.1.0-cloudflare';
+const API_VERSION = '2.2.0-cloudflare';
 const TERMINAL_STATES = new Set(['SUCCEEDED', 'FAILED', 'UNKNOWN', 'BLOCKED']);
 const EVENT_STATES = new Set([
   'DIALING', 'AWAITING_PIN', 'PIN_SUBMITTED', 'AWAITING_RESULT',
@@ -58,7 +58,7 @@ async function pairDevice(env, input, headers) {
     throw new ApiError('PAIRING_DENIED', 'Secret d’appairage incorrect.', 403);
   }
 
-  const node = nodeCode(input.node_code);
+  const requestedNode = nodeCode(input.node_code);
   const role = String(input.role || '').trim().toUpperCase();
   const mode = String(input.mode || '').trim().toUpperCase();
   const phoneNumber = phone(input.phone_number);
@@ -69,11 +69,17 @@ async function pairDevice(env, input, headers) {
   if (role === 'DAE') parent = '';
   if (role !== 'DAE' && !parent) throw new ApiError('PARENT_REQUIRED', 'Le supérieur est obligatoire.', 422);
   if (parent) {
-    nodeCode(parent);
-    const parentNode = await env.DB.prepare(
-      'SELECT node_code FROM nodes WHERE node_code = ? AND active = 1'
-    ).bind(parent).first();
-    if (!parentNode) throw new ApiError('PARENT_NOT_FOUND', 'Nœud supérieur introuvable.', 422);
+    const parentNode = await resolveParentNode(env, parent, role === 'DSM' ? 'DAE' : 'DSM');
+    parent = parentNode.node_code;
+  }
+
+  let node = requestedNode;
+  const requestedExisting = await env.DB.prepare(
+    'SELECT node_code, parent_node_code FROM nodes WHERE node_code = ?'
+  ).bind(requestedNode).first();
+  if (role !== 'DAE' && (!requestedExisting
+      || String(requestedExisting.parent_node_code || '') !== parent)) {
+    node = canonicalChildCode(requestedNode, parent);
   }
 
   const existing = await env.DB.prepare(
@@ -84,6 +90,15 @@ async function pairDevice(env, input, headers) {
       && String(existing.parent_node_code || '') === parent;
     if (!same) throw new ApiError('NODE_IDENTITY_CONFLICT', 'Ce nœud existe avec une autre identité.', 409);
   } else {
+    if (role === 'DSM') {
+      const siblingDsm = await env.DB.prepare(
+        "SELECT node_code FROM nodes WHERE parent_node_code = ? AND role = 'DSM' AND active = 1 LIMIT 1"
+      ).bind(parent).first();
+      if (siblingDsm) {
+        throw new ApiError('DAE_ALREADY_HAS_DSM',
+          `Ce DAE possède déjà son DSM officiel : ${siblingDsm.node_code}.`, 409);
+      }
+    }
     const phoneOwner = await env.DB.prepare('SELECT node_code FROM nodes WHERE phone_number = ?')
       .bind(phoneNumber).first();
     if (phoneOwner) throw new ApiError('PHONE_ALREADY_USED', 'Ce numéro appartient déjà à un autre nœud.', 409);
@@ -145,6 +160,7 @@ async function createCommand(env, auth, input, headers) {
 
   const values = await resolveCommand(env, auth, input, requestType);
   const publicId = crypto.randomUUID();
+  const createdAt = new Date().toISOString();
   try {
     await env.DB.batch([
       env.DB.prepare(
@@ -170,7 +186,11 @@ async function createCommand(env, auth, input, headers) {
     throw error;
   }
   return success({
-    command: {public_id: publicId, state: 'PENDING', executor_node_code: values.executor},
+    command: {
+      public_id: publicId, state: 'PENDING', executor_node_code: values.executor,
+      target_node_code: values.targetNode, operation: values.operation, amount: values.amount,
+      created_at: createdAt, updated_at: createdAt
+    },
     duplicate: false
   }, 201, headers);
 }
@@ -192,15 +212,11 @@ async function resolveCommand(env, auth, input, requestType) {
     if (!['DAE', 'DSM'].includes(auth.role)) {
       throw new ApiError('REQUEST_NOT_ALLOWED', 'Seul un DAE ou DSM peut approvisionner un enfant.', 403);
     }
-    const targetNode = nodeCode(input.target_node_code);
-    const child = await env.DB.prepare(
-      'SELECT node_code, phone_number FROM nodes '
-      + 'WHERE node_code = ? AND parent_node_code = ? AND active = 1'
-    ).bind(targetNode, requester).first();
+    const child = await resolveDirectChild(env, requester, input.target_node_code);
     if (!child) throw new ApiError('CHILD_NOT_FOUND', 'Ce compte n’est pas un enfant direct actif.', 422);
     const value = amount(input.amount);
     return {
-      executor: requester, targetNode, targetPhone: child.phone_number, amount: value,
+      executor: requester, targetNode: child.node_code, targetPhone: child.phone_number, amount: value,
       operation: 'DISTRIBUTION_TRANSFER', ussd: `*550*2*${child.phone_number}*${value}#`, requiresPin: 1
     };
   }
@@ -344,6 +360,48 @@ function nodeCode(value) {
   const node = String(value || '').trim().toUpperCase();
   if (!/^[A-Z0-9\/_-]{3,64}$/.test(node)) throw new ApiError('INVALID_NODE', 'Code nœud invalide.', 422);
   return node;
+}
+
+function canonicalChildCode(localCode, parentCode) {
+  const suffix = `_${parentCode}`;
+  return nodeCode(localCode.endsWith(suffix) ? localCode : `${localCode}${suffix}`);
+}
+
+async function resolveParentNode(env, reference, expectedRole) {
+  const value = nodeCode(reference);
+  const exact = await env.DB.prepare(
+    'SELECT node_code, role FROM nodes WHERE node_code = ? AND active = 1'
+  ).bind(value).first();
+  if (exact) {
+    if (exact.role !== expectedRole) {
+      throw new ApiError('INVALID_PARENT_ROLE', `Le supérieur doit être de type ${expectedRole}.`, 422);
+    }
+    return exact;
+  }
+  const candidates = await env.DB.prepare(
+    'SELECT node_code, role FROM nodes WHERE role = ? AND active = 1 '
+    + 'AND node_code LIKE ? ORDER BY node_code LIMIT 2'
+  ).bind(expectedRole, `${value}_%`).all();
+  if (candidates.results.length === 1) return candidates.results[0];
+  if (candidates.results.length > 1) {
+    throw new ApiError('PARENT_AMBIGUOUS',
+      'Ce code supérieur abrégé existe dans plusieurs arborescences; saisissez son nom complet.', 422);
+  }
+  throw new ApiError('PARENT_NOT_FOUND', 'Nœud supérieur introuvable.', 422);
+}
+
+async function resolveDirectChild(env, parentCode, reference) {
+  const value = nodeCode(reference);
+  const exact = await env.DB.prepare(
+    'SELECT node_code, phone_number FROM nodes '
+    + 'WHERE node_code = ? AND parent_node_code = ? AND active = 1'
+  ).bind(value, parentCode).first();
+  if (exact) return exact;
+  const canonical = canonicalChildCode(value, parentCode);
+  return env.DB.prepare(
+    'SELECT node_code, phone_number FROM nodes '
+    + 'WHERE node_code = ? AND parent_node_code = ? AND active = 1'
+  ).bind(canonical, parentCode).first();
 }
 
 function phone(value) {

@@ -7,6 +7,8 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 final class AppConfig {
@@ -80,6 +82,11 @@ final class AppConfig {
                 prefs(context).getString("api_url", DEFAULT_API)));
     }
 
+    static String apiUrl(Context context, String profileId) {
+        JSONObject profile = profile(context, profileId);
+        return profile == null ? apiUrl(context) : profile.optString("api_url", DEFAULT_API);
+    }
+
     static void setPairingApiUrl(Context context, String value) {
         prefs(context).edit().putString("pairing_api_url", normalizeApiUrl(value)).apply();
     }
@@ -101,6 +108,11 @@ final class AppConfig {
         return profile == null ? "" : profile.optString("device_token", "");
     }
 
+    static String token(Context context, String profileId) {
+        JSONObject profile = profile(context, profileId);
+        return profile == null ? "" : profile.optString("device_token", "");
+    }
+
     static String userAgent(Context context) {
         return prefs(context).getString("webview_user_agent", "");
     }
@@ -119,8 +131,18 @@ final class AppConfig {
         return profile == null ? "" : profile.optString("node_code", "");
     }
 
+    static String nodeCode(Context context, String profileId) {
+        JSONObject profile = profile(context, profileId);
+        return profile == null ? "" : profile.optString("node_code", "");
+    }
+
     static String phoneNumber(Context context) {
         JSONObject profile = activeProfile(context);
+        return profile == null ? "" : profile.optString("phone_number", "");
+    }
+
+    static String phoneNumber(Context context, String profileId) {
+        JSONObject profile = profile(context, profileId);
         return profile == null ? "" : profile.optString("phone_number", "");
     }
 
@@ -129,8 +151,18 @@ final class AppConfig {
         return profile == null ? 0 : Math.max(0, profile.optInt("sim_slot", 0));
     }
 
+    static int simSlot(Context context, String profileId) {
+        JSONObject profile = profile(context, profileId);
+        return profile == null ? 0 : Math.max(0, profile.optInt("sim_slot", 0));
+    }
+
     static String mode(Context context) {
         JSONObject profile = activeProfile(context);
+        return profile == null ? "REMOTE" : profile.optString("device_mode", "REMOTE");
+    }
+
+    static String mode(Context context, String profileId) {
+        JSONObject profile = profile(context, profileId);
         return profile == null ? "REMOTE" : profile.optString("device_mode", "REMOTE");
     }
 
@@ -139,8 +171,17 @@ final class AppConfig {
         return profile == null ? "" : profile.optString("role", "");
     }
 
+    static String role(Context context, String profileId) {
+        JSONObject profile = profile(context, profileId);
+        return profile == null ? "" : profile.optString("role", "");
+    }
+
     static boolean isPaired(Context context) {
         return !token(context).isEmpty() && !nodeCode(context).isEmpty();
+    }
+
+    static boolean isPaired(Context context, String profileId) {
+        return !token(context, profileId).isEmpty() && !nodeCode(context, profileId).isEmpty();
     }
 
     static boolean hasProfiles(Context context) {
@@ -172,10 +213,14 @@ final class AppConfig {
                 continue;
             }
             String marker = active.equals(profile.optString("id", "")) ? "✓ " : "";
+            String id = profile.optString("id", "");
+            String robotState = isRobotMode(context, id)
+                    ? (robotEnabled(context, id) ? " • ACTIF" : " • ARRÊTÉ") : "";
             result[i] = marker + profile.optString("node_code", "—")
                     + " • " + profile.optString("role", "—")
                     + " • " + displayMode(profile.optString("device_mode", "REMOTE"))
-                    + " • SIM " + (profile.optInt("sim_slot", 0) + 1);
+                    + " • SIM " + (profile.optInt("sim_slot", 0) + 1)
+                    + robotState;
         }
         return result;
     }
@@ -259,32 +304,81 @@ final class AppConfig {
         return "ROBOT".equals(value) || "HYBRID".equals(value);
     }
 
+    static boolean isRobotMode(Context context, String profileId) {
+        String value = mode(context, profileId);
+        return "ROBOT".equals(value) || "HYBRID".equals(value);
+    }
+
     static String displayMode(String mode) {
         return "HYBRID".equals(mode) ? "ROBOT" : mode;
     }
 
     static boolean robotEnabled(Context context) {
-        return prefs(context).getBoolean(robotEnabledKey(profileId(context)), false);
+        return robotEnabled(context, profileId(context));
+    }
+
+    static boolean robotEnabled(Context context, String profileId) {
+        return prefs(context).getBoolean(robotEnabledKey(profileId), false);
     }
 
     static void setRobotEnabled(Context context, boolean enabled) {
-        prefs(context).edit().putBoolean(robotEnabledKey(profileId(context)), enabled).apply();
+        setRobotEnabled(context, profileId(context), enabled);
+    }
+
+    static void setRobotEnabled(Context context, String profileId, boolean enabled) {
+        prefs(context).edit().putBoolean(robotEnabledKey(profileId), enabled).apply();
     }
 
     static boolean pinBlocked(Context context) {
-        return prefs(context).getBoolean(pinBlockedKey(profileId(context)), false);
+        return pinBlocked(context, profileId(context));
+    }
+
+    static boolean pinBlocked(Context context, String profileId) {
+        return prefs(context).getBoolean(pinBlockedKey(profileId), false);
     }
 
     static void setPinBlocked(Context context, boolean blocked) {
-        prefs(context).edit().putBoolean(pinBlockedKey(profileId(context)), blocked).apply();
+        setPinBlocked(context, profileId(context), blocked);
+    }
+
+    static void setPinBlocked(Context context, String profileId, boolean blocked) {
+        prefs(context).edit().putBoolean(pinBlockedKey(profileId), blocked).apply();
     }
 
     static String pinCipherKey(Context context) {
         return pinCipherKey(profileId(context));
     }
 
+    static String pinCipherKey(Context context, String profileId) {
+        return pinCipherKey(profileId);
+    }
+
     static String pendingCommandKey(Context context) {
         return pendingCommandKey(profileId(context));
+    }
+
+    static String pendingCommandKey(Context context, String profileId) {
+        return pendingCommandKey(profileId);
+    }
+
+    static List<String> enabledRobotProfileIds(Context context) {
+        JSONArray profiles = profiles(context);
+        List<String> ids = new ArrayList<>();
+        for (int i = 0; i < profiles.length(); i++) {
+            JSONObject profile = profiles.optJSONObject(i);
+            if (profile == null) continue;
+            String id = profile.optString("id", "");
+            if (!id.isEmpty() && isRobotMode(context, id) && robotEnabled(context, id)) ids.add(id);
+        }
+        return ids;
+    }
+
+    static boolean anyRobotEnabled(Context context) {
+        return !enabledRobotProfileIds(context).isEmpty();
+    }
+
+    static int enabledRobotCount(Context context) {
+        return enabledRobotProfileIds(context).size();
     }
 
     private static String pinCipherKey(String id) {
@@ -314,6 +408,16 @@ final class AppConfig {
         } catch (Exception ignored) {
             return new JSONArray();
         }
+    }
+
+    private static JSONObject profile(Context context, String profileId) {
+        if (profileId == null || profileId.isEmpty()) return null;
+        JSONArray profiles = profiles(context);
+        for (int i = 0; i < profiles.length(); i++) {
+            JSONObject profile = profiles.optJSONObject(i);
+            if (profile != null && profileId.equals(profile.optString("id", ""))) return profile;
+        }
+        return null;
     }
 
     private static JSONObject activeProfile(Context context) {

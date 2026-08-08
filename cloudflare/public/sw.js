@@ -1,21 +1,25 @@
-const CACHE = 'blue-magic-v2-1-field-fix';
-const SHELL = ['./index.html', './style.css', './app.js', './manifest.json'];
+var CACHE = 'blue-magic-v2-2-multi-robot-pin';
+var SHELL = ['./index.html', './style.css', './app.js', './manifest.json'];
 
-self.addEventListener('install', event => {
-    event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
+self.addEventListener('install', function (event) {
+    event.waitUntil(caches.open(CACHE).then(function (cache) {
+        return cache.addAll(SHELL);
+    }).then(function () { return self.skipWaiting(); }));
 });
 
-self.addEventListener('activate', event => {
-    event.waitUntil(caches.keys().then(keys => Promise.all(
-        keys.filter(key => key !== CACHE).map(key => caches.delete(key))
-    )).then(() => self.clients.claim()));
+self.addEventListener('activate', function (event) {
+    event.waitUntil(caches.keys().then(function (keys) {
+        return Promise.all(keys.filter(function (key) {
+            return key !== CACHE;
+        }).map(function (key) { return caches.delete(key); }));
+    }).then(function () { return self.clients.claim(); }));
 });
 
-self.addEventListener('fetch', event => {
+self.addEventListener('fetch', function (event) {
     if (event.request.method !== 'GET' || !event.request.url.startsWith(self.location.origin)) return;
-    event.respondWith(fetch(event.request).then(response => {
-        const copy = response.clone();
-        caches.open(CACHE).then(cache => cache.put(event.request, copy));
+    event.respondWith(fetch(event.request).then(function (response) {
+        var copy = response.clone();
+        caches.open(CACHE).then(function (cache) { return cache.put(event.request, copy); });
         return response;
-    }).catch(() => caches.match(event.request)));
+    }).catch(function () { return caches.match(event.request); }));
 });

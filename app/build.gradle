@@ -2,6 +2,8 @@ plugins {
     id 'com.android.application'
 }
 
+def pilotKeystorePassword = System.getenv('BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD') ?: ''
+
 android {
     namespace 'com.profitloop.blueauto'
     compileSdk 34
@@ -10,16 +12,16 @@ android {
         applicationId "com.profitloop.blueauto"
         minSdk 23
         targetSdk 34
-        versionCode 21
-        versionName "2.1.0-field-fix"
+        versionCode 22
+        versionName "2.2.0-multi-robot-pin"
     }
 
     signingConfigs {
         pilotDebug {
             storeFile rootProject.file('.pilot-signing/debug.keystore')
-            storePassword 'android'
+            storePassword pilotKeystorePassword
             keyAlias 'androiddebugkey'
-            keyPassword 'android'
+            keyPassword pilotKeystorePassword
         }
     }
 

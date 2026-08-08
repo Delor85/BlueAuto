@@ -15,34 +15,76 @@ final class PendingCommandStore {
     private PendingCommandStore() {}
 
     static synchronized JSONObject get(Context context) {
-        String raw = AppConfig.prefs(context).getString(AppConfig.pendingCommandKey(context), "");
+        return get(context, AppConfig.profileId(context));
+    }
+
+    static synchronized JSONObject get(Context context, String profileId) {
+        if (profileId == null) profileId = "";
+        String raw = AppConfig.prefs(context).getString(AppConfig.pendingCommandKey(context, profileId), "");
         if (raw.isEmpty()) return null;
         try {
-            return new JSONObject(raw);
+            JSONObject command = new JSONObject(raw);
+            if (!profileId.isEmpty()) command.put("local_profile_id", profileId);
+            return command;
         } catch (Exception ignored) {
-            clear(context);
+            clear(context, profileId);
             return null;
         }
     }
 
+    static synchronized JSONObject getActiveUssd(Context context) {
+        for (String profileId : AppConfig.profileIds(context)) {
+            JSONObject command = get(context, profileId);
+            if (command == null) continue;
+            String state = command.optString("local_state", LEASED);
+            if (DIALING.equals(state) || AWAITING_PIN.equals(state)
+                    || PIN_SUBMITTED.equals(state) || AWAITING_RESULT.equals(state)) return command;
+        }
+        return null;
+    }
+
+    static synchronized boolean hasAnyPending(Context context) {
+        for (String profileId : AppConfig.profileIds(context)) {
+            if (get(context, profileId) != null) return true;
+        }
+        return false;
+    }
+
     static synchronized void save(Context context, JSONObject command) {
+        String profileId = command.optString("local_profile_id", AppConfig.profileId(context));
+        save(context, profileId, command);
+    }
+
+    static synchronized void save(Context context, String profileId, JSONObject command) {
+        try {
+            command.put("local_profile_id", profileId);
+        } catch (Exception ignored) {
+        }
         AppConfig.prefs(context).edit()
-                .putString(AppConfig.pendingCommandKey(context), command.toString()).commit();
+                .putString(AppConfig.pendingCommandKey(context, profileId), command.toString()).commit();
     }
 
     static synchronized void updateState(Context context, String state) {
-        JSONObject command = get(context);
+        updateState(context, AppConfig.profileId(context), state);
+    }
+
+    static synchronized void updateState(Context context, String profileId, String state) {
+        JSONObject command = get(context, profileId);
         if (command == null) return;
         try {
             command.put("local_state", state);
             command.put("state_changed_at", System.currentTimeMillis());
-            save(context, command);
+            save(context, profileId, command);
         } catch (Exception ignored) {
         }
     }
 
     static synchronized void clear(Context context) {
-        AppConfig.prefs(context).edit().remove(AppConfig.pendingCommandKey(context)).commit();
+        clear(context, AppConfig.profileId(context));
+    }
+
+    static synchronized void clear(Context context, String profileId) {
+        AppConfig.prefs(context).edit().remove(AppConfig.pendingCommandKey(context, profileId)).commit();
     }
 
     static boolean isExpired(JSONObject command) {

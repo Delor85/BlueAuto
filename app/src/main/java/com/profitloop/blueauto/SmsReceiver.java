@@ -18,7 +18,7 @@ public class SmsReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         if (!"android.provider.Telephony.SMS_RECEIVED".equals(intent.getAction())) return;
-        JSONObject command = PendingCommandStore.get(context);
+        JSONObject command = PendingCommandStore.getActiveUssd(context);
         if (command == null) return;
 
         Bundle extras = intent.getExtras();
@@ -36,10 +36,12 @@ public class SmsReceiver extends BroadcastReceiver {
     }
 
     private void evaluate(Context context, JSONObject command, String message) {
+        String profileId = command.optString("local_profile_id", "");
         String lower = message.toLowerCase(Locale.ROOT);
         if (containsAny(lower, "wrong pin code", "pin incorrect", "code pin incorrect", "code erroné")) {
-            AppConfig.setPinBlocked(context, true);
-            RobotService.operatorResult(context, false, "WRONG_PIN", redact(context, message), transactionId(message));
+            AppConfig.setPinBlocked(context, profileId, true);
+            RobotService.operatorResult(context, profileId, false, "WRONG_PIN",
+                    redact(context, profileId, message), transactionId(message));
             return;
         }
 
@@ -52,15 +54,17 @@ public class SmsReceiver extends BroadcastReceiver {
         if (!expectedAmount.isEmpty() && !containsAmount(lower, expectedAmount)) return;
 
         if (containsAny(lower, "successfully", "processed successfully", "received", "you transfer")) {
-            RobotService.operatorResult(context, true, "", redact(context, message), transactionId(message));
+            RobotService.operatorResult(context, profileId, true, "",
+                    redact(context, profileId, message), transactionId(message));
         } else if (containsAny(lower, "failed", "insufficient", "not enough", "frozen", "suspended", "invalid")) {
-            RobotService.operatorResult(context, false, "OPERATOR_REJECTED", redact(context, message), transactionId(message));
+            RobotService.operatorResult(context, profileId, false, "OPERATOR_REJECTED",
+                    redact(context, profileId, message), transactionId(message));
         }
     }
 
-    private static String redact(Context context, String value) {
+    private static String redact(Context context, String profileId, String value) {
         try {
-            String pin = SecurePinStore.read(context);
+            String pin = SecurePinStore.read(context, profileId);
             if (!pin.isEmpty()) value = value.replace(pin, "****");
         } catch (Exception ignored) {
         }

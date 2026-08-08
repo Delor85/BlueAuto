@@ -19,16 +19,28 @@ final class ApiClient {
     private final Context context;
     private final String endpointOverride;
     private final String tokenOverride;
+    private final String profileIdOverride;
 
     ApiClient(Context context) {
-        this(context, "", "");
+        this(context, "", "", "");
     }
 
     ApiClient(Context context, String endpointOverride, String tokenOverride) {
+        this(context, endpointOverride, tokenOverride, "");
+    }
+
+    private ApiClient(Context context, String endpointOverride, String tokenOverride,
+                      String profileIdOverride) {
         this.context = context.getApplicationContext();
         this.endpointOverride = endpointOverride == null || endpointOverride.trim().isEmpty()
                 ? "" : AppConfig.normalizeApiUrl(endpointOverride);
         this.tokenOverride = tokenOverride == null ? "" : tokenOverride.trim();
+        this.profileIdOverride = profileIdOverride == null ? "" : profileIdOverride;
+    }
+
+    static ApiClient forProfile(Context context, String profileId) {
+        return new ApiClient(context, AppConfig.apiUrl(context, profileId),
+                AppConfig.token(context, profileId), profileId);
     }
 
     JSONObject pair(JSONObject payload) throws Exception {
@@ -37,10 +49,12 @@ final class ApiClient {
 
     JSONObject heartbeat() throws Exception {
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.1.0-field-fix");
+        payload.put("app_version", "2.2.0-multi-robot-pin");
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
-        payload.put("robot_enabled", AppConfig.robotEnabled(context));
+        payload.put("robot_enabled", profileIdOverride.isEmpty()
+                ? AppConfig.robotEnabled(context)
+                : AppConfig.robotEnabled(context, profileIdOverride));
         return post("heartbeat", payload, true);
     }
 

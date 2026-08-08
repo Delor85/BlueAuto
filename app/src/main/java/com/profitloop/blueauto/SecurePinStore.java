@@ -20,6 +20,10 @@ final class SecurePinStore {
     private SecurePinStore() {}
 
     static synchronized void save(Context context, String pin) throws Exception {
+        save(context, AppConfig.profileId(context), pin);
+    }
+
+    static synchronized void save(Context context, String profileId, String pin) throws Exception {
         if (pin == null || !pin.matches("\\d{4}")) {
             throw new IllegalArgumentException("Le PIN opérateur doit contenir exactement 4 chiffres.");
         }
@@ -32,11 +36,15 @@ final class SecurePinStore {
                 + Base64.encodeToString(cipher.getIV(), Base64.NO_WRAP)
                 + ":"
                 + Base64.encodeToString(encrypted, Base64.NO_WRAP);
-        AppConfig.prefs(context).edit().putString(AppConfig.pinCipherKey(context), payload).apply();
+        AppConfig.prefs(context).edit().putString(AppConfig.pinCipherKey(context, profileId), payload).apply();
     }
 
     static synchronized String read(Context context) throws Exception {
-        String payload = AppConfig.prefs(context).getString(AppConfig.pinCipherKey(context), "");
+        return read(context, AppConfig.profileId(context));
+    }
+
+    static synchronized String read(Context context, String profileId) throws Exception {
+        String payload = AppConfig.prefs(context).getString(AppConfig.pinCipherKey(context, profileId), "");
         if (payload.isEmpty()) return "";
 
         String[] parts = payload.split(":", 3);
@@ -55,11 +63,19 @@ final class SecurePinStore {
     }
 
     static boolean hasPin(Context context) {
-        return !AppConfig.prefs(context).getString(AppConfig.pinCipherKey(context), "").isEmpty();
+        return hasPin(context, AppConfig.profileId(context));
+    }
+
+    static boolean hasPin(Context context, String profileId) {
+        return !AppConfig.prefs(context).getString(AppConfig.pinCipherKey(context, profileId), "").isEmpty();
     }
 
     static synchronized void clear(Context context) {
-        AppConfig.prefs(context).edit().remove(AppConfig.pinCipherKey(context)).apply();
+        clear(context, AppConfig.profileId(context));
+    }
+
+    static synchronized void clear(Context context, String profileId) {
+        AppConfig.prefs(context).edit().remove(AppConfig.pinCipherKey(context, profileId)).apply();
     }
 
     private static SecretKey getOrCreateKey() throws Exception {

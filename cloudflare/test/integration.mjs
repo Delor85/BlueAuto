@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
+import {randomBytes} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 import {Miniflare} from 'miniflare';
 
-const PAIRING_SECRET = 'integration-pairing-secret-123456';
+const PAIRING_SECRET = randomBytes(32).toString('hex');
 const mf = new Miniflare({
   modules: true,
   scriptPath: new URL('../src/index.js', import.meta.url).pathname,
@@ -27,9 +28,29 @@ try {
     phone_number: '699000001', device_name: 'Robot test'
   });
   const dsm = await pair({
-    node_code: 'DSM-TEST', parent_node_code: 'DAE-TEST', role: 'DSM', mode: 'REMOTE',
+    node_code: 'DSM-TEST', parent_node_code: 'DAE-TEST', role: 'DSM', mode: 'ROBOT',
     phone_number: '699000002', device_name: 'Télécommande test'
   });
+  assert.equal(dsm.data.node_code, 'DSM-TEST_DAE-TEST');
+
+  const pos = await pair({
+    node_code: 'POS5', parent_node_code: 'DSM-TEST', role: 'POS', mode: 'ROBOT',
+    phone_number: '699000003', device_name: 'Second Robot test'
+  });
+  assert.equal(pos.data.node_code, 'POS5_DSM-TEST_DAE-TEST');
+
+  const supplyDsm = await request('create_command', {
+    request_type: 'SUPPLY_CHILD', target_node_code: 'DSM-TEST', amount: '200',
+    client_request_id: 'integration-alias-dsm-01'
+  }, dae.data.device_token);
+  assert.equal(supplyDsm.data.command.target_node_code, 'DSM-TEST_DAE-TEST');
+
+  const supplyPos = await request('create_command', {
+    request_type: 'SUPPLY_CHILD', target_node_code: 'POS5', amount: '100',
+    client_request_id: 'integration-alias-pos-001'
+  }, dsm.data.device_token);
+  assert.equal(supplyPos.data.command.target_node_code, 'POS5_DSM-TEST_DAE-TEST');
+  assert.match(supplyPos.data.command.created_at, /^\d{4}-\d{2}-\d{2}T/);
 
   const created = await request('create_command', {
     request_type: 'REQUEST_SUPPLY', amount: '500', client_request_id: 'integration-test-0001'
@@ -41,6 +62,11 @@ try {
   }, dsm.data.device_token);
   assert.equal(duplicate.data.duplicate, true);
   assert.equal(duplicate.data.command.public_id, created.data.command.public_id);
+
+  const firstDaeLease = await request('lease_command', {}, dae.data.device_token);
+  assert.equal(firstDaeLease.data.available, true);
+  assert.equal(firstDaeLease.data.command.ussd_code, '*550*2*699000002*200#');
+  await complete(firstDaeLease.data.command, dae.data.device_token);
 
   const leased = await request('lease_command', {}, dae.data.device_token);
   assert.equal(leased.data.available, true);
@@ -62,13 +88,31 @@ try {
   }, dsm.data.device_token);
   assert.equal(status.data.command.state, 'SUCCEEDED');
   assert.equal(status.data.command.amount, 500);
-  console.log('Cloudflare integration: health, pairing, idempotency, lease and full state flow OK');
+
+  const dsmLease = await request('lease_command', {}, dsm.data.device_token);
+  assert.equal(dsmLease.data.available, true);
+  assert.equal(dsmLease.data.command.ussd_code, '*550*2*699000003*100#');
+  await complete(dsmLease.data.command, dsm.data.device_token);
+
+  console.log('Cloudflare integration: hierarchy aliases, timestamps, two Robots, idempotency and full state flow OK');
 } finally {
   await mf.dispose();
 }
 
 async function pair(payload) {
   return request('pair_device', {...payload, pairing_secret: PAIRING_SECRET});
+}
+
+async function complete(command, token) {
+  for (const state of ['DIALING', 'AWAITING_PIN', 'PIN_SUBMITTED', 'AWAITING_RESULT', 'SUCCEEDED']) {
+    const event = await request('command_event', {
+      command_id: command.public_id,
+      lease_token: command.lease_token,
+      state,
+      message: `test ${state}`
+    }, token);
+    assert.equal(event.data.command.state, state);
+  }
 }
 
 async function request(action, payload = {}, token = '') {
