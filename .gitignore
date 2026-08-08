@@ -1,0 +1,14 @@
+/.gradle/
+/.idea/
+/local.properties
+**/build/
+*.iml
+htdocs/config.php
+cloudflare/.dev.vars
+cloudflare/.wrangler/
+cloudflare/node_modules/
+cloudflare/.env*
+!cloudflare/.dev.vars.example
+*.jks
+*.keystore
+.pilot-signing/
