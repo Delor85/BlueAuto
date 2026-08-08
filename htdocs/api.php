@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-const API_VERSION = '2.0.0';
+const API_VERSION = '2.1.0';
 
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
@@ -353,7 +353,7 @@ function commandEvent(PDO $db, array $auth, array $input): never
         $validTransitions = [
             'LEASED' => ['DIALING', 'FAILED'],
             'DIALING' => ['AWAITING_PIN', 'AWAITING_RESULT', 'SUCCEEDED', 'FAILED', 'UNKNOWN', 'BLOCKED'],
-            'AWAITING_PIN' => ['PIN_SUBMITTED', 'FAILED', 'UNKNOWN', 'BLOCKED'],
+            'AWAITING_PIN' => ['PIN_SUBMITTED', 'SUCCEEDED', 'FAILED', 'UNKNOWN', 'BLOCKED'],
             'PIN_SUBMITTED' => ['AWAITING_RESULT', 'SUCCEEDED', 'FAILED', 'UNKNOWN', 'BLOCKED'],
             'AWAITING_RESULT' => ['SUCCEEDED', 'FAILED', 'UNKNOWN', 'BLOCKED'],
         ];

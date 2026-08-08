@@ -17,9 +17,18 @@ import java.nio.charset.StandardCharsets;
 
 final class ApiClient {
     private final Context context;
+    private final String endpointOverride;
+    private final String tokenOverride;
 
     ApiClient(Context context) {
+        this(context, "", "");
+    }
+
+    ApiClient(Context context, String endpointOverride, String tokenOverride) {
         this.context = context.getApplicationContext();
+        this.endpointOverride = endpointOverride == null || endpointOverride.trim().isEmpty()
+                ? "" : AppConfig.normalizeApiUrl(endpointOverride);
+        this.tokenOverride = tokenOverride == null ? "" : tokenOverride.trim();
     }
 
     JSONObject pair(JSONObject payload) throws Exception {
@@ -28,7 +37,7 @@ final class ApiClient {
 
     JSONObject heartbeat() throws Exception {
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.0.0-robot-core");
+        payload.put("app_version", "2.1.0-field-fix");
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
         payload.put("robot_enabled", AppConfig.robotEnabled(context));
@@ -60,7 +69,8 @@ final class ApiClient {
     }
 
     private JSONObject post(String action, JSONObject payload, boolean authenticated) throws Exception {
-        String endpoint = AppConfig.apiUrl(context) + "?action="
+        String baseUrl = endpointOverride.isEmpty() ? AppConfig.apiUrl(context) : endpointOverride;
+        String endpoint = baseUrl + "?action="
                 + URLEncoder.encode(action, "UTF-8");
         HttpURLConnection connection = (HttpURLConnection) new URL(endpoint).openConnection();
         connection.setConnectTimeout(12_000);
@@ -76,13 +86,13 @@ final class ApiClient {
         connection.setRequestProperty("User-Agent", userAgent);
         connection.setRequestProperty("X-BlueMagic-Client", "android-native-v2");
         if (authenticated) {
-            String token = AppConfig.token(context);
+            String token = tokenOverride.isEmpty() ? AppConfig.token(context) : tokenOverride;
             if (token.isEmpty()) throw new ApiException("NOT_PAIRED", "Appareil non appairé.");
             connection.setRequestProperty("X-Device-Token", token);
         }
 
         try {
-            String cookie = CookieManager.getInstance().getCookie(AppConfig.apiUrl(context));
+            String cookie = CookieManager.getInstance().getCookie(baseUrl);
             if (cookie != null && !cookie.trim().isEmpty()) {
                 connection.setRequestProperty("Cookie", cookie);
             }

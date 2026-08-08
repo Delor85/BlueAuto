@@ -9,7 +9,7 @@
         UNKNOWN: 'À vérifier', BLOCKED: 'Robot bloqué — PIN'
     };
     let configuration = {};
-    let commands = loadCommands();
+    let commands = [];
 
     const $ = id => document.getElementById(id);
     const bridgeAvailable = () => typeof window.AndroidBridge !== 'undefined';
@@ -46,11 +46,13 @@
         } catch (_) {
             configuration = {};
         }
+        commands = loadCommands();
         $('nativeBadge').textContent = 'PONT NATIF ACTIF';
         $('nativeBadge').className = 'badge badge-ok';
         $('browserNotice').classList.add('hidden');
         $('nodeCode').textContent = configuration.node_code || 'Nœud non configuré';
-        $('nodeMeta').textContent = `${configuration.role || '—'} • ${configuration.mode || '—'}`;
+        const simSlot = configuration.sim_slot == null ? 0 : configuration.sim_slot;
+        $('nodeMeta').textContent = `${configuration.role || '—'} • ${configuration.mode || '—'} • SIM ${simSlot + 1}`;
         $('robotState').textContent = configuration.robot_enabled ? 'ROBOT ACTIF' : 'ROBOT ARRÊTÉ';
         if (configuration.pin_blocked) {
             $('fatalNotice').textContent = 'ARRÊT D’URGENCE : le réseau a signalé un PIN incorrect. Corrigez le PIN dans la zone native avant toute reprise.';
@@ -113,16 +115,20 @@
         if (index >= 0) commands[index] = {...commands[index], ...command};
         else commands.unshift(command);
         commands = commands.slice(0, 20);
-        localStorage.setItem('blue_magic_recent_commands_v2', JSON.stringify(commands));
+        localStorage.setItem(commandStorageKey(), JSON.stringify(commands));
     }
 
     function loadCommands() {
         try {
-            const value = JSON.parse(localStorage.getItem('blue_magic_recent_commands_v2') || '[]');
+            const value = JSON.parse(localStorage.getItem(commandStorageKey()) || '[]');
             return Array.isArray(value) ? value : [];
         } catch (_) {
             return [];
         }
+    }
+
+    function commandStorageKey() {
+        return `blue_magic_recent_commands_v3_${configuration.profile_id || configuration.node_code || 'default'}`;
     }
 
     function renderCommands() {

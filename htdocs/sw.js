@@ -1,4 +1,4 @@
-const CACHE = 'blue-magic-v2-robot-core';
+const CACHE = 'blue-magic-v2-1-field-fix';
 const SHELL = ['./index.html', './style.css', './app.js', './manifest.json'];
 
 self.addEventListener('install', event => {

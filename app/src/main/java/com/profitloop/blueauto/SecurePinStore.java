@@ -17,8 +17,6 @@ import javax.crypto.spec.GCMParameterSpec;
 final class SecurePinStore {
     private static final String KEYSTORE = "AndroidKeyStore";
     private static final String KEY_ALIAS = "blue_magic_operator_pin_v2";
-    private static final String PREF_CIPHER = "operator_pin_cipher";
-
     private SecurePinStore() {}
 
     static synchronized void save(Context context, String pin) throws Exception {
@@ -34,11 +32,11 @@ final class SecurePinStore {
                 + Base64.encodeToString(cipher.getIV(), Base64.NO_WRAP)
                 + ":"
                 + Base64.encodeToString(encrypted, Base64.NO_WRAP);
-        AppConfig.prefs(context).edit().putString(PREF_CIPHER, payload).apply();
+        AppConfig.prefs(context).edit().putString(AppConfig.pinCipherKey(context), payload).apply();
     }
 
     static synchronized String read(Context context) throws Exception {
-        String payload = AppConfig.prefs(context).getString(PREF_CIPHER, "");
+        String payload = AppConfig.prefs(context).getString(AppConfig.pinCipherKey(context), "");
         if (payload.isEmpty()) return "";
 
         String[] parts = payload.split(":", 3);
@@ -57,11 +55,11 @@ final class SecurePinStore {
     }
 
     static boolean hasPin(Context context) {
-        return !AppConfig.prefs(context).getString(PREF_CIPHER, "").isEmpty();
+        return !AppConfig.prefs(context).getString(AppConfig.pinCipherKey(context), "").isEmpty();
     }
 
     static synchronized void clear(Context context) {
-        AppConfig.prefs(context).edit().remove(PREF_CIPHER).apply();
+        AppConfig.prefs(context).edit().remove(AppConfig.pinCipherKey(context)).apply();
     }
 
     private static SecretKey getOrCreateKey() throws Exception {

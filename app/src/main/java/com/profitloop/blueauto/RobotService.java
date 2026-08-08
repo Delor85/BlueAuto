@@ -9,7 +9,6 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.net.Uri;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.PowerManager;
@@ -61,7 +60,6 @@ public class RobotService extends Service {
         }
 
         if (ACTION_PIN_SUBMITTED.equals(action)) {
-            PendingCommandStore.updateState(this, PendingCommandStore.PIN_SUBMITTED);
             executor.execute(() -> reportProgress("PIN_SUBMITTED", "PIN local injecté et validation envoyée."));
             return START_STICKY;
         }
@@ -172,6 +170,12 @@ public class RobotService extends Service {
                 finishCommand(false, "CALL_PERMISSION_MISSING", "Autorisation Téléphone non accordée.", "");
                 return;
             }
+            if (SimCallManager.slotCount(this) > 1
+                    && checkSelfPermission(Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+                finishCommand(false, "SIM_PERMISSION_MISSING",
+                        "Autorisation État du téléphone requise pour sélectionner la SIM.", "");
+                return;
+            }
 
             acquireCommandWakeLock();
             PendingCommandStore.updateState(this, PendingCommandStore.DIALING);
@@ -184,14 +188,13 @@ public class RobotService extends Service {
                     ? "En attente de la fenêtre de confirmation PIN."
                     : "En attente du résultat opérateur.", "");
 
-            String encoded = ussd.replace("#", Uri.encode("#"));
-            Intent call = new Intent(Intent.ACTION_CALL, Uri.parse("tel:" + encoded));
-            call.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-            if (call.resolveActivity(getPackageManager()) == null) {
-                finishCommand(false, "NO_DIALER", "Aucune application Téléphone compatible.", "");
-                return;
+            try {
+                SimCallManager.placeUssdCall(this, ussd, AppConfig.simSlot(this));
+            } catch (SecurityException permissionError) {
+                finishCommand(false, "SIM_PERMISSION_MISSING", safeMessage(permissionError), "");
+            } catch (IllegalStateException slotError) {
+                finishCommand(false, "SIM_SELECTION_FAILED", safeMessage(slotError), "");
             }
-            startActivity(call);
         } catch (SecurityException securityError) {
             finishCommand(false, "COMMAND_INTEGRITY_FAILURE", securityError.getMessage(), "");
         } catch (Exception error) {

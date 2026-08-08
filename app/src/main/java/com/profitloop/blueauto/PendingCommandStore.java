@@ -12,12 +12,10 @@ final class PendingCommandStore {
     static final String AWAITING_RESULT = "AWAITING_RESULT";
     static final String REPORT_PENDING = "REPORT_PENDING";
 
-    private static final String KEY = "pending_command_json";
-
     private PendingCommandStore() {}
 
     static synchronized JSONObject get(Context context) {
-        String raw = AppConfig.prefs(context).getString(KEY, "");
+        String raw = AppConfig.prefs(context).getString(AppConfig.pendingCommandKey(context), "");
         if (raw.isEmpty()) return null;
         try {
             return new JSONObject(raw);
@@ -28,7 +26,8 @@ final class PendingCommandStore {
     }
 
     static synchronized void save(Context context, JSONObject command) {
-        AppConfig.prefs(context).edit().putString(KEY, command.toString()).commit();
+        AppConfig.prefs(context).edit()
+                .putString(AppConfig.pendingCommandKey(context), command.toString()).commit();
     }
 
     static synchronized void updateState(Context context, String state) {
@@ -43,7 +42,7 @@ final class PendingCommandStore {
     }
 
     static synchronized void clear(Context context) {
-        AppConfig.prefs(context).edit().remove(KEY).commit();
+        AppConfig.prefs(context).edit().remove(AppConfig.pendingCommandKey(context)).commit();
     }
 
     static boolean isExpired(JSONObject command) {
