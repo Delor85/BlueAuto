@@ -189,6 +189,11 @@ final class AppConfig {
         return profile == null ? "" : profile.optString("parent_node_code", "");
     }
 
+    static String parentNode(Context context, String profileId) {
+        JSONObject profile = profile(context, profileId);
+        return profile == null ? "" : profile.optString("parent_node_code", "");
+    }
+
     static boolean isPaired(Context context) {
         return !token(context).isEmpty() && !nodeCode(context).isEmpty();
     }
@@ -313,12 +318,18 @@ final class AppConfig {
     static synchronized boolean repairActivePairing(Context context, String serverDeviceId,
                                                      String token, String canonicalNode,
                                                      String apiUrl) {
+        return repairPairing(context, profileId(context), serverDeviceId, token, canonicalNode,
+                apiUrl);
+    }
+
+    static synchronized boolean repairPairing(Context context, String profileId,
+                                               String serverDeviceId, String token,
+                                               String canonicalNode, String apiUrl) {
         if (token == null || token.trim().isEmpty()) return false;
         JSONArray profiles = profiles(context);
-        String active = profileId(context);
         for (int i = 0; i < profiles.length(); i++) {
             JSONObject profile = profiles.optJSONObject(i);
-            if (profile != null && active.equals(profile.optString("id", ""))) {
+            if (profile != null && profileId.equals(profile.optString("id", ""))) {
                 try {
                     profile.put("server_device_id", serverDeviceId == null ? "" : serverDeviceId);
                     profile.put("device_token", token.trim());

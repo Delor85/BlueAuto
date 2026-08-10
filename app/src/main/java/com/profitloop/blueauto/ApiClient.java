@@ -17,7 +17,7 @@ import java.nio.charset.StandardCharsets;
 final class ApiClient {
     private final Context context;
     private final String endpointOverride;
-    private final String tokenOverride;
+    private String tokenOverride;
     private final String profileIdOverride;
 
     ApiClient(Context context) {
@@ -48,7 +48,7 @@ final class ApiClient {
 
     JSONObject heartbeat() throws Exception {
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.4.3-sleep-watchdog");
+        payload.put("app_version", "2.4.4-auto-repair");
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
         payload.put("robot_enabled", profileIdOverride.isEmpty()
@@ -102,6 +102,11 @@ final class ApiClient {
     }
 
     private JSONObject post(String action, JSONObject payload, boolean authenticated) throws Exception {
+        return post(action, payload, authenticated, true);
+    }
+
+    private JSONObject post(String action, JSONObject payload, boolean authenticated,
+                            boolean allowAuthenticationRepair) throws Exception {
         String baseUrl = endpointOverride.isEmpty() ? AppConfig.apiUrl(context) : endpointOverride;
         String endpoint = baseUrl + "?action="
                 + URLEncoder.encode(action, "UTF-8");
@@ -118,10 +123,14 @@ final class ApiClient {
         }
         connection.setRequestProperty("User-Agent", userAgent);
         connection.setRequestProperty("X-BlueMagic-Client", "android-native-v2");
+        String requestToken = "";
         if (authenticated) {
-            String token = tokenOverride.isEmpty() ? AppConfig.token(context) : tokenOverride;
-            if (token.isEmpty()) throw new ApiException("NOT_PAIRED", "Appareil non appairé.");
-            connection.setRequestProperty("X-Device-Token", token);
+            requestToken = tokenOverride.isEmpty()
+                    ? (profileIdOverride.isEmpty() ? AppConfig.token(context)
+                    : AppConfig.token(context, profileIdOverride))
+                    : tokenOverride;
+            if (requestToken.isEmpty()) throw new ApiException("NOT_PAIRED", "Appareil non appairé.");
+            connection.setRequestProperty("X-Device-Token", requestToken);
         }
 
         connection.setDoOutput(true);
@@ -153,10 +162,62 @@ final class ApiClient {
             JSONObject error = root.optJSONObject("error");
             String code = error == null ? "API_ERROR" : error.optString("code", "API_ERROR");
             String message = error == null ? "Erreur API." : error.optString("message", "Erreur API.");
+            if (authenticated && allowAuthenticationRepair && "AUTH_INVALID".equals(code)) {
+                repairAuthentication(baseUrl, requestToken);
+                return post(action, payload, true, false);
+            }
             throw new ApiException(code, message);
         }
         JSONObject data = root.optJSONObject("data");
         return data == null ? new JSONObject() : data;
+    }
+
+    private void repairAuthentication(String baseUrl, String rejectedToken) throws Exception {
+        synchronized (ApiClient.class) {
+            repairAuthenticationLocked(baseUrl, rejectedToken);
+        }
+    }
+
+    private void repairAuthenticationLocked(String baseUrl, String rejectedToken) throws Exception {
+        String targetProfile = profileIdOverride.isEmpty()
+                ? AppConfig.profileId(context) : profileIdOverride;
+        String latestToken = AppConfig.token(context, targetProfile);
+        if (!latestToken.isEmpty() && !latestToken.equals(rejectedToken)) {
+            tokenOverride = latestToken;
+            return;
+        }
+
+        String secret;
+        try {
+            secret = SecurePairingStore.read(context);
+        } catch (Exception error) {
+            throw new ApiException("PAIRING_REPAIR_REQUIRED",
+                    "Jeton expiré. Ouvrez « Vérifier / réparer l’appairage » et confirmez le secret.");
+        }
+        if (secret.length() < 24) {
+            throw new ApiException("PAIRING_REPAIR_REQUIRED",
+                    "Jeton expiré. Ouvrez « Vérifier / réparer l’appairage » et confirmez le secret.");
+        }
+
+        JSONObject pairing = new JSONObject();
+        pairing.put("node_code", AppConfig.nodeCode(context, targetProfile));
+        pairing.put("phone_number", AppConfig.phoneNumber(context, targetProfile));
+        pairing.put("parent_node_code", AppConfig.parentNode(context, targetProfile));
+        pairing.put("role", AppConfig.role(context, targetProfile));
+        pairing.put("mode", AppConfig.mode(context, targetProfile));
+        pairing.put("pairing_secret", secret);
+        pairing.put("device_name", Build.MANUFACTURER + " " + Build.MODEL);
+
+        JSONObject data = new ApiClient(context, baseUrl, "")
+                .post("pair_device", pairing, false, false);
+        String renewedToken = data.optString("device_token", "");
+        if (!AppConfig.repairPairing(context, targetProfile,
+                data.optString("device_id", ""), renewedToken,
+                data.optString("node_code", AppConfig.nodeCode(context, targetProfile)), baseUrl)) {
+            throw new ApiException("PAIRING_REPAIR_FAILED",
+                    "Le nouveau jeton n’a pas pu être enregistré sur ce compte.");
+        }
+        tokenOverride = renewedToken;
     }
 
     private static String read(InputStream stream) throws Exception {
