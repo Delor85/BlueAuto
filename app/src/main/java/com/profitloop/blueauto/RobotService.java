@@ -419,9 +419,11 @@ public class RobotService extends Service {
         }
         String localState = command.optString("local_state", PendingCommandStore.LEASED);
         if (PendingCommandStore.REPORT_PENDING.equals(localState)) {
-            PendingCommandStore.clear(this, profileId);
+            retryFinalReport(profileId, command);
             scheduleCycle(0L);
-            updateNotification(robotSummary("Synchronisation locale abandonnée; autres files libérées"));
+            if (PendingCommandStore.get(this, profileId) != null) {
+                updateNotification(robotSummary("Preuve conservée; autres files toujours libérées"));
+            }
             return;
         }
         BlueAccessibilityService.cancelVisiblePrompt(this, profileId);

@@ -598,7 +598,7 @@ public class MainActivity extends Activity {
                     new AlertDialog.Builder(this)
                             .setTitle("Libérer cette file ?")
                             .setMessage(PendingCommandStore.REPORT_PENDING.equals(state)
-                                    ? "Le résultat local en attente de synchronisation sera abandonné sur ce téléphone. Les autres SIM continueront immédiatement."
+                                    ? "Une synchronisation immédiate sera tentée, mais la preuve locale sera conservée si le serveur ne répond pas. Cet état ne bloque plus les autres SIM."
                                     : "La fenêtre USSD sera fermée si possible. Si la composition a déjà commencé, l’opération sera classée À VÉRIFIER pour éviter toute répétition.")
                             .setPositiveButton("LIBÉRER", (confirm, button) -> {
                                 RobotService.cancelPending(this, profileId);

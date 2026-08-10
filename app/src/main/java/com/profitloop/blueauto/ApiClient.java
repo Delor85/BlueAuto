@@ -2,7 +2,6 @@ package com.profitloop.blueauto;
 
 import android.content.Context;
 import android.os.Build;
-import android.webkit.CookieManager;
 
 import org.json.JSONObject;
 
@@ -49,7 +48,7 @@ final class ApiClient {
 
     JSONObject heartbeat() throws Exception {
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.4.1-regression-guard");
+        payload.put("app_version", "2.4.2-sync-safe");
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
         payload.put("robot_enabled", profileIdOverride.isEmpty()
@@ -123,14 +122,6 @@ final class ApiClient {
             String token = tokenOverride.isEmpty() ? AppConfig.token(context) : tokenOverride;
             if (token.isEmpty()) throw new ApiException("NOT_PAIRED", "Appareil non appairé.");
             connection.setRequestProperty("X-Device-Token", token);
-        }
-
-        try {
-            String cookie = CookieManager.getInstance().getCookie(baseUrl);
-            if (cookie != null && !cookie.trim().isEmpty()) {
-                connection.setRequestProperty("Cookie", cookie);
-            }
-        } catch (Throwable ignored) {
         }
 
         connection.setDoOutput(true);
