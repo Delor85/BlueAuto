@@ -43,6 +43,7 @@ public class RobotService extends Service {
     private static final int WATCHDOG_REQUEST_CODE = 5503;
     private static final long STANDBY_WAKE_MS = 30 * 60_000L;
     private static final long WATCHDOG_INTERVAL_MS = 15 * 60_000L;
+    private static final long SYSTEM_USSD_SCREEN_WAKE_MS = 20_000L;
 
     private ScheduledExecutorService executor;
     private final AtomicBoolean cycleRunning = new AtomicBoolean(false);
@@ -293,7 +294,8 @@ public class RobotService extends Service {
                     : "En attente du résultat opérateur.", "");
 
             try {
-                prepareRobotScreenForLockedCall();
+                acquireCommandScreenWakeLock();
+                waitForSystemUssdWindow();
                 SimCallManager.placeUssdCall(this, ussd, AppConfig.simSlot(this, profileId));
                 if (requiresPin) BlueAccessibilityService.kick(this);
             } catch (SecurityException permissionError) {
@@ -308,14 +310,9 @@ public class RobotService extends Service {
         }
     }
 
-    private void prepareRobotScreenForLockedCall() {
-        if (!DeviceLockState.isSecurelyLocked(this)) return;
+    private void waitForSystemUssdWindow() {
+        if (DeviceLockState.isScreenInteractive(this)) return;
         try {
-            Intent foreground = new Intent(this, MainActivity.class)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                            | Intent.FLAG_ACTIVITY_CLEAR_TOP
-                            | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            startActivity(foreground);
             Thread.sleep(650L);
         } catch (Exception ignored) {
         }
@@ -325,6 +322,7 @@ public class RobotService extends Service {
         if (profileId == null || profileId.isEmpty()) return;
         JSONObject command = PendingCommandStore.get(this, profileId);
         if (command == null) return;
+        if ("PIN_SUBMITTED".equals(state)) releaseCommandScreenWakeLock();
         try {
             ApiClient api = ApiClient.forProfile(this, profileId);
             api.sendEvent(command, state, message, "");
@@ -466,18 +464,27 @@ public class RobotService extends Service {
             commandWakeLock = manager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
                     "BlueMagic:ActiveUssdCommand");
             commandWakeLock.acquire(AppConfig.COMMAND_TIMEOUT_MS + 15_000L);
-            commandScreenWakeLock = manager.newWakeLock(
-                    PowerManager.SCREEN_BRIGHT_WAKE_LOCK
-                            | PowerManager.ACQUIRE_CAUSES_WAKEUP
-                            | PowerManager.ON_AFTER_RELEASE,
-                    "BlueMagic:VisibleUssdPrompt");
-            commandScreenWakeLock.acquire(AppConfig.COMMAND_TIMEOUT_MS + 15_000L);
         }
+    }
+
+    @SuppressWarnings("deprecation")
+    private void acquireCommandScreenWakeLock() {
+        releaseCommandScreenWakeLock();
+        PowerManager manager = (PowerManager) getSystemService(POWER_SERVICE);
+        if (manager == null) return;
+        commandScreenWakeLock = manager.newWakeLock(
+                PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP,
+                "BlueMagic:SystemUssdPrompt");
+        commandScreenWakeLock.acquire(SYSTEM_USSD_SCREEN_WAKE_MS);
     }
 
     private void releaseCommandWakeLock() {
         if (commandWakeLock != null && commandWakeLock.isHeld()) commandWakeLock.release();
         commandWakeLock = null;
+        releaseCommandScreenWakeLock();
+    }
+
+    private void releaseCommandScreenWakeLock() {
         if (commandScreenWakeLock != null && commandScreenWakeLock.isHeld()) {
             commandScreenWakeLock.release();
         }

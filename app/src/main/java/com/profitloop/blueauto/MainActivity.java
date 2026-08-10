@@ -7,7 +7,6 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
@@ -262,11 +261,6 @@ public class MainActivity extends Activity {
                 if (!BlueAccessibilityService.isEnabled(this)) {
                     toast("Activez le service d’accessibilité Blue Magic.");
                     openAccessibilitySettings();
-                    return;
-                }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
-                    toast("Autorisez Blue Magic à s’afficher au-dessus des autres applications.");
-                    openOverlaySettings();
                     return;
                 }
                 RobotService.start(this);
@@ -618,11 +612,6 @@ public class MainActivity extends Activity {
             openAccessibilitySettings();
             return;
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
-            toast("Activez le bouton « Autoriser l’affichage par-dessus les autres applications ».");
-            openOverlaySettings();
-            return;
-        }
         try {
             toast("Dans Batterie : ouvrez Blue Magic et choisissez « Sans restriction » si ce choix existe.");
             startActivity(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
@@ -648,25 +637,16 @@ public class MainActivity extends Activity {
         startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
     }
 
-    private void openOverlaySettings() {
-        toast("Activez le bouton d’autorisation affiché pour Blue Magic.");
-        Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                Uri.parse("package:" + getPackageName()));
-        startActivity(intent);
-    }
-
     private void refreshNativeStatus() {
         if (nativeStatus == null) return;
-        boolean overlay = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this);
         nativeStatus.setText("Nœud " + AppConfig.nodeCode(this)
                 + " • " + AppConfig.displayMode(AppConfig.mode(this))
                 + " • SIM " + (AppConfig.simSlot(this) + 1)
                 + " • Robot " + (AppConfig.robotEnabled(this) ? "ACTIF" : "ARRÊTÉ")
                 + " • Accessibilité " + (BlueAccessibilityService.isEnabled(this) ? "OK" : "À ACTIVER")
-                + " • Superposition " + (overlay ? "OK" : "À ACTIVER")
                 + "\nRobots actifs sur ce téléphone : " + AppConfig.enabledRobotCount(this)
                 + (DeviceLockState.isSecurelyLocked(this)
-                ? "\n⚡ ÉCRAN VERROUILLÉ : réveil automatique et tentative USSD activés" : "")
+                ? "\n⚡ ÉCRAN VERROUILLÉ : seul le service Téléphone sera réveillé brièvement" : "")
                 + (AppConfig.pinBlocked(this) ? "\n⛔ PIN BLOQUÉ : corriger avant toute nouvelle transaction" : ""));
     }
 
@@ -678,15 +658,12 @@ public class MainActivity extends Activity {
     }
 
     private void applyRobotWindowPolicy() {
-        int lockScreenFlags = WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
-                | WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD;
-        boolean active = AppConfig.anyRobotEnabled(this);
-        if (active) getWindow().addFlags(lockScreenFlags);
-        else getWindow().clearFlags(lockScreenFlags);
-        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+                | WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
+                | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
                 | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
         if (Build.VERSION.SDK_INT >= 27) {
-            setShowWhenLocked(active);
+            setShowWhenLocked(false);
             setTurnScreenOn(false);
         }
     }
