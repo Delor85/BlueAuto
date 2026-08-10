@@ -562,6 +562,20 @@ public class BlueAccessibilityService extends AccessibilityService {
         service.handler.postDelayed(service.inspectAgain, 350L);
     }
 
+    static void cancelVisiblePrompt(Context context, String profileId) {
+        BlueAccessibilityService service = liveInstance;
+        if (service == null) return;
+        service.handler.post(() -> {
+            JSONObject current = PendingCommandStore.get(service, profileId);
+            if (current == null) return;
+            List<AccessibilityNodeInfo> roots = service.externalRoots();
+            if (!clickFirst(roots, "annuler", "cancel", "fermer", "close")) {
+                service.performGlobalAction(GLOBAL_ACTION_BACK);
+            }
+            service.resetAutomation();
+        });
+    }
+
     @Override
     public void onInterrupt() {
         resetAutomation();

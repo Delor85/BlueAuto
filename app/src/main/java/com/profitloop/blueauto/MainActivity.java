@@ -13,6 +13,7 @@ import android.os.Bundle;
 import android.provider.Settings;
 import android.text.InputType;
 import android.view.View;
+import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
@@ -31,6 +32,8 @@ import android.widget.Toast;
 
 import org.json.JSONObject;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 public class MainActivity extends Activity {
@@ -47,6 +50,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         AppConfig.migrateLegacyProfile(this);
+        applyRobotWindowPolicy();
         if (AppConfig.isPaired(this)) showControlScreen();
         else showPairingScreen(false);
     }
@@ -210,6 +214,9 @@ public class MainActivity extends Activity {
         Button repairPairing = actionButton("VÉRIFIER / RÉPARER L’APPAIRAGE", CYAN);
         page.addView(repairPairing);
 
+        Button pendingOperations = actionButton("FILES / ANNULER UNE OPÉRATION BLOQUÉE", GOLD);
+        page.addView(pendingOperations);
+
         LinearLayout pinRow = new LinearLayout(this);
         pinRow.setOrientation(LinearLayout.HORIZONTAL);
         EditText newPin = field("Nouveau PIN (4 chiffres)", "", true);
@@ -233,6 +240,7 @@ public class MainActivity extends Activity {
         prepare.setOnClickListener(v -> prepareRobotPermissions());
         switchMode.setOnClickListener(v -> showModeSwitcher());
         repairPairing.setOnClickListener(v -> showPairingRepairDialog());
+        pendingOperations.setOnClickListener(v -> showPendingOperations());
         toggle.setOnClickListener(v -> {
             if (AppConfig.robotEnabled(this)) {
                 if (isActiveUssdForCurrentProfile()) {
@@ -264,6 +272,7 @@ public class MainActivity extends Activity {
                 RobotService.start(this);
                 toggle.setText("ARRÊTER ROBOT");
             }
+            applyRobotWindowPolicy();
             refreshNativeStatus();
         });
 
@@ -517,7 +526,7 @@ public class MainActivity extends Activity {
         toast("Changement de mode en cours…");
         new Thread(() -> {
             try {
-                new ApiClient(this).updateDeviceMode(mode);
+                updateDeviceModeCompat(mode);
                 if (!newPin.isEmpty()) SecurePinStore.save(this, newPin);
                 AppConfig.updateActiveSimSlot(this, simSlot);
                 AppConfig.updateActiveMode(this, mode);
@@ -533,6 +542,73 @@ public class MainActivity extends Activity {
                 runOnUiThread(() -> toast("Changement impossible : " + readable(error)));
             }
         }).start();
+    }
+
+    private void updateDeviceModeCompat(String mode) throws Exception {
+        try {
+            new ApiClient(this).updateDeviceMode(mode);
+            return;
+        } catch (ApiClient.ApiException error) {
+            if (!"UNKNOWN_ACTION".equals(error.code) && !"AUTH_INVALID".equals(error.code)) throw error;
+        }
+
+        String secret = SecurePairingStore.read(this);
+        if (secret.length() < 24) {
+            throw new IllegalStateException("Le Worker est ancien. Ouvrez « Vérifier / réparer l’appairage » et saisissez le secret.");
+        }
+        JSONObject payload = new JSONObject();
+        payload.put("node_code", AppConfig.nodeCode(this));
+        payload.put("phone_number", AppConfig.phoneNumber(this));
+        payload.put("parent_node_code", AppConfig.parentNode(this));
+        payload.put("role", AppConfig.role(this));
+        payload.put("mode", mode);
+        payload.put("pairing_secret", secret);
+        payload.put("device_name", Build.MANUFACTURER + " " + Build.MODEL);
+        JSONObject data = new ApiClient(this, AppConfig.apiUrl(this), "").pair(payload);
+        if (!AppConfig.repairActivePairing(this, data.optString("device_id", ""),
+                data.optString("device_token", ""),
+                data.optString("node_code", AppConfig.nodeCode(this)), AppConfig.apiUrl(this))) {
+            throw new IllegalStateException("Le nouveau mode n’a pas pu être enregistré localement.");
+        }
+    }
+
+    private void showPendingOperations() {
+        String[] allIds = AppConfig.profileIds(this);
+        String[] allLabels = AppConfig.profileLabels(this);
+        List<String> ids = new ArrayList<>();
+        List<String> labels = new ArrayList<>();
+        for (int i = 0; i < allIds.length; i++) {
+            JSONObject pending = PendingCommandStore.get(this, allIds[i]);
+            if (pending == null) continue;
+            ids.add(allIds[i]);
+            String state = pending.optString("local_state", PendingCommandStore.LEASED);
+            String publicId = pending.optString("public_id", "");
+            labels.add(allLabels[i] + "\n" + state + (publicId.isEmpty() ? "" : " • " + publicId));
+        }
+        if (ids.isEmpty()) {
+            toast("Aucune opération locale ne bloque ce téléphone.");
+            return;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle("Opérations locales à libérer")
+                .setItems(labels.toArray(new String[0]), (dialog, which) -> {
+                    String profileId = ids.get(which);
+                    JSONObject pending = PendingCommandStore.get(this, profileId);
+                    String state = pending == null ? "" : pending.optString("local_state", "");
+                    new AlertDialog.Builder(this)
+                            .setTitle("Libérer cette file ?")
+                            .setMessage(PendingCommandStore.REPORT_PENDING.equals(state)
+                                    ? "Le résultat local en attente de synchronisation sera abandonné sur ce téléphone. Les autres SIM continueront immédiatement."
+                                    : "La fenêtre USSD sera fermée si possible. Si la composition a déjà commencé, l’opération sera classée À VÉRIFIER pour éviter toute répétition.")
+                            .setPositiveButton("LIBÉRER", (confirm, button) -> {
+                                RobotService.cancelPending(this, profileId);
+                                toast("Annulation demandée pour cette SIM. Les autres files restent actives.");
+                            })
+                            .setNegativeButton("Garder", null)
+                            .show();
+                })
+                .setNegativeButton("Fermer", null)
+                .show();
     }
 
     private void prepareRobotPermissions() {
@@ -597,7 +673,22 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        applyRobotWindowPolicy();
         refreshNativeStatus();
+    }
+
+    private void applyRobotWindowPolicy() {
+        int flags = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                | WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+                | WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD;
+        boolean active = AppConfig.anyRobotEnabled(this);
+        if (active) getWindow().addFlags(flags);
+        else getWindow().clearFlags(flags);
+        if (Build.VERSION.SDK_INT >= 27) {
+            setShowWhenLocked(active);
+            setTurnScreenOn(active);
+        }
     }
 
     @Override
@@ -659,6 +750,17 @@ public class MainActivity extends Activity {
                     callback("onCommandStatus", new ApiClient(MainActivity.this).commandStatus(commandId));
                 } catch (Exception error) {
                     callbackError("onCommandStatus", error);
+                }
+            }).start();
+        }
+
+        @JavascriptInterface
+        public void cancelCommand(String commandId) {
+            new Thread(() -> {
+                try {
+                    callback("onCommandCancelled", new ApiClient(MainActivity.this).cancelCommand(commandId));
+                } catch (Exception error) {
+                    callbackError("onCommandCancelled", error);
                 }
             }).start();
         }

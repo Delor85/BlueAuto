@@ -1,5 +1,5 @@
-const API_VERSION = '2.3.0-cloudflare';
-const TERMINAL_STATES = new Set(['SUCCEEDED', 'FAILED', 'UNKNOWN', 'BLOCKED']);
+const API_VERSION = '2.3.1-cloudflare';
+const TERMINAL_STATES = new Set(['SUCCEEDED', 'FAILED', 'UNKNOWN', 'BLOCKED', 'CANCELLED']);
 const EVENT_STATES = new Set([
   'DIALING', 'AWAITING_PIN', 'PIN_SUBMITTED', 'AWAITING_RESULT',
   'SUCCEEDED', 'FAILED', 'UNKNOWN', 'BLOCKED'
@@ -41,6 +41,7 @@ export default {
         case 'create_command': return await createCommand(env, auth, input, headers);
         case 'lease_command': return await leaseCommand(env, auth, headers);
         case 'release_command': return await releaseCommand(env, auth, input, headers);
+        case 'cancel_command': return await cancelCommand(env, auth, input, headers);
         case 'command_event': return await commandEvent(env, auth, input, headers);
         case 'command_status': return await commandStatus(env, auth, input, headers);
         default: throw new ApiError('UNKNOWN_ACTION', 'Action API inconnue.', 404);
@@ -258,12 +259,20 @@ async function leaseCommand(env, auth, headers) {
   }
 
   await env.DB.prepare(
-    "UPDATE commands SET state = CASE WHEN attempt < max_attempts THEN 'PENDING' ELSE 'FAILED' END, "
-    + "result_message = CASE WHEN attempt < max_attempts THEN 'Lease expiré avant composition.' "
-    + "ELSE 'Robot indisponible après plusieurs leases.' END, lease_token_hash = NULL, leased_until = NULL, "
-    + "completed_at = CASE WHEN attempt >= max_attempts THEN strftime('%Y-%m-%dT%H:%M:%fZ', 'now') ELSE completed_at END, "
+    "UPDATE commands SET state = CASE "
+    + "WHEN state = 'LEASED' AND attempt < max_attempts THEN 'PENDING' "
+    + "WHEN state = 'LEASED' THEN 'FAILED' ELSE 'UNKNOWN' END, "
+    + "result_message = CASE "
+    + "WHEN state = 'LEASED' AND attempt < max_attempts THEN 'Lease expiré avant composition.' "
+    + "WHEN state = 'LEASED' THEN 'Robot indisponible après plusieurs leases.' "
+    + "ELSE 'Session USSD expirée après composition; vérification manuelle requise.' END, "
+    + 'lease_token_hash = NULL, leased_until = NULL, '
+    + "completed_at = CASE WHEN state <> 'LEASED' OR attempt >= max_attempts "
+    + "THEN strftime('%Y-%m-%dT%H:%M:%fZ', 'now') ELSE completed_at END, "
     + "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') "
-    + "WHERE executor_node_code = ? AND state = 'LEASED' AND leased_until < strftime('%Y-%m-%dT%H:%M:%fZ', 'now')"
+    + "WHERE executor_node_code = ? "
+    + "AND state IN ('LEASED', 'DIALING', 'AWAITING_PIN', 'PIN_SUBMITTED', 'AWAITING_RESULT') "
+    + "AND leased_until < strftime('%Y-%m-%dT%H:%M:%fZ', 'now')"
   ).bind(auth.node_code).run();
 
   const active = await env.DB.prepare(
@@ -330,6 +339,39 @@ async function releaseCommand(env, auth, input, headers) {
   ]);
   if (!results[0].meta?.changes) throw new ApiError('COMMAND_RACE', 'La commande a changé.', 409);
   return success({command: {public_id: publicId, state: 'PENDING'}, released: true}, 200, headers);
+}
+
+async function cancelCommand(env, auth, input, headers) {
+  const publicId = String(input.command_id || '').trim();
+  const command = await env.DB.prepare(
+    'SELECT id, public_id, state, requester_node_code, executor_node_code FROM commands WHERE public_id = ?'
+  ).bind(publicId).first();
+  if (!command || (command.requester_node_code !== auth.node_code
+      && command.executor_node_code !== auth.node_code)) {
+    throw new ApiError('COMMAND_NOT_FOUND', 'Commande introuvable pour ce compte.', 404);
+  }
+  if (TERMINAL_STATES.has(command.state)) {
+    return success({command: {public_id: publicId, state: command.state}, cancelled: false}, 200, headers);
+  }
+  if (command.state !== 'PENDING') {
+    throw new ApiError('CANCEL_TOO_LATE',
+      'La composition a peut-être commencé. Utilisez la libération locale et vérifiez la transaction.', 409);
+  }
+  const message = 'Commande annulée volontairement avant sa réservation par un Robot.';
+  const results = await env.DB.batch([
+    env.DB.prepare(
+      "UPDATE commands SET state = 'CANCELLED', result_message = ?, "
+      + "completed_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), "
+      + "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ? AND state = 'PENDING'"
+    ).bind(message, command.id),
+    env.DB.prepare(
+      "INSERT INTO command_events(command_id, device_id, state, message) VALUES(?, ?, 'CANCELLED', ?)"
+    ).bind(command.id, auth.device_id, message)
+  ]);
+  if (!results[0].meta?.changes) throw new ApiError('COMMAND_RACE', 'La commande a changé.', 409);
+  return success({
+    command: {public_id: publicId, state: 'CANCELLED', result_message: message}, cancelled: true
+  }, 200, headers);
 }
 
 async function commandEvent(env, auth, input, headers) {

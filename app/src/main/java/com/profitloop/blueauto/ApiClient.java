@@ -49,7 +49,7 @@ final class ApiClient {
 
     JSONObject heartbeat() throws Exception {
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.4.0-pairing-android6-standby");
+        payload.put("app_version", "2.4.1-regression-guard");
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
         payload.put("robot_enabled", profileIdOverride.isEmpty()
@@ -84,6 +84,12 @@ final class ApiClient {
         JSONObject payload = new JSONObject();
         payload.put("command_id", publicId);
         return post("command_status", payload, true);
+    }
+
+    JSONObject cancelCommand(String publicId) throws Exception {
+        JSONObject payload = new JSONObject();
+        payload.put("command_id", publicId);
+        return post("cancel_command", payload, true);
     }
 
     JSONObject sendEvent(JSONObject command, String state, String message, String transactionId) throws Exception {

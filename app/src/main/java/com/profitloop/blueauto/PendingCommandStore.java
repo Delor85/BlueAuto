@@ -47,7 +47,7 @@ final class PendingCommandStore {
             JSONObject command = get(context, profileId);
             if (command == null) continue;
             String state = command.optString("local_state", LEASED);
-            if (DIALING.equals(state) || AWAITING_PIN.equals(state)
+            if (LEASED.equals(state) || DIALING.equals(state) || AWAITING_PIN.equals(state)
                     || PIN_SUBMITTED.equals(state) || AWAITING_RESULT.equals(state)) active.add(command);
         }
         Collections.sort(active, (left, right) -> Long.compare(
@@ -105,6 +105,15 @@ final class PendingCommandStore {
         return retries;
     }
 
+    static boolean isFinalReportRetryDue(JSONObject command) {
+        if (command == null || !REPORT_PENDING.equals(command.optString("local_state", ""))) return false;
+        int retries = Math.max(0, command.optInt("report_retry_count", 0));
+        long lastAttempt = command.optLong("last_report_attempt_at", 0L);
+        long multiplier = 1L << Math.min(4, retries);
+        long delay = Math.min(300_000L, 15_000L * multiplier);
+        return lastAttempt == 0L || System.currentTimeMillis() - lastAttempt >= delay;
+    }
+
     static synchronized void clear(Context context) {
         clear(context, AppConfig.profileId(context));
     }
@@ -117,7 +126,8 @@ final class PendingCommandStore {
         if (command == null) return false;
         long changedAt = command.optLong("state_changed_at", command.optLong("leased_at", 0L));
         String state = command.optString("local_state", LEASED);
-        return (AWAITING_PIN.equals(state) || PIN_SUBMITTED.equals(state) || AWAITING_RESULT.equals(state))
+        return (LEASED.equals(state) || DIALING.equals(state) || AWAITING_PIN.equals(state)
+                || PIN_SUBMITTED.equals(state) || AWAITING_RESULT.equals(state))
                 && changedAt > 0L
                 && System.currentTimeMillis() - changedAt > AppConfig.COMMAND_TIMEOUT_MS;
     }

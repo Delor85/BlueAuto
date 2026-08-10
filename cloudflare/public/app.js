@@ -1,12 +1,12 @@
 (function () {
     'use strict';
 
-    var TERMINAL = {SUCCEEDED: true, FAILED: true, UNKNOWN: true, BLOCKED: true};
+    var TERMINAL = {SUCCEEDED: true, FAILED: true, UNKNOWN: true, BLOCKED: true, CANCELLED: true};
     var stateLabels = {
         PENDING: 'En attente', LEASED: 'Réservée au Robot', DIALING: 'Composition USSD',
         AWAITING_PIN: 'Vérification du pop-up', PIN_SUBMITTED: 'PIN validé',
         AWAITING_RESULT: 'Confirmation Camtel', SUCCEEDED: 'Réussie', FAILED: 'Échec',
-        UNKNOWN: 'À vérifier', BLOCKED: 'Robot bloqué — PIN'
+        UNKNOWN: 'À vérifier', BLOCKED: 'Robot bloqué — PIN', CANCELLED: 'Annulée'
     };
     var configuration = {};
     var commands = [];
@@ -40,6 +40,14 @@
                 upsertCommand(data.command);
                 renderCommands();
             }
+        },
+        onCommandCancelled: function (data) {
+            if (data.error) return showToast(data.message || 'Annulation impossible.');
+            if (data.command) {
+                upsertCommand(data.command);
+                renderCommands();
+                showToast('Commande annulée.');
+            }
         }
     };
 
@@ -66,7 +74,7 @@
             + (configuration.mode || '—') + ' • SIM ' + (simSlot + 1);
         byId('robotState').textContent = configuration.robot_enabled ? 'ROBOT ACTIF' : 'ROBOT ARRÊTÉ';
         if (configuration.pin_blocked) {
-            byId('fatalNotice').textContent = 'ARRÊT D’URGENCE : le réseau a signalé un PIN incorrect. Corrigez le PIN dans la zone native avant toute reprise.';
+            byId('fatalNotice').textContent = 'PIN BLOQUÉ pour l’exécution Robot. Les fonctions Remote restent disponibles.';
             byId('fatalNotice').classList.remove('hidden');
         }
         if (configuration.role === 'DSM' || configuration.role === 'POS') {
@@ -94,7 +102,7 @@
     }
 
     function execute(action) {
-        if (!bridgeAvailable() || configuration.pin_blocked) return;
+        if (!bridgeAvailable()) return;
         var requestType = '';
         var targetNode = '';
         var targetPhone = '';
@@ -186,9 +194,22 @@
                 + '</div><div class="command-detail">' + detail + '</div>'
                 + (timestamp ? '<div class="command-time">Horodatage : '
                     + escapeHtml(formatTimestamp(timestamp)) + '</div>' : '')
+                + (command.state === 'PENDING' ? '<button type="button" class="button-small secondary" '
+                    + 'data-cancel-command="' + escapeHtml(command.public_id || '')
+                    + '">Annuler cette commande</button>' : '')
                 + '</article>';
         }
         byId('commandList').innerHTML = html;
+        each('button[data-cancel-command]', function (button) {
+            button.addEventListener('click', function () {
+                cancelRemoteCommand(button.getAttribute('data-cancel-command'));
+            });
+        });
+    }
+
+    function cancelRemoteCommand(commandId) {
+        if (!bridgeAvailable() || !window.confirm('Annuler cette commande encore en attente ?')) return;
+        window.AndroidBridge.cancelCommand(commandId);
     }
 
     function formatTimestamp(value) {

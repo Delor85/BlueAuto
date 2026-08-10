@@ -43,6 +43,19 @@ try {
   });
   assert.equal(pos.data.node_code, 'POS5_DSM-TEST_DAE-TEST');
 
+  const cancellable = await request('create_command', {
+    request_type: 'TEST_NUMBER', client_request_id: 'integration-cancel-pos-01'
+  }, pos.data.device_token);
+  const cancelled = await request('cancel_command', {
+    command_id: cancellable.data.command.public_id
+  }, pos.data.device_token);
+  assert.equal(cancelled.data.cancelled, true);
+  assert.equal(cancelled.data.command.state, 'CANCELLED');
+  const cancelledStatus = await request('command_status', {
+    command_id: cancellable.data.command.public_id
+  }, pos.data.device_token);
+  assert.equal(cancelledStatus.data.command.state, 'CANCELLED');
+
   const supplyDsm = await request('create_command', {
     request_type: 'SUPPLY_CHILD', target_node_code: 'DSM-TEST', amount: '200',
     client_request_id: 'integration-alias-dsm-01'
@@ -87,7 +100,25 @@ try {
   assert.equal(leased.data.command.ussd_code, '*550*2*699000002*500#');
   assert.equal(leased.data.command.requires_pin, true);
 
-  for (const state of ['DIALING', 'AWAITING_PIN', 'PIN_SUBMITTED', 'AWAITING_RESULT', 'SUCCEEDED']) {
+  for (const state of ['DIALING', 'AWAITING_PIN']) {
+    const event = await request('command_event', {
+      command_id: created.data.command.public_id,
+      lease_token: leased.data.command.lease_token,
+      state,
+      message: `test ${state}`
+    }, dae.data.device_token);
+    assert.equal(event.data.command.state, state);
+  }
+
+  const parallelPos = await request('create_command', {
+    request_type: 'TEST_NUMBER', client_request_id: 'integration-parallel-pos-01'
+  }, pos.data.device_token);
+  const parallelPosLease = await request('lease_command', {}, pos.data.device_token);
+  assert.equal(parallelPosLease.data.available, true);
+  assert.equal(parallelPosLease.data.command.public_id, parallelPos.data.command.public_id);
+  await complete(parallelPosLease.data.command, pos.data.device_token);
+
+  for (const state of ['PIN_SUBMITTED', 'AWAITING_RESULT', 'SUCCEEDED']) {
     const event = await request('command_event', {
       command_id: created.data.command.public_id,
       lease_token: leased.data.command.lease_token,
@@ -124,7 +155,32 @@ try {
   assert.equal(secondPosLease.data.command.public_id, queuedTwo.data.command.public_id);
   await complete(secondPosLease.data.command, pos.data.device_token);
 
-  console.log('Cloudflare integration: aliases, mode switch, locked release, serialized queue and full state flow OK');
+  const staleOne = await request('create_command', {
+    request_type: 'TEST_NUMBER', client_request_id: 'integration-stale-pos-01'
+  }, pos.data.device_token);
+  const staleTwo = await request('create_command', {
+    request_type: 'TEST_NUMBER', client_request_id: 'integration-stale-pos-02'
+  }, pos.data.device_token);
+  const staleLease = await request('lease_command', {}, pos.data.device_token);
+  assert.equal(staleLease.data.command.public_id, staleOne.data.command.public_id);
+  await request('command_event', {
+    command_id: staleOne.data.command.public_id,
+    lease_token: staleLease.data.command.lease_token,
+    state: 'DIALING', message: 'simulation session interrompue'
+  }, pos.data.device_token);
+  await db.prepare(
+    "UPDATE commands SET leased_until = strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-1 second') WHERE public_id = ?"
+  ).bind(staleOne.data.command.public_id).run();
+  const afterStale = await request('lease_command', {}, pos.data.device_token);
+  assert.equal(afterStale.data.available, true);
+  assert.equal(afterStale.data.command.public_id, staleTwo.data.command.public_id);
+  const staleStatus = await request('command_status', {
+    command_id: staleOne.data.command.public_id
+  }, pos.data.device_token);
+  assert.equal(staleStatus.data.command.state, 'UNKNOWN');
+  await complete(afterStale.data.command, pos.data.device_token);
+
+  console.log('Cloudflare integration: Remote/mode, cancellation, per-SIM isolation, aliases and full state flow OK');
 } finally {
   await mf.dispose();
 }

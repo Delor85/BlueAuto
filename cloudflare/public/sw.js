@@ -1,4 +1,4 @@
-var CACHE = 'blue-magic-v2-3-lock-queue-ux';
+var CACHE = 'blue-magic-v2-3-1-regression-guard';
 var SHELL = ['./index.html', './style.css', './app.js', './manifest.json'];
 
 self.addEventListener('install', function (event) {
