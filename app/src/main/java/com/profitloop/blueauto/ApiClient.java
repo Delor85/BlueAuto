@@ -49,7 +49,7 @@ final class ApiClient {
 
     JSONObject heartbeat() throws Exception {
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.3.0-lock-queue-ux");
+        payload.put("app_version", "2.4.0-pairing-android6-standby");
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
         payload.put("robot_enabled", profileIdOverride.isEmpty()

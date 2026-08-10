@@ -37,6 +37,7 @@ public class RobotService extends Service {
 
     private static final String CHANNEL_ID = "blue_magic_robot";
     private static final int NOTIFICATION_ID = 5502;
+    private static final long STANDBY_WAKE_MS = 10 * 60_000L;
 
     private ScheduledExecutorService executor;
     private final AtomicBoolean cycleRunning = new AtomicBoolean(false);
@@ -45,6 +46,8 @@ public class RobotService extends Service {
     private int roundRobinIndex = 0;
     private PowerManager.WakeLock commandWakeLock;
     private PowerManager.WakeLock commandScreenWakeLock;
+    private PowerManager.WakeLock standbyWakeLock;
+    private long standbyWakeRenewAt = 0L;
     private long lastCommandFinishedAt = 0L;
 
     @Override
@@ -62,6 +65,7 @@ public class RobotService extends Service {
 
         if (ACTION_STOP.equals(action)) {
             if (!profileId.isEmpty()) AppConfig.setRobotEnabled(this, profileId, false);
+            if (!AppConfig.anyRobotEnabled(this)) releaseStandbyWakeLock();
             if (!hasServiceWork()) {
                 updateNotification("Tous les Robots sont arrêtés");
                 stopSelf();
@@ -96,6 +100,7 @@ public class RobotService extends Service {
             stopSelf();
             return START_NOT_STICKY;
         }
+        acquireStandbyWakeLock();
         updateNotification(robotSummary("Surveillance active"));
         scheduleCycle(0L);
         return START_STICKY;
@@ -116,6 +121,7 @@ public class RobotService extends Service {
         long nextDelay = AppConfig.IDLE_POLL_MS;
         try {
             List<String> profiles = AppConfig.enabledRobotProfileIds(this);
+            if (!profiles.isEmpty()) acquireStandbyWakeLock();
             List<JSONObject> activeCommands = PendingCommandStore.getActiveUssdCommands(this);
             if (activeCommands.size() > 1) {
                 for (int index = 1; index < activeCommands.size(); index++) {
@@ -150,14 +156,9 @@ public class RobotService extends Service {
             }
 
             if (profiles.isEmpty()) {
+                releaseStandbyWakeLock();
                 if (!reportOutstanding) stopSelf();
                 nextDelay = reportOutstanding ? 15_000L : AppConfig.IDLE_POLL_MS;
-                return;
-            }
-
-            if (DeviceLockState.isSecurelyLocked(this)) {
-                updateNotification(robotSummary("En pause — déverrouillez le téléphone"));
-                nextDelay = AppConfig.LOCKED_POLL_MS;
                 return;
             }
 
@@ -195,11 +196,6 @@ public class RobotService extends Service {
                 command.put("state_changed_at", System.currentTimeMillis());
                 PendingCommandStore.save(this, profileId, command);
                 roundRobinIndex = (index + 1) % count;
-                if (DeviceLockState.isSecurelyLocked(this)) {
-                    releaseLockedLease(profileId, command, api);
-                    nextDelay = AppConfig.LOCKED_POLL_MS;
-                    return;
-                }
                 executeCommand(profileId, command, api);
                 nextDelay = 2_000L;
                 backoffMs = AppConfig.IDLE_POLL_MS;
@@ -246,11 +242,6 @@ public class RobotService extends Service {
                         "Autorisation État du téléphone requise pour sélectionner la SIM.", "");
                 return;
             }
-            if (DeviceLockState.isSecurelyLocked(this)) {
-                releaseLockedLease(profileId, command, api);
-                return;
-            }
-
             acquireCommandWakeLock();
             PendingCommandStore.updateState(this, profileId, PendingCommandStore.DIALING);
             api.sendEvent(command, "DIALING", "Composition USSD déclenchée sur le Robot.", "");
@@ -394,14 +385,12 @@ public class RobotService extends Service {
             commandWakeLock = manager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
                     "BlueMagic:ActiveUssdCommand");
             commandWakeLock.acquire(AppConfig.COMMAND_TIMEOUT_MS + 15_000L);
-            if (!DeviceLockState.isSecurelyLocked(this)) {
-                commandScreenWakeLock = manager.newWakeLock(
-                        PowerManager.SCREEN_BRIGHT_WAKE_LOCK
-                                | PowerManager.ACQUIRE_CAUSES_WAKEUP
-                                | PowerManager.ON_AFTER_RELEASE,
-                        "BlueMagic:VisibleUssdPrompt");
-                commandScreenWakeLock.acquire(AppConfig.COMMAND_TIMEOUT_MS + 15_000L);
-            }
+            commandScreenWakeLock = manager.newWakeLock(
+                    PowerManager.SCREEN_BRIGHT_WAKE_LOCK
+                            | PowerManager.ACQUIRE_CAUSES_WAKEUP
+                            | PowerManager.ON_AFTER_RELEASE,
+                    "BlueMagic:VisibleUssdPrompt");
+            commandScreenWakeLock.acquire(AppConfig.COMMAND_TIMEOUT_MS + 15_000L);
         }
     }
 
@@ -412,6 +401,29 @@ public class RobotService extends Service {
             commandScreenWakeLock.release();
         }
         commandScreenWakeLock = null;
+    }
+
+    @SuppressWarnings("deprecation")
+    private void acquireStandbyWakeLock() {
+        if (!AppConfig.anyRobotEnabled(this)) return;
+        long now = System.currentTimeMillis();
+        if (standbyWakeLock != null && standbyWakeLock.isHeld() && now < standbyWakeRenewAt) return;
+        releaseStandbyWakeLock();
+        PowerManager manager = (PowerManager) getSystemService(POWER_SERVICE);
+        if (manager == null) return;
+        standbyWakeLock = manager.newWakeLock(
+                PowerManager.SCREEN_DIM_WAKE_LOCK
+                        | PowerManager.ACQUIRE_CAUSES_WAKEUP
+                        | PowerManager.ON_AFTER_RELEASE,
+                "BlueMagic:RobotStandbyVisible");
+        standbyWakeLock.acquire(STANDBY_WAKE_MS);
+        standbyWakeRenewAt = now + STANDBY_WAKE_MS / 2L;
+    }
+
+    private void releaseStandbyWakeLock() {
+        if (standbyWakeLock != null && standbyWakeLock.isHeld()) standbyWakeLock.release();
+        standbyWakeLock = null;
+        standbyWakeRenewAt = 0L;
     }
 
     private boolean hasServiceWork() {
@@ -504,6 +516,7 @@ public class RobotService extends Service {
     public void onDestroy() {
         if (executor != null) executor.shutdownNow();
         releaseCommandWakeLock();
+        releaseStandbyWakeLock();
         super.onDestroy();
     }
 }

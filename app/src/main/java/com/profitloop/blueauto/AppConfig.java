@@ -13,8 +13,8 @@ import java.util.UUID;
 
 final class AppConfig {
     static final String PREFS = "blue_magic_native_v2";
-    static final String DEFAULT_API = "https://magicservice-blue.gt.tc/api.php";
-    static final String CLOUDFLARE_API = "https://blue-magic-api.mbolodelorpro.workers.dev/api";
+    static final String DEFAULT_API = "https://blue-magic-api.mbolodelorpro.workers.dev/api";
+    static final String CLOUDFLARE_API = DEFAULT_API;
     static final long HEARTBEAT_MS = 300_000L;
     static final long IDLE_POLL_MS = 30_000L;
     static final long COMMAND_TIMEOUT_MS = 120_000L;
@@ -99,11 +99,6 @@ final class AppConfig {
         return normalizeApiUrl(CLOUDFLARE_API);
     }
 
-    static String[] pairingApiCandidates(Context context) {
-        if (hasProfiles(context)) return new String[]{apiUrl(context)};
-        return new String[]{normalizeApiUrl(CLOUDFLARE_API), normalizeApiUrl(DEFAULT_API)};
-    }
-
     static String webUrl(Context context) {
         return apiUrl(context).replaceFirst("/(?:api\\.php|api)(?:\\?.*)?$", "/index.html");
     }
@@ -112,7 +107,7 @@ final class AppConfig {
         try {
             return new URI(webUrl(context)).getHost();
         } catch (Exception ignored) {
-            return "magicservice-blue.gt.tc";
+            return "blue-magic-api.mbolodelorpro.workers.dev";
         }
     }
 
@@ -187,6 +182,11 @@ final class AppConfig {
     static String role(Context context, String profileId) {
         JSONObject profile = profile(context, profileId);
         return profile == null ? "" : profile.optString("role", "");
+    }
+
+    static String parentNode(Context context) {
+        JSONObject profile = activeProfile(context);
+        return profile == null ? "" : profile.optString("parent_node_code", "");
     }
 
     static boolean isPaired(Context context) {
@@ -302,6 +302,32 @@ final class AppConfig {
                     profile.put("device_mode", mode);
                     return prefs(context).edit()
                             .putString(PROFILES_KEY, profiles.toString()).commit();
+                } catch (Exception ignored) {
+                    return false;
+                }
+            }
+        }
+        return false;
+    }
+
+    static synchronized boolean repairActivePairing(Context context, String serverDeviceId,
+                                                     String token, String canonicalNode,
+                                                     String apiUrl) {
+        if (token == null || token.trim().isEmpty()) return false;
+        JSONArray profiles = profiles(context);
+        String active = profileId(context);
+        for (int i = 0; i < profiles.length(); i++) {
+            JSONObject profile = profiles.optJSONObject(i);
+            if (profile != null && active.equals(profile.optString("id", ""))) {
+                try {
+                    profile.put("server_device_id", serverDeviceId == null ? "" : serverDeviceId);
+                    profile.put("device_token", token.trim());
+                    profile.put("node_code", canonicalNode);
+                    profile.put("api_url", normalizeApiUrl(apiUrl));
+                    return prefs(context).edit()
+                            .putString(PROFILES_KEY, profiles.toString())
+                            .putString("pairing_api_url", normalizeApiUrl(apiUrl))
+                            .commit();
                 } catch (Exception ignored) {
                     return false;
                 }

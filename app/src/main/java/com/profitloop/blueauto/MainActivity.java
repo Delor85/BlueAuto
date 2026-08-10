@@ -59,19 +59,25 @@ public class MainActivity extends Activity {
         scroll.addView(form);
 
         form.addView(title("BLUE MAGIC — APPAIRAGE SÉCURISÉ"));
-        form.addView(help("Le serveur est déjà configuré par Blue Magic. Le PIN Camtel reste uniquement dans le Keystore du téléphone."));
+        form.addView(help("Vérifiez l’adresse et le secret avant l’appairage. Le PIN Camtel reste uniquement dans le Keystore du téléphone."));
 
+        EditText apiUrl = field("Adresse du serveur Blue Magic", AppConfig.pairingApiUrl(this), false);
         EditText nodeCode = field("Code local (ex. SU2, DSM7 ou POS5)", "", false);
         EditText phone = field("Numéro SIM du compte (9 chiffres)", "", false);
         EditText parent = field("Code nœud supérieur (vide pour un DAE)", "", false);
         Spinner role = spinner(new String[]{"DAE", "DSM", "POS"});
         Spinner mode = spinner(new String[]{"REMOTE", "ROBOT"});
         Spinner simSlot = spinner(SimCallManager.slotLabels(this));
-        boolean hasSavedActivation = SecurePairingStore.hasSecret(this);
-        EditText pairingSecret = field("Code d’activation initiale", "", true);
+        String savedActivation = "";
+        try {
+            savedActivation = SecurePairingStore.read(this);
+        } catch (Exception ignored) {
+        }
+        EditText pairingSecret = field("Secret d’appairage", savedActivation, true);
         EditText operatorPin = field("PIN Camtel 4 chiffres (Robot/Hybride)", "", true);
         operatorPin.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
 
+        form.addView(apiUrl);
         form.addView(nodeCode);
         form.addView(phone);
         form.addView(parent);
@@ -81,19 +87,21 @@ public class MainActivity extends Activity {
         form.addView(mode);
         form.addView(label("Slot contenant la SIM de ce compte"));
         form.addView(simSlot);
-        if (!hasSavedActivation) {
-            form.addView(help("Activation initiale unique : après le premier appairage réussi, Blue Magic la mémorise chiffrée et ne la redemande plus."));
-            form.addView(pairingSecret);
-        }
+        form.addView(help("Le secret est conservé chiffré après un appairage réussi. Il reste vérifiable et modifiable ici."));
+        form.addView(pairingSecret);
         form.addView(operatorPin);
 
         CheckBox revealSecrets = new CheckBox(this);
-        revealSecrets.setText("Afficher le PIN pour le vérifier");
+        revealSecrets.setText("Afficher le secret d’appairage et le PIN");
         revealSecrets.setTextColor(Color.WHITE);
         revealSecrets.setOnCheckedChangeListener((button, checked) -> {
+            pairingSecret.setInputType(InputType.TYPE_CLASS_TEXT | (checked
+                    ? InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+                    : InputType.TYPE_TEXT_VARIATION_PASSWORD));
             operatorPin.setInputType(InputType.TYPE_CLASS_NUMBER | (checked
                     ? InputType.TYPE_NUMBER_VARIATION_NORMAL
                     : InputType.TYPE_NUMBER_VARIATION_PASSWORD));
+            pairingSecret.setSelection(pairingSecret.length());
             operatorPin.setSelection(operatorPin.length());
         });
         form.addView(revealSecrets);
@@ -109,19 +117,17 @@ public class MainActivity extends Activity {
             String parentNode = parent.getText().toString().trim().toUpperCase();
             String selectedRole = role.getSelectedItem().toString();
             String selectedMode = mode.getSelectedItem().toString();
-            String secret;
-            try {
-                secret = hasSavedActivation
-                        ? SecurePairingStore.read(this) : pairingSecret.getText().toString();
-            } catch (Exception error) {
-                feedback.setText("Activation locale illisible : " + readable(error));
-                return;
-            }
+            String secret = pairingSecret.getText().toString();
             String pin = operatorPin.getText().toString().trim();
             int selectedSlot = simSlot.getSelectedItemPosition();
 
             if (!node.matches("[A-Z0-9/_-]{3,64}") || !sim.matches("\\d{9}") || secret.length() < 24) {
-                feedback.setText("Vérifiez le code nœud, le numéro à 9 chiffres et l’activation initiale.");
+                feedback.setText("Vérifiez le code nœud, le numéro à 9 chiffres et le secret d’appairage.");
+                return;
+            }
+            String selectedApiUrl = AppConfig.normalizeApiUrl(apiUrl.getText().toString());
+            if (!selectedApiUrl.toLowerCase().startsWith("https://")) {
+                feedback.setText("L’adresse du serveur doit commencer par https://");
                 return;
             }
             if (("ROBOT".equals(selectedMode) || "HYBRID".equals(selectedMode)) && !pin.matches("\\d{4}")) {
@@ -130,8 +136,7 @@ public class MainActivity extends Activity {
             }
 
             pair.setEnabled(false);
-            feedback.setText("Appairage avec le serveur…");
-            String[] apiCandidates = AppConfig.pairingApiCandidates(this);
+            feedback.setText("Appairage avec " + selectedApiUrl + "…");
             new Thread(() -> {
                 try {
                     JSONObject payload = new JSONObject();
@@ -142,29 +147,14 @@ public class MainActivity extends Activity {
                     payload.put("mode", selectedMode);
                     payload.put("pairing_secret", secret);
                     payload.put("device_name", Build.MANUFACTURER + " " + Build.MODEL);
-                    JSONObject data = null;
-                    String selectedApiUrl = "";
-                    Exception lastError = null;
-                    for (String candidate : apiCandidates) {
-                        try {
-                            data = new ApiClient(this, candidate, "").pair(payload);
-                            selectedApiUrl = candidate;
-                            break;
-                        } catch (Exception error) {
-                            lastError = error;
-                        }
-                    }
-                    if (data == null) {
-                        throw lastError == null
-                                ? new IllegalStateException("Aucun serveur Blue Magic disponible.") : lastError;
-                    }
+                    JSONObject data = new ApiClient(this, selectedApiUrl, "").pair(payload);
                     String token = data.optString("device_token", "");
                     String deviceId = data.optString("device_id", "");
                     String canonicalNode = data.optString("node_code", node);
                     if (token.isEmpty()) throw new IllegalStateException("Jeton appareil absent.");
                     AppConfig.savePairing(this, deviceId, token, canonicalNode, sim, parentNode,
                             selectedRole, selectedMode, selectedApiUrl, selectedSlot);
-                    if (!hasSavedActivation) SecurePairingStore.save(this, secret);
+                    SecurePairingStore.save(this, secret);
                     if (!pin.isEmpty()) SecurePinStore.save(this, pin);
                     runOnUiThread(() -> {
                         Toast.makeText(this, "Téléphone appairé.", Toast.LENGTH_LONG).show();
@@ -217,6 +207,9 @@ public class MainActivity extends Activity {
                 ? "PASSER CE COMPTE EN REMOTE" : "PASSER CE COMPTE EN ROBOT", GOLD);
         page.addView(switchMode);
 
+        Button repairPairing = actionButton("VÉRIFIER / RÉPARER L’APPAIRAGE", CYAN);
+        page.addView(repairPairing);
+
         LinearLayout pinRow = new LinearLayout(this);
         pinRow.setOrientation(LinearLayout.HORIZONTAL);
         EditText newPin = field("Nouveau PIN (4 chiffres)", "", true);
@@ -239,6 +232,7 @@ public class MainActivity extends Activity {
 
         prepare.setOnClickListener(v -> prepareRobotPermissions());
         switchMode.setOnClickListener(v -> showModeSwitcher());
+        repairPairing.setOnClickListener(v -> showPairingRepairDialog());
         toggle.setOnClickListener(v -> {
             if (AppConfig.robotEnabled(this)) {
                 if (isActiveUssdForCurrentProfile()) {
@@ -290,7 +284,7 @@ public class MainActivity extends Activity {
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         AppConfig.setUserAgent(this, settings.getUserAgentString());
-        settings.setAllowFileAccess(false);
+        settings.setAllowFileAccess(true);
         settings.setAllowContentAccess(false);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
             settings.setAllowFileAccessFromFileURLs(false);
@@ -305,24 +299,24 @@ public class MainActivity extends Activity {
             @SuppressWarnings("deprecation")
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
                 Uri uri = Uri.parse(url);
-                return !"https".equalsIgnoreCase(uri.getScheme())
-                        || !AppConfig.allowedHost(MainActivity.this).equalsIgnoreCase(uri.getHost());
+                return !"file".equalsIgnoreCase(uri.getScheme())
+                        || uri.getPath() == null || !uri.getPath().startsWith("/android_asset/");
             }
 
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
-                return !"https".equalsIgnoreCase(uri.getScheme())
-                        || !AppConfig.allowedHost(MainActivity.this).equalsIgnoreCase(uri.getHost());
+                return !"file".equalsIgnoreCase(uri.getScheme())
+                        || uri.getPath() == null || !uri.getPath().startsWith("/android_asset/");
             }
 
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
-                if (request.isForMainFrame()) nativeStatus.setText("Interface web indisponible; le service Robot natif peut continuer.");
+                if (request.isForMainFrame()) nativeStatus.setText("Interface Android intégrée indisponible; relancez Blue Magic.");
             }
 
         });
-        webView.loadUrl(AppConfig.webUrl(this));
+        webView.loadUrl("file:///android_asset/index.html");
         refreshNativeStatus();
     }
 
@@ -439,6 +433,86 @@ public class MainActivity extends Activity {
                 .show();
     }
 
+    private void showPairingRepairDialog() {
+        if (isActiveUssdForCurrentProfile()) {
+            toast("Attendez la fin de la transaction avant de réparer l’appairage.");
+            return;
+        }
+        LinearLayout content = verticalContainer();
+        content.setPadding(dp(16), dp(8), dp(16), dp(8));
+        EditText apiUrl = field("Adresse du serveur Blue Magic", AppConfig.apiUrl(this), false);
+        String savedSecret = "";
+        try {
+            savedSecret = SecurePairingStore.read(this);
+        } catch (Exception ignored) {
+        }
+        EditText pairingSecret = field("Secret d’appairage", savedSecret, true);
+        CheckBox reveal = new CheckBox(this);
+        reveal.setText("Afficher le secret d’appairage");
+        reveal.setTextColor(Color.WHITE);
+        reveal.setOnCheckedChangeListener((button, checked) -> {
+            pairingSecret.setInputType(InputType.TYPE_CLASS_TEXT | (checked
+                    ? InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+                    : InputType.TYPE_TEXT_VARIATION_PASSWORD));
+            pairingSecret.setSelection(pairingSecret.length());
+        });
+        TextView feedback = help("Cette réparation conserve le PIN, la SIM, le mode et les autres comptes. Elle remplace seulement l’adresse et le jeton de ce compte.");
+        content.addView(apiUrl);
+        content.addView(pairingSecret);
+        content.addView(reveal);
+        content.addView(feedback);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Appairage de " + AppConfig.nodeCode(this))
+                .setView(content)
+                .setPositiveButton("RÉPARER", null)
+                .setNegativeButton("Annuler", null)
+                .create();
+        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                .setOnClickListener(v -> {
+                    String endpoint = AppConfig.normalizeApiUrl(apiUrl.getText().toString());
+                    String secret = pairingSecret.getText().toString();
+                    if (!endpoint.toLowerCase().startsWith("https://") || secret.length() < 24) {
+                        feedback.setText("Vérifiez l’adresse HTTPS et le secret d’appairage.");
+                        return;
+                    }
+                    dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
+                    feedback.setText("Vérification et renouvellement du jeton…");
+                    new Thread(() -> {
+                        try {
+                            JSONObject payload = new JSONObject();
+                            payload.put("node_code", AppConfig.nodeCode(this));
+                            payload.put("phone_number", AppConfig.phoneNumber(this));
+                            payload.put("parent_node_code", AppConfig.parentNode(this));
+                            payload.put("role", AppConfig.role(this));
+                            payload.put("mode", AppConfig.mode(this));
+                            payload.put("pairing_secret", secret);
+                            payload.put("device_name", Build.MANUFACTURER + " " + Build.MODEL);
+                            JSONObject data = new ApiClient(this, endpoint, "").pair(payload);
+                            String token = data.optString("device_token", "");
+                            String serverDeviceId = data.optString("device_id", "");
+                            String canonicalNode = data.optString("node_code", AppConfig.nodeCode(this));
+                            if (!AppConfig.repairActivePairing(this, serverDeviceId, token,
+                                    canonicalNode, endpoint)) {
+                                throw new IllegalStateException("Impossible d’enregistrer le nouveau jeton.");
+                            }
+                            SecurePairingStore.save(this, secret);
+                            runOnUiThread(() -> {
+                                dialog.dismiss();
+                                Toast.makeText(this, "Appairage réparé sans supprimer le compte.", Toast.LENGTH_LONG).show();
+                                recreate();
+                            });
+                        } catch (Exception error) {
+                            runOnUiThread(() -> {
+                                dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true);
+                                feedback.setText("Échec : " + readable(error));
+                            });
+                        }
+                    }).start();
+                }));
+        dialog.show();
+    }
+
     private void changeActiveMode(String mode, String newPin, int simSlot) {
         toast("Changement de mode en cours…");
         new Thread(() -> {
@@ -516,7 +590,7 @@ public class MainActivity extends Activity {
                 + " • Superposition " + (overlay ? "OK" : "À ACTIVER")
                 + "\nRobots actifs sur ce téléphone : " + AppConfig.enabledRobotCount(this)
                 + (DeviceLockState.isSecurelyLocked(this)
-                ? "\n⏸ ÉCRAN VERROUILLÉ : les nouvelles commandes attendent le déverrouillage" : "")
+                ? "\n⚡ ÉCRAN VERROUILLÉ : réveil automatique et tentative USSD activés" : "")
                 + (AppConfig.pinBlocked(this) ? "\n⛔ PIN BLOQUÉ : corriger avant toute nouvelle transaction" : ""));
     }
 
@@ -674,11 +748,33 @@ public class MainActivity extends Activity {
 
     private Spinner spinner(String[] values) {
         Spinner spinner = new Spinner(this);
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_dropdown_item, values);
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,
+                android.R.layout.simple_spinner_item, values) {
+            @Override
+            public View getView(int position, View convertView, android.view.ViewGroup parent) {
+                TextView view = (TextView) super.getView(position, convertView, parent);
+                styleSpinnerText(view);
+                return view;
+            }
+
+            @Override
+            public View getDropDownView(int position, View convertView, android.view.ViewGroup parent) {
+                TextView view = (TextView) super.getDropDownView(position, convertView, parent);
+                styleSpinnerText(view);
+                return view;
+            }
+        };
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinner.setAdapter(adapter);
         spinner.setBackgroundColor(Color.WHITE);
         return spinner;
+    }
+
+    private void styleSpinnerText(TextView view) {
+        view.setTextColor(Color.BLACK);
+        view.setBackgroundColor(Color.WHITE);
+        view.setTextSize(16);
+        view.setPadding(dp(12), dp(10), dp(12), dp(10));
     }
 
     private Button actionButton(String text, int color) {
