@@ -3,6 +3,10 @@
   "name": "blue-magic-api",
   "main": "src/index.js",
   "compatibility_date": "2026-08-07",
+  "keep_vars": true,
+  "secrets": {
+    "required": ["PAIRING_SECRET"]
+  },
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
