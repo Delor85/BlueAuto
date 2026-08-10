@@ -48,7 +48,7 @@ final class ApiClient {
 
     JSONObject heartbeat() throws Exception {
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.4.2-sync-safe");
+        payload.put("app_version", "2.4.3-sleep-watchdog");
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
         payload.put("robot_enabled", profileIdOverride.isEmpty()

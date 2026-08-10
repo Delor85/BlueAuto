@@ -1,6 +1,7 @@
 package com.profitloop.blueauto;
 
 import android.Manifest;
+import android.app.AlarmManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -12,6 +13,7 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.PowerManager;
+import android.os.SystemClock;
 
 import org.json.JSONObject;
 
@@ -38,7 +40,9 @@ public class RobotService extends Service {
 
     private static final String CHANNEL_ID = "blue_magic_robot";
     private static final int NOTIFICATION_ID = 5502;
-    private static final long STANDBY_WAKE_MS = 10 * 60_000L;
+    private static final int WATCHDOG_REQUEST_CODE = 5503;
+    private static final long STANDBY_WAKE_MS = 30 * 60_000L;
+    private static final long WATCHDOG_INTERVAL_MS = 15 * 60_000L;
 
     private ScheduledExecutorService executor;
     private final AtomicBoolean cycleRunning = new AtomicBoolean(false);
@@ -108,6 +112,7 @@ public class RobotService extends Service {
             return START_NOT_STICKY;
         }
         acquireStandbyWakeLock();
+        scheduleWatchdog(this, WATCHDOG_INTERVAL_MS);
         updateNotification(robotSummary("Surveillance active"));
         scheduleCycle(0L);
         return START_STICKY;
@@ -479,7 +484,6 @@ public class RobotService extends Service {
         commandScreenWakeLock = null;
     }
 
-    @SuppressWarnings("deprecation")
     private void acquireStandbyWakeLock() {
         if (!AppConfig.anyRobotEnabled(this)) return;
         long now = System.currentTimeMillis();
@@ -488,10 +492,8 @@ public class RobotService extends Service {
         PowerManager manager = (PowerManager) getSystemService(POWER_SERVICE);
         if (manager == null) return;
         standbyWakeLock = manager.newWakeLock(
-                PowerManager.SCREEN_DIM_WAKE_LOCK
-                        | PowerManager.ACQUIRE_CAUSES_WAKEUP
-                        | PowerManager.ON_AFTER_RELEASE,
-                "BlueMagic:RobotStandbyVisible");
+                PowerManager.PARTIAL_WAKE_LOCK,
+                "BlueMagic:RobotStandbyCpu");
         standbyWakeLock.acquire(STANDBY_WAKE_MS);
         standbyWakeRenewAt = now + STANDBY_WAKE_MS / 2L;
     }
@@ -549,6 +551,22 @@ public class RobotService extends Service {
         sendServiceAction(context, new Intent(context, RobotService.class).setAction(ACTION_WAKE));
     }
 
+    static void scheduleWatchdog(Context context, long delayMs) {
+        if (!AppConfig.anyRobotEnabled(context)) return;
+        AlarmManager manager = (AlarmManager) context.getSystemService(ALARM_SERVICE);
+        if (manager == null) return;
+        Intent intent = new Intent(context, BootReceiver.class)
+                .setAction(BootReceiver.ACTION_WATCHDOG);
+        PendingIntent pending = PendingIntent.getBroadcast(context, WATCHDOG_REQUEST_CODE, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        long triggerAt = SystemClock.elapsedRealtime() + Math.max(1_000L, delayMs);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            manager.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pending);
+        } else {
+            manager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pending);
+        }
+    }
+
     static void stop(Context context) {
         String profileId = AppConfig.profileId(context);
         sendServiceAction(context, new Intent(context, RobotService.class)
@@ -594,7 +612,14 @@ public class RobotService extends Service {
     }
 
     @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        scheduleWatchdog(this, 2_000L);
+        super.onTaskRemoved(rootIntent);
+    }
+
+    @Override
     public void onDestroy() {
+        scheduleWatchdog(this, 3_000L);
         if (executor != null) executor.shutdownNow();
         releaseCommandWakeLock();
         releaseStandbyWakeLock();

@@ -678,16 +678,16 @@ public class MainActivity extends Activity {
     }
 
     private void applyRobotWindowPolicy() {
-        int flags = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
-                | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
-                | WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+        int lockScreenFlags = WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
                 | WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD;
         boolean active = AppConfig.anyRobotEnabled(this);
-        if (active) getWindow().addFlags(flags);
-        else getWindow().clearFlags(flags);
+        if (active) getWindow().addFlags(lockScreenFlags);
+        else getWindow().clearFlags(lockScreenFlags);
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
         if (Build.VERSION.SDK_INT >= 27) {
             setShowWhenLocked(active);
-            setTurnScreenOn(active);
+            setTurnScreenOn(false);
         }
     }
 
