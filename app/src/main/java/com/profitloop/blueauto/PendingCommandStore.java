@@ -4,6 +4,10 @@ import android.content.Context;
 
 import org.json.JSONObject;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 final class PendingCommandStore {
     static final String LEASED = "LEASED";
     static final String DIALING = "DIALING";
@@ -33,14 +37,23 @@ final class PendingCommandStore {
     }
 
     static synchronized JSONObject getActiveUssd(Context context) {
+        List<JSONObject> active = getActiveUssdCommands(context);
+        return active.isEmpty() ? null : active.get(0);
+    }
+
+    static synchronized List<JSONObject> getActiveUssdCommands(Context context) {
+        List<JSONObject> active = new ArrayList<>();
         for (String profileId : AppConfig.profileIds(context)) {
             JSONObject command = get(context, profileId);
             if (command == null) continue;
             String state = command.optString("local_state", LEASED);
             if (DIALING.equals(state) || AWAITING_PIN.equals(state)
-                    || PIN_SUBMITTED.equals(state) || AWAITING_RESULT.equals(state)) return command;
+                    || PIN_SUBMITTED.equals(state) || AWAITING_RESULT.equals(state)) active.add(command);
         }
-        return null;
+        Collections.sort(active, (left, right) -> Long.compare(
+                left.optLong("state_changed_at", left.optLong("leased_at", 0L)),
+                right.optLong("state_changed_at", right.optLong("leased_at", 0L))));
+        return active;
     }
 
     static synchronized boolean hasAnyPending(Context context) {
@@ -77,6 +90,19 @@ final class PendingCommandStore {
             save(context, profileId, command);
         } catch (Exception ignored) {
         }
+    }
+
+    static synchronized int incrementReportRetries(Context context, String profileId) {
+        JSONObject command = get(context, profileId);
+        if (command == null) return 0;
+        int retries = command.optInt("report_retry_count", 0) + 1;
+        try {
+            command.put("report_retry_count", retries);
+            command.put("last_report_attempt_at", System.currentTimeMillis());
+            save(context, profileId, command);
+        } catch (Exception ignored) {
+        }
+        return retries;
     }
 
     static synchronized void clear(Context context) {

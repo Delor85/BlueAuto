@@ -14,9 +14,12 @@ import java.util.UUID;
 final class AppConfig {
     static final String PREFS = "blue_magic_native_v2";
     static final String DEFAULT_API = "https://magicservice-blue.gt.tc/api.php";
+    static final String CLOUDFLARE_API = "https://blue-magic-api.mbolodelorpro.workers.dev/api";
     static final long HEARTBEAT_MS = 300_000L;
     static final long IDLE_POLL_MS = 30_000L;
     static final long COMMAND_TIMEOUT_MS = 120_000L;
+    static final long LOCKED_POLL_MS = 5_000L;
+    static final long NEXT_COMMAND_GAP_MS = 8_000L;
 
     private static final String PROFILES_KEY = "profiles_v3";
     private static final String ACTIVE_PROFILE_KEY = "active_profile_id_v3";
@@ -89,6 +92,16 @@ final class AppConfig {
 
     static void setPairingApiUrl(Context context, String value) {
         prefs(context).edit().putString("pairing_api_url", normalizeApiUrl(value)).apply();
+    }
+
+    static String pairingApiUrl(Context context) {
+        if (hasProfiles(context)) return apiUrl(context);
+        return normalizeApiUrl(CLOUDFLARE_API);
+    }
+
+    static String[] pairingApiCandidates(Context context) {
+        if (hasProfiles(context)) return new String[]{apiUrl(context)};
+        return new String[]{normalizeApiUrl(CLOUDFLARE_API), normalizeApiUrl(DEFAULT_API)};
     }
 
     static String webUrl(Context context) {
@@ -270,6 +283,25 @@ final class AppConfig {
                 try {
                     profile.put("sim_slot", Math.max(0, slot));
                     return prefs(context).edit().putString(PROFILES_KEY, profiles.toString()).commit();
+                } catch (Exception ignored) {
+                    return false;
+                }
+            }
+        }
+        return false;
+    }
+
+    static synchronized boolean updateActiveMode(Context context, String mode) {
+        if (!"REMOTE".equals(mode) && !"ROBOT".equals(mode)) return false;
+        JSONArray profiles = profiles(context);
+        String active = profileId(context);
+        for (int i = 0; i < profiles.length(); i++) {
+            JSONObject profile = profiles.optJSONObject(i);
+            if (profile != null && active.equals(profile.optString("id", ""))) {
+                try {
+                    profile.put("device_mode", mode);
+                    return prefs(context).edit()
+                            .putString(PROFILES_KEY, profiles.toString()).commit();
                 } catch (Exception ignored) {
                     return false;
                 }

@@ -58,14 +58,13 @@ Conditions recommandées : téléphone Android 6+, une seule SIM active, chargeu
 
 1. Autorisez l’installation d’applications provenant du navigateur ou gestionnaire de fichiers utilisé.
 2. Installez `app-debug.apk` puis ouvrez **Blue Magic**.
-3. Saisissez :
-   - URL API : `https://magicservice-blue.gt.tc/api.php` ;
+3. Le serveur est choisi automatiquement par Blue Magic. Saisissez seulement :
    - nœud : `DAE-01` ;
    - numéro SIM : les 9 chiffres de la Master SIM ;
    - supérieur : vide ;
    - rôle : `DAE` ;
    - mode : `ROBOT` ;
-   - secret d’appairage : celui de `config.php` ;
+   - code d’activation initiale : celui défini sur le serveur ; il ne sera demandé qu’une fois puis conservé chiffré ;
    - PIN Camtel : les 4 chiffres exacts.
 4. Appuyez sur **Appairer ce téléphone**.
 5. Appuyez sur **1. AUTORISATIONS** et accordez :
@@ -83,7 +82,7 @@ Conditions recommandées : téléphone Android 6+, une seule SIM active, chargeu
 Le nœud parent doit exister avant l’enfant.
 
 1. Installez l’APK sur T2.
-2. Saisissez : nœud `DSM-01/DAE-01`, le numéro de la SIM DSM, parent `DAE-01`, rôle `DSM`, mode `REMOTE`, le même secret d’appairage.
+2. Saisissez : nœud `DSM-01/DAE-01`, le numéro de la SIM DSM, parent `DAE-01`, rôle `DSM` et mode `REMOTE`. L’adresse du serveur n’apparaît pas et l’activation déjà mémorisée n’est pas redemandée.
 3. Le PIN peut rester vide sur une pure Télécommande : le PIN DAE reste seulement dans T1.
 4. Appairez.
 5. L’interface montre **Demander à mon supérieur**.

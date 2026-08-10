@@ -15,7 +15,7 @@
 - superposition active ;
 - batterie sans restriction ;
 - slot exact de la SIM Blue enregistré dans le compte (`SIM 1`, `SIM 2`, etc.) ;
-- aucun écran de verrouillage sécurisé ;
+- pour un Robot sans surveillance, aucun mot de passe ou schéma actif ; si le verrouillage sécurisé est conservé, vérifier que l’application affiche **En pause** et ne loue la commande qu’après déverrouillage ;
 - notification Robot permanente ;
 - test `*825*3*3#` lancé à distance.
 
@@ -47,6 +47,7 @@ Effectuer d’abord une transaction manuelle minimale et noter le texte exact du
 | `INVALID_RESPONSE` | InfinityFree renvoie HTML/challenge au client natif | Ouvrir l’API dans WebView, vérifier cookies; si persistant, migrer l’API |
 | Rien ne s’ouvre sur T1 | démarrage d’activité en arrière-plan bloqué | accorder superposition, garder Blue Magic visible, retirer verrouillage écran |
 | `PIN_PROMPT_NOT_ACCESSIBLE` | le dialogue ou le champ PIN n’est pas exposé après 30 secondes | laisser le dialogue visible et envoyer une capture du message ; ne pas retenter avec argent |
+| `En pause — déverrouillez le téléphone` | Android protège l’écran par mot de passe ou schéma | déverrouiller ; la commande restera en file et reprendra sans double exécution |
 | `PIN_FIELD_REJECTED` | le champ est visible mais l’application Téléphone refuse les méthodes de saisie | garder le pop-up ouvert, vérifier Accessibilité, puis relever le modèle et la version de l’application Téléphone |
 | `CONFIRM_BUTTON_NOT_FOUND` | libellé/bouton OEM non reconnu | relever le texte exact et l’identifiant d’accessibilité |
 | `SIM_PERMISSION_MISSING` | l’autorisation État du téléphone manque | Autorisations → Téléphone/État du téléphone → Autoriser |
@@ -67,3 +68,4 @@ Le même modèle de téléphone, la même version Android, la même application 
 3. Démarrez séparément chacun des profils Robots souhaités. Ils restent tous actifs; un ordonnanceur unique exécute une seule session USSD à la fois.
 4. Une commande Remote peut être créée pendant la surveillance; si une session USSD est déjà ouverte, elle attend son tour.
 5. Chaque profil garde séparément son jeton, son PIN chiffré, son slot SIM et son historique local.
+6. Lancez deux demandes rapprochées : la seconde doit rester `PENDING` jusqu’à la fermeture complète de la première, puis démarrer après le délai de séparation.

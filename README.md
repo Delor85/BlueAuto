@@ -1,4 +1,4 @@
-# Blue Magic v2.2 — PIN renforcé, Android 6 et Robots simultanés
+# Blue Magic v2.3 — verrouillage maîtrisé, file multi-SIM et usage rapide
 
 Blue Magic automatise, sur un téléphone Android dédié, les transferts de crédit de distribution Blue/Camtel qui nécessitent désormais deux étapes :
 
@@ -25,6 +25,12 @@ Cette version reconstruit en priorité le trajet critique **Télécommande → s
 - les codes courts sont résolus dans leur branche (`DSM7` → `DSM7_SU2`, `POS5` → `POS5_DSM7_SU2`) ;
 - les commandes récentes affichent leur horodatage local ;
 - `ROBOT` est polyvalent (exécution + création de commandes) ; `REMOTE` reste uniquement télécommande.
+- un verrouillage Android sécurisé met la location des commandes en pause au lieu d’ouvrir un dialogue PIN inaccessible ; une commande louée au même instant est remise en file sans consommer de tentative ;
+- l’écran est réveillé et maintenu allumé pendant la courte session USSD lorsque le téléphone n’est pas verrouillé ;
+- une synchronisation finale en panne ne bloque plus les files des autres SIM et se réconcilie automatiquement avec le statut serveur ;
+- une garde globale détecte et neutralise les anciens états locaux qui prétendraient avoir deux sessions USSD simultanées ;
+- le même compte passe de `ROBOT` à `REMOTE`, ou inversement, sans suppression ni nouvel appairage ;
+- l’adresse du serveur est interne à l’application ; après une première activation, le code d’appairage est mémorisé chiffré et disparaît du formulaire.
 
 ## Structure
 
@@ -40,7 +46,7 @@ La signature de l’APK pilote est conservée dans le cache privé de GitHub Act
 
 ## Limite technique honnête
 
-Android ne fournit pas d’API publique universelle pour répondre à la deuxième étape d’une session USSD interactive. `TelephonyManager.sendUssdRequest()` sait obtenir une réponse à une requête, mais ne fournit pas de méthode publique pour continuer la session avec le PIN. Blue Magic utilise donc `ACTION_CALL` puis un `AccessibilityService` contrôlé et limité à la transaction attendue. Le comportement de la fenêtre MMI dépend du fabricant et de l’application Téléphone : un essai sur le modèle exact du Robot est obligatoire.
+Android ne fournit pas d’API publique universelle pour répondre à la deuxième étape d’une session USSD interactive. `TelephonyManager.sendUssdRequest()` sait obtenir une réponse à une requête, mais ne fournit pas de méthode publique pour continuer la session avec le PIN. Blue Magic utilise donc `ACTION_CALL` puis un `AccessibilityService` contrôlé et limité à la transaction attendue. Un verrouillage par mot de passe ou schéma ne peut et ne doit pas être contourné : les commandes patientent jusqu’au déverrouillage. Le comportement de la fenêtre MMI dépend du fabricant et de l’application Téléphone : un essai sur le modèle exact du Robot est obligatoire.
 
 La version gratuite d’InfinityFree est adaptée à l’interface web et fournit PHP/MySQL, mais son hébergement gratuit peut filtrer les clients automatisés et n’est pas présenté comme une plateforme d’API. Le dossier `cloudflare/` fournit donc le backend recommandé, conçu pour les clients automatisés. InfinityFree reste disponible comme solution de repli.
 

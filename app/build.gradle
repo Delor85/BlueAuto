@@ -12,8 +12,8 @@ android {
         applicationId "com.profitloop.blueauto"
         minSdk 23
         targetSdk 34
-        versionCode 22
-        versionName "2.2.0-multi-robot-pin"
+        versionCode 23
+        versionName "2.3.0-lock-queue-ux"
     }
 
     signingConfigs {

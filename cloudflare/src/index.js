@@ -1,4 +1,4 @@
-const API_VERSION = '2.2.0-cloudflare';
+const API_VERSION = '2.3.0-cloudflare';
 const TERMINAL_STATES = new Set(['SUCCEEDED', 'FAILED', 'UNKNOWN', 'BLOCKED']);
 const EVENT_STATES = new Set([
   'DIALING', 'AWAITING_PIN', 'PIN_SUBMITTED', 'AWAITING_RESULT',
@@ -37,8 +37,10 @@ export default {
       const auth = await authenticate(request, env);
       switch (action) {
         case 'heartbeat': return await heartbeat(env, auth, input, headers);
+        case 'update_device_mode': return await updateDeviceMode(env, auth, input, headers);
         case 'create_command': return await createCommand(env, auth, input, headers);
         case 'lease_command': return await leaseCommand(env, auth, headers);
+        case 'release_command': return await releaseCommand(env, auth, input, headers);
         case 'command_event': return await commandEvent(env, auth, input, headers);
         case 'command_status': return await commandStatus(env, auth, input, headers);
         default: throw new ApiError('UNKNOWN_ACTION', 'Action API inconnue.', 404);
@@ -144,6 +146,18 @@ async function heartbeat(env, auth, input, headers) {
     auth.device_id
   ).run();
   return success({server_time: new Date().toISOString(), node_code: auth.node_code}, 200, headers);
+}
+
+async function updateDeviceMode(env, auth, input, headers) {
+  const mode = String(input.mode || '').trim().toUpperCase();
+  if (!['REMOTE', 'ROBOT'].includes(mode)) {
+    throw new ApiError('INVALID_MODE', 'Le mode doit être REMOTE ou ROBOT.', 422);
+  }
+  await env.DB.prepare(
+    'UPDATE devices SET mode = ?, robot_enabled = CASE WHEN ? = \'REMOTE\' THEN 0 ELSE robot_enabled END, '
+    + "last_seen_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE device_id = ?"
+  ).bind(mode, mode, auth.device_id).run();
+  return success({mode, node_code: auth.node_code}, 200, headers);
 }
 
 async function createCommand(env, auth, input, headers) {
@@ -252,6 +266,15 @@ async function leaseCommand(env, auth, headers) {
     + "WHERE executor_node_code = ? AND state = 'LEASED' AND leased_until < strftime('%Y-%m-%dT%H:%M:%fZ', 'now')"
   ).bind(auth.node_code).run();
 
+  const active = await env.DB.prepare(
+    "SELECT public_id, state FROM commands WHERE executor_node_code = ? "
+    + "AND state IN ('LEASED', 'DIALING', 'AWAITING_PIN', 'PIN_SUBMITTED', 'AWAITING_RESULT') "
+    + 'ORDER BY id LIMIT 1'
+  ).bind(auth.node_code).first();
+  if (active) {
+    return success({available: false, busy: true, active_command: active}, 200, headers);
+  }
+
   const leaseToken = randomHex(24);
   const command = await env.DB.prepare(
     "UPDATE commands SET state = 'LEASED', attempt = attempt + 1, lease_token_hash = ?, "
@@ -279,10 +302,37 @@ async function leaseCommand(env, auth, headers) {
   }, 200, headers);
 }
 
-async function commandEvent(env, auth, input, headers) {
-  if (!['ROBOT', 'HYBRID'].includes(auth.mode)) {
-    throw new ApiError('NOT_A_ROBOT', 'Événement réservé au Robot exécuteur.', 403);
+async function releaseCommand(env, auth, input, headers) {
+  const publicId = String(input.command_id || '').trim();
+  const leaseToken = String(input.lease_token || '').trim();
+  const command = await env.DB.prepare(
+    'SELECT id, state, executor_node_code, lease_token_hash FROM commands WHERE public_id = ?'
+  ).bind(publicId).first();
+  if (!command || command.executor_node_code !== auth.node_code) {
+    throw new ApiError('COMMAND_NOT_FOUND', 'Commande introuvable pour ce Robot.', 404);
   }
+  if (command.state !== 'LEASED') {
+    return success({command: {public_id: publicId, state: command.state}, released: false}, 200, headers);
+  }
+  if (!command.lease_token_hash || command.lease_token_hash !== await sha256(leaseToken)) {
+    throw new ApiError('LEASE_INVALID', 'Lease invalide ou expiré.', 409);
+  }
+  const reason = cleanText(input.reason || 'Exécution différée par le Robot.', 500);
+  const results = await env.DB.batch([
+    env.DB.prepare(
+      "UPDATE commands SET state = 'PENDING', attempt = CASE WHEN attempt > 0 THEN attempt - 1 ELSE 0 END, "
+      + 'lease_token_hash = NULL, leased_until = NULL, result_message = ?, '
+      + "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ? AND state = 'LEASED'"
+    ).bind(reason, command.id),
+    env.DB.prepare(
+      "INSERT INTO command_events(command_id, device_id, state, message) VALUES(?, ?, 'RELEASED', ?)"
+    ).bind(command.id, auth.device_id, reason)
+  ]);
+  if (!results[0].meta?.changes) throw new ApiError('COMMAND_RACE', 'La commande a changé.', 409);
+  return success({command: {public_id: publicId, state: 'PENDING'}, released: true}, 200, headers);
+}
+
+async function commandEvent(env, auth, input, headers) {
   const publicId = String(input.command_id || '').trim();
   const leaseToken = String(input.lease_token || '').trim();
   const nextState = String(input.state || '').trim().toUpperCase();

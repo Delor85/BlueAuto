@@ -44,6 +44,8 @@ public class RobotService extends Service {
     private long backoffMs = AppConfig.IDLE_POLL_MS;
     private int roundRobinIndex = 0;
     private PowerManager.WakeLock commandWakeLock;
+    private PowerManager.WakeLock commandScreenWakeLock;
+    private long lastCommandFinishedAt = 0L;
 
     @Override
     public void onCreate() {
@@ -60,7 +62,7 @@ public class RobotService extends Service {
 
         if (ACTION_STOP.equals(action)) {
             if (!profileId.isEmpty()) AppConfig.setRobotEnabled(this, profileId, false);
-            if (!AppConfig.anyRobotEnabled(this)) {
+            if (!hasServiceWork()) {
                 updateNotification("Tous les Robots sont arrêtés");
                 stopSelf();
                 return START_NOT_STICKY;
@@ -90,7 +92,7 @@ public class RobotService extends Service {
         if (ACTION_START.equals(action) && !profileId.isEmpty()) {
             AppConfig.setRobotEnabled(this, profileId, true);
         }
-        if (!AppConfig.anyRobotEnabled(this)) {
+        if (!hasServiceWork()) {
             stopSelf();
             return START_NOT_STICKY;
         }
@@ -105,7 +107,7 @@ public class RobotService extends Service {
     }
 
     private void scheduleCycle(long delayMs) {
-        if (executor == null || executor.isShutdown() || !AppConfig.anyRobotEnabled(this)) return;
+        if (executor == null || executor.isShutdown() || !hasServiceWork()) return;
         executor.schedule(this::runCycle, Math.max(0L, delayMs), TimeUnit.MILLISECONDS);
     }
 
@@ -114,12 +116,17 @@ public class RobotService extends Service {
         long nextDelay = AppConfig.IDLE_POLL_MS;
         try {
             List<String> profiles = AppConfig.enabledRobotProfileIds(this);
-            if (profiles.isEmpty()) {
-                stopSelf();
-                return;
+            List<JSONObject> activeCommands = PendingCommandStore.getActiveUssdCommands(this);
+            if (activeCommands.size() > 1) {
+                for (int index = 1; index < activeCommands.size(); index++) {
+                    JSONObject conflict = activeCommands.get(index);
+                    finishCommand(conflict.optString("local_profile_id", ""), false,
+                            "CONCURRENT_COMMAND_RECOVERY",
+                            "Plusieurs sessions USSD locales ont été détectées. Cette opération doit être vérifiée manuellement.", "");
+                }
             }
 
-            JSONObject activeUssd = PendingCommandStore.getActiveUssd(this);
+            JSONObject activeUssd = activeCommands.isEmpty() ? null : activeCommands.get(0);
             if (activeUssd != null) {
                 String owner = activeUssd.optString("local_profile_id", "");
                 if (PendingCommandStore.isExpired(activeUssd)) {
@@ -132,14 +139,32 @@ public class RobotService extends Service {
                 return;
             }
 
-            for (String profileId : profiles) {
+            boolean reportOutstanding = false;
+            for (String profileId : AppConfig.profileIds(this)) {
                 JSONObject pending = PendingCommandStore.get(this, profileId);
                 if (pending != null && PendingCommandStore.REPORT_PENDING.equals(
                         pending.optString("local_state", ""))) {
                     retryFinalReport(profileId, pending);
-                    nextDelay = PendingCommandStore.get(this, profileId) == null ? 1_000L : 15_000L;
-                    return;
+                    if (PendingCommandStore.get(this, profileId) != null) reportOutstanding = true;
                 }
+            }
+
+            if (profiles.isEmpty()) {
+                if (!reportOutstanding) stopSelf();
+                nextDelay = reportOutstanding ? 15_000L : AppConfig.IDLE_POLL_MS;
+                return;
+            }
+
+            if (DeviceLockState.isSecurelyLocked(this)) {
+                updateNotification(robotSummary("En pause — déverrouillez le téléphone"));
+                nextDelay = AppConfig.LOCKED_POLL_MS;
+                return;
+            }
+
+            long sinceLastCommand = System.currentTimeMillis() - lastCommandFinishedAt;
+            if (lastCommandFinishedAt > 0L && sinceLastCommand < AppConfig.NEXT_COMMAND_GAP_MS) {
+                nextDelay = AppConfig.NEXT_COMMAND_GAP_MS - sinceLastCommand;
+                return;
             }
 
             int count = profiles.size();
@@ -170,6 +195,11 @@ public class RobotService extends Service {
                 command.put("state_changed_at", System.currentTimeMillis());
                 PendingCommandStore.save(this, profileId, command);
                 roundRobinIndex = (index + 1) % count;
+                if (DeviceLockState.isSecurelyLocked(this)) {
+                    releaseLockedLease(profileId, command, api);
+                    nextDelay = AppConfig.LOCKED_POLL_MS;
+                    return;
+                }
                 executeCommand(profileId, command, api);
                 nextDelay = 2_000L;
                 backoffMs = AppConfig.IDLE_POLL_MS;
@@ -177,8 +207,10 @@ public class RobotService extends Service {
             }
 
             backoffMs = AppConfig.IDLE_POLL_MS;
-            nextDelay = AppConfig.IDLE_POLL_MS;
-            updateNotification(robotSummary("Aucune commande en attente"));
+            nextDelay = reportOutstanding ? 15_000L : AppConfig.IDLE_POLL_MS;
+            updateNotification(robotSummary(reportOutstanding
+                    ? "Une synchronisation reste à reprendre; les autres files continuent"
+                    : "Aucune commande en attente"));
         } catch (Exception error) {
             updateNotification(robotSummary("Serveur indisponible — nouvelle tentative"));
             backoffMs = Math.min(60_000L, Math.max(AppConfig.IDLE_POLL_MS, backoffMs * 2L));
@@ -212,6 +244,10 @@ public class RobotService extends Service {
                     && checkSelfPermission(Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
                 finishCommand(profileId, false, "SIM_PERMISSION_MISSING",
                         "Autorisation État du téléphone requise pour sélectionner la SIM.", "");
+                return;
+            }
+            if (DeviceLockState.isSecurelyLocked(this)) {
+                releaseLockedLease(profileId, command, api);
                 return;
             }
 
@@ -269,7 +305,8 @@ public class RobotService extends Service {
         } else if ("WRONG_PIN".equals(code)) {
             state = "BLOCKED";
             AppConfig.setPinBlocked(this, profileId, true);
-        } else if ("RESULT_TIMEOUT".equals(code)) {
+        } else if ("RESULT_TIMEOUT".equals(code)
+                || "CONCURRENT_COMMAND_RECOVERY".equals(code)) {
             state = "UNKNOWN";
         } else {
             state = "FAILED";
@@ -295,6 +332,7 @@ public class RobotService extends Service {
             }
         }
         if (reported) PendingCommandStore.clear(this, profileId);
+        lastCommandFinishedAt = System.currentTimeMillis();
         releaseCommandWakeLock();
         BlueAccessibilityService.kick(this);
         updateNotification(reported
@@ -310,14 +348,43 @@ public class RobotService extends Service {
         String message = command.optString("final_message", "");
         String code = command.optString("final_error_code", "");
         String transactionId = command.optString("final_transaction_id", "");
+        ApiClient api = ApiClient.forProfile(this, profileId);
         try {
             String detail = code.isEmpty() ? message : code + " — " + message;
-            ApiClient.forProfile(this, profileId).sendEvent(command, state, detail, transactionId);
+            api.sendEvent(command, state, detail, transactionId);
             PendingCommandStore.clear(this, profileId);
             updateNotification(robotSummary("Résultat synchronisé"));
-        } catch (Exception ignored) {
+        } catch (Exception error) {
+            PendingCommandStore.incrementReportRetries(this, profileId);
+            try {
+                JSONObject status = api.commandStatus(command.optString("public_id", ""));
+                JSONObject remote = status.optJSONObject("command");
+                if (remote != null && isTerminalState(remote.optString("state", ""))) {
+                    PendingCommandStore.clear(this, profileId);
+                    updateNotification(robotSummary("Résultat déjà confirmé par le serveur"));
+                    return;
+                }
+            } catch (Exception ignored) {
+            }
             updateNotification(robotSummary("Résultat en attente de synchronisation"));
         }
+    }
+
+    private void releaseLockedLease(String profileId, JSONObject command, ApiClient api) {
+        try {
+            api.releaseCommand(command,
+                    "Téléphone verrouillé par un mot de passe ou schéma; exécution différée.");
+        } catch (Exception ignored) {
+            // Un ancien serveur relâchera lui-même le lease à son expiration.
+        }
+        PendingCommandStore.clear(this, profileId);
+        releaseCommandWakeLock();
+        updateNotification(robotSummary("Commande différée — déverrouillez le téléphone"));
+    }
+
+    private static boolean isTerminalState(String state) {
+        return "SUCCEEDED".equals(state) || "FAILED".equals(state)
+                || "UNKNOWN".equals(state) || "BLOCKED".equals(state);
     }
 
     private void acquireCommandWakeLock() {
@@ -327,12 +394,28 @@ public class RobotService extends Service {
             commandWakeLock = manager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
                     "BlueMagic:ActiveUssdCommand");
             commandWakeLock.acquire(AppConfig.COMMAND_TIMEOUT_MS + 15_000L);
+            if (!DeviceLockState.isSecurelyLocked(this)) {
+                commandScreenWakeLock = manager.newWakeLock(
+                        PowerManager.SCREEN_BRIGHT_WAKE_LOCK
+                                | PowerManager.ACQUIRE_CAUSES_WAKEUP
+                                | PowerManager.ON_AFTER_RELEASE,
+                        "BlueMagic:VisibleUssdPrompt");
+                commandScreenWakeLock.acquire(AppConfig.COMMAND_TIMEOUT_MS + 15_000L);
+            }
         }
     }
 
     private void releaseCommandWakeLock() {
         if (commandWakeLock != null && commandWakeLock.isHeld()) commandWakeLock.release();
         commandWakeLock = null;
+        if (commandScreenWakeLock != null && commandScreenWakeLock.isHeld()) {
+            commandScreenWakeLock.release();
+        }
+        commandScreenWakeLock = null;
+    }
+
+    private boolean hasServiceWork() {
+        return AppConfig.anyRobotEnabled(this) || PendingCommandStore.hasAnyPending(this);
     }
 
     private void createNotificationChannel() {

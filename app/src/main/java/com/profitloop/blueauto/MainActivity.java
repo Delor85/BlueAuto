@@ -59,20 +59,19 @@ public class MainActivity extends Activity {
         scroll.addView(form);
 
         form.addView(title("BLUE MAGIC — APPAIRAGE SÉCURISÉ"));
-        form.addView(help("Cette étape rattache le téléphone à un compte logique. Le PIN Camtel reste uniquement dans le Keystore du Robot."));
+        form.addView(help("Le serveur est déjà configuré par Blue Magic. Le PIN Camtel reste uniquement dans le Keystore du téléphone."));
 
-        EditText apiUrl = field("URL API", AppConfig.apiUrl(this), false);
         EditText nodeCode = field("Code local (ex. SU2, DSM7 ou POS5)", "", false);
         EditText phone = field("Numéro SIM du compte (9 chiffres)", "", false);
         EditText parent = field("Code nœud supérieur (vide pour un DAE)", "", false);
         Spinner role = spinner(new String[]{"DAE", "DSM", "POS"});
         Spinner mode = spinner(new String[]{"REMOTE", "ROBOT"});
         Spinner simSlot = spinner(SimCallManager.slotLabels(this));
-        EditText pairingSecret = field("Secret d’appairage du serveur", "", true);
+        boolean hasSavedActivation = SecurePairingStore.hasSecret(this);
+        EditText pairingSecret = field("Code d’activation initiale", "", true);
         EditText operatorPin = field("PIN Camtel 4 chiffres (Robot/Hybride)", "", true);
         operatorPin.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
 
-        form.addView(apiUrl);
         form.addView(nodeCode);
         form.addView(phone);
         form.addView(parent);
@@ -82,20 +81,19 @@ public class MainActivity extends Activity {
         form.addView(mode);
         form.addView(label("Slot contenant la SIM de ce compte"));
         form.addView(simSlot);
-        form.addView(pairingSecret);
+        if (!hasSavedActivation) {
+            form.addView(help("Activation initiale unique : après le premier appairage réussi, Blue Magic la mémorise chiffrée et ne la redemande plus."));
+            form.addView(pairingSecret);
+        }
         form.addView(operatorPin);
 
         CheckBox revealSecrets = new CheckBox(this);
-        revealSecrets.setText("Afficher le secret et le PIN pour les vérifier");
+        revealSecrets.setText("Afficher le PIN pour le vérifier");
         revealSecrets.setTextColor(Color.WHITE);
         revealSecrets.setOnCheckedChangeListener((button, checked) -> {
-            pairingSecret.setInputType(InputType.TYPE_CLASS_TEXT | (checked
-                    ? InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
-                    : InputType.TYPE_TEXT_VARIATION_PASSWORD));
             operatorPin.setInputType(InputType.TYPE_CLASS_NUMBER | (checked
                     ? InputType.TYPE_NUMBER_VARIATION_NORMAL
                     : InputType.TYPE_NUMBER_VARIATION_PASSWORD));
-            pairingSecret.setSelection(pairingSecret.length());
             operatorPin.setSelection(operatorPin.length());
         });
         form.addView(revealSecrets);
@@ -111,16 +109,19 @@ public class MainActivity extends Activity {
             String parentNode = parent.getText().toString().trim().toUpperCase();
             String selectedRole = role.getSelectedItem().toString();
             String selectedMode = mode.getSelectedItem().toString();
-            String secret = pairingSecret.getText().toString();
+            String secret;
+            try {
+                secret = hasSavedActivation
+                        ? SecurePairingStore.read(this) : pairingSecret.getText().toString();
+            } catch (Exception error) {
+                feedback.setText("Activation locale illisible : " + readable(error));
+                return;
+            }
             String pin = operatorPin.getText().toString().trim();
             int selectedSlot = simSlot.getSelectedItemPosition();
 
             if (!node.matches("[A-Z0-9/_-]{3,64}") || !sim.matches("\\d{9}") || secret.length() < 24) {
-                feedback.setText("Vérifiez le code nœud, le numéro à 9 chiffres et le secret (24 caractères minimum).");
-                return;
-            }
-            if (!apiUrl.getText().toString().trim().toLowerCase().startsWith("https://")) {
-                feedback.setText("L’URL API doit commencer par https://");
+                feedback.setText("Vérifiez le code nœud, le numéro à 9 chiffres et l’activation initiale.");
                 return;
             }
             if (("ROBOT".equals(selectedMode) || "HYBRID".equals(selectedMode)) && !pin.matches("\\d{4}")) {
@@ -130,7 +131,7 @@ public class MainActivity extends Activity {
 
             pair.setEnabled(false);
             feedback.setText("Appairage avec le serveur…");
-            String selectedApiUrl = AppConfig.normalizeApiUrl(apiUrl.getText().toString());
+            String[] apiCandidates = AppConfig.pairingApiCandidates(this);
             new Thread(() -> {
                 try {
                     JSONObject payload = new JSONObject();
@@ -141,13 +142,29 @@ public class MainActivity extends Activity {
                     payload.put("mode", selectedMode);
                     payload.put("pairing_secret", secret);
                     payload.put("device_name", Build.MANUFACTURER + " " + Build.MODEL);
-                    JSONObject data = new ApiClient(this, selectedApiUrl, "").pair(payload);
+                    JSONObject data = null;
+                    String selectedApiUrl = "";
+                    Exception lastError = null;
+                    for (String candidate : apiCandidates) {
+                        try {
+                            data = new ApiClient(this, candidate, "").pair(payload);
+                            selectedApiUrl = candidate;
+                            break;
+                        } catch (Exception error) {
+                            lastError = error;
+                        }
+                    }
+                    if (data == null) {
+                        throw lastError == null
+                                ? new IllegalStateException("Aucun serveur Blue Magic disponible.") : lastError;
+                    }
                     String token = data.optString("device_token", "");
                     String deviceId = data.optString("device_id", "");
                     String canonicalNode = data.optString("node_code", node);
                     if (token.isEmpty()) throw new IllegalStateException("Jeton appareil absent.");
                     AppConfig.savePairing(this, deviceId, token, canonicalNode, sim, parentNode,
                             selectedRole, selectedMode, selectedApiUrl, selectedSlot);
+                    if (!hasSavedActivation) SecurePairingStore.save(this, secret);
                     if (!pin.isEmpty()) SecurePinStore.save(this, pin);
                     runOnUiThread(() -> {
                         Toast.makeText(this, "Téléphone appairé.", Toast.LENGTH_LONG).show();
@@ -194,7 +211,11 @@ public class MainActivity extends Activity {
         Button toggle = actionButton(AppConfig.robotEnabled(this) ? "ARRÊTER ROBOT" : "2. DÉMARRER ROBOT", CYAN);
         buttons.addView(prepare, weighted());
         buttons.addView(toggle, weighted());
-        page.addView(buttons);
+        if (AppConfig.isRobotMode(this)) page.addView(buttons);
+
+        Button switchMode = actionButton(AppConfig.isRobotMode(this)
+                ? "PASSER CE COMPTE EN REMOTE" : "PASSER CE COMPTE EN ROBOT", GOLD);
+        page.addView(switchMode);
 
         LinearLayout pinRow = new LinearLayout(this);
         pinRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -217,8 +238,13 @@ public class MainActivity extends Activity {
         });
 
         prepare.setOnClickListener(v -> prepareRobotPermissions());
+        switchMode.setOnClickListener(v -> showModeSwitcher());
         toggle.setOnClickListener(v -> {
             if (AppConfig.robotEnabled(this)) {
+                if (isActiveUssdForCurrentProfile()) {
+                    toast("Une transaction USSD est en cours. Attendez son résultat avant d’arrêter ce Robot.");
+                    return;
+                }
                 RobotService.stop(this);
                 toggle.setText("2. DÉMARRER ROBOT");
             } else {
@@ -362,6 +388,79 @@ public class MainActivity extends Activity {
         return true;
     }
 
+    private boolean isActiveUssdForCurrentProfile() {
+        JSONObject pending = PendingCommandStore.get(this, AppConfig.profileId(this));
+        if (pending == null) return false;
+        String state = pending.optString("local_state", PendingCommandStore.LEASED);
+        return !PendingCommandStore.REPORT_PENDING.equals(state);
+    }
+
+    private void showModeSwitcher() {
+        if (isActiveUssdForCurrentProfile()) {
+            toast("Une transaction est en cours sur ce compte. Attendez sa fin avant de changer de mode.");
+            return;
+        }
+        final String targetMode = AppConfig.isRobotMode(this) ? "REMOTE" : "ROBOT";
+        if ("REMOTE".equals(targetMode)) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Passer en mode Remote ?")
+                    .setMessage("Ce compte cessera de recevoir les commandes USSD, mais les autres Robots du téléphone resteront actifs.")
+                    .setPositiveButton("PASSER EN REMOTE", (dialog, which) ->
+                            changeActiveMode("REMOTE", "", AppConfig.simSlot(this)))
+                    .setNegativeButton("Annuler", null)
+                    .show();
+            return;
+        }
+
+        LinearLayout content = verticalContainer();
+        content.setPadding(dp(16), dp(8), dp(16), dp(8));
+        EditText pin = field("PIN Camtel 4 chiffres", "", true);
+        pin.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+        Spinner slot = spinner(SimCallManager.slotLabels(this));
+        slot.setSelection(Math.min(AppConfig.simSlot(this), slot.getCount() - 1));
+        content.addView(help(SecurePinStore.hasPin(this)
+                ? "Le PIN déjà chiffré sera conservé. Choisissez seulement la SIM."
+                : "Saisissez le PIN une fois et choisissez la SIM à automatiser."));
+        if (!SecurePinStore.hasPin(this)) content.addView(pin);
+        content.addView(label("SIM utilisée par ce Robot"));
+        content.addView(slot);
+        new AlertDialog.Builder(this)
+                .setTitle("Passer en mode Robot")
+                .setView(content)
+                .setPositiveButton("PASSER EN ROBOT", (dialog, which) -> {
+                    String value = pin.getText().toString().trim();
+                    if (!SecurePinStore.hasPin(this) && !value.matches("\\d{4}")) {
+                        toast("Le PIN Camtel doit contenir exactement 4 chiffres.");
+                        return;
+                    }
+                    changeActiveMode("ROBOT", value, slot.getSelectedItemPosition());
+                })
+                .setNegativeButton("Annuler", null)
+                .show();
+    }
+
+    private void changeActiveMode(String mode, String newPin, int simSlot) {
+        toast("Changement de mode en cours…");
+        new Thread(() -> {
+            try {
+                new ApiClient(this).updateDeviceMode(mode);
+                if (!newPin.isEmpty()) SecurePinStore.save(this, newPin);
+                AppConfig.updateActiveSimSlot(this, simSlot);
+                AppConfig.updateActiveMode(this, mode);
+                if ("REMOTE".equals(mode)) {
+                    AppConfig.setRobotEnabled(this, false);
+                    RobotService.stop(this);
+                }
+                runOnUiThread(() -> {
+                    Toast.makeText(this, "Mode " + mode + " activé sur ce compte.", Toast.LENGTH_LONG).show();
+                    recreate();
+                });
+            } catch (Exception error) {
+                runOnUiThread(() -> toast("Changement impossible : " + readable(error)));
+            }
+        }).start();
+    }
+
     private void prepareRobotPermissions() {
         requestCorePermissions();
         if (!BlueAccessibilityService.isEnabled(this)) {
@@ -416,6 +515,8 @@ public class MainActivity extends Activity {
                 + " • Accessibilité " + (BlueAccessibilityService.isEnabled(this) ? "OK" : "À ACTIVER")
                 + " • Superposition " + (overlay ? "OK" : "À ACTIVER")
                 + "\nRobots actifs sur ce téléphone : " + AppConfig.enabledRobotCount(this)
+                + (DeviceLockState.isSecurelyLocked(this)
+                ? "\n⏸ ÉCRAN VERROUILLÉ : les nouvelles commandes attendent le déverrouillage" : "")
                 + (AppConfig.pinBlocked(this) ? "\n⛔ PIN BLOQUÉ : corriger avant toute nouvelle transaction" : ""));
     }
 

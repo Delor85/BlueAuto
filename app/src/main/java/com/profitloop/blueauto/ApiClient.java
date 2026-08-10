@@ -49,7 +49,7 @@ final class ApiClient {
 
     JSONObject heartbeat() throws Exception {
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.2.0-multi-robot-pin");
+        payload.put("app_version", "2.3.0-lock-queue-ux");
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
         payload.put("robot_enabled", profileIdOverride.isEmpty()
@@ -60,6 +60,20 @@ final class ApiClient {
 
     JSONObject leaseCommand() throws Exception {
         return post("lease_command", new JSONObject(), true);
+    }
+
+    JSONObject releaseCommand(JSONObject command, String reason) throws Exception {
+        JSONObject payload = new JSONObject();
+        payload.put("command_id", command.optString("public_id", ""));
+        payload.put("lease_token", command.optString("lease_token", ""));
+        payload.put("reason", reason == null ? "" : reason);
+        return post("release_command", payload, true);
+    }
+
+    JSONObject updateDeviceMode(String mode) throws Exception {
+        JSONObject payload = new JSONObject();
+        payload.put("mode", mode);
+        return post("update_device_mode", payload, true);
     }
 
     JSONObject createCommand(JSONObject payload) throws Exception {

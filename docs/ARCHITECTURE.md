@@ -33,14 +33,17 @@ sequenceDiagram
 6. **Vérification du pop-up** : le PIN n’est injecté que si le texte contient le numéro à 9 chiffres et le montant attendus.
 7. **Pas de retry financier aveugle** : après composition, un résultat manquant passe à `UNKNOWN`.
 8. **Coupe-circuit PIN** : `Wrong PIN code` arrête le Robot dès la première occurrence.
+9. **Verrouillage sécurisé** : aucune commande n’est composée derrière un mot de passe ou schéma ; le lease est rendu à la file.
+10. **Mutex téléphone** : les profils et SIM partagent une seule session USSD, avec récupération des anciens conflits locaux.
+11. **Synchronisation non bloquante** : un résultat à renvoyer au serveur ne bloque jamais les autres profils.
 
 ## Consommation réseau et batterie
 
-- location de commande toutes les 8 secondes lorsque le Robot est disponible ;
-- heartbeat toutes les 60 secondes ;
+- location de commande toutes les 30 secondes au repos, accélérée uniquement pendant une transaction ;
+- heartbeat toutes les 5 minutes ;
 - retour exponentiel jusqu’à 60 secondes après erreur réseau ;
 - aucun ping JavaScript toutes les 4 secondes ;
-- WakeLock partiel uniquement pendant une transaction, limité à 135 secondes ;
+- WakeLock processeur et écran uniquement pendant une transaction, limités à 135 secondes ;
 - notification permanente lorsque le mode Robot est actif.
 
 ## Compatibilité
@@ -48,7 +51,7 @@ sequenceDiagram
 - Android 6 à 7 : `ACTION_CALL` + service d’accessibilité ;
 - Android 8 et plus : même chemin pour conserver une session interactive visible et contrôlable ;
 - Android 5 : volontairement exclu de cette première version robuste, car le stockage AES/GCM du PIN dans Android Keystore est garanti à partir d’Android 6 ;
-- téléphone Robot recommandé : une seule SIM, pas de verrouillage écran sécurisé, chargeur permanent, optimisation batterie désactivée.
+- téléphone Robot recommandé : jusqu’à deux SIM testées, pas de verrouillage écran sécurisé pendant le service, chargeur permanent, optimisation batterie désactivée.
 
 ## Pourquoi pas `sendUssdRequest()` seul ?
 

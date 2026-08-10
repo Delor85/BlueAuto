@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-const API_VERSION = '2.1.0';
+const API_VERSION = '2.3.0';
 
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
@@ -45,11 +45,17 @@ try {
         case 'heartbeat':
             heartbeat($db, $auth, $input);
             break;
+        case 'update_device_mode':
+            updateDeviceMode($db, $auth, $input);
+            break;
         case 'create_command':
             createCommand($db, $auth, $input);
             break;
         case 'lease_command':
             leaseCommand($db, $auth);
+            break;
+        case 'release_command':
+            releaseCommand($db, $auth, $input);
             break;
         case 'command_event':
             commandEvent($db, $auth, $input);
@@ -185,6 +191,20 @@ function heartbeat(PDO $db, array $auth, array $input): never
     ok(['server_time' => gmdate('c'), 'node_code' => $auth['node_code']]);
 }
 
+function updateDeviceMode(PDO $db, array $auth, array $input): never
+{
+    $mode = strtoupper(trim((string)($input['mode'] ?? '')));
+    if (!in_array($mode, ['REMOTE', 'ROBOT'], true)) {
+        throw new ApiError('INVALID_MODE', 'Le mode doit être REMOTE ou ROBOT.', 422);
+    }
+    $stmt = $db->prepare(
+        "UPDATE devices SET mode = ?, robot_enabled = IF(? = 'REMOTE', 0, robot_enabled), "
+        . 'last_seen_at = CURRENT_TIMESTAMP WHERE device_id = ?'
+    );
+    $stmt->execute([$mode, $mode, $auth['device_id']]);
+    ok(['mode' => $mode, 'node_code' => $auth['node_code']]);
+}
+
 function createCommand(PDO $db, array $auth, array $input): never
 {
     $requestType = strtoupper(trim((string)($input['request_type'] ?? '')));
@@ -285,6 +305,18 @@ function leaseCommand(PDO $db, array $auth): never
         );
         $expire->execute([$auth['node_code']]);
 
+        $activeStmt = $db->prepare(
+            "SELECT public_id, state FROM commands WHERE executor_node_code = ? "
+            . "AND state IN ('LEASED', 'DIALING', 'AWAITING_PIN', 'PIN_SUBMITTED', 'AWAITING_RESULT') "
+            . 'ORDER BY id ASC LIMIT 1 FOR UPDATE'
+        );
+        $activeStmt->execute([$auth['node_code']]);
+        $active = $activeStmt->fetch();
+        if ($active) {
+            $db->commit();
+            ok(['available' => false, 'busy' => true, 'active_command' => $active]);
+        }
+
         $stmt = $db->prepare(
             "SELECT * FROM commands WHERE executor_node_code = ? AND state = 'PENDING' "
             . 'ORDER BY id ASC LIMIT 1 FOR UPDATE'
@@ -323,11 +355,42 @@ function leaseCommand(PDO $db, array $auth): never
     }
 }
 
+function releaseCommand(PDO $db, array $auth, array $input): never
+{
+    $publicId = trim((string)($input['command_id'] ?? ''));
+    $leaseToken = trim((string)($input['lease_token'] ?? ''));
+    $db->beginTransaction();
+    try {
+        $stmt = $db->prepare('SELECT * FROM commands WHERE public_id = ? FOR UPDATE');
+        $stmt->execute([$publicId]);
+        $command = $stmt->fetch();
+        if (!$command || $command['executor_node_code'] !== $auth['node_code']) {
+            throw new ApiError('COMMAND_NOT_FOUND', 'Commande introuvable pour ce Robot.', 404);
+        }
+        if ($command['state'] !== 'LEASED') {
+            $db->commit();
+            ok(['command' => ['public_id' => $publicId, 'state' => $command['state']], 'released' => false]);
+        }
+        if (!hash_equals((string)$command['lease_token_hash'], hash('sha256', $leaseToken))) {
+            throw new ApiError('LEASE_INVALID', 'Lease invalide ou expiré.', 409);
+        }
+        $reason = mb_substr(trim((string)($input['reason'] ?? 'Exécution différée par le Robot.')), 0, 500);
+        $update = $db->prepare(
+            "UPDATE commands SET state = 'PENDING', attempt = IF(attempt > 0, attempt - 1, 0), "
+            . 'lease_token_hash = NULL, leased_until = NULL, result_message = ? WHERE id = ?'
+        );
+        $update->execute([$reason, $command['id']]);
+        insertEvent($db, (int)$command['id'], $auth['device_id'], 'RELEASED', $reason);
+        $db->commit();
+        ok(['command' => ['public_id' => $publicId, 'state' => 'PENDING'], 'released' => true]);
+    } catch (Throwable $error) {
+        if ($db->inTransaction()) $db->rollBack();
+        throw $error;
+    }
+}
+
 function commandEvent(PDO $db, array $auth, array $input): never
 {
-    if (!in_array($auth['mode'], ['ROBOT', 'HYBRID'], true)) {
-        throw new ApiError('NOT_A_ROBOT', 'Événement réservé au Robot exécuteur.', 403);
-    }
     $publicId = trim((string)($input['command_id'] ?? ''));
     $leaseToken = trim((string)($input['lease_token'] ?? ''));
     $nextState = strtoupper(trim((string)($input['state'] ?? '')));

@@ -27,6 +27,10 @@ try {
     node_code: 'DAE-TEST', role: 'DAE', mode: 'ROBOT',
     phone_number: '699000001', device_name: 'Robot test'
   });
+  const daeRemote = await request('update_device_mode', {mode: 'REMOTE'}, dae.data.device_token);
+  assert.equal(daeRemote.data.mode, 'REMOTE');
+  const daeRobot = await request('update_device_mode', {mode: 'ROBOT'}, dae.data.device_token);
+  assert.equal(daeRobot.data.mode, 'ROBOT');
   const dsm = await pair({
     node_code: 'DSM-TEST', parent_node_code: 'DAE-TEST', role: 'DSM', mode: 'ROBOT',
     phone_number: '699000002', device_name: 'Télécommande test'
@@ -66,7 +70,17 @@ try {
   const firstDaeLease = await request('lease_command', {}, dae.data.device_token);
   assert.equal(firstDaeLease.data.available, true);
   assert.equal(firstDaeLease.data.command.ussd_code, '*550*2*699000002*200#');
-  await complete(firstDaeLease.data.command, dae.data.device_token);
+  const released = await request('release_command', {
+    command_id: firstDaeLease.data.command.public_id,
+    lease_token: firstDaeLease.data.command.lease_token,
+    reason: 'Écran sécurisé verrouillé pendant le test.'
+  }, dae.data.device_token);
+  assert.equal(released.data.released, true);
+  assert.equal(released.data.command.state, 'PENDING');
+
+  const resumedDaeLease = await request('lease_command', {}, dae.data.device_token);
+  assert.equal(resumedDaeLease.data.command.public_id, firstDaeLease.data.command.public_id);
+  await complete(resumedDaeLease.data.command, dae.data.device_token);
 
   const leased = await request('lease_command', {}, dae.data.device_token);
   assert.equal(leased.data.available, true);
@@ -94,7 +108,23 @@ try {
   assert.equal(dsmLease.data.command.ussd_code, '*550*2*699000003*100#');
   await complete(dsmLease.data.command, dsm.data.device_token);
 
-  console.log('Cloudflare integration: hierarchy aliases, timestamps, two Robots, idempotency and full state flow OK');
+  const queuedOne = await request('create_command', {
+    request_type: 'TEST_NUMBER', client_request_id: 'integration-queue-pos-01'
+  }, pos.data.device_token);
+  const queuedTwo = await request('create_command', {
+    request_type: 'TEST_NUMBER', client_request_id: 'integration-queue-pos-02'
+  }, pos.data.device_token);
+  const firstPosLease = await request('lease_command', {}, pos.data.device_token);
+  assert.equal(firstPosLease.data.command.public_id, queuedOne.data.command.public_id);
+  const blockedParallelLease = await request('lease_command', {}, pos.data.device_token);
+  assert.equal(blockedParallelLease.data.available, false);
+  assert.equal(blockedParallelLease.data.busy, true);
+  await complete(firstPosLease.data.command, pos.data.device_token);
+  const secondPosLease = await request('lease_command', {}, pos.data.device_token);
+  assert.equal(secondPosLease.data.command.public_id, queuedTwo.data.command.public_id);
+  await complete(secondPosLease.data.command, pos.data.device_token);
+
+  console.log('Cloudflare integration: aliases, mode switch, locked release, serialized queue and full state flow OK');
 } finally {
   await mf.dispose();
 }

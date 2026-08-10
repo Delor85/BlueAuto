@@ -85,19 +85,18 @@ Vérifiez l’API dans un navigateur :
 https://blue-magic-api.votre-nom.workers.dev/api?action=health
 ```
 
-Le résultat attendu contient `"ok":true`, `"database":"online"` et `"version":"2.0.0-cloudflare"`.
+Le résultat attendu contient `"ok":true`, `"database":"online"` et `"version":"2.3.0-cloudflare"`.
 
 Au repos, un Robot vérifie la file toutes les 30 secondes : une commande peut donc attendre jusqu’à environ 30 secondes avant sa composition. Ce réglage réduit fortement la batterie et reste adapté au quota gratuit. Il pourra être ajusté après mesure sur le terrain.
 
 ## 6. Configurer le téléphone Robot
 
-À l’écran d’appairage de l’application Android, utilisez :
+L’adresse Cloudflare est intégrée à l’application et n’est plus demandée. À l’écran d’appairage, utilisez :
 
-- **URL API** : `https://blue-magic-api.votre-nom.workers.dev/api`;
 - **Code nœud** : par exemple `DAE-01`;
 - **Rôle** : `DAE`;
 - **Mode** : `ROBOT`;
-- **Secret** : celui saisi avec `wrangler secret put`;
+- **Code d’activation initiale** : celui saisi avec `wrangler secret put`; après le premier succès il est conservé chiffré dans le téléphone et disparaît des appairages suivants;
 - **PIN Camtel** : quatre chiffres, enregistré uniquement dans le téléphone.
 
 Les Télécommandes utilisent la même URL et le même secret pendant l’appairage, mais le mode `REMOTE`. Elles ne doivent pas recevoir le PIN du Robot.
