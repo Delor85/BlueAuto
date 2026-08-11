@@ -14,9 +14,11 @@ const mf = new Miniflare({
 
 try {
   const db = await mf.getD1Database('DB');
-  const schema = await readFile(new URL('../migrations/0001_initial.sql', import.meta.url), 'utf8');
-  for (const statement of schema.split(';').map(value => value.trim()).filter(Boolean)) {
-    await db.prepare(statement).run();
+  for (const migration of ['0001_initial.sql', '0002_robot_sim_attestation.sql']) {
+    const schema = await readFile(new URL(`../migrations/${migration}`, import.meta.url), 'utf8');
+    for (const statement of schema.split(';').map(value => value.trim()).filter(Boolean)) {
+      await db.prepare(statement).run();
+    }
   }
 
   const health = await request('health');
@@ -31,17 +33,26 @@ try {
   assert.equal(daeRemote.data.mode, 'REMOTE');
   const daeRobot = await request('update_device_mode', {mode: 'ROBOT'}, dae.data.device_token);
   assert.equal(daeRobot.data.mode, 'ROBOT');
+  await attest(dae.data.device_token, 'a'.repeat(64), 0);
   const dsm = await pair({
     node_code: 'DSM-TEST', parent_node_code: 'DAE-TEST', role: 'DSM', mode: 'ROBOT',
     phone_number: '699000002', device_name: 'Télécommande test'
   });
   assert.equal(dsm.data.node_code, 'DSM-TEST_DAE-TEST');
+  await attest(dsm.data.device_token, 'b'.repeat(64), 0);
+
+  const dsmTwo = await pair({
+    node_code: 'DSM2', parent_node_code: 'DAE-TEST', role: 'DSM', mode: 'REMOTE',
+    phone_number: '699000004', device_name: 'Deuxième DSM légitime'
+  });
+  assert.equal(dsmTwo.data.node_code, 'DSM2_DAE-TEST');
 
   const pos = await pair({
     node_code: 'POS5', parent_node_code: 'DSM-TEST', role: 'POS', mode: 'ROBOT',
     phone_number: '699000003', device_name: 'Second Robot test'
   });
   assert.equal(pos.data.node_code, 'POS5_DSM-TEST_DAE-TEST');
+  await attest(pos.data.device_token, 'c'.repeat(64), 1);
 
   const cancellable = await request('create_command', {
     request_type: 'TEST_NUMBER', client_request_id: 'integration-cancel-pos-01'
@@ -83,6 +94,8 @@ try {
   const firstDaeLease = await request('lease_command', {}, dae.data.device_token);
   assert.equal(firstDaeLease.data.available, true);
   assert.equal(firstDaeLease.data.command.ussd_code, '*550*2*699000002*200#');
+  assert.equal(firstDaeLease.data.command.executor_node_code, 'DAE-TEST');
+  assert.match(firstDaeLease.data.command.integrity_digest, /^[a-f0-9]{64}$/);
   const released = await request('release_command', {
     command_id: firstDaeLease.data.command.public_id,
     lease_token: firstDaeLease.data.command.lease_token,
@@ -187,6 +200,18 @@ try {
 
 async function pair(payload) {
   return request('pair_device', {...payload, pairing_secret: PAIRING_SECRET});
+}
+
+async function attest(token, fingerprint, simSlot) {
+  const heartbeat = await request('heartbeat', {
+    robot_enabled: true,
+    sim_verified: true,
+    sim_fingerprint: fingerprint,
+    sim_slot: simSlot,
+    app_version: 'integration', android_version: 'test', device_model: 'Miniflare'
+  }, token);
+  assert.equal(heartbeat.data.robot_enabled, true);
+  assert.equal(heartbeat.data.sim_verified, true);
 }
 
 async function complete(command, token) {

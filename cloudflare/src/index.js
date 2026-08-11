@@ -82,7 +82,7 @@ async function pairDevice(env, input, headers) {
   ).bind(requestedNode).first();
   if (role !== 'DAE' && (!requestedExisting
       || String(requestedExisting.parent_node_code || '') !== parent)) {
-    node = canonicalChildCode(requestedNode, parent);
+    node = canonicalChildCode(requestedNode, parent, role);
   }
 
   const existing = await env.DB.prepare(
@@ -93,15 +93,6 @@ async function pairDevice(env, input, headers) {
       && String(existing.parent_node_code || '') === parent;
     if (!same) throw new ApiError('NODE_IDENTITY_CONFLICT', 'Ce nœud existe avec une autre identité.', 409);
   } else {
-    if (role === 'DSM') {
-      const siblingDsm = await env.DB.prepare(
-        "SELECT node_code FROM nodes WHERE parent_node_code = ? AND role = 'DSM' AND active = 1 LIMIT 1"
-      ).bind(parent).first();
-      if (siblingDsm) {
-        throw new ApiError('DAE_ALREADY_HAS_DSM',
-          `Ce DAE possède déjà son DSM officiel : ${siblingDsm.node_code}.`, 409);
-      }
-    }
     const phoneOwner = await env.DB.prepare('SELECT node_code FROM nodes WHERE phone_number = ?')
       .bind(phoneNumber).first();
     if (phoneOwner) throw new ApiError('PHONE_ALREADY_USED', 'Ce numéro appartient déjà à un autre nœud.', 409);
@@ -125,6 +116,7 @@ async function authenticate(request, env) {
   if (!token) throw new ApiError('AUTH_REQUIRED', 'Jeton appareil requis.', 401);
   const auth = await env.DB.prepare(
     'SELECT d.device_id, d.node_code, d.mode, d.active AS device_active, '
+    + 'd.robot_enabled, d.sim_verified, d.sim_fingerprint, d.sim_slot, d.last_seen_at, '
     + 'n.role, n.phone_number, n.parent_node_code, n.active AS node_active '
     + 'FROM devices d JOIN nodes n ON n.node_code = d.node_code '
     + 'WHERE d.token_hash = ? LIMIT 1'
@@ -136,17 +128,30 @@ async function authenticate(request, env) {
 }
 
 async function heartbeat(env, auth, input, headers) {
+  const simFingerprint = String(input.sim_fingerprint || '').trim().toLowerCase();
+  const simVerified = input.sim_verified === true && /^[a-f0-9]{64}$/.test(simFingerprint);
+  const robotEnabled = input.robot_enabled === true && simVerified
+    && ['ROBOT', 'HYBRID'].includes(auth.mode);
+  const simSlot = Number.isInteger(input.sim_slot) && input.sim_slot >= 0 && input.sim_slot <= 3
+    ? input.sim_slot : null;
   await env.DB.prepare(
     "UPDATE devices SET last_seen_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), robot_enabled = ?, "
+    + 'sim_verified = ?, sim_fingerprint = ?, sim_slot = ?, '
     + 'app_version = ?, android_version = ?, device_model = ? WHERE device_id = ?'
   ).bind(
-    input.robot_enabled ? 1 : 0,
+    robotEnabled ? 1 : 0,
+    simVerified ? 1 : 0,
+    simVerified ? simFingerprint : '',
+    simSlot,
     cleanText(input.app_version, 40),
     cleanText(input.android_version, 40),
     cleanText(input.device_model, 160),
     auth.device_id
   ).run();
-  return success({server_time: new Date().toISOString(), node_code: auth.node_code}, 200, headers);
+  return success({
+    server_time: new Date().toISOString(), node_code: auth.node_code,
+    robot_enabled: robotEnabled, sim_verified: simVerified
+  }, 200, headers);
 }
 
 async function updateDeviceMode(env, auth, input, headers) {
@@ -203,7 +208,8 @@ async function createCommand(env, auth, input, headers) {
   return success({
     command: {
       public_id: publicId, state: 'PENDING', executor_node_code: values.executor,
-      target_node_code: values.targetNode, operation: values.operation, amount: values.amount,
+      target_node_code: values.targetNode, target_phone: values.targetPhone,
+      operation: values.operation, amount: values.amount,
       created_at: createdAt, updated_at: createdAt
     },
     duplicate: false
@@ -227,7 +233,8 @@ async function resolveCommand(env, auth, input, requestType) {
     if (!['DAE', 'DSM'].includes(auth.role)) {
       throw new ApiError('REQUEST_NOT_ALLOWED', 'Seul un DAE ou DSM peut approvisionner un enfant.', 403);
     }
-    const child = await resolveDirectChild(env, requester, input.target_node_code);
+    const childRole = auth.role === 'DAE' ? 'DSM' : 'POS';
+    const child = await resolveDirectChild(env, requester, input.target_node_code, childRole);
     if (!child) throw new ApiError('CHILD_NOT_FOUND', 'Ce compte n’est pas un enfant direct actif.', 422);
     const value = amount(input.amount);
     return {
@@ -256,6 +263,10 @@ async function resolveCommand(env, auth, input, requestType) {
 async function leaseCommand(env, auth, headers) {
   if (!['ROBOT', 'HYBRID'].includes(auth.mode)) {
     throw new ApiError('NOT_A_ROBOT', 'Cet appareil n’est pas autorisé à louer des commandes.', 403);
+  }
+  if (!auth.robot_enabled || !auth.sim_verified || !/^[a-f0-9]{64}$/.test(auth.sim_fingerprint || '')) {
+    throw new ApiError('ROBOT_SIM_NOT_VERIFIED',
+      'Ce Robot doit confirmer la présence et l’identité de sa SIM avant de louer une commande.', 409);
   }
 
   await env.DB.prepare(
@@ -290,23 +301,29 @@ async function leaseCommand(env, auth, headers) {
     + "leased_until = strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '+120 seconds'), "
     + "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') "
     + "WHERE id = (SELECT id FROM commands WHERE executor_node_code = ? AND state = 'PENDING' ORDER BY id LIMIT 1) "
-    + "AND state = 'PENDING' RETURNING id, public_id, operation, target_phone, amount, ussd_code, requires_pin"
+    + "AND state = 'PENDING' RETURNING id, public_id, requester_node_code, executor_node_code, "
+    + "target_node_code, operation, target_phone, amount, ussd_code, requires_pin"
   ).bind(await sha256(leaseToken), auth.node_code).first();
   if (!command) return success({available: false}, 200, headers);
 
   await env.DB.prepare(
     "INSERT INTO command_events(command_id, device_id, state, message) VALUES(?, ?, 'LEASED', 'Commande réservée au Robot.')"
   ).bind(command.id, auth.device_id).run();
+  const integrityDigest = await commandDigest(command);
   return success({
     available: true,
     command: {
       public_id: command.public_id,
       lease_token: leaseToken,
+      requester_node_code: command.requester_node_code,
+      executor_node_code: command.executor_node_code,
+      target_node_code: command.target_node_code,
       operation: command.operation,
       target_phone: command.target_phone,
       amount: command.amount,
       ussd_code: command.ussd_code,
-      requires_pin: Boolean(command.requires_pin)
+      requires_pin: Boolean(command.requires_pin),
+      integrity_digest: integrityDigest
     }
   }, 200, headers);
 }
@@ -454,9 +471,18 @@ function nodeCode(value) {
   return node;
 }
 
-function canonicalChildCode(localCode, parentCode) {
+function canonicalChildCode(localCode, parentCode, expectedRole = '') {
+  const local = nodeCode(localCode);
+  if (expectedRole && !local.startsWith(expectedRole)) {
+    throw new ApiError('INVALID_NODE_ROLE', `Le code doit commencer par ${expectedRole}.`, 422);
+  }
   const suffix = `_${parentCode}`;
-  return nodeCode(localCode.endsWith(suffix) ? localCode : `${localCode}${suffix}`);
+  if (local.endsWith(suffix)) return local;
+  if (local.includes('_')) {
+    throw new ApiError('NODE_PARENT_MISMATCH',
+      'Le nom complet fourni appartient à une autre arborescence.', 422);
+  }
+  return nodeCode(`${local}${suffix}`);
 }
 
 async function resolveParentNode(env, reference, expectedRole) {
@@ -482,18 +508,28 @@ async function resolveParentNode(env, reference, expectedRole) {
   throw new ApiError('PARENT_NOT_FOUND', 'Nœud supérieur introuvable.', 422);
 }
 
-async function resolveDirectChild(env, parentCode, reference) {
+async function resolveDirectChild(env, parentCode, reference, expectedRole) {
   const value = nodeCode(reference);
   const exact = await env.DB.prepare(
     'SELECT node_code, phone_number FROM nodes '
-    + 'WHERE node_code = ? AND parent_node_code = ? AND active = 1'
-  ).bind(value, parentCode).first();
+    + 'WHERE node_code = ? AND parent_node_code = ? AND role = ? AND active = 1'
+  ).bind(value, parentCode, expectedRole).first();
   if (exact) return exact;
-  const canonical = canonicalChildCode(value, parentCode);
+  const canonical = canonicalChildCode(value, parentCode, expectedRole);
   return env.DB.prepare(
     'SELECT node_code, phone_number FROM nodes '
-    + 'WHERE node_code = ? AND parent_node_code = ? AND active = 1'
-  ).bind(canonical, parentCode).first();
+    + 'WHERE node_code = ? AND parent_node_code = ? AND role = ? AND active = 1'
+  ).bind(canonical, parentCode, expectedRole).first();
+}
+
+async function commandDigest(command) {
+  const parts = [
+    command.public_id || '', command.requester_node_code || '', command.executor_node_code || '',
+    command.target_node_code || '', command.operation || '', command.target_phone || '',
+    command.amount == null ? '' : String(command.amount), command.ussd_code || '',
+    command.requires_pin ? '1' : '0'
+  ];
+  return sha256(parts.join('|'));
 }
 
 function phone(value) {

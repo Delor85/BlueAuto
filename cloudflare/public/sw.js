@@ -1,5 +1,5 @@
-var CACHE = 'blue-magic-v2-3-1-regression-guard';
-var SHELL = ['./index.html', './style.css', './app.js', './manifest.json'];
+var CACHE = 'blue-magic-v2-5-0-sim-safety';
+var SHELL = ['./index.html', './style.css', './magic.css', './app.js', './manifest.json'];
 
 self.addEventListener('install', function (event) {
     event.waitUntil(caches.open(CACHE).then(function (cache) {

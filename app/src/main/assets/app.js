@@ -19,11 +19,15 @@
         byId('nodeMeta').textContent=(configuration.role||'—')+' • '+(configuration.mode||'—')+' • SIM '+((configuration.sim_slot||0)+1);
         byId('robotState').textContent=configuration.robot_enabled?'ROBOT ACTIF':'ROBOT ARRÊTÉ';
         if(configuration.pin_blocked){byId('fatalNotice').textContent='PIN BLOQUÉ pour l’exécution Robot. Les fonctions Remote restent disponibles.';byId('fatalNotice').className='notice notice-danger';}
+        else if(configuration.mode==='ROBOT'&&!configuration.sim_verified){byId('fatalNotice').textContent='SIM NON VÉRIFIÉE : le Robot est arrêté et ne peut réserver aucune commande. Ouvrez ☰ GÉRER > VÉRIFIER / LIER LA SIM.';byId('fatalNotice').className='notice notice-danger';}
         if(configuration.role==='DSM'||configuration.role==='POS'){byId('requestSupplyCard').className='panel command-card';}
         if(configuration.role==='DAE'||configuration.role==='DSM'){byId('supplyChildCard').className='panel command-card';}
         if(configuration.role==='POS'){byId('retailCard').className='panel command-card';}
         each('button[data-action]',function(button){button.onclick=function(){execute(button.getAttribute('data-action'));};});
-        byId('refreshCommands').onclick=refresh;render();refresh();window.setInterval(refresh,15000);
+        byId('refreshCommands').onclick=refresh;
+        document.addEventListener('focusin',function(event){if(event.target&&event.target.tagName==='INPUT'){try{window.AndroidBridge.setFormEditing(true);}catch(ignored){}}});
+        document.addEventListener('focusout',function(){window.setTimeout(function(){if(!document.activeElement||document.activeElement.tagName!=='INPUT'){try{window.AndroidBridge.setFormEditing(false);}catch(ignored){}}},180);});
+        render();refresh();window.setInterval(refresh,15000);
     }
     function execute(action){
         if(!bridge()){return;}var type='',node='',phone='',amount='';
@@ -34,8 +38,17 @@
         if(type!=='TEST_NUMBER'&&!/^[1-9]\d{0,8}$/.test(amount)){showToast('Saisissez un montant entier valide.');return;}
         if(type==='SUPPLY_CHILD'&&!node){showToast('Saisissez le code du nœud enfant.');return;}
         if(type==='RETAIL_SALE'&&!/^\d{9}$/.test(phone)){showToast('Le numéro client doit avoir 9 chiffres.');return;}
+        if(type!=='TEST_NUMBER'&&!confirmFinancial(type,node,phone,amount)){return;}
         setBusy(true);window.AndroidBridge.createCommand(type,node,phone,amount,requestId());
     }
+    function confirmFinancial(type,node,phone,amount){
+        var title='',destination='';
+        if(type==='REQUEST_SUPPLY'){title='ACHAT / DEMANDE DE CRÉDIT';destination='Votre compte '+(configuration.node_code||'actif')+' sera crédité par son supérieur.';}
+        else if(type==='SUPPLY_CHILD'){title='APPROVISIONNEMENT D’UN ENFANT';destination='Nœud saisi : '+node+'. Le serveur utilisera uniquement son numéro Camtel officiel.';}
+        else{title='VENTE À UN CLIENT';destination='Numéro destinataire : '+phone+'.';}
+        return window.confirm('CONFIRMATION 1 SUR 2\n\n'+title+'\nMontant : '+formatMoney(amount)+' FCFA\n'+destination+'\n\nRelisez attentivement. Après validation, la fenêtre Camtel constituera la confirmation 2 sur 2 et devra afficher exactement le même numéro et le même montant.\n\nCréer cette commande ?');
+    }
+    function formatMoney(value){return String(value).replace(/\B(?=(\d{3})+(?!\d))/g,' ');}
     function refresh(){var i;if(!bridge()){return;}for(i=0;i<commands.length;i+=1){if(!TERMINAL[commands[i].state]){window.AndroidBridge.getCommandStatus(commands[i].public_id);}}}
     function upsert(command){var i,index=-1,key;for(i=0;i<commands.length;i+=1){if(commands[i].public_id===command.public_id){index=i;break;}}if(index<0){commands.unshift(command);}else{for(key in command){if(Object.prototype.hasOwnProperty.call(command,key)){commands[index][key]=command[key];}}}commands=commands.slice(0,20);localStorage.setItem(storageKey(),JSON.stringify(commands));}
     function load(){try{var value=JSON.parse(localStorage.getItem(storageKey())||'[]');return Object.prototype.toString.call(value)==='[object Array]'?value:[];}catch(ignored){return [];}}

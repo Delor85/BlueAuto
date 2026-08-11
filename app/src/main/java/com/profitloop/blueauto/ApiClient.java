@@ -47,13 +47,18 @@ final class ApiClient {
     }
 
     JSONObject heartbeat() throws Exception {
+        String targetProfile = profileIdOverride.isEmpty()
+                ? AppConfig.profileId(context) : profileIdOverride;
+        SimIdentityManager.Verification sim = SimIdentityManager.verify(context, targetProfile);
+        boolean locallyEnabled = AppConfig.robotEnabled(context, targetProfile);
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.4.5-system-ussd-wake");
+        payload.put("app_version", "2.5.0-sim-safety");
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
-        payload.put("robot_enabled", profileIdOverride.isEmpty()
-                ? AppConfig.robotEnabled(context)
-                : AppConfig.robotEnabled(context, profileIdOverride));
+        payload.put("robot_enabled", locallyEnabled && sim.valid);
+        payload.put("sim_verified", sim.valid);
+        payload.put("sim_fingerprint", sim.attestation());
+        payload.put("sim_slot", Math.max(0, AppConfig.simSlot(context, targetProfile)));
         return post("heartbeat", payload, true);
     }
 

@@ -1,4 +1,4 @@
-# Blue Magic v2.3 — verrouillage maîtrisé, file multi-SIM et usage rapide
+# Blue Magic v2.5 — garde SIM et sécurité financière
 
 Blue Magic automatise, sur un téléphone Android dédié, les transferts de crédit de distribution Blue/Camtel qui nécessitent désormais deux étapes :
 
@@ -12,6 +12,10 @@ Cette version reconstruit en priorité le trajet critique **Télécommande → s
 - le PIN n’est jamais envoyé au serveur ni au JavaScript ; il est chiffré par Android Keystore ;
 - l’interface web ne peut plus demander l’exécution d’un code USSD arbitraire ;
 - numéro et montant sont recalculés par le Robot et comparés au pop-up Camtel avant le PIN ;
+- chaque opération financière reçoit une confirmation lisible sur la Télécommande, puis une seconde confirmation automatique sur le pop-up Camtel ;
+- chaque profil Robot est lié à l’empreinte de sa SIM physique : SIM absente, déplacée ou différente signifie arrêt avant la location d’une commande ;
+- le Worker n’accorde un lease qu’à un appareil Robot ayant envoyé une attestation SIM valide ;
+- chaque commande louée indique explicitement son nœud exécuteur et possède une empreinte d’intégrité contrôlée dans Android ;
 - chaque demande possède une clé d’idempotence et un lease anti-double exécution ;
 - les états réels sont `PENDING → LEASED → DIALING → AWAITING_PIN → PIN_SUBMITTED → AWAITING_RESULT → SUCCEEDED/FAILED/UNKNOWN/BLOCKED` ;
 - une absence de confirmation devient `UNKNOWN` et n’est jamais retentée automatiquement, afin d’éviter une double recharge ;
@@ -20,17 +24,18 @@ Cette version reconstruit en priorité le trajet critique **Télécommande → s
 - le détecteur PIN inspecte toutes les fenêtres Android accessibles, réacquiert le champ à chaque tentative, vérifie la saisie et possède une méthode de secours locale temporaire ;
 - chaque compte choisit explicitement SIM 1, SIM 2, SIM 3 ou SIM 4 selon le téléphone ;
 - plusieurs comptes DAE, DSM et PoS peuvent être conservés sur le même téléphone ; tous les profils Robots démarrés restent actifs même lorsqu’un compte Remote est affiché ;
-- deux Robots associés à deux SIM d’un même téléphone partagent un ordonnanceur FIFO et n’ouvrent jamais deux sessions USSD en même temps ;
-- l’interface de commande utilise du JavaScript ES5 compatible avec l’ancien WebView d’Android 6 ;
-- les codes courts sont résolus dans leur branche (`DSM7` → `DSM7_SU2`, `POS5` → `POS5_DSM7_SU2`) ;
+- deux Robots associés à deux SIM d’un même téléphone partagent un ordonnanceur équitable et n’ouvrent jamais deux sessions USSD en même temps ;
+- l’interface de commande ES5 est intégrée dans l’APK : elle reste compatible avec l’ancien WebView d’Android 6 et ne dépend plus d’un `index.html` distant ;
+- les codes courts sont résolus uniquement dans leur branche (`DSM7` → `DSM7_SU2`, `POS5` → `POS5_DSM7_SU2`) ; plusieurs DSM peuvent appartenir au même DAE, chacun avec son numéro Camtel unique ;
 - les commandes récentes affichent leur horodatage local ;
 - `ROBOT` est polyvalent (exécution + création de commandes) ; `REMOTE` reste uniquement télécommande.
-- un verrouillage Android sécurisé met la location des commandes en pause au lieu d’ouvrir un dialogue PIN inaccessible ; une commande louée au même instant est remise en file sans consommer de tentative ;
-- l’écran est réveillé et maintenu allumé pendant la courte session USSD lorsque le téléphone n’est pas verrouillé ;
+- au repos, seul le service Robot fonctionne : l’écran peut s’éteindre normalement et n’est plus maintenu allumé ;
+- lors d’une commande, seule la surface Téléphone/USSD est réveillée brièvement ; l’activité Blue Magic ne s’affiche pas au-dessus du verrou ;
 - une synchronisation finale en panne ne bloque plus les files des autres SIM et se réconcilie automatiquement avec le statut serveur ;
 - une garde globale détecte et neutralise les anciens états locaux qui prétendraient avoir deux sessions USSD simultanées ;
 - le même compte passe de `ROBOT` à `REMOTE`, ou inversement, sans suppression ni nouvel appairage ;
-- l’adresse du serveur est interne à l’application ; après une première activation, le code d’appairage est mémorisé chiffré et disparaît du formulaire.
+- l’appairage utilise uniquement l’adresse Cloudflare choisie dans le formulaire : aucune bascule silencieuse vers l’ancien hébergement `gt.tc` ;
+- l’adresse du serveur, le secret d’appairage et le PIN redeviennent vérifiables dans le formulaire, avec affichage volontaire via la case prévue.
 
 ## Structure
 
@@ -46,7 +51,7 @@ La signature de l’APK pilote est conservée dans le cache privé de GitHub Act
 
 ## Limite technique honnête
 
-Android ne fournit pas d’API publique universelle pour répondre à la deuxième étape d’une session USSD interactive. `TelephonyManager.sendUssdRequest()` sait obtenir une réponse à une requête, mais ne fournit pas de méthode publique pour continuer la session avec le PIN. Blue Magic utilise donc `ACTION_CALL` puis un `AccessibilityService` contrôlé et limité à la transaction attendue. Un verrouillage par mot de passe ou schéma ne peut et ne doit pas être contourné : les commandes patientent jusqu’au déverrouillage. Le comportement de la fenêtre MMI dépend du fabricant et de l’application Téléphone : un essai sur le modèle exact du Robot est obligatoire.
+Android ne fournit pas d’API publique universelle pour répondre à la deuxième étape d’une session USSD interactive. `TelephonyManager.sendUssdRequest()` sait obtenir une réponse à une requête, mais ne fournit pas de méthode publique pour continuer la session avec le PIN. Blue Magic utilise donc `ACTION_CALL` puis un `AccessibilityService` contrôlé et limité à la transaction attendue. La v2.5 réveille brièvement la fenêtre MMI lorsqu’une commande arrive, sans maintenir l’écran allumé au repos. Cela ne supprime pas cryptographiquement un mot de passe ou un schéma Android : certains fabricants refusent d’exposer le champ PIN USSD à l’accessibilité derrière un verrou sécurisé. Dans ce cas, la commande doit attendre un déverrouillage ; aucun contournement du verrou Android n’est tenté. Un essai sur le modèle exact du Robot reste obligatoire.
 
 La version gratuite d’InfinityFree est adaptée à l’interface web et fournit PHP/MySQL, mais son hébergement gratuit peut filtrer les clients automatisés et n’est pas présenté comme une plateforme d’API. Le dossier `cloudflare/` fournit donc le backend recommandé, conçu pour les clients automatisés. InfinityFree reste disponible comme solution de repli.
 

@@ -48,8 +48,7 @@ public class SmsReceiver extends BroadcastReceiver {
         String expectedPhone = command.optString("target_phone", "").replaceAll("\\D", "");
         String expectedAmount = command.optString("amount", "").replaceFirst("\\.0+$", "").replaceAll("\\D", "");
         String compact = lower.replaceAll("[\\s,._-]", "");
-        boolean correlated = (!expectedPhone.isEmpty() && compact.contains(expectedPhone))
-                || !transactionId(message).isEmpty();
+        boolean correlated = !expectedPhone.isEmpty() && compact.contains(expectedPhone);
         if (!correlated) return;
         if (!expectedAmount.isEmpty() && !containsAmount(lower, expectedAmount)) return;
 

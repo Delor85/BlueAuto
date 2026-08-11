@@ -1,0 +1,38 @@
+body {
+    background: radial-gradient(circle at 88% 4%, rgba(135, 92, 255, .22), transparent 34%),
+                linear-gradient(180deg, #061a3a, #05122a);
+}
+
+.topbar h1 {
+    background: linear-gradient(90deg, #4ee1ff, #ffffff 52%, #b9a9ff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.panel {
+    background: linear-gradient(155deg, rgba(16, 47, 94, .96), rgba(8, 29, 59, .98));
+}
+
+button {
+    background: linear-gradient(105deg, #2670ff, #875cff);
+    color: #fff;
+    box-shadow: 0 7px 18px rgba(38, 112, 255, .24);
+}
+
+.secondary {
+    background: linear-gradient(105deg, #087eae, #1668df);
+}
+
+input {
+    background: #041126;
+    border-color: rgba(78, 225, 255, .4);
+    scroll-margin-top: 90px;
+}
+
+@media (max-width: 360px), (max-height: 600px) {
+    .topbar { padding: 8px 10px 6px; }
+    main { padding: 6px 8px 36px; }
+    .hero, .command-card, .history { padding: 12px; }
+    input, button { min-height: 43px; }
+}

@@ -92,6 +92,16 @@ final class PendingCommandStore {
         }
     }
 
+    static synchronized void putBoolean(Context context, String profileId, String key, boolean value) {
+        JSONObject command = get(context, profileId);
+        if (command == null || key == null || key.isEmpty()) return;
+        try {
+            command.put(key, value);
+            save(context, profileId, command);
+        } catch (Exception ignored) {
+        }
+    }
+
     static synchronized int incrementReportRetries(Context context, String profileId) {
         JSONObject command = get(context, profileId);
         if (command == null) return 0;

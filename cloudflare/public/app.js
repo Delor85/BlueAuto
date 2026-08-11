@@ -76,6 +76,9 @@
         if (configuration.pin_blocked) {
             byId('fatalNotice').textContent = 'PIN BLOQUÉ pour l’exécution Robot. Les fonctions Remote restent disponibles.';
             byId('fatalNotice').classList.remove('hidden');
+        } else if (configuration.mode === 'ROBOT' && !configuration.sim_verified) {
+            byId('fatalNotice').textContent = 'SIM NON VÉRIFIÉE : le Robot est arrêté. Ouvrez ☰ GÉRER > VÉRIFIER / LIER LA SIM.';
+            byId('fatalNotice').classList.remove('hidden');
         }
         if (configuration.role === 'DSM' || configuration.role === 'POS') {
             byId('requestSupplyCard').classList.remove('hidden');
@@ -130,8 +133,32 @@
         if (requestType === 'RETAIL_SALE' && !/^\d{9}$/.test(targetPhone)) {
             return showToast('Le numéro client doit avoir 9 chiffres.');
         }
+        if (requestType !== 'TEST_NUMBER'
+                && !confirmFinancial(requestType, targetNode, targetPhone, amount)) return;
         setBusy(true);
         window.AndroidBridge.createCommand(requestType, targetNode, targetPhone, amount, requestId());
+    }
+
+    function confirmFinancial(type, node, phone, amount) {
+        var title = '';
+        var destination = '';
+        if (type === 'REQUEST_SUPPLY') {
+            title = 'ACHAT / DEMANDE DE CRÉDIT';
+            destination = 'Compte crédité : ' + (configuration.node_code || 'compte actif') + '.';
+        } else if (type === 'SUPPLY_CHILD') {
+            title = 'APPROVISIONNEMENT D’UN ENFANT';
+            destination = 'Nœud : ' + node + '. Seul son numéro Camtel officiel sera utilisé.';
+        } else {
+            title = 'VENTE À UN CLIENT';
+            destination = 'Numéro destinataire : ' + phone + '.';
+        }
+        return window.confirm('CONFIRMATION 1 SUR 2\n\n' + title + '\nMontant : '
+            + formatMoney(amount) + ' FCFA\n' + destination
+            + '\n\nLa fenêtre Camtel sera la confirmation 2 sur 2 et devra afficher exactement les mêmes données.\n\nCréer cette commande ?');
+    }
+
+    function formatMoney(value) {
+        return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
     }
 
     function refreshCommands() {

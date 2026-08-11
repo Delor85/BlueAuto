@@ -76,7 +76,10 @@ public class RobotService extends Service {
         }
 
         if (ACTION_STOP.equals(action)) {
-            if (!profileId.isEmpty()) AppConfig.setRobotEnabled(this, profileId, false);
+            if (!profileId.isEmpty()) {
+                AppConfig.setRobotEnabled(this, profileId, false);
+                lastHeartbeatByProfile.remove(profileId);
+            }
             if (!AppConfig.anyRobotEnabled(this)) releaseStandbyWakeLock();
             if (!hasServiceWork()) {
                 updateNotification("Tous les Robots sont arrêtés");
@@ -107,6 +110,7 @@ public class RobotService extends Service {
 
         if (ACTION_START.equals(action) && !profileId.isEmpty()) {
             AppConfig.setRobotEnabled(this, profileId, true);
+            lastHeartbeatByProfile.remove(profileId);
         }
         if (!hasServiceWork()) {
             stopSelf();
@@ -136,12 +140,37 @@ public class RobotService extends Service {
             List<String> profiles = AppConfig.enabledRobotProfileIds(this);
             if (!profiles.isEmpty()) acquireStandbyWakeLock();
             List<JSONObject> activeCommands = PendingCommandStore.getActiveUssdCommands(this);
+            // A lease captured before a SIM was removed must be returned to the server before it can
+            // block the correct Robot. Once dialing may have started we fail closed as UNKNOWN.
+            for (JSONObject active : activeCommands) {
+                String owner = active.optString("local_profile_id", "");
+                Readiness readiness = checkReadiness(owner);
+                if (readiness.ready) continue;
+                String state = active.optString("local_state", PendingCommandStore.LEASED);
+                if (PendingCommandStore.LEASED.equals(state)) {
+                    releaseUnexecutedLease(owner, active, ApiClient.forProfile(this, owner),
+                            readiness.message);
+                } else {
+                    finishCommand(owner, false, "SIM_LOST_DURING_COMMAND",
+                            readiness.message + " La transaction doit être vérifiée avant toute reprise.", "");
+                }
+                disableUnsafeRobot(owner, readiness.message);
+            }
+
+            activeCommands = PendingCommandStore.getActiveUssdCommands(this);
             if (activeCommands.size() > 1) {
                 for (int index = 1; index < activeCommands.size(); index++) {
                     JSONObject conflict = activeCommands.get(index);
-                    finishCommand(conflict.optString("local_profile_id", ""), false,
-                            "CONCURRENT_COMMAND_RECOVERY",
-                            "Plusieurs sessions USSD locales ont été détectées. Cette opération doit être vérifiée manuellement.", "");
+                    String conflictProfile = conflict.optString("local_profile_id", "");
+                    if (PendingCommandStore.LEASED.equals(
+                            conflict.optString("local_state", PendingCommandStore.LEASED))) {
+                        releaseUnexecutedLease(conflictProfile, conflict,
+                                ApiClient.forProfile(this, conflictProfile),
+                                "Une autre session USSD utilise déjà ce téléphone.");
+                    } else {
+                        finishCommand(conflictProfile, false, "CONCURRENT_COMMAND_RECOVERY",
+                                "Plusieurs sessions USSD déjà composées ont été détectées. Vérification manuelle requise.", "");
+                    }
                 }
             }
 
@@ -164,6 +193,7 @@ public class RobotService extends Service {
                 return;
             }
 
+            profiles = AppConfig.enabledRobotProfileIds(this);
             String lastProfileProblem = "";
             int count = profiles.size();
             for (int offset = 0; offset < count; offset++) {
@@ -175,6 +205,26 @@ public class RobotService extends Service {
 
                 ApiClient api = ApiClient.forProfile(this, profileId);
                 try {
+                    Readiness readiness = checkReadiness(profileId);
+                    if (!readiness.ready) {
+                        disableUnsafeRobot(profileId, readiness.message);
+                        try {
+                            api.heartbeat();
+                            lastHeartbeatByProfile.put(profileId, System.currentTimeMillis());
+                        } catch (Exception ignored) {
+                        }
+                        lastProfileProblem = AppConfig.nodeCode(this, profileId)
+                                + " : " + readiness.message;
+                        continue;
+                    }
+
+                    long lastHeartbeat = lastHeartbeatByProfile.containsKey(profileId)
+                            ? lastHeartbeatByProfile.get(profileId) : 0L;
+                    if (System.currentTimeMillis() - lastHeartbeat >= AppConfig.HEARTBEAT_MS) {
+                        api.heartbeat();
+                        lastHeartbeatByProfile.put(profileId, System.currentTimeMillis());
+                    }
+
                     JSONObject lease = api.leaseCommand();
                     if (lease.optBoolean("available", false)) {
                         JSONObject command = lease.optJSONObject("command");
@@ -185,23 +235,19 @@ public class RobotService extends Service {
                         command.put("state_changed_at", System.currentTimeMillis());
                         PendingCommandStore.save(this, profileId, command);
                         roundRobinIndex = (index + 1) % count;
+                        readiness = checkReadiness(profileId);
+                        if (!readiness.ready) {
+                            releaseUnexecutedLease(profileId, command, api, readiness.message);
+                            disableUnsafeRobot(profileId, readiness.message);
+                            nextDelay = 1_000L;
+                            return;
+                        }
                         executeCommand(profileId, command, api);
                         nextDelay = 2_000L;
                         backoffMs = AppConfig.IDLE_POLL_MS;
                         return;
                     }
 
-                    long lastHeartbeat = lastHeartbeatByProfile.containsKey(profileId)
-                            ? lastHeartbeatByProfile.get(profileId) : 0L;
-                    if (System.currentTimeMillis() - lastHeartbeat >= AppConfig.HEARTBEAT_MS) {
-                        try {
-                            api.heartbeat();
-                            lastHeartbeatByProfile.put(profileId, System.currentTimeMillis());
-                        } catch (Exception heartbeatError) {
-                            lastProfileProblem = AppConfig.nodeCode(this, profileId)
-                                    + " : heartbeat " + safeMessage(heartbeatError);
-                        }
-                    }
                 } catch (ApiClient.ApiException apiError) {
                     lastProfileProblem = AppConfig.nodeCode(this, profileId)
                             + " : " + apiError.code + " — " + safeMessage(apiError);
@@ -259,7 +305,13 @@ public class RobotService extends Service {
 
     private void executeCommand(String profileId, JSONObject command, ApiClient api) {
         try {
-            String ussd = UssdCommandFactory.buildAndValidate(command);
+            Readiness readiness = checkReadiness(profileId);
+            if (!readiness.ready) {
+                releaseUnexecutedLease(profileId, command, api, readiness.message);
+                disableUnsafeRobot(profileId, readiness.message);
+                return;
+            }
+            String ussd = UssdCommandFactory.buildAndValidate(this, profileId, command);
             boolean requiresPin = UssdCommandFactory.requiresPin(command);
             if (requiresPin && !SecurePinStore.hasPin(this, profileId)) {
                 finishCommand(profileId, false, "PIN_NOT_CONFIGURED",
@@ -296,7 +348,7 @@ public class RobotService extends Service {
             try {
                 acquireCommandScreenWakeLock();
                 waitForSystemUssdWindow();
-                SimCallManager.placeUssdCall(this, ussd, AppConfig.simSlot(this, profileId));
+                SimCallManager.placeUssdCall(this, ussd, profileId);
                 if (requiresPin) BlueAccessibilityService.kick(this);
             } catch (SecurityException permissionError) {
                 finishCommand(profileId, false, "SIM_PERMISSION_MISSING", safeMessage(permissionError), "");
@@ -449,6 +501,77 @@ public class RobotService extends Service {
         PendingCommandStore.clear(this, profileId);
         releaseCommandWakeLock();
         updateNotification(robotSummary("Commande différée — déverrouillez le téléphone"));
+    }
+
+    private Readiness checkReadiness(String profileId) {
+        if (profileId == null || profileId.isEmpty()) {
+            return Readiness.failure("Profil Robot local absent.");
+        }
+        if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
+            return Readiness.failure("Autorisation Téléphone absente; Robot arrêté sans louer de commande.");
+        }
+        if (checkSelfPermission(Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+            return Readiness.failure("Autorisation État du téléphone absente; SIM invérifiable.");
+        }
+        if (!SecurePinStore.hasPin(this, profileId)) {
+            return Readiness.failure("PIN Camtel local absent.");
+        }
+        if (!BlueAccessibilityService.isEnabled(this)) {
+            return Readiness.failure("Service d’accessibilité Blue Magic désactivé.");
+        }
+        SimIdentityManager.Verification sim = SimIdentityManager.verify(this, profileId);
+        if (!sim.valid) return Readiness.failure(sim.message);
+        try {
+            SimCallManager.verifyCallRoute(this, profileId);
+        } catch (Exception error) {
+            return Readiness.failure(safeMessage(error));
+        }
+        return Readiness.ready(sim);
+    }
+
+    private void disableUnsafeRobot(String profileId, String reason) {
+        if (profileId == null || profileId.isEmpty()) return;
+        AppConfig.setRobotEnabled(this, profileId, false);
+        lastHeartbeatByProfile.remove(profileId);
+        try {
+            ApiClient.forProfile(this, profileId).heartbeat();
+        } catch (Exception ignored) {
+        }
+        updateNotification(robotSummary(AppConfig.nodeCode(this, profileId)
+                + " arrêté — " + reason));
+    }
+
+    private void releaseUnexecutedLease(String profileId, JSONObject command, ApiClient api,
+                                        String reason) {
+        try {
+            api.releaseCommand(command, "Robot non éligible avant composition : " + reason);
+        } catch (Exception ignored) {
+            // Le lease serveur expirera sans DIALING; il pourra alors être repris sans double débit.
+        }
+        PendingCommandStore.clear(this, profileId);
+        releaseCommandWakeLock();
+    }
+
+    private static final class Readiness {
+        final boolean ready;
+        final String message;
+        final String simFingerprint;
+        final int simSlot;
+
+        private Readiness(boolean ready, String message, String simFingerprint, int simSlot) {
+            this.ready = ready;
+            this.message = message;
+            this.simFingerprint = simFingerprint;
+            this.simSlot = simSlot;
+        }
+
+        static Readiness ready(SimIdentityManager.Verification sim) {
+            return new Readiness(true, sim.message, sim.attestation(), sim.slot);
+        }
+
+        static Readiness failure(String message) {
+            return new Readiness(false, message, "", -1);
+        }
     }
 
     private static boolean isTerminalState(String state) {

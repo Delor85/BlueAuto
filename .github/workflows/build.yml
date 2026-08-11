@@ -2,7 +2,7 @@ name: Build Blue Magic APK
 
 on:
   push:
-    branches: [main]
+    branches: [main, codex/blue-magic-v2-robot-core]
   pull_request:
     branches: [main]
   workflow_dispatch:

@@ -2,7 +2,6 @@ package com.profitloop.blueauto;
 
 import android.Manifest;
 import android.content.Context;
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
@@ -26,7 +25,7 @@ final class SimCallManager {
             TelephonyManager manager = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
             if (manager == null) return 1;
             int count = Build.VERSION.SDK_INT >= 30
-                    ? manager.getActiveModemCount()
+                    ? manager.getSupportedModemCount()
                     : manager.getPhoneCount();
             return Math.max(1, Math.min(4, count));
         } catch (Exception ignored) {
@@ -59,17 +58,23 @@ final class SimCallManager {
         return labels;
     }
 
-    static void placeUssdCall(Context context, String ussd, int requestedSlot) throws Exception {
+    static void verifyCallRoute(Context context, String profileId) {
+        resolveRoute(context, profileId);
+    }
+
+    static void placeUssdCall(Context context, String ussd, String profileId) throws Exception {
+        Route route = resolveRoute(context, profileId);
+        Uri address = Uri.parse("tel:" + ussd.replace("#", Uri.encode("#")));
+        Bundle extras = new Bundle();
+        extras.putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, route.account);
+        route.telecom.placeCall(address, extras);
+    }
+
+    private static Route resolveRoute(Context context, String profileId) {
+        int requestedSlot = AppConfig.simSlot(context, profileId);
         int count = slotCount(context);
         if (requestedSlot < 0 || requestedSlot >= count) {
             throw new IllegalStateException("Le slot SIM " + (requestedSlot + 1) + " n’existe pas sur ce téléphone.");
-        }
-        Uri address = Uri.parse("tel:" + ussd.replace("#", Uri.encode("#")));
-
-        if (count == 1 && context.checkSelfPermission(Manifest.permission.READ_PHONE_STATE)
-                != PackageManager.PERMISSION_GRANTED) {
-            startLegacyCall(context, address, null);
-            return;
         }
         if (context.checkSelfPermission(Manifest.permission.READ_PHONE_STATE)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -89,80 +94,93 @@ final class SimCallManager {
             throw new IllegalStateException("Aucune SIM active dans le slot " + (requestedSlot + 1) + ".");
         }
         PhoneAccountHandle account = resolvePhoneAccount(
-                context, telecom, telephony, subscriptions, target, AppConfig.phoneNumber(context));
+                telecom, telephony, subscriptions, target, AppConfig.phoneNumber(context, profileId));
         if (account == null) {
-            throw new IllegalStateException("Android ne permet pas d’associer le slot "
-                    + (requestedSlot + 1) + " à un compte d’appel actif.");
+            throw new IllegalStateException("Route d’appel ambiguë pour le slot "
+                    + (requestedSlot + 1) + ". Blue Magic refuse de choisir une autre SIM.");
         }
-
-        Bundle extras = new Bundle();
-        extras.putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, account);
-        telecom.placeCall(address, extras);
+        return new Route(telecom, target, account);
     }
 
     private static PhoneAccountHandle resolvePhoneAccount(
-            Context context, TelecomManager telecom, TelephonyManager telephony,
+            TelecomManager telecom, TelephonyManager telephony,
             SubscriptionManager subscriptions, SubscriptionInfo target, String configuredPhone) {
         List<PhoneAccountHandle> all = telecom.getCallCapablePhoneAccounts();
         List<PhoneAccountHandle> cellular = new ArrayList<>();
         for (PhoneAccountHandle handle : all) {
             PhoneAccount account = telecom.getPhoneAccount(handle);
-            if (account == null || account.supportsUriScheme(PhoneAccount.SCHEME_TEL)) cellular.add(handle);
+            if (account != null && account.supportsUriScheme(PhoneAccount.SCHEME_TEL)) cellular.add(handle);
         }
         if (cellular.isEmpty()) return null;
 
         int targetSubscription = target.getSubscriptionId();
         if (Build.VERSION.SDK_INT >= 30) {
+            List<PhoneAccountHandle> exact = new ArrayList<>();
             for (PhoneAccountHandle handle : cellular) {
                 try {
-                    if (telephony.getSubscriptionId(handle) == targetSubscription) return handle;
+                    if (telephony.getSubscriptionId(handle) == targetSubscription) exact.add(handle);
                 } catch (Exception ignored) {
                 }
             }
+            if (exact.size() == 1) return exact.get(0);
+            if (exact.size() > 1) return null;
         }
 
         String expectedPhone = digits(configuredPhone);
         if (expectedPhone.length() >= 9) {
+            String suffix = expectedPhone.substring(expectedPhone.length() - 9);
+            List<PhoneAccountHandle> phoneMatches = new ArrayList<>();
             for (PhoneAccountHandle handle : cellular) {
                 try {
                     String line = digits(telecom.getLine1Number(handle));
-                    if (line.endsWith(expectedPhone.substring(expectedPhone.length() - 9))) return handle;
+                    PhoneAccount account = telecom.getPhoneAccount(handle);
+                    String address = account == null || account.getAddress() == null
+                            ? "" : digits(account.getAddress().getSchemeSpecificPart());
+                    if (line.endsWith(suffix) || address.endsWith(suffix)) phoneMatches.add(handle);
                 } catch (Exception ignored) {
                 }
             }
+            if (phoneMatches.size() == 1) return phoneMatches.get(0);
+            if (phoneMatches.size() > 1) return null;
         }
 
         String subscriptionToken = String.valueOf(targetSubscription);
+        List<PhoneAccountHandle> idMatches = new ArrayList<>();
         for (PhoneAccountHandle handle : cellular) {
             String id = handle.getId() == null ? "" : handle.getId().toLowerCase(Locale.ROOT);
-            if (id.matches(".*(?:^|\\D)" + subscriptionToken + "(?:\\D|$).*$")) return handle;
+            if (id.matches(".*(?:^|\\D)" + subscriptionToken + "(?:\\D|$).*$")) {
+                idMatches.add(handle);
+            }
         }
+        if (idMatches.size() == 1) return idMatches.get(0);
+        if (idMatches.size() > 1) return null;
 
+        // The sole active subscription and sole TEL account are unambiguous. No list-index or
+        // default-SIM fallback is allowed on multi-SIM devices.
         try {
             List<SubscriptionInfo> active = subscriptions.getActiveSubscriptionInfoList();
-            if (active != null) {
-                for (int i = 0; i < active.size(); i++) {
-                    if (active.get(i).getSubscriptionId() == targetSubscription && i < cellular.size()) {
-                        return cellular.get(i);
-                    }
-                }
+            if (active != null && active.size() == 1 && cellular.size() == 1
+                    && active.get(0).getSubscriptionId() == targetSubscription) {
+                return cellular.get(0);
             }
         } catch (Exception ignored) {
         }
-        return cellular.size() == 1 ? cellular.get(0) : null;
-    }
-
-    private static void startLegacyCall(Context context, Uri address, PhoneAccountHandle account) {
-        Intent call = new Intent(Intent.ACTION_CALL, address);
-        call.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        if (account != null) call.putExtra(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, account);
-        if (call.resolveActivity(context.getPackageManager()) == null) {
-            throw new IllegalStateException("Aucune application Téléphone compatible.");
-        }
-        context.startActivity(call);
+        return null;
     }
 
     private static String digits(String value) {
         return value == null ? "" : value.replaceAll("\\D", "");
+    }
+
+    private static final class Route {
+        final TelecomManager telecom;
+        final SubscriptionInfo subscription;
+        final PhoneAccountHandle account;
+
+        Route(TelecomManager telecom, SubscriptionInfo subscription, PhoneAccountHandle account) {
+            this.telecom = telecom;
+            this.subscription = subscription;
+            this.account = account;
+        }
     }
 }

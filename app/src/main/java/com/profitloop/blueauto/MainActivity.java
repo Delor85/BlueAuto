@@ -38,13 +38,16 @@ import java.util.UUID;
 
 public class MainActivity extends Activity {
     private static final int REQUEST_CORE_PERMISSIONS = 550;
-    private static final int GOLD = Color.rgb(197, 160, 89);
-    private static final int CYAN = Color.rgb(102, 252, 241);
-    private static final int SURFACE = Color.rgb(31, 40, 51);
-    private static final int BACKGROUND = Color.rgb(11, 12, 16);
+    private static final int GOLD = Color.rgb(38, 112, 255);
+    private static final int CYAN = Color.rgb(78, 225, 255);
+    private static final int VIOLET = Color.rgb(135, 92, 255);
+    private static final int SURFACE = Color.rgb(15, 37, 70);
+    private static final int BACKGROUND = Color.rgb(5, 18, 42);
 
     private TextView nativeStatus;
     private WebView webView;
+    private View managementPanel;
+    private Button manageButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -160,8 +163,15 @@ public class MainActivity extends Activity {
                             selectedRole, selectedMode, selectedApiUrl, selectedSlot);
                     SecurePairingStore.save(this, secret);
                     if (!pin.isEmpty()) SecurePinStore.save(this, pin);
+                    SimIdentityManager.Verification simVerification =
+                            SimIdentityManager.bindSelectedSim(this, AppConfig.profileId(this));
                     runOnUiThread(() -> {
-                        Toast.makeText(this, "Téléphone appairé.", Toast.LENGTH_LONG).show();
+                        Toast.makeText(this, "REMOTE".equals(selectedMode)
+                                ? "Téléphone appairé en mode Remote."
+                                : simVerification.valid
+                                ? "Téléphone appairé et SIM liée au bon slot."
+                                : "Compte appairé, mais Robot arrêté : " + simVerification.message,
+                                Toast.LENGTH_LONG).show();
                         recreate();
                     });
                 } catch (Exception error) {
@@ -185,19 +195,42 @@ public class MainActivity extends Activity {
     @SuppressLint("SetJavaScriptEnabled")
     private void showControlScreen() {
         disposeWebView();
-        LinearLayout page = verticalContainer();
-        page.setPadding(dp(12), dp(12), dp(12), dp(8));
+        LinearLayout page = new LinearLayout(this);
+        page.setOrientation(LinearLayout.VERTICAL);
+        page.setBackgroundColor(BACKGROUND);
+        page.setPadding(dp(10), dp(8), dp(10), dp(6));
         nativeStatus = help("");
         nativeStatus.setTextColor(CYAN);
+        nativeStatus.setTextSize(12);
+        nativeStatus.setPadding(dp(4), 0, dp(4), dp(3));
         page.addView(nativeStatus);
+
+        LinearLayout compactBar = new LinearLayout(this);
+        compactBar.setOrientation(LinearLayout.HORIZONTAL);
+        Button accounts = actionButton("COMPTES (" + AppConfig.profileCount(this) + ")", GOLD);
+        manageButton = actionButton("☰ GÉRER", VIOLET);
+        compactBar.addView(accounts, weighted());
+        compactBar.addView(manageButton, weighted());
+        page.addView(compactBar);
+
+        ScrollView toolsScroll = new ScrollView(this);
+        toolsScroll.setFillViewport(false);
+        LinearLayout tools = new LinearLayout(this);
+        tools.setOrientation(LinearLayout.VERTICAL);
+        tools.setPadding(dp(2), dp(3), dp(2), dp(5));
+        toolsScroll.addView(tools);
+        toolsScroll.setVisibility(View.GONE);
+        managementPanel = toolsScroll;
+        page.addView(toolsScroll, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(260)));
 
         LinearLayout accountButtons = new LinearLayout(this);
         accountButtons.setOrientation(LinearLayout.HORIZONTAL);
-        Button accounts = actionButton("COMPTES (" + AppConfig.profileCount(this) + ")", GOLD);
         Button addAccount = actionButton("AJOUTER UN COMPTE", CYAN);
-        accountButtons.addView(accounts, weighted());
+        Button verifySim = actionButton("VÉRIFIER / LIER LA SIM", VIOLET);
         accountButtons.addView(addAccount, weighted());
-        page.addView(accountButtons);
+        accountButtons.addView(verifySim, weighted());
+        tools.addView(accountButtons);
 
         LinearLayout buttons = new LinearLayout(this);
         buttons.setOrientation(LinearLayout.HORIZONTAL);
@@ -205,17 +238,17 @@ public class MainActivity extends Activity {
         Button toggle = actionButton(AppConfig.robotEnabled(this) ? "ARRÊTER ROBOT" : "2. DÉMARRER ROBOT", CYAN);
         buttons.addView(prepare, weighted());
         buttons.addView(toggle, weighted());
-        if (AppConfig.isRobotMode(this)) page.addView(buttons);
+        if (AppConfig.isRobotMode(this)) tools.addView(buttons);
 
         Button switchMode = actionButton(AppConfig.isRobotMode(this)
                 ? "PASSER CE COMPTE EN REMOTE" : "PASSER CE COMPTE EN ROBOT", GOLD);
-        page.addView(switchMode);
+        tools.addView(switchMode);
 
         Button repairPairing = actionButton("VÉRIFIER / RÉPARER L’APPAIRAGE", CYAN);
-        page.addView(repairPairing);
+        tools.addView(repairPairing);
 
         Button pendingOperations = actionButton("FILES / ANNULER UNE OPÉRATION BLOQUÉE", GOLD);
-        page.addView(pendingOperations);
+        tools.addView(pendingOperations);
 
         LinearLayout pinRow = new LinearLayout(this);
         pinRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -224,7 +257,7 @@ public class MainActivity extends Activity {
         Button savePin = actionButton("ENREGISTRER PIN", GOLD);
         pinRow.addView(newPin, weighted());
         pinRow.addView(savePin, weighted());
-        if (AppConfig.isRobotMode(this)) page.addView(pinRow);
+        if (AppConfig.isRobotMode(this)) tools.addView(pinRow);
 
         webView = new WebView(this);
         webView.setBackgroundColor(BACKGROUND);
@@ -233,9 +266,15 @@ public class MainActivity extends Activity {
         setContentView(page);
 
         accounts.setOnClickListener(v -> showAccountManager());
+        manageButton.setOnClickListener(v -> {
+            boolean opening = managementPanel.getVisibility() != View.VISIBLE;
+            managementPanel.setVisibility(opening ? View.VISIBLE : View.GONE);
+            manageButton.setText(opening ? "✕ FERMER" : "☰ GÉRER");
+        });
         addAccount.setOnClickListener(v -> {
             showPairingScreen(true);
         });
+        verifySim.setOnClickListener(v -> confirmAndBindCurrentSim());
 
         prepare.setOnClickListener(v -> prepareRobotPermissions());
         switchMode.setOnClickListener(v -> showModeSwitcher());
@@ -258,13 +297,7 @@ public class MainActivity extends Activity {
                     toast("Enregistrez d’abord le PIN Camtel.");
                     return;
                 }
-                requestCorePermissions();
-                if (!BlueAccessibilityService.isEnabled(this)) {
-                    toast("Activez le service d’accessibilité Blue Magic.");
-                    openAccessibilitySettings();
-                    return;
-                }
-                RobotService.start(this);
+                if (!startRobotSafely()) return;
                 toggle.setText("ARRÊTER ROBOT");
             }
             applyRobotWindowPolicy();
@@ -372,7 +405,8 @@ public class MainActivity extends Activity {
                 .setPositiveButton("ENREGISTRER", (dialog, which) -> {
                     if (!canModifyActiveProfile()) return;
                     AppConfig.updateActiveSimSlot(this, selected[0]);
-                    recreate();
+                    confirmAndBindCurrentSim();
+                    refreshNativeStatus();
                 })
                 .setNegativeButton("Annuler", null)
                 .show();
@@ -525,12 +559,20 @@ public class MainActivity extends Activity {
                 if (!newPin.isEmpty()) SecurePinStore.save(this, newPin);
                 AppConfig.updateActiveSimSlot(this, simSlot);
                 AppConfig.updateActiveMode(this, mode);
+                SimIdentityManager.Verification sim = null;
                 if ("REMOTE".equals(mode)) {
                     AppConfig.setRobotEnabled(this, false);
                     RobotService.stop(this);
+                } else {
+                    sim = SimIdentityManager.bindSelectedSim(this, AppConfig.profileId(this));
+                    if (!sim.valid) AppConfig.setRobotEnabled(this, false);
                 }
+                final SimIdentityManager.Verification finalSim = sim;
                 runOnUiThread(() -> {
-                    Toast.makeText(this, "Mode " + mode + " activé sur ce compte.", Toast.LENGTH_LONG).show();
+                    String detail = finalSim == null || finalSim.valid ? ""
+                            : " SIM non activée : " + finalSim.message;
+                    Toast.makeText(this, "Mode " + mode + " activé sur ce compte." + detail,
+                            Toast.LENGTH_LONG).show();
                     recreate();
                 });
             } catch (Exception error) {
@@ -625,12 +667,107 @@ public class MainActivity extends Activity {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return;
         if (Build.VERSION.SDK_INT >= 33) {
             requestPermissions(new String[]{Manifest.permission.CALL_PHONE,
-                    Manifest.permission.READ_PHONE_STATE, Manifest.permission.RECEIVE_SMS,
+                    Manifest.permission.READ_PHONE_STATE, Manifest.permission.READ_PHONE_NUMBERS,
+                    Manifest.permission.RECEIVE_SMS,
                     Manifest.permission.POST_NOTIFICATIONS}, REQUEST_CORE_PERMISSIONS);
+        } else if (Build.VERSION.SDK_INT >= 26) {
+            requestPermissions(new String[]{Manifest.permission.CALL_PHONE,
+                    Manifest.permission.READ_PHONE_STATE, Manifest.permission.READ_PHONE_NUMBERS,
+                    Manifest.permission.RECEIVE_SMS}, REQUEST_CORE_PERMISSIONS);
         } else {
             requestPermissions(new String[]{Manifest.permission.CALL_PHONE,
                     Manifest.permission.READ_PHONE_STATE, Manifest.permission.RECEIVE_SMS}, REQUEST_CORE_PERMISSIONS);
         }
+    }
+
+    private boolean startRobotSafely() {
+        requestCorePermissions();
+        if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED
+                || checkSelfPermission(Manifest.permission.READ_PHONE_STATE)
+                != PackageManager.PERMISSION_GRANTED) {
+            toast("Accordez Téléphone et État du téléphone, puis touchez de nouveau DÉMARRER ROBOT.");
+            return false;
+        }
+        if (!BlueAccessibilityService.isEnabled(this)) {
+            toast("Activez le service d’accessibilité Blue Magic.");
+            openAccessibilitySettings();
+            return false;
+        }
+        SimIdentityManager.Verification sim = SimIdentityManager.verify(this, AppConfig.profileId(this));
+        if (!sim.valid) {
+            AppConfig.setRobotEnabled(this, false);
+            if (SimIdentityManager.BINDING_REQUIRED.equals(sim.code)
+                    || SimIdentityManager.SIM_CHANGED.equals(sim.code)) {
+                confirmAndBindCurrentSim();
+            } else {
+                toast("Robot refusé : " + sim.message);
+            }
+            refreshNativeStatus();
+            return false;
+        }
+        try {
+            SimCallManager.verifyCallRoute(this, AppConfig.profileId(this));
+        } catch (Exception error) {
+            AppConfig.setRobotEnabled(this, false);
+            toast("Robot refusé : " + readable(error));
+            refreshNativeStatus();
+            return false;
+        }
+        RobotService.start(this);
+        return true;
+    }
+
+    private void confirmAndBindCurrentSim() {
+        requestCorePermissions();
+        if (checkSelfPermission(Manifest.permission.READ_PHONE_STATE)
+                != PackageManager.PERMISSION_GRANTED) {
+            toast("Accordez État du téléphone, puis recommencez la vérification SIM.");
+            return;
+        }
+        String profileId = AppConfig.profileId(this);
+        SimIdentityManager.Verification current = SimIdentityManager.verify(this, profileId);
+        if (current.valid) {
+            toast("SIM vérifiée pour " + AppConfig.nodeCode(this) + " dans le slot "
+                    + (AppConfig.simSlot(this) + 1) + ".");
+            refreshNativeStatus();
+            return;
+        }
+        if (!SimIdentityManager.BINDING_REQUIRED.equals(current.code)
+                && !SimIdentityManager.SIM_CHANGED.equals(current.code)) {
+            AppConfig.setRobotEnabled(this, false);
+            toast("Liaison refusée : " + current.message);
+            refreshNativeStatus();
+            return;
+        }
+
+        String message = "Vérifiez physiquement :\n\nCompte : " + AppConfig.nodeCode(this)
+                + "\nNuméro Camtel : " + AppConfig.phoneNumber(this)
+                + "\nEmplacement : SIM " + (AppConfig.simSlot(this) + 1)
+                + (current.carrier.isEmpty() ? "" : "\nSIM détectée : " + current.carrier)
+                + "\n\nEn confirmant, ce Robot refusera ensuite toute autre SIM dans ce slot.";
+        new AlertDialog.Builder(this)
+                .setTitle("Lier cette SIM au Robot ?")
+                .setMessage(message)
+                .setPositiveButton("J’AI VÉRIFIÉ — LIER", (dialog, which) -> {
+                    SimIdentityManager.Verification bound =
+                            SimIdentityManager.bindSelectedSim(this, profileId);
+                    if (!bound.valid) {
+                        AppConfig.setRobotEnabled(this, false);
+                        toast("Liaison refusée : " + bound.message);
+                        refreshNativeStatus();
+                        return;
+                    }
+                    try {
+                        SimCallManager.verifyCallRoute(this, profileId);
+                        toast("SIM liée avec succès. Vous pouvez démarrer le Robot.");
+                    } catch (Exception error) {
+                        AppConfig.setRobotEnabled(this, false);
+                        toast("SIM liée, mais Robot arrêté : " + readable(error));
+                    }
+                    refreshNativeStatus();
+                })
+                .setNegativeButton("Annuler", null)
+                .show();
     }
 
     private void openAccessibilitySettings() {
@@ -640,14 +777,23 @@ public class MainActivity extends Activity {
 
     private void refreshNativeStatus() {
         if (nativeStatus == null) return;
-        nativeStatus.setText("Nœud " + AppConfig.nodeCode(this)
+        boolean simRequired = AppConfig.isRobotMode(this);
+        SimIdentityManager.Verification sim = simRequired
+                ? SimIdentityManager.verify(this, AppConfig.profileId(this)) : null;
+        if (AppConfig.robotEnabled(this) && sim != null && !sim.valid) {
+            AppConfig.setRobotEnabled(this, false);
+            RobotService.stop(this);
+        }
+        nativeStatus.setText(AppConfig.nodeCode(this)
                 + " • " + AppConfig.displayMode(AppConfig.mode(this))
                 + " • SIM " + (AppConfig.simSlot(this) + 1)
+                + (!simRequired ? " NON REQUISE" : sim.valid ? " VÉRIFIÉE" : " BLOQUÉE")
                 + " • Robot " + (AppConfig.robotEnabled(this) ? "ACTIF" : "ARRÊTÉ")
-                + " • Accessibilité " + (BlueAccessibilityService.isEnabled(this) ? "OK" : "À ACTIVER")
-                + "\nRobots actifs sur ce téléphone : " + AppConfig.enabledRobotCount(this)
+                + "\nAccessibilité " + (BlueAccessibilityService.isEnabled(this) ? "OK" : "À ACTIVER")
+                + " • Robots actifs : " + AppConfig.enabledRobotCount(this)
                 + (DeviceLockState.isSecurelyLocked(this)
                 ? "\n⚡ ÉCRAN VERROUILLÉ : seul le service Téléphone sera réveillé brièvement" : "")
+                + (sim != null && !sim.valid ? "\n⛔ " + sim.message : "")
                 + (AppConfig.pinBlocked(this) ? "\n⛔ PIN BLOQUÉ : corriger avant toute nouvelle transaction" : ""));
     }
 
@@ -696,6 +842,11 @@ public class MainActivity extends Activity {
                 value.put("robot_enabled", AppConfig.robotEnabled(MainActivity.this));
                 value.put("pin_blocked", AppConfig.pinBlocked(MainActivity.this));
                 value.put("accessibility_enabled", BlueAccessibilityService.isEnabled(MainActivity.this));
+                SimIdentityManager.Verification sim = AppConfig.isRobotMode(MainActivity.this)
+                        ? SimIdentityManager.verify(MainActivity.this,
+                        AppConfig.profileId(MainActivity.this)) : null;
+                value.put("sim_verified", sim == null || sim.valid);
+                value.put("sim_status", sim == null ? "NOT_REQUIRED" : sim.code);
                 return value.toString();
             } catch (Exception ignored) {
                 return "{}";
@@ -745,12 +896,21 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public void startRobot() {
-            runOnUiThread(() -> RobotService.start(MainActivity.this));
+            runOnUiThread(() -> startRobotSafely());
         }
 
         @JavascriptInterface
         public void stopRobot() {
             runOnUiThread(() -> RobotService.stop(MainActivity.this));
+        }
+
+        @JavascriptInterface
+        public void setFormEditing(boolean editing) {
+            runOnUiThread(() -> {
+                if (managementPanel != null) managementPanel.setVisibility(View.GONE);
+                if (manageButton != null) manageButton.setText("☰ GÉRER");
+                if (nativeStatus != null) nativeStatus.setVisibility(editing ? View.GONE : View.VISIBLE);
+            });
         }
     }
 
@@ -860,17 +1020,19 @@ public class MainActivity extends Activity {
     private Button actionButton(String text, int color) {
         Button button = new Button(this);
         button.setText(text);
-        button.setTextColor(Color.BLACK);
+        button.setTextColor(color == CYAN ? BACKGROUND : Color.WHITE);
         button.setBackgroundColor(color);
         button.setAllCaps(false);
-        button.setMinHeight(dp(48));
+        button.setTextSize(11);
+        button.setPadding(dp(6), dp(3), dp(6), dp(3));
+        button.setMinHeight(dp(42));
         return button;
     }
 
     private LinearLayout.LayoutParams weighted() {
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0,
                 LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        params.setMargins(dp(3), dp(4), dp(3), dp(4));
+        params.setMargins(dp(2), dp(3), dp(2), dp(3));
         return params;
     }
 

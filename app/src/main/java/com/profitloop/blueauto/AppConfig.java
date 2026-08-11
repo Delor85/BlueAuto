@@ -164,6 +164,16 @@ final class AppConfig {
         return profile == null ? 0 : Math.max(0, profile.optInt("sim_slot", 0));
     }
 
+    static String simBindingType(Context context, String profileId) {
+        JSONObject profile = profile(context, profileId);
+        return profile == null ? "" : profile.optString("sim_binding_type", "");
+    }
+
+    static String simBindingHash(Context context, String profileId) {
+        JSONObject profile = profile(context, profileId);
+        return profile == null ? "" : profile.optString("sim_binding_hash", "");
+    }
+
     static String mode(Context context) {
         JSONObject profile = activeProfile(context);
         return profile == null ? "REMOTE" : profile.optString("device_mode", "REMOTE");
@@ -286,7 +296,13 @@ final class AppConfig {
             JSONObject profile = profiles.optJSONObject(i);
             if (profile != null && active.equals(profile.optString("id", ""))) {
                 try {
-                    profile.put("sim_slot", Math.max(0, slot));
+                    int normalized = Math.max(0, slot);
+                    if (profile.optInt("sim_slot", 0) != normalized) {
+                        profile.put("sim_slot", normalized);
+                        profile.remove("sim_binding_type");
+                        profile.remove("sim_binding_hash");
+                        setRobotEnabled(context, active, false);
+                    }
                     return prefs(context).edit().putString(PROFILES_KEY, profiles.toString()).commit();
                 } catch (Exception ignored) {
                     return false;
@@ -294,6 +310,40 @@ final class AppConfig {
             }
         }
         return false;
+    }
+
+    static synchronized boolean updateSimBinding(Context context, String profileId,
+                                                 String type, String hash) {
+        if (profileId == null || profileId.isEmpty() || type == null || type.isEmpty()
+                || hash == null || !hash.matches("[a-f0-9]{64}")) return false;
+        JSONArray profiles = profiles(context);
+        for (int i = 0; i < profiles.length(); i++) {
+            JSONObject profile = profiles.optJSONObject(i);
+            if (profile != null && profileId.equals(profile.optString("id", ""))) {
+                try {
+                    profile.put("sim_binding_type", type);
+                    profile.put("sim_binding_hash", hash);
+                    return prefs(context).edit()
+                            .putString(PROFILES_KEY, profiles.toString()).commit();
+                } catch (Exception ignored) {
+                    return false;
+                }
+            }
+        }
+        return false;
+    }
+
+    static synchronized void clearSimBinding(Context context, String profileId) {
+        JSONArray profiles = profiles(context);
+        for (int i = 0; i < profiles.length(); i++) {
+            JSONObject profile = profiles.optJSONObject(i);
+            if (profile != null && profileId.equals(profile.optString("id", ""))) {
+                profile.remove("sim_binding_type");
+                profile.remove("sim_binding_hash");
+                prefs(context).edit().putString(PROFILES_KEY, profiles.toString()).commit();
+                return;
+            }
+        }
     }
 
     static synchronized boolean updateActiveMode(Context context, String mode) {

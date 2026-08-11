@@ -82,7 +82,8 @@ public class BlueAccessibilityService extends AccessibilityService {
             }
 
             if (containsAny(normalized, "processed successfully", "request is processed successfully",
-                    "successfully transferred", "transfer successfully", "you transfer")) {
+                    "successfully transferred", "transfer successfully", "you transfer")
+                    && resultBelongsToVerifiedSession(command)) {
                 lastResultAt = System.currentTimeMillis();
                 RobotService.operatorResult(this, profileId, true, "",
                         safeScreenText(visible, profileId), transactionId(visible));
@@ -92,7 +93,8 @@ public class BlueAccessibilityService extends AccessibilityService {
             }
 
             if (containsAny(normalized, "insufficient", "not enough", "transaction failed", "request failed",
-                    "operator is frozen", "operator is suspended", "invalid amount", "echec")) {
+                    "operator is frozen", "operator is suspended", "invalid amount", "echec")
+                    && resultBelongsToVerifiedSession(command)) {
                 lastResultAt = System.currentTimeMillis();
                 RobotService.operatorResult(this, profileId, false, "OPERATOR_REJECTED",
                         safeScreenText(visible, profileId), transactionId(visible));
@@ -221,6 +223,7 @@ public class BlueAccessibilityService extends AccessibilityService {
     }
 
     private void markPinReady(String commandId, String profileId) {
+        PendingCommandStore.putBoolean(this, profileId, "confirmation_verified", true);
         PendingCommandStore.updateState(this, profileId, PendingCommandStore.PIN_SUBMITTED);
         pinWorkScheduled = false;
         scheduleSubmit(commandId, profileId, 0, 350L);
@@ -256,8 +259,6 @@ public class BlueAccessibilityService extends AccessibilityService {
         }
         PromptTarget target = findVerifiedPrompt(current, externalRoots());
         boolean clicked = target != null && clickFirst(target.root,
-                "envoyer", "send", "confirmer", "confirm", "valider", "submit", "ok");
-        if (!clicked) clicked = clickFirst(externalRoots(),
                 "envoyer", "send", "confirmer", "confirm", "valider", "submit", "ok");
         if (clicked) {
             PendingCommandStore.updateState(this, profileId, PendingCommandStore.AWAITING_RESULT);
@@ -447,6 +448,11 @@ public class BlueAccessibilityService extends AccessibilityService {
                 "(?i)(?<!\\d)(\\d{1,9})(?:[.,]00)?\\s*(?:f\\s*cfa|fcfa|xaf)").matcher(text);
         boolean anotherAmount = amountMatcher.find() && !amount.equals(amountMatcher.group(1));
         return anotherPhone || anotherAmount;
+    }
+
+    private static boolean resultBelongsToVerifiedSession(JSONObject command) {
+        return !UssdCommandFactory.requiresPin(command)
+                || command.optBoolean("confirmation_verified", false);
     }
 
     private static boolean isPinPrompt(String text) {

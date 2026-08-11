@@ -85,7 +85,7 @@ Vérifiez l’API dans un navigateur :
 https://blue-magic-api.votre-nom.workers.dev/api?action=health
 ```
 
-Le résultat attendu contient `"ok":true`, `"database":"online"` et `"version":"2.3.0-cloudflare"`.
+Le résultat attendu contient `"ok":true`, `"database":"online"` et `"version":"2.3.1-cloudflare"`.
 
 Au repos, un Robot vérifie la file toutes les 30 secondes : une commande peut donc attendre jusqu’à environ 30 secondes avant sa composition. Ce réglage réduit fortement la batterie et reste adapté au quota gratuit. Il pourra être ajusté après mesure sur le terrain.
 
@@ -103,14 +103,16 @@ Les Télécommandes utilisent la même URL et le même secret pendant l’appair
 
 ## 7. Mettre à jour plus tard
 
-Après une nouvelle version du dépôt :
+Après une nouvelle version du dépôt, exportez d’abord D1 puis appliquez toute nouvelle migration avant le Worker :
 
 ```bash
 npm install
+npx wrangler d1 export blue-magic --remote --output blue-magic-backup.sql
+npx wrangler d1 migrations apply blue-magic --remote
 npm run deploy
 ```
 
-N’exécutez une nouvelle migration D1 que si un nouveau fichier apparaît dans `cloudflare/migrations`.
+La v2.5 ajoute `0002_robot_sim_attestation.sql`. Cette migration est additive : elle conserve les nœuds, appareils, commandes et événements existants. Ne déployez pas le nouveau Worker avant son application.
 
 ## 8. Limites et récupération
 
