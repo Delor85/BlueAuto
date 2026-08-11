@@ -1,26 +1,100 @@
-name: Build Android APK
-on: [push, workflow_dispatch]
+name: Build Blue Magic APK
+
+on:
+  push:
+    branches: [main, codex/blue-magic-v2-robot-core]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  build:
+  server-packages:
     runs-on: ubuntu-latest
     steps:
-      - name: Récupération du code
+      - name: Récupérer le code
         uses: actions/checkout@v4
 
-      - name: Configuration de Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '17'
-
-      - name: Génération de l'APK de test
+      - name: Vérifier le backend Cloudflare
+        working-directory: cloudflare
         run: |
-          chmod +x gradlew || true
-          gradle assembleDebug
+          npm ci
+          npm run check
 
-      - name: Livraison du fichier APK
+      - name: Créer les paquets serveur
+        run: |
+          zip -qr BlueMagic-InfinityFree-htdocs.zip htdocs
+          zip -qr BlueMagic-Cloudflare-backend.zip cloudflare \
+            -x 'cloudflare/node_modules/*' 'cloudflare/.wrangler/*' 'cloudflare/.dev.vars'
+
+      - name: Publier les paquets serveur
         uses: actions/upload-artifact@v4
         with:
-          name: ProfitLoop-BlueAuto
+          name: Blue-Magic-v2-Serveurs
+          path: |
+            BlueMagic-InfinityFree-htdocs.zip
+            BlueMagic-Cloudflare-backend.zip
+          if-no-files-found: error
+
+  android-debug-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Installer Gradle 8.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+
+      - name: Restaurer la signature pilote
+        uses: actions/cache@v4
+        with:
+          path: .pilot-signing/debug.keystore
+          key: blue-magic-pilot-debug-keystore-v3
+
+      - name: Restaurer le mot de passe privé de signature
+        uses: actions/cache@v4
+        with:
+          path: .pilot-signing/keystore.password
+          key: blue-magic-pilot-debug-password-v3
+
+      - name: Préparer la signature pilote
+        run: |
+          mkdir -p .pilot-signing
+          if [ ! -f .pilot-signing/debug.keystore ] || [ ! -f .pilot-signing/keystore.password ]; then
+            rm -f .pilot-signing/debug.keystore .pilot-signing/keystore.password
+            openssl rand -hex 32 > .pilot-signing/keystore.password
+            pilot_password="$(tr -d '\r\n' < .pilot-signing/keystore.password)"
+            keytool -genkeypair \
+              -keystore .pilot-signing/debug.keystore \
+              -storepass "$pilot_password" \
+              -alias androiddebugkey \
+              -keypass "$pilot_password" \
+              -dname "CN=Blue Magic Pilot,O=ProfitLoop,C=CM" \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -noprompt
+          fi
+          pilot_password="$(tr -d '\r\n' < .pilot-signing/keystore.password)"
+          echo "::add-mask::$pilot_password"
+          echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$pilot_password" >> "$GITHUB_ENV"
+
+      - name: Compiler l’APK de test
+        run: gradle --no-daemon :app:assembleDebug
+
+      - name: Publier l’APK comme artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Blue-Magic-v2-Robot-Core
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

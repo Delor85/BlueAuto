@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <meta name="theme-color" content="#05122a">
+    <link rel="stylesheet" href="style.css">
+    <title>Blue Magic</title>
+</head>
+<body>
+<header class="topbar">
+    <div><p class="eyebrow">PROFITLOOP TELECOM</p><h1>Blue Magic</h1></div>
+    <span id="nativeBadge" class="badge badge-warn">Vérification…</span>
+</header>
+<main>
+    <section class="hero panel">
+        <div><p class="eyebrow">NŒUD ACTIF</p><h2 id="nodeCode">—</h2><p id="nodeMeta" class="muted">Chargement…</p></div>
+        <div id="robotState" class="status-orb">—</div>
+    </section>
+    <section id="fatalNotice" class="notice notice-danger hidden"></section>
+    <section id="browserNotice" class="notice hidden">Cette interface doit être ouverte dans l’application Android.</section>
+    <section class="grid">
+        <article id="requestSupplyCard" class="panel command-card hidden">
+            <p class="eyebrow">ACHAT DE CRÉDIT</p><h3>Demander à mon supérieur</h3>
+            <p class="muted">Le Robot du supérieur approvisionnera votre SIM après deux contrôles.</p>
+            <label>Montant (FCFA)</label><input id="requestSupplyAmount" type="text" inputmode="numeric" placeholder="Ex. 50000">
+            <button type="button" data-action="request-supply">Envoyer la demande</button>
+        </article>
+        <article id="supplyChildCard" class="panel command-card hidden">
+            <p class="eyebrow">APPROVISIONNEMENT</p><h3>Recharger un enfant direct</h3>
+            <p class="muted">Le serveur résout exclusivement le numéro Camtel officiel de ce nœud.</p>
+            <label>Code du DSM/PoS</label><input id="childNode" type="text" autocomplete="off" placeholder="Ex. DSM7 ou POS5">
+            <label>Montant (FCFA)</label><input id="childAmount" type="text" inputmode="numeric" placeholder="Ex. 25000">
+            <button type="button" data-action="supply-child">Programmer la recharge</button>
+        </article>
+        <article id="retailCard" class="panel command-card hidden">
+            <p class="eyebrow">VENTE CLIENT</p><h3>Recharger un client final</h3>
+            <p class="muted">Réservé aux PoS. Le Robot vérifiera le numéro et le montant avant le PIN.</p>
+            <label>Numéro client (9 chiffres)</label><input id="retailPhone" type="text" inputmode="numeric" placeholder="6XXXXXXXX">
+            <label>Montant (FCFA)</label><input id="retailAmount" type="text" inputmode="numeric" placeholder="Ex. 1000">
+            <button type="button" data-action="retail-sale">Exécuter la vente</button>
+        </article>
+        <article class="panel command-card">
+            <p class="eyebrow">DIAGNOSTIC SANS FONDS</p><h3>Tester la SIM Robot</h3>
+            <p class="muted">Lance uniquement <code>*825*3*3#</code>.</p>
+            <button type="button" class="secondary" data-action="test-number">Lancer le test numéro</button>
+        </article>
+    </section>
+    <section class="panel history">
+        <div class="section-heading"><div><p class="eyebrow">REGISTRE LOCAL</p><h3>Commandes récentes</h3></div>
+            <button type="button" id="refreshCommands" class="button-small secondary">Actualiser</button></div>
+        <div id="commandList" class="command-list"><p class="muted">Aucune commande sur ce téléphone.</p></div>
+    </section>
+</main>
+<div id="toast" class="toast hidden" role="status"></div>
+<script src="app.js"></script>
+</body>
+</html>

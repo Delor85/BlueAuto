@@ -1,0 +1,11 @@
+{
+  "name": "Blue Magic",
+  "short_name": "Blue Magic",
+  "description": "Télécommande sécurisée des Robots de distribution Blue Camtel",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0b0c10",
+  "theme_color": "#0b0c10"
+}

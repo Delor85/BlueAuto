@@ -1,7 +1,8 @@
-// Fichier dans le dossier app/
 plugins {
     id 'com.android.application'
 }
+
+def pilotKeystorePassword = System.getenv('BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD') ?: ''
 
 android {
     namespace 'com.profitloop.blueauto'
@@ -9,15 +10,33 @@ android {
 
     defaultConfig {
         applicationId "com.profitloop.blueauto"
-        minSdk 26
+        minSdk 23
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        versionCode 31
+        versionName "2.5.1-magic-route"
+    }
+
+    signingConfigs {
+        pilotDebug {
+            storeFile rootProject.file('.pilot-signing/debug.keystore')
+            storePassword pilotKeystorePassword
+            keyAlias 'androiddebugkey'
+            keyPassword pilotKeystorePassword
+        }
     }
 
     buildTypes {
+        debug {
+            signingConfig signingConfigs.pilotDebug
+        }
         release {
             minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
 }
