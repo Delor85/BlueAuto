@@ -27,10 +27,10 @@ jobs:
       - name: Récupérer la version validée
         uses: actions/checkout@v4
 
-      - name: Installer Node.js 20
+      - name: Installer Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
           cache-dependency-path: cloudflare/package-lock.json
 
@@ -41,6 +41,12 @@ jobs:
 
       - name: Préparer le binding D1 sans publier son identifiant
         run: node scripts/prepare-production-config.mjs
+
+      - name: Vérifier Wrangler et le paquet sans déployer
+        run: |
+          node --version
+          npx wrangler --version
+          npx wrangler deploy --dry-run --config wrangler.production.jsonc
 
       - name: Vérifier les migrations D1 en attente
         run: npx wrangler d1 migrations list blue-magic --remote --config wrangler.production.jsonc
