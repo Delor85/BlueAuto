@@ -6,6 +6,7 @@
 htdocs/config.php
 cloudflare/.dev.vars
 cloudflare/.wrangler/
+cloudflare/wrangler.production.jsonc
 cloudflare/node_modules/
 cloudflare/.env*
 !cloudflare/.dev.vars.example

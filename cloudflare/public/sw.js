@@ -1,4 +1,4 @@
-var CACHE = 'blue-magic-v2-5-0-sim-safety';
+var CACHE = 'blue-magic-v2-5-1-magic-route';
 var SHELL = ['./index.html', './style.css', './magic.css', './app.js', './manifest.json'];
 
 self.addEventListener('install', function (event) {

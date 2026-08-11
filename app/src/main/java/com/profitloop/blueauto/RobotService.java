@@ -53,6 +53,7 @@ public class RobotService extends Service {
     private PowerManager.WakeLock commandWakeLock;
     private PowerManager.WakeLock commandScreenWakeLock;
     private PowerManager.WakeLock standbyWakeLock;
+    private boolean insecureKeyguardDismissed;
     private long standbyWakeRenewAt = 0L;
     private long lastCommandFinishedAt = 0L;
 
@@ -187,6 +188,16 @@ public class RobotService extends Service {
                 return;
             }
 
+            // A credential-protected keyguard cannot safely expose the Camtel PIN prompt. Keep
+            // every Robot enabled and retry shortly after the user unlocks; a swipe-only keyguard
+            // is handled temporarily when the call is actually placed.
+            if (DeviceLockState.isSecurelyLocked(this)) {
+                updateNotification(robotSummary(
+                        "Téléphone protégé — reprise automatique après déverrouillage"));
+                nextDelay = AppConfig.LOCKED_POLL_MS;
+                return;
+            }
+
             long sinceLastCommand = System.currentTimeMillis() - lastCommandFinishedAt;
             if (lastCommandFinishedAt > 0L && sinceLastCommand < AppConfig.NEXT_COMMAND_GAP_MS) {
                 nextDelay = AppConfig.NEXT_COMMAND_GAP_MS - sinceLastCommand;
@@ -235,6 +246,11 @@ public class RobotService extends Service {
                         command.put("state_changed_at", System.currentTimeMillis());
                         PendingCommandStore.save(this, profileId, command);
                         roundRobinIndex = (index + 1) % count;
+                        if (DeviceLockState.isSecurelyLocked(this)) {
+                            releaseLockedLease(profileId, command, api);
+                            nextDelay = AppConfig.LOCKED_POLL_MS;
+                            return;
+                        }
                         readiness = checkReadiness(profileId);
                         if (!readiness.ready) {
                             releaseUnexecutedLease(profileId, command, api, readiness.message);
@@ -346,8 +362,11 @@ public class RobotService extends Service {
                     : "En attente du résultat opérateur.", "");
 
             try {
+                boolean needsWakeSettle = !DeviceLockState.isScreenInteractive(this)
+                        || DeviceLockState.isInsecurelyLocked(this);
                 acquireCommandScreenWakeLock();
-                waitForSystemUssdWindow();
+                insecureKeyguardDismissed = DeviceLockState.dismissInsecureKeyguard(this);
+                waitForSystemUssdWindow(needsWakeSettle);
                 SimCallManager.placeUssdCall(this, ussd, profileId);
                 if (requiresPin) BlueAccessibilityService.kick(this);
             } catch (SecurityException permissionError) {
@@ -362,10 +381,10 @@ public class RobotService extends Service {
         }
     }
 
-    private void waitForSystemUssdWindow() {
-        if (DeviceLockState.isScreenInteractive(this)) return;
+    private void waitForSystemUssdWindow(boolean needsWakeSettle) {
+        if (!needsWakeSettle) return;
         try {
-            Thread.sleep(650L);
+            Thread.sleep(1_200L);
         } catch (Exception ignored) {
         }
     }
@@ -605,6 +624,8 @@ public class RobotService extends Service {
         if (commandWakeLock != null && commandWakeLock.isHeld()) commandWakeLock.release();
         commandWakeLock = null;
         releaseCommandScreenWakeLock();
+        if (insecureKeyguardDismissed) DeviceLockState.restoreInsecureKeyguard();
+        insecureKeyguardDismissed = false;
     }
 
     private void releaseCommandScreenWakeLock() {

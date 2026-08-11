@@ -114,6 +114,20 @@ npm run deploy
 
 La v2.5 ajoute `0002_robot_sim_attestation.sql`. Cette migration est additive : elle conserve les nœuds, appareils, commandes et événements existants. Ne déployez pas le nouveau Worker avant son application.
 
+### Connexion durable sans plugin ChatGPT
+
+Le dépôt contient maintenant l’action manuelle **Déployer Blue Magic sur Cloudflare**. Elle évite de reconnecter Cloudflare à chaque correction et n’intervient jamais dans les communications quotidiennes entre les téléphones et le Worker.
+
+Une seule fois, ouvrez GitHub > **Settings** > **Secrets and variables** > **Actions**, puis créez trois secrets de dépôt :
+
+- `CLOUDFLARE_API_TOKEN` : un jeton Cloudflare limité au compte Blue Magic, avec modification des Workers et de D1 ;
+- `CLOUDFLARE_ACCOUNT_ID` : l’identifiant du compte Cloudflare ;
+- `CLOUDFLARE_D1_DATABASE_ID` : l’identifiant exact de la base D1 existante `blue-magic`.
+
+Ne placez jamais `PAIRING_SECRET` dans ces trois valeurs : il reste déjà enregistré comme secret chiffré du Worker. Le déploiement utilise `keep_vars: true` et ne lance aucune commande `secret put`, donc il le préserve.
+
+Pour une mise à jour : ouvrez GitHub > **Actions** > **Déployer Blue Magic sur Cloudflare** > **Run workflow**, choisissez la branche validée, puis confirmez. Le flux teste le code, applique seulement les migrations non encore appliquées, déploie uniquement `blue-magic-api`, puis vérifie l’endpoint de santé. Il n’est jamais déclenché automatiquement par un push.
+
 ## 8. Limites et récupération
 
 - Faites d’abord `TEST_NUMBER`; ne testez pas d’argent réel avant la checklist `TEST_TERRAIN.md`.

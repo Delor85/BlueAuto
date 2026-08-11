@@ -174,6 +174,21 @@ final class AppConfig {
         return profile == null ? "" : profile.optString("sim_binding_hash", "");
     }
 
+    static String callAccountId(Context context, String profileId) {
+        JSONObject profile = profile(context, profileId);
+        return profile == null ? "" : profile.optString("call_account_id", "");
+    }
+
+    static String callAccountComponent(Context context, String profileId) {
+        JSONObject profile = profile(context, profileId);
+        return profile == null ? "" : profile.optString("call_account_component", "");
+    }
+
+    static String callRouteConfidence(Context context, String profileId) {
+        JSONObject profile = profile(context, profileId);
+        return profile == null ? "" : profile.optString("call_route_confidence", "");
+    }
+
     static String mode(Context context) {
         JSONObject profile = activeProfile(context);
         return profile == null ? "REMOTE" : profile.optString("device_mode", "REMOTE");
@@ -301,6 +316,7 @@ final class AppConfig {
                         profile.put("sim_slot", normalized);
                         profile.remove("sim_binding_type");
                         profile.remove("sim_binding_hash");
+                        removeCallRoute(profile);
                         setRobotEnabled(context, active, false);
                     }
                     return prefs(context).edit().putString(PROFILES_KEY, profiles.toString()).commit();
@@ -340,10 +356,51 @@ final class AppConfig {
             if (profile != null && profileId.equals(profile.optString("id", ""))) {
                 profile.remove("sim_binding_type");
                 profile.remove("sim_binding_hash");
+                removeCallRoute(profile);
                 prefs(context).edit().putString(PROFILES_KEY, profiles.toString()).commit();
                 return;
             }
         }
+    }
+
+    static synchronized boolean updateCallRoute(Context context, String profileId,
+                                                String accountId, String component,
+                                                String confidence) {
+        if (profileId == null || profileId.isEmpty() || accountId == null || accountId.isEmpty()
+                || component == null || component.isEmpty()) return false;
+        JSONArray profiles = profiles(context);
+        for (int i = 0; i < profiles.length(); i++) {
+            JSONObject profile = profiles.optJSONObject(i);
+            if (profile != null && profileId.equals(profile.optString("id", ""))) {
+                try {
+                    profile.put("call_account_id", accountId);
+                    profile.put("call_account_component", component);
+                    profile.put("call_route_confidence", confidence == null ? "" : confidence);
+                    return prefs(context).edit().putString(PROFILES_KEY, profiles.toString()).commit();
+                } catch (Exception ignored) {
+                    return false;
+                }
+            }
+        }
+        return false;
+    }
+
+    static synchronized void clearCallRoute(Context context, String profileId) {
+        JSONArray profiles = profiles(context);
+        for (int i = 0; i < profiles.length(); i++) {
+            JSONObject profile = profiles.optJSONObject(i);
+            if (profile != null && profileId.equals(profile.optString("id", ""))) {
+                removeCallRoute(profile);
+                prefs(context).edit().putString(PROFILES_KEY, profiles.toString()).commit();
+                return;
+            }
+        }
+    }
+
+    private static void removeCallRoute(JSONObject profile) {
+        profile.remove("call_account_id");
+        profile.remove("call_account_component");
+        profile.remove("call_route_confidence");
     }
 
     static synchronized boolean updateActiveMode(Context context, String mode) {

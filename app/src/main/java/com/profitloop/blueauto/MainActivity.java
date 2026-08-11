@@ -7,6 +7,7 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -38,7 +39,7 @@ import java.util.UUID;
 
 public class MainActivity extends Activity {
     private static final int REQUEST_CORE_PERMISSIONS = 550;
-    private static final int GOLD = Color.rgb(38, 112, 255);
+    private static final int GOLD = Color.rgb(255, 205, 92);
     private static final int CYAN = Color.rgb(78, 225, 255);
     private static final int VIOLET = Color.rgb(135, 92, 255);
     private static final int SURFACE = Color.rgb(15, 37, 70);
@@ -61,7 +62,7 @@ public class MainActivity extends Activity {
     private void showPairingScreen(boolean addingAccount) {
         disposeWebView();
         ScrollView scroll = new ScrollView(this);
-        scroll.setBackgroundColor(BACKGROUND);
+        applyMagicBackground(scroll);
         LinearLayout form = verticalContainer();
         scroll.addView(form);
 
@@ -197,7 +198,7 @@ public class MainActivity extends Activity {
         disposeWebView();
         LinearLayout page = new LinearLayout(this);
         page.setOrientation(LinearLayout.VERTICAL);
-        page.setBackgroundColor(BACKGROUND);
+        applyMagicBackground(page);
         page.setPadding(dp(10), dp(8), dp(10), dp(6));
         nativeStatus = help("");
         nativeStatus.setTextColor(CYAN);
@@ -727,8 +728,15 @@ public class MainActivity extends Activity {
         String profileId = AppConfig.profileId(this);
         SimIdentityManager.Verification current = SimIdentityManager.verify(this, profileId);
         if (current.valid) {
-            toast("SIM vérifiée pour " + AppConfig.nodeCode(this) + " dans le slot "
-                    + (AppConfig.simSlot(this) + 1) + ".");
+            try {
+                AppConfig.clearCallRoute(this, profileId);
+                SimCallManager.verifyCallRoute(this, profileId);
+                toast("SIM et route d’appel vérifiées pour " + AppConfig.nodeCode(this)
+                        + " dans le slot " + (AppConfig.simSlot(this) + 1) + ".");
+            } catch (Exception error) {
+                AppConfig.setRobotEnabled(this, false);
+                toast("SIM présente, mais route d’appel à revérifier : " + readable(error));
+            }
             refreshNativeStatus();
             return;
         }
@@ -758,6 +766,7 @@ public class MainActivity extends Activity {
                         return;
                     }
                     try {
+                        AppConfig.clearCallRoute(this, profileId);
                         SimCallManager.verifyCallRoute(this, profileId);
                         toast("SIM liée avec succès. Vous pouvez démarrer le Robot.");
                     } catch (Exception error) {
@@ -792,7 +801,9 @@ public class MainActivity extends Activity {
                 + "\nAccessibilité " + (BlueAccessibilityService.isEnabled(this) ? "OK" : "À ACTIVER")
                 + " • Robots actifs : " + AppConfig.enabledRobotCount(this)
                 + (DeviceLockState.isSecurelyLocked(this)
-                ? "\n⚡ ÉCRAN VERROUILLÉ : seul le service Téléphone sera réveillé brièvement" : "")
+                ? "\n🔒 VERROU SÉCURISÉ : la commande reprendra après déverrouillage"
+                : DeviceLockState.isInsecurelyLocked(this)
+                ? "\n✨ VERROU SIMPLE : le dialogue Téléphone sera libéré temporairement" : "")
                 + (sim != null && !sim.valid ? "\n⛔ " + sim.message : "")
                 + (AppConfig.pinBlocked(this) ? "\n⛔ PIN BLOQUÉ : corriger avant toute nouvelle transaction" : ""));
     }
@@ -941,9 +952,17 @@ public class MainActivity extends Activity {
     private LinearLayout verticalContainer() {
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setBackgroundColor(BACKGROUND);
+        applyMagicBackground(layout);
         layout.setPadding(dp(18), dp(24), dp(18), dp(24));
         return layout;
+    }
+
+    private void applyMagicBackground(View view) {
+        GradientDrawable background = new GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                new int[]{Color.rgb(74, 51, 10), Color.rgb(12, 48, 96), BACKGROUND});
+        background.setGradientType(GradientDrawable.LINEAR_GRADIENT);
+        view.setBackground(background);
     }
 
     private TextView title(String text) {
@@ -1020,7 +1039,7 @@ public class MainActivity extends Activity {
     private Button actionButton(String text, int color) {
         Button button = new Button(this);
         button.setText(text);
-        button.setTextColor(color == CYAN ? BACKGROUND : Color.WHITE);
+        button.setTextColor(color == CYAN || color == GOLD ? BACKGROUND : Color.WHITE);
         button.setBackgroundColor(color);
         button.setAllCaps(false);
         button.setTextSize(11);

@@ -1,4 +1,4 @@
-# Blue Magic v2.5 — garde SIM et sécurité financière
+# Blue Magic v2.5.1 — route SIM stable et poussière magique
 
 Blue Magic automatise, sur un téléphone Android dédié, les transferts de crédit de distribution Blue/Camtel qui nécessitent désormais deux étapes :
 
@@ -51,7 +51,7 @@ La signature de l’APK pilote est conservée dans le cache privé de GitHub Act
 
 ## Limite technique honnête
 
-Android ne fournit pas d’API publique universelle pour répondre à la deuxième étape d’une session USSD interactive. `TelephonyManager.sendUssdRequest()` sait obtenir une réponse à une requête, mais ne fournit pas de méthode publique pour continuer la session avec le PIN. Blue Magic utilise donc `ACTION_CALL` puis un `AccessibilityService` contrôlé et limité à la transaction attendue. La v2.5 réveille brièvement la fenêtre MMI lorsqu’une commande arrive, sans maintenir l’écran allumé au repos. Cela ne supprime pas cryptographiquement un mot de passe ou un schéma Android : certains fabricants refusent d’exposer le champ PIN USSD à l’accessibilité derrière un verrou sécurisé. Dans ce cas, la commande doit attendre un déverrouillage ; aucun contournement du verrou Android n’est tenté. Un essai sur le modèle exact du Robot reste obligatoire.
+Android ne fournit pas d’API publique universelle pour répondre à la deuxième étape d’une session USSD interactive. `TelephonyManager.sendUssdRequest()` sait obtenir une réponse à une requête, mais ne fournit pas de méthode publique pour continuer la session avec le PIN. Blue Magic utilise donc `ACTION_CALL` puis un `AccessibilityService` contrôlé et limité à la transaction attendue. La v2.5.1 réveille brièvement la fenêtre MMI lorsqu’une commande arrive, sans maintenir l’écran allumé au repos. Un simple écran de glissement sans code est retiré uniquement pendant la transaction puis restauré. Cela ne supprime pas cryptographiquement un mot de passe ou un schéma Android : derrière un verrou sécurisé, la commande attend le déverrouillage et le Robot reste actif. Un essai sur le modèle exact du Robot reste obligatoire.
 
 La version gratuite d’InfinityFree est adaptée à l’interface web et fournit PHP/MySQL, mais son hébergement gratuit peut filtrer les clients automatisés et n’est pas présenté comme une plateforme d’API. Le dossier `cloudflare/` fournit donc le backend recommandé, conçu pour les clients automatisés. InfinityFree reste disponible comme solution de repli.
 
