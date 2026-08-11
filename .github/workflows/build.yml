@@ -110,14 +110,14 @@ jobs:
 
       - name: Préparer l’APK permanente
         if: env.BLUE_MAGIC_SIGNING_KIND == 'permanent'
-        run: cp app/build/outputs/apk/debug/app-debug.apk Blue-Magic-v2.5.2-Finance-Release.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk Blue-Magic-v2.5.3-Pairing-Finance-Release.apk
 
       - name: Publier uniquement l’APK à signature permanente
         if: env.BLUE_MAGIC_SIGNING_KIND == 'permanent'
         uses: actions/upload-artifact@v4
         with:
           name: Blue-Magic-v2-Robot-Core-Permanent
-          path: Blue-Magic-v2.5.2-Finance-Release.apk
+          path: Blue-Magic-v2.5.3-Pairing-Finance-Release.apk
           if-no-files-found: error
 
       - name: Confirmer la compilation temporaire sans publication

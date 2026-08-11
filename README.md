@@ -1,4 +1,4 @@
-# Blue Magic v2.5.2 — opérations financières libérées
+# Blue Magic v2.5.3 — appairage visible et opérations financières libérées
 
 Blue Magic automatise, sur un téléphone Android dédié, les transferts de crédit de distribution Blue/Camtel qui nécessitent désormais deux étapes :
 
@@ -6,6 +6,8 @@ Blue Magic automatise, sur un téléphone Android dédié, les transferts de cr�
 2. vérification de la confirmation Camtel, saisie locale du PIN puis clic sur **ENVOYER**.
 
 Cette version maintient le trajet critique **Télécommande → serveur → Robot → fenêtre USSD → PIN → preuve opérateur** et rétablit l’affichage des actions financières sur les profils migrés d’anciennes versions, notamment sous Android 6.
+
+L’appairage initial ne peut plus échouer silencieusement : chaque champ invalide affiche maintenant une erreur ciblée et un message visible, le numéro accepte aussi le format `+237`, et l’appel réseau signale immédiatement son démarrage puis son résultat.
 
 ## Ce qui change par rapport à l’ancien code
 

@@ -121,30 +121,58 @@ public class MainActivity extends Activity {
         form.addView(pair);
         pair.setOnClickListener(v -> {
             String node = nodeCode.getText().toString().trim().toUpperCase();
-            String sim = phone.getText().toString().trim();
-            String parentNode = parent.getText().toString().trim().toUpperCase();
+            String sim = normalizeCameroonPhone(phone.getText().toString());
             String selectedRole = role.getSelectedItem().toString();
             String selectedMode = mode.getSelectedItem().toString();
-            String secret = pairingSecret.getText().toString();
+            String parentNode = "DAE".equals(selectedRole)
+                    ? "" : parent.getText().toString().trim().toUpperCase();
+            String secret = pairingSecret.getText().toString().trim();
             String pin = operatorPin.getText().toString().trim();
             int selectedSlot = simSlot.getSelectedItemPosition();
 
-            if (!node.matches("[A-Z0-9/_-]{3,64}") || !sim.matches("\\d{9}") || secret.length() < 24) {
-                feedback.setText("Vérifiez le code nœud, le numéro à 9 chiffres et le secret d’appairage.");
+            if (!node.matches("[A-Z0-9/_-]{3,64}")) {
+                showPairingIssue(scroll, nodeCode, feedback,
+                        "Le code local doit contenir au moins 3 lettres ou chiffres.");
+                return;
+            }
+            if (!sim.matches("6\\d{8}")) {
+                showPairingIssue(scroll, phone, feedback,
+                        "Saisissez un numéro camerounais valide de 9 chiffres commençant par 6.");
+                return;
+            }
+            phone.setText(sim);
+            if (!"DAE".equals(selectedRole) && !parentNode.matches("[A-Z0-9/_-]{3,64}")) {
+                showPairingIssue(scroll, parent, feedback,
+                        "Un DSM doit indiquer son DAE supérieur et un PoS son DSM supérieur.");
+                return;
+            }
+            if (!parentNode.isEmpty() && parentNode.equals(node)) {
+                showPairingIssue(scroll, parent, feedback,
+                        "Le supérieur doit être différent du compte en cours d’appairage.");
+                return;
+            }
+            if (secret.length() < 24) {
+                showPairingIssue(scroll, pairingSecret, feedback,
+                        "Le secret d’appairage est absent ou incomplet.");
                 return;
             }
             String selectedApiUrl = AppConfig.normalizeApiUrl(apiUrl.getText().toString());
             if (!selectedApiUrl.toLowerCase().startsWith("https://")) {
-                feedback.setText("L’adresse du serveur doit commencer par https://");
+                showPairingIssue(scroll, apiUrl, feedback,
+                        "L’adresse du serveur doit commencer par https://");
                 return;
             }
             if (("ROBOT".equals(selectedMode) || "HYBRID".equals(selectedMode)) && !pin.matches("\\d{4}")) {
-                feedback.setText("Un Robot doit recevoir le PIN Camtel exact à 4 chiffres.");
+                showPairingIssue(scroll, operatorPin, feedback,
+                        "Un Robot doit recevoir le PIN Camtel exact à 4 chiffres.");
                 return;
             }
 
             pair.setEnabled(false);
-            feedback.setText("Appairage avec " + selectedApiUrl + "…");
+            pair.setText("APPAIRAGE EN COURS…");
+            feedback.setTextColor(CYAN);
+            feedback.setText("Connexion sécurisée à " + selectedApiUrl + "…");
+            toast("Demande d’appairage envoyée. Patientez quelques secondes.");
             new Thread(() -> {
                 try {
                     JSONObject payload = new JSONObject();
@@ -178,7 +206,12 @@ public class MainActivity extends Activity {
                 } catch (Exception error) {
                     runOnUiThread(() -> {
                         pair.setEnabled(true);
-                        feedback.setText("Échec : " + readable(error));
+                        pair.setText("RÉESSAYER L’APPAIRAGE");
+                        String message = "Échec de l’appairage : " + readable(error);
+                        feedback.setTextColor(Color.rgb(255, 139, 152));
+                        feedback.setText(message);
+                        toast(message);
+                        scroll.post(() -> scroll.smoothScrollTo(0, feedback.getTop()));
                     });
                 }
             }).start();
@@ -191,6 +224,21 @@ public class MainActivity extends Activity {
         }
 
         setContentView(scroll);
+    }
+
+    private void showPairingIssue(ScrollView scroll, View target, TextView feedback, String message) {
+        feedback.setTextColor(Color.rgb(255, 139, 152));
+        feedback.setText("À corriger : " + message);
+        if (target instanceof EditText) ((EditText) target).setError(message);
+        target.requestFocus();
+        toast(message);
+        scroll.post(() -> scroll.smoothScrollTo(0, Math.max(0, target.getTop() - dp(18))));
+    }
+
+    private static String normalizeCameroonPhone(String value) {
+        String digits = value == null ? "" : value.replaceAll("\\D", "");
+        if (digits.length() == 12 && digits.startsWith("237")) return digits.substring(3);
+        return digits;
     }
 
     @SuppressLint("SetJavaScriptEnabled")
