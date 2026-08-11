@@ -1,5 +1,16 @@
 # Protocole de test terrain — avant argent réel
 
+## Contrôle prioritaire v2.5.2 — cartes financières
+
+Après la mise à jour, ouvrez successivement chaque compte déjà appairé, sans le supprimer :
+
+- `DAE` doit voir **Approvisionnement**, mais pas Achat ni Vente client ;
+- `DSM` doit voir **Achat de crédit** et **Approvisionnement** ;
+- `POS` doit voir **Achat de crédit** et **Vente client** ;
+- chaque écran doit afficher une phrase qui confirme explicitement les actions autorisées pour le rôle.
+
+Si le rôle reste « — », n’effectuez aucune opération financière : utilisez **☰ GÉRER → VÉRIFIER / RÉPARER L’APPAIRAGE** et contrôlez le nœud ainsi que son supérieur.
+
 ## Gate A — Serveur
 
 - `api.php?action=health` renvoie du JSON, jamais une page HTML ;

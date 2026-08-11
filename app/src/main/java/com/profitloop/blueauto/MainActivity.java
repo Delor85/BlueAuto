@@ -848,6 +848,7 @@ public class MainActivity extends Activity {
                 value.put("node_code", AppConfig.nodeCode(MainActivity.this));
                 value.put("profile_id", AppConfig.profileId(MainActivity.this));
                 value.put("role", AppConfig.role(MainActivity.this));
+                value.put("parent_node_code", AppConfig.parentNode(MainActivity.this));
                 value.put("mode", AppConfig.displayMode(AppConfig.mode(MainActivity.this)));
                 value.put("sim_slot", AppConfig.simSlot(MainActivity.this));
                 value.put("robot_enabled", AppConfig.robotEnabled(MainActivity.this));

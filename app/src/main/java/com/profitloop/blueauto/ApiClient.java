@@ -52,7 +52,7 @@ final class ApiClient {
         SimIdentityManager.Verification sim = SimIdentityManager.verify(context, targetProfile);
         boolean locallyEnabled = AppConfig.robotEnabled(context, targetProfile);
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.5.1-magic-route");
+        payload.put("app_version", "2.5.2-finance-unlock");
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
         payload.put("robot_enabled", locallyEnabled && sim.valid);
