@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Récupérer le code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Vérifier le backend Cloudflare
         working-directory: cloudflare
@@ -42,10 +42,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Récupérer le code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Installer Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -55,23 +55,23 @@ jobs:
         with:
           gradle-version: '8.2'
 
-      - name: Restaurer la signature pilote
-        uses: actions/cache@v4
-        with:
-          path: .pilot-signing/debug.keystore
-          key: blue-magic-pilot-debug-keystore-v3
-
-      - name: Restaurer le mot de passe privé de signature
-        uses: actions/cache@v4
-        with:
-          path: .pilot-signing/keystore.password
-          key: blue-magic-pilot-debug-password-v3
-
-      - name: Préparer la signature pilote
+      - name: Préparer et contrôler la signature Android
+        env:
+          PERMANENT_KEYSTORE_BASE64: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_BASE64 }}
+          PERMANENT_KEYSTORE_PASSWORD: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_PASSWORD }}
         run: |
+          set -euo pipefail
           mkdir -p .pilot-signing
-          if [ ! -f .pilot-signing/debug.keystore ] || [ ! -f .pilot-signing/keystore.password ]; then
-            rm -f .pilot-signing/debug.keystore .pilot-signing/keystore.password
+
+          if [ -n "$PERMANENT_KEYSTORE_BASE64" ] && [ -n "$PERMANENT_KEYSTORE_PASSWORD" ]; then
+            printf '%s' "$PERMANENT_KEYSTORE_BASE64" | base64 --decode > .pilot-signing/debug.keystore
+            printf '%s' "$PERMANENT_KEYSTORE_PASSWORD" > .pilot-signing/keystore.password
+            signing_kind=permanent
+          elif [ -n "$PERMANENT_KEYSTORE_BASE64" ] || [ -n "$PERMANENT_KEYSTORE_PASSWORD" ]; then
+            echo "::error::La configuration de signature permanente est incomplète."
+            exit 1
+          else
+            # Les PR restent compilables sans secret, mais leur APK éphémère n'est jamais publiée.
             openssl rand -hex 32 > .pilot-signing/keystore.password
             pilot_password="$(tr -d '\r\n' < .pilot-signing/keystore.password)"
             keytool -genkeypair \
@@ -84,17 +84,42 @@ jobs:
               -keysize 2048 \
               -validity 10000 \
               -noprompt
+            signing_kind=temporary
           fi
+
           pilot_password="$(tr -d '\r\n' < .pilot-signing/keystore.password)"
           echo "::add-mask::$pilot_password"
           echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$pilot_password" >> "$GITHUB_ENV"
+          echo "BLUE_MAGIC_SIGNING_KIND=$signing_kind" >> "$GITHUB_ENV"
+
+          if [ "$signing_kind" = permanent ]; then
+            actual_fingerprint="$(keytool -list -v \
+              -keystore .pilot-signing/debug.keystore \
+              -storepass "$pilot_password" \
+              -alias androiddebugkey \
+              | awk '/SHA256:/{gsub(":", "", $2); print tolower($2); exit}')"
+            expected_fingerprint="f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5"
+            if [ "$actual_fingerprint" != "$expected_fingerprint" ]; then
+              echo "::error::La clé Android ne correspond pas à la signature permanente Blue Magic."
+              exit 1
+            fi
+          fi
 
       - name: Compiler l’APK de test
         run: gradle --no-daemon :app:assembleDebug
 
-      - name: Publier l’APK comme artefact
+      - name: Préparer l’APK permanente
+        if: env.BLUE_MAGIC_SIGNING_KIND == 'permanent'
+        run: cp app/build/outputs/apk/debug/app-debug.apk Blue-Magic-v2.5.2-Finance-Release.apk
+
+      - name: Publier uniquement l’APK à signature permanente
+        if: env.BLUE_MAGIC_SIGNING_KIND == 'permanent'
         uses: actions/upload-artifact@v4
         with:
-          name: Blue-Magic-v2-Robot-Core
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: Blue-Magic-v2-Robot-Core-Permanent
+          path: Blue-Magic-v2.5.2-Finance-Release.apk
           if-no-files-found: error
+
+      - name: Confirmer la compilation temporaire sans publication
+        if: env.BLUE_MAGIC_SIGNING_KIND == 'temporary'
+        run: echo "Compilation réussie. APK non publiée car la signature permanente n'est pas disponible dans ce contexte."
