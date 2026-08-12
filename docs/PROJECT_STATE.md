@@ -3,161 +3,176 @@
 État vérifié le 12 août 2026. Ce document est la source de reprise obligatoire avec `docs/BLUE_MAGIC_DELIVERY_PROCEDURE.md`.
 
 **Version :**
-2.6.0 — reprise fonctionnelle du noyau Robot USSD, validation terrain encore obligatoire.
+2.6.1 — restauration du flux financier Android 6, validation terrain encore obligatoire.
 
 **Branche :**
 `fix/blue-magic-v2-6-recovery`
 
 **Commit :**
-`48c662b26f0a5e646757f00e7f161b09a4a49e59` pour le dernier état code/workflow testé. Le commit contenant le présent document constitue le HEAD documentaire de reprise.
+`3577a530e8f768535e444e71f4d1cec381d56c8b` pour le dernier état code/tests publié. Le commit contenant le présent document constitue le HEAD documentaire suivant.
 
 **État GitHub :**
-Branche publiée. PR non brouillon, fusionnable sans conflit, non fusionnée. La PR #3 historique reste distincte et ne doit pas être fusionnée pour livrer la v2.6.
+Branche publiée. PR non brouillon, ouverte, fusionnable sans conflit et non fusionnée. La PR #3 historique reste distincte.
 
 **PR :**
-PR #4 ouverte : https://github.com/Delor85/BlueAuto/pull/4
+PR #4 : https://github.com/Delor85/BlueAuto/pull/4 — titre mis à jour pour la v2.6.1.
 
 **GitHub Actions :**
-- run push #122 : succès sur `9c385919de6660c3231f970e52c7a58632790fc7` ; cinq tests unitaires Android, compilation APK et intégration Worker réussis. Ce run a fourni une seule APK temporaire, récupérée pour re-signature puis retirée du workflow ; elle ne doit jamais être installée ;
-- run push #123 : succès sur `48c662b26f0a5e646757f00e7f161b09a4a49e59` ; workflow final sans publication temporaire ;
-- run PR #124 : succès sur le même commit ; `android-debug-apk` et `server-packages` réussis, job permanent correctement ignoré sur PR ;
-- l’environnement GitHub `production` ne contient toujours pas les deux secrets Android permanents : le job push le signale proprement et ne publie aucune APK de mauvaise signature.
+- push #129 et PR #130 : succès sur le premier commit v2.6.1 ;
+- push #131 et PR #132 : succès du circuit temporaire contrôlé ayant fourni l’APK intermédiaire, ensuite re-signée hors GitHub ;
+- push #133 et PR #134 : succès après retrait immédiat de la publication temporaire ;
+- push #137 et PR #138 : succès final du code et du test qui exige la confirmation financière signée ;
+- jobs réussis : `server-packages`, `android-debug-apk` et contrôle `android-permanent-apk` ;
+- l’environnement GitHub `production` ne contient toujours pas les deux secrets Android permanents. Le job le signale et ne publie aucune APK de mauvaise signature.
 
 **État Cloudflare :**
-Inchangé par cette livraison Android. Le déploiement de production était au vert avant cette étape ; aucun déploiement n’a été relancé.
+Production vérifiée mais non modifiée par cette étape. `/health` répond correctement avec la version encore déployée `2.3.1-cloudflare`. Le Worker v2.6.1 doit être déployé avant tout test Achat/Vente de la nouvelle APK.
 
 **Worker :**
-`blue-magic-api` — `https://blue-magic-api.mbolodelorpro.workers.dev`. Version de santé précédemment vérifiée : `2.3.1-cloudflare`.
+`blue-magic-api` — `https://blue-magic-api.mbolodelorpro.workers.dev` — production actuelle `2.3.1-cloudflare`; source prête `2.6.1-cloudflare`.
 
 **D1 :**
-Base distante `blue-magic`, précédemment signalée `online` par le Worker. Aucun contenu D1 n’a été modifié.
+Base distante `blue-magic` signalée `online` par le Worker de production. Aucun enregistrement distant n’a été modifié pendant cette livraison.
 
 **Migrations :**
-Aucune migration créée, appliquée ou modifiée. La v2.6 reste compatible avec le Worker et le schéma déjà déployés.
+Aucune migration créée ou modifiée. Aucune migration distante appliquée pendant cette livraison.
 
 **APK :**
-`Blue-Magic-v2.6.0-Recovery-Release.apk` — 107330 octets — `/Blue Magic/APK/Blue-Magic-v2.6.0-Recovery-Release.apk`.
+`Blue-Magic-v2.6.1-Finance-Flow-Release.apk` — 107330 octets — livrable durable `/Blue-Magic-v2.6.1-Finance-Flow-Release.apk`.
 
 **Version / versionCode :**
-`2.6.0` / `40` ; paquet `com.profitloop.blueauto` ; Android minimum 6.0 conservé.
+`2.6.1` / `41` ; paquet `com.profitloop.blueauto` ; Android minimum 6.0 conservé.
 
 **Signature :**
-Certificat permanent `CN=Blue Magic Permanent Release, O=ProfitLoop, C=CM`, RSA 4096. Empreinte certificat SHA-256 `f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5`. Vérification `apksigner` réussie en v1, v2 et v3. Certificat, paquet et lignée identiques aux v2.5.3/v2.5.4, avec `versionCode` 40 supérieur à 34 : installation directe en mise à jour depuis ces versions. La v2.4.5 historique porte le certificat pilote `59065fb716f9ef6a737e8a4621aff9d5bae9df7389c45ff96f262e8cce9cddcf`, différent ; une installation restée exactement en v2.4.5 n’acceptera pas cette mise à jour. Son ancienne clé privée n’est pas disponible dans l’état durable audité et ne doit pas être recréée ou simulée.
+Certificat permanent `CN=Blue Magic Permanent Release, O=ProfitLoop, C=CM`, RSA 4096. Empreinte certificat SHA-256 `f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5`. Vérification `apksigner` réussie en v1, v2 et v3. Paquet et certificat identiques à la v2.6.0 ; versionCode 41 supérieur à 40 : mise à jour directe depuis v2.6.0. Même lignée que v2.5.3/v2.5.4. La v2.4.5 historique a un certificat pilote différent et ne peut pas recevoir cette APK comme mise à jour sans stratégie de migration préalable.
 
 **SHA-256 :**
-`6f0305c92e70d15d0adeacb15bb5091fade44aecf62d04216fe16d4884c79cd5`
+`e381764eb3a04f4d1c9aa6a7fef2e693106db5fa976a28af6c9fb94d514d3ea5`
 
 **Problème traité :**
-Dans toutes les versions 2.5 testées, le Robot pouvait s’ouvrir mais `TEST_NUMBER`, les achats et les ventes ne partaient plus. L’utilisateur observait donc une régression par rapport à la v2.4.5.
+Sur Android 6.0.1, les boutons Achat/Vente apparaissaient gris ou blancs et ne produisaient aucune action, tandis que `TEST_NUMBER` restait bleu et fonctionnait. Le routage pouvait aussi laisser plusieurs téléphones appairés au même nœud se disputer la file.
 
 **Cause identifiée :**
-Le durcissement v2.5 avait regroupé dans `RobotService.checkReadiness()` la sécurité de route SIM et les prérequis propres à la finance. L’absence d’Accessibilité, de PIN chiffré ou un ancien état `pinBlocked` arrêtait ainsi le Robot avant heartbeat/lease, y compris pour `TEST_NUMBER` qui ne contient ni montant, ni destinataire, ni PIN. `MainActivity.startRobotSafely()` appliquait le même blocage au démarrage. Enfin, la garde de verrou sécurisé était globale au lieu d’être limitée aux commandes financières.
+Deux causes concordaient exactement avec les captures : les boutons financiers utilisaient uniquement des variables CSS non comprises par l’ancien WebView Android 6, alors que le bouton Test utilisait des couleurs hexadécimales directes ; surtout, le flux financier appelait `window.confirm()` sans `WebChromeClient.onJsConfirm()`, ce qui supprimait silencieusement la confirmation et interrompait le clic avant toute requête. Côté serveur, la location visait le nœud mais ne procédait pas à l’élection explicite d’un seul appareil Robot lorsque le même nœud/SIM avait été appairé sur plusieurs téléphones.
 
 **Correction apportée :**
-- séparation explicite entre la route sûre, requise pour toutes les commandes, et la capacité financière, requise uniquement pour `DISTRIBUTION_TRANSFER`/`RETAIL_TRANSFER` ;
-- restauration du démarrage et de l’exécution de `TEST_NUMBER` sans PIN ni Accessibilité, tout en conservant SIM physique, slot exact, permissions Téléphone et route d’appel obligatoire ;
-- un PIN bloqué ne bloque plus le test, mais bloque toujours achats et ventes ;
-- un verrou Android sécurisé ne diffère plus les tests et ne s’applique qu’aux commandes avec PIN ; le retrait temporaire du simple verrou sans identifiant est conservé ;
-- masque confidentiel plein écran pendant la saisie/validation automatique du PIN, non cliquable, sans permission `SYSTEM_ALERT_WINDOW`, marqué `FLAG_SECURE` et retiré après validation ou délai de sécurité ;
-- affichage persistant des codes exacts d’erreur de création de commande et des prérequis financiers manquants ;
-- protocole terrain v2.6 ordonné : test sans fonds, confidentialité/verrou simple, transaction minimale, puis multi-SIM.
+- couleurs bleu/violet littérales de secours avant les variables CSS pour l’ancien WebView ;
+- relais natif Android de la boîte de confirmation avec boutons **CONFIRMER** et **ANNULER** ;
+- après la pression, prévisualisation serveur des numéros officiels du fournisseur et du bénéficiaire, de leurs nœuds et du montant ;
+- empreinte SHA-256 de cette prévisualisation exigée pour toute création financière ; toute modification ultérieure produit `CONFIRMATION_CHANGED` avant composition ;
+- aucun contrôle financier ajouté avant la pression : les champs locaux sont validés, puis la hiérarchie et les numéros officiels sont vérifiés après l’action de l’utilisateur ;
+- au lease, numéro officiel de la SIM exécutrice inclus dans l’empreinte d’intégrité et vérifié par Android avant de construire l’unique code USSD autorisé ;
+- démarrage/reprise Robot explicite : le nouveau téléphone vérifié devient l’unique appareil élu pour ce nœud, les anciens appareils passent en attente et leur heartbeat périodique ne peut pas voler la file ;
+- concordance pop-up Camtel maintenue sur le destinataire et le montant avant lecture du PIN ; divergence : clic Annuler, aucun PIN, résultat `CONFIRMATION_MISMATCH` avec capture textuelle expurgée ;
+- correction du détecteur de divergence pour accepter un pop-up contenant plusieurs numéros seulement si le numéro attendu est bien présent ;
+- démarrage Robot sans PIN conservé pour permettre `TEST_NUMBER`; PIN et Accessibilité restent exigés seulement lorsqu’une commande financière est effectivement louée ;
+- nom, version et tests CI mis à jour pour v2.6.1.
 
 **Fichiers créés :**
-- `app/src/main/java/com/profitloop/blueauto/CommandExecutionPolicy.java`
-- `app/src/test/java/com/profitloop/blueauto/CommandExecutionPolicyTest.java`
+- `app/src/test/finance-flow.mjs`
 
 **Fichiers modifiés :**
 - `.github/workflows/build.yml`
 - `README.md`
 - `app/build.gradle`
 - `app/src/main/assets/app.js`
-- `app/src/main/assets/index.html`
+- `app/src/main/assets/style.css`
 - `app/src/main/java/com/profitloop/blueauto/ApiClient.java`
 - `app/src/main/java/com/profitloop/blueauto/BlueAccessibilityService.java`
 - `app/src/main/java/com/profitloop/blueauto/MainActivity.java`
 - `app/src/main/java/com/profitloop/blueauto/RobotService.java`
+- `app/src/main/java/com/profitloop/blueauto/UssdCommandFactory.java`
+- `cloudflare/src/index.js`
+- `cloudflare/test/integration.mjs`
 - `docs/PROJECT_STATE.md`
 - `docs/TEST_TERRAIN.md`
 
 **Fichiers supprimés :**
-Aucun.
+Aucun fichier produit. L’étape temporaire de publication de l’APK interne a été retirée du workflow final.
 
 **Tests exécutés :**
-- cinq tests unitaires de `CommandExecutionPolicy` dans les runs #122, #123 et #124 ;
-- compilation `:app:assembleDebug` avec Java 17 et Gradle 8.2 dans les mêmes runs ;
-- analyse syntaxique des 17 fichiers Java ;
-- `node --check` sur l’interface JavaScript embarquée ;
-- validation YAML et `git diff --check` ;
-- `npm run check` dans `cloudflare`, incluant Remote/mode, annulation, isolation par SIM, alias hiérarchiques et flux d’états ;
-- contrôle du périmètre confirmant l’absence de modification de `cloudflare/**`, `htdocs/**`, D1 et migrations ;
-- intégrité ZIP de l’APK, lecture du manifeste, SHA-256, vérification de signature v1/v2/v3 et comparaison du certificat avec la v2.5.4 ;
-- calcul GitHub de la PR #4 : fusionnable, état `clean`.
+- `node app/src/test/finance-flow.mjs` : simulation Android 6 du clic Vente, prévisualisation, confirmation, annulation et non-régression Test ;
+- cinq tests unitaires `CommandExecutionPolicy` dans GitHub Actions ;
+- compilation `:app:assembleDebug` avec Java 17, Gradle 8.2 et compileSdk 34 ;
+- `node --check app/src/main/assets/app.js` ;
+- `npm run check` dans `cloudflare` avec Miniflare/D1 ;
+- scénarios Worker : appairage/filiation, alias locaux, deux numéros officiels, empreinte de confirmation obligatoire, anti-doublon, FIFO, isolation multi-SIM, états complets et élection T1/T2 ;
+- `git diff --check` ;
+- intégrité ZIP APK ; lecture manifeste ; comparaison version/package ;
+- `apksigner verify --verbose --print-certs` et comparaison du certificat avec v2.6.0 ;
+- contrôle HTTP de production `/health` et D1 `online` ;
+- vérification de la PR #4 ouverte, non brouillon, fusionnable et non fusionnée.
 
 **Résultats :**
-Tous les tests statiques, unitaires, d’intégration et de compilation automatisés sont réussis. Les cinq assertions prouvent notamment que `TEST_NUMBER` reste autorisé sans PIN/Accessibilité et avec un ancien `pinBlocked`, tandis que les deux commandes financières restent refusées si leur PIN ou l’Accessibilité manque. L’APK finale est intègre, signée et compatible en mise à jour avec la lignée permanente v2.5.3/v2.5.4, mais pas avec le certificat pilote distinct de la v2.4.5. Aucun test sur le téléphone/Camtel réel n’a encore été exécuté : la validation fonctionnelle terrain reste bloquante avant fusion ou argent significatif.
+Tous les tests automatisés et les runs GitHub #137/#138 sont réussis. La simulation démontre que le chemin financier n’est plus silencieux sur l’ancien WebView et que **ANNULER** ne crée aucune commande. L’intégration démontre qu’un second téléphone explicitement démarré devient l’unique Robot de ce nœud et que l’ancien ne loue pas la commande. L’APK est intègre, correctement versionnée et signée. Le Worker de production reste volontairement inchangé à `2.3.1-cloudflare`; la validation financière terrain n’est donc pas encore autorisée et aucune réussite Camtel réelle n’est déclarée.
 
 **Ce qui est maintenant acquis :**
-- une branche v2.6 isolée, une PR #4 propre et une APK signée compatible ;
-- la régression logique qui bloquait aussi `TEST_NUMBER` est supprimée dans le code et couverte par tests ;
-- les contrôles SIM/slot/route/commande exacte restent obligatoires ;
-- les exigences PIN/Accessibilité restent obligatoires uniquement au moment approprié pour la finance ;
-- la confirmation 1/2 côté interface, la concordance 2/2 du pop-up Camtel, l’anti-doublon et les statuts `UNKNOWN/BLOCKED` sont préservés ;
-- le PIN est chiffré localement et désormais masqué visuellement pendant son injection ;
-- le design bleu/or, l’adaptation petits écrans/clavier, l’appairage diagnostique, Remote, FIFO, multi-SIM, Android 6 et la reprise automatique sont conservés.
+- cause exacte des boutons gris et du clic silencieux identifiée et couverte par un test reproductible ;
+- interface Android 6 avec couleurs de secours et confirmation native ;
+- flux demandé **pression → résolution officielle → confirmation utilisateur → création → Robot exact → contrôle Camtel → PIN** implémenté ;
+- hiérarchie DAE/DSM/POS et numéros officiels résolus dans D1 après la pression ;
+- commande signée avec nœud et numéro fournisseur exacts ;
+- élection d’un seul téléphone Robot par nœud/SIM ;
+- `TEST_NUMBER`, design bleu/or, PIN chiffré, masque PIN, multi-SIM, FIFO, anti-doublon et réveil du simple verrou sans identifiant préservés ;
+- APK v2.6.1 signée dans la lignée permanente et disponible.
 
 **Solutions importantes à préserver :**
-- le socle opérationnel v2.4.5 : appel USSD par la surface Téléphone, WakeLock CPU au repos et réveil écran bref seulement pendant la commande ;
-- `CommandExecutionPolicy` comme frontière entre test et finance ;
-- `SimIdentityManager` et `SimCallManager` pour lier une SIM physique au slot et refuser toute route ambiguë ;
-- `UssdCommandFactory` pour reconstruire la seule commande autorisée et valider son empreinte ;
-- confirmation exacte numéro/montant avant lecture du PIN, puis masque confidentiel ;
+- fallback hexadécimal placé avant les variables CSS pour Android 6 ;
+- `WebChromeClient.onJsConfirm()` comme relais natif obligatoire ;
+- `preview_command` et `confirmation_fingerprint` pour les opérations financières ;
+- `executor_phone`, `integrity_version = 2` et validation dans `UssdCommandFactory` ;
+- `claim_robot` seulement au démarrage/restart, jamais comme effet d’un heartbeat périodique ;
+- `SimIdentityManager`/`SimCallManager` pour SIM physique, slot et route d’appel ;
+- comparaison numéro + montant avant PIN, masque confidentiel `FLAG_SECURE`, expurgation du PIN ;
+- `TEST_NUMBER` indépendant du PIN et de l’Accessibilité ;
 - certificat permanent et son empreinte ;
-- appairage diagnostique, affichage des erreurs exactes et documentation de reprise ;
-- Worker/D1 de production actuellement fonctionnels et inchangés.
+- Worker de production actuel tant que le déploiement v2.6.1 n’est pas explicitement autorisé et vérifié.
 
 **Ce qui reste à faire :**
-1. Vérifier la version actuellement installée. Si c’est une v2.5.3/v2.5.4, installer la v2.6 par-dessus sans désinstaller ni supprimer les comptes. Si c’est exactement la v2.4.5 ou si Android signale une incompatibilité de signature, ne rien désinstaller et demander une stratégie de migration des données.
-2. Exécuter Gate 1 : `TEST_NUMBER` sans Accessibilité et sans argent, sur chaque SIM.
-3. Exécuter Gate 2 : verrou simple sans identifiant et vérifier que le PIN n’est jamais visible ; tester séparément qu’un verrou sécurisé n’est pas contourné.
-4. Exécuter Gate 3 avec une transaction minimale supervisée et relever le code exact en cas d’échec.
-5. Exécuter le scénario T1/T2/T3 de déplacement SIM et dix alternances sans erreur avant argent significatif.
-6. Atteindre le seuil pilote de 30 transactions minimales consécutives sur le matériel exact avant production autonome.
-7. Après stabilisation du noyau financier, planifier et livrer séparément les autres onglets et rôles du cahier des charges, notamment mercenaires et tchoronko ; ils ne sont pas déclarés livrés par cette APK.
-8. Ajouter ultérieurement les secrets Android permanents dans GitHub `production` pour automatiser la publication sans jamais les transmettre dans un chat.
+1. Obtenir l’autorisation explicite de lancer une fois **Déployer Blue Magic sur Cloudflare** sur `fix/blue-magic-v2-6-recovery`.
+2. Vérifier le succès de la liste des migrations, de leur application sans changement, du déploiement et de `/health = 2.6.1-cloudflare`.
+3. Installer v2.6.1 par-dessus v2.5.3/v2.5.4/v2.6.0 sans désinstaller. Si le téléphone est exactement en v2.4.5, arrêter et préparer la migration de signature/profils.
+4. Vérifier visuellement que les boutons sont bleu/violet sur Android 6 ; appuyer sur une opération, contrôler les deux numéros et le montant, puis **ANNULER** sans fonds.
+5. Après ce test sans fonds, exécuter une seule transaction minimale supervisée et vérifier la concordance Camtel, le masque PIN et la preuve opérateur.
+6. Exécuter le scénario T1/T2/T3 et dix alternances sans erreur avant un montant significatif.
+7. Atteindre trente transactions minimales consécutives sur le matériel exact avant autonomie financière.
+8. Après stabilisation du noyau, planifier séparément les autres onglets et rôles du cahier des charges ; mercenaires et tchoronko ne sont pas déclarés livrés ici.
 
 **Ce qui NE doit surtout PAS être modifié :**
-- ne pas fusionner la PR #4 avant le test terrain du noyau ;
-- ne pas fusionner la PR #3 comme substitut de la v2.6 ;
-- ne pas modifier Cloudflare, D1, migrations, variables ou secrets pour diagnostiquer un problème Android ;
-- ne pas assouplir la vérification de la SIM physique, du slot, du nœud exécuteur, du code USSD, du numéro, du montant ou de l’empreinte de commande ;
+- ne pas rendre les boutons gris ou dépendants uniquement de variables CSS ;
+- ne pas retirer le relais natif de confirmation ;
+- ne pas créer une commande financière avant la pression et la confirmation explicite ;
+- ne pas assouplir l’empreinte de confirmation, le numéro fournisseur, le numéro bénéficiaire, le montant ou le code USSD ;
 - ne pas rendre PIN/Accessibilité obligatoires pour `TEST_NUMBER` ;
-- ne pas retirer le garde-fou qui transforme une absence de preuve en `UNKNOWN` sans nouvelle exécution automatique ;
-- ne jamais changer de certificat Android pour une mise à jour ;
-- ne pas désinstaller la v2.4.5 pour contourner son ancienne signature avant d’avoir sauvegardé ou migré les profils locaux ;
-- ne pas réécrire le design, l’appairage, le multi-SIM ou l’arborescence sans cas de test démontré et autorisation.
+- ne pas permettre à un heartbeat périodique d’un ancien téléphone de reprendre la file ;
+- ne pas retirer les contrôles SIM/slot/route ;
+- ne pas afficher, journaliser ou transmettre le PIN ;
+- ne pas contourner un verrou Android sécurisé ;
+- ne pas changer le design bleu/or ni l’appairage diagnostique pendant la validation terrain ;
+- ne pas fusionner la PR #4 avant les tests terrain ;
+- ne jamais changer de certificat Android pour contourner une incompatibilité.
 
 **Régressions éventuelles :**
-Aucune régression détectée par les tests automatisés. La non-régression terrain n’est pas encore acquise. Le nouveau masque PIN doit notamment être vérifié sur l’application Téléphone/Camtel exacte avant d’être considéré comme validé.
+Les APK antérieures qui tentent de créer directement une opération financière sans prévisualisation recevront `CONFIRMATION_REQUIRED` après le déploiement du Worker v2.6.1. C’est un changement volontaire pour garantir la confirmation demandée ; tous les téléphones de commande financière doivent donc être mis à jour vers v2.6.1. `TEST_NUMBER` reste compatible.
 
 **Risques connus :**
-- Android ne fournit pas d’API publique universelle pour poursuivre une session USSD interactive ; le comportement dépend du fabricant, de la version Android et de l’application Téléphone ;
-- un verrou Android avec PIN, schéma, mot de passe ou empreinte ne peut et ne doit pas être contourné ;
-- certaines SIM ne publient pas leur numéro à Android et exigent une liaison explicite par ICCID/abonnement ;
-- la réception de preuve dépend du texte réel du pop-up/SMS Camtel ; toute variante inconnue doit échouer fermée ;
-- l’APK reste `debuggable`, héritage du pilote ; une vraie variante release durcie reste à produire après validation fonctionnelle ;
-- les secrets de signature permanents manquent dans GitHub `production` ;
-- l’ancienne clé privée correspondant au certificat pilote de la v2.4.5 n’est pas disponible ; une migration depuis cette légacy exacte doit donc protéger les données locales avant toute réinstallation ;
-- l’artefact temporaire du run #122 porte une signature éphémère et ne doit jamais être installé ;
-- dépendances externes : Android Téléphone/Accessibilité/permissions/batterie, SIM et réseau Camtel, Worker Cloudflare, D1, jetons appareils, `PAIRING_SECRET`, GitHub Actions et certificat APK permanent.
+- aucune transaction Camtel réelle n’a encore validé cette livraison ;
+- Android 6 n’offre pas d’API publique de capture d’écran par `AccessibilityService`. En cas de divergence, la v2.6.1 conserve une capture textuelle expurgée, pas une image ;
+- certains fabricants cachent le dialogue USSD ou son champ derrière un verrou sécurisé ; ce verrou ne sera pas contourné ;
+- le texte réel du pop-up/SMS Camtel peut varier ; toute variante non reconnue doit échouer sans PIN ;
+- l’APK reste une variante pilote `debuggable`, bien que signée par le certificat permanent ;
+- les secrets Android permanents manquent dans l’environnement GitHub `production` ;
+- la v2.4.5 utilise une autre signature ; ne jamais la désinstaller sans stratégie de conservation des profils ;
+- dépendances : application Téléphone, service Accessibilité, permissions Android, gestion batterie, SIM/réseau Camtel, Worker, D1, jetons appareils, `PAIRING_SECRET`, GitHub Actions et signature APK.
 
 **Point de reprise pour la prochaine session :**
-Lire ce document et `docs/BLUE_MAGIC_DELIVERY_PROCEDURE.md`, vérifier le HEAD de `fix/blue-magic-v2-6-recovery`, la PR #4 et les runs #123/#124. Ne modifier aucun fichier avant de recevoir le résultat de Gate 1. Le premier diagnostic attendu est : le Robot démarre-t-il, `*825*3*3#` s’ouvre-t-il sur la bonne SIM, et quel code exact reste visible en cas d’échec ?
+Lire ce document et `docs/BLUE_MAGIC_DELIVERY_PROCEDURE.md`. Vérifier le HEAD de `fix/blue-magic-v2-6-recovery`, la PR #4 et les runs #137/#138. Ne modifier ni l’APK ni le Worker. Reprendre exactement par l’autorisation de déploiement unique, puis exécuter le workflow manuel existant et vérifier `/health` avant d’autoriser l’installation et le test financier.
 
 **Prochaine action recommandée :**
-Si la version installée est v2.5.3/v2.5.4, installer `Blue-Magic-v2.6.0-Recovery-Release.apk` comme mise à jour, ouvrir le compte Robot, utiliser **VÉRIFIER / LIER LA SIM**, démarrer le Robot puis lancer uniquement **Tester la SIM Robot**. Si la version installée est exactement v2.4.5, ne pas désinstaller : communiquer d’abord cette information. Ne tester aucun montant avant le succès de `TEST_NUMBER`.
+Répondre explicitement : « J’autorise le déploiement unique du Worker `2.6.1-cloudflare` et la vérification distante D1/migrations via le workflow GitHub, sans fusionner la PR #4. » Ensuite seulement, déployer, vérifier la santé, installer l’APK et tester d’abord le bouton financier avec **ANNULER**, sans fonds.
 
 **Autorisation nécessaire avant la prochaine action :**
-Oui pour toute nouvelle modification, fusion ou extension fonctionnelle. Non pour exécuter le protocole de test terrain déjà documenté.
+Oui.
 
 **Si oui, préciser exactement l’autorisation nécessaire :**
-Communiquer le résultat de Gate 1 et, en cas d’échec, le code exact sans PIN ni secret ; autoriser ensuite soit la correction ciblée, soit, après tous les Gates réussis, la fusion explicite de la PR #4. Une autorisation séparée est requise avant toute modification Cloudflare/D1 ou avant le chantier des autres modules du cahier des charges.
+Autorisation d’exécuter une fois le workflow **Déployer Blue Magic sur Cloudflare** sur `fix/blue-magic-v2-6-recovery`, incluant la lecture des migrations distantes, l’application idempotente des migrations déjà présentes, le déploiement de `blue-magic-api` et le contrôle `/health`, sans fusionner la PR #4 et sans modifier les secrets.
