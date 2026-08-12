@@ -126,19 +126,6 @@ jobs:
         if: env.BLUE_MAGIC_SIGNING_KIND == 'temporary'
         run: echo "Compilation réussie. APK non publiée car la signature permanente n'est pas disponible dans ce contexte."
 
-      - name: Préparer une APK interne temporaire pour re-signature contrôlée
-        if: env.BLUE_MAGIC_SIGNING_KIND == 'temporary' && github.event_name == 'push'
-        run: cp app/build/outputs/apk/debug/app-debug.apk Blue-Magic-v2.6.1-Internal-Temporary-Do-Not-Install.apk
-
-      - name: Publier temporairement l'APK interne non livrable
-        if: env.BLUE_MAGIC_SIGNING_KIND == 'temporary' && github.event_name == 'push'
-        uses: actions/upload-artifact@v4
-        with:
-          name: Blue-Magic-v2.6.1-Internal-Temporary-Do-Not-Install
-          path: Blue-Magic-v2.6.1-Internal-Temporary-Do-Not-Install.apk
-          if-no-files-found: error
-          retention-days: 1
-
   android-permanent-apk:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
