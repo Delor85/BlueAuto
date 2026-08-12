@@ -10,6 +10,7 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.pm.ServiceInfo;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.PowerManager;
@@ -62,7 +63,7 @@ public class RobotService extends Service {
         super.onCreate();
         executor = Executors.newSingleThreadScheduledExecutor();
         createNotificationChannel();
-        startForeground(NOTIFICATION_ID, notification("Robots en préparation…"));
+        enterForeground(notification("Robots en préparation…"));
     }
 
     @Override
@@ -538,11 +539,10 @@ public class RobotService extends Service {
         }
         SimIdentityManager.Verification sim = SimIdentityManager.verify(this, profileId);
         if (!sim.valid) return Readiness.failure(sim.message);
-        try {
-            SimCallManager.verifyCallRoute(this, profileId);
-        } catch (Exception error) {
-            return Readiness.failure(safeMessage(error));
-        }
+        // La présence de la SIM est le verrou d'éligibilité. Certains dialers Android 6 à 13
+        // ne publient leur PhoneAccount qu'au moment de l'appel : exiger cette route ici arrêtait
+        // le Robot avant qu'il puisse louer TEST_NUMBER ou une commande financière. La route
+        // exacte reste résolue et contrôlée immédiatement avant placeCall().
         return Readiness.ready(sim);
     }
 
@@ -667,6 +667,20 @@ public class RobotService extends Service {
         }
     }
 
+    private void enterForeground(Notification value) {
+        if (Build.VERSION.SDK_INT >= 34) {
+            startForeground(NOTIFICATION_ID, value,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+        } else if (Build.VERSION.SDK_INT >= 29) {
+            // Android 10 à 13 ne connaissent pas specialUse. Demander explicitement dataSync
+            // évite que ces versions tentent d'interpréter le type Android 14 du manifeste.
+            startForeground(NOTIFICATION_ID, value,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+        } else {
+            startForeground(NOTIFICATION_ID, value);
+        }
+    }
+
     private Notification notification(String text) {
         Intent open = new Intent(this, MainActivity.class);
         PendingIntent pending = PendingIntent.getActivity(this, 1, open,
@@ -745,8 +759,14 @@ public class RobotService extends Service {
     }
 
     private static void sendServiceAction(Context context, Intent intent) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent);
-        else context.startService(intent);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent);
+            else context.startService(intent);
+        } catch (RuntimeException ignored) {
+            // Android 12+ peut refuser un démarrage reçu en arrière-plan. Le prochain retour dans
+            // l'app ou le watchdog relancera le même service sans faire planter l'interface.
+            scheduleWatchdog(context, 5_000L);
+        }
     }
 
     private static String profileId(Intent intent) {

@@ -901,14 +901,6 @@ public class MainActivity extends Activity {
             refreshNativeStatus();
             return false;
         }
-        try {
-            SimCallManager.verifyCallRoute(this, AppConfig.profileId(this));
-        } catch (Exception error) {
-            AppConfig.setRobotEnabled(this, false);
-            toast("Robot refusé : " + readable(error));
-            refreshNativeStatus();
-            return false;
-        }
         AppConfig.setRobotEnabled(this, true);
         robotStartInProgress = true;
         refreshNativeStatus();
@@ -988,14 +980,8 @@ public class MainActivity extends Activity {
                         refreshNativeStatus();
                         return;
                     }
-                    try {
-                        AppConfig.clearCallRoute(this, profileId);
-                        SimCallManager.verifyCallRoute(this, profileId);
-                        toast("SIM liée avec succès. Vous pouvez démarrer le Robot.");
-                    } catch (Exception error) {
-                        AppConfig.setRobotEnabled(this, false);
-                        toast("SIM liée, mais Robot arrêté : " + readable(error));
-                    }
+                    AppConfig.clearCallRoute(this, profileId);
+                    toast("SIM liée avec succès. Vous pouvez démarrer le Robot.");
                     refreshNativeStatus();
                 })
                 .setNegativeButton("Annuler", null)
@@ -1035,6 +1021,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         applyRobotWindowPolicy();
+        if (AppConfig.anyRobotEnabled(this)) RobotService.startEnabled(this);
         refreshNativeStatus();
     }
 
@@ -1125,6 +1112,11 @@ public class MainActivity extends Activity {
                             ? "" : confirmationFingerprint.trim().toLowerCase(Locale.ROOT));
                     JSONObject data = new ApiClient(MainActivity.this).createCommand(payload);
                     callback("onCommandCreated", data);
+                    // Sur un téléphone qui héberge aussi le Robot, supprimer toute attente du
+                    // watchdog et déclencher immédiatement un cycle après la création.
+                    if (AppConfig.anyRobotEnabled(MainActivity.this)) {
+                        RobotService.startEnabled(MainActivity.this);
+                    }
                 } catch (Exception error) {
                     callbackError("onCommandCreated", error);
                 }

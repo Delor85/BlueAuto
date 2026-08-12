@@ -17,7 +17,7 @@ final class AppConfig {
     static final String DEFAULT_API = "https://blue-magic-api.mbolodelorpro.workers.dev/api";
     static final String CLOUDFLARE_API = DEFAULT_API;
     static final long HEARTBEAT_MS = 300_000L;
-    static final long IDLE_POLL_MS = 30_000L;
+    static final long IDLE_POLL_MS = 5_000L;
     static final long COMMAND_TIMEOUT_MS = 120_000L;
     static final long LOCKED_POLL_MS = 5_000L;
     static final long NEXT_COMMAND_GAP_MS = 8_000L;

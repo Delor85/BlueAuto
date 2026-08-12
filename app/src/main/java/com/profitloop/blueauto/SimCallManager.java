@@ -2,6 +2,7 @@ package com.profitloop.blueauto;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
@@ -67,6 +68,10 @@ final class SimCallManager {
     static void placeUssdCall(Context context, String ussd, String profileId) throws Exception {
         Route route = resolveRoute(context, profileId);
         Uri address = Uri.parse("tel:" + ussd.replace("#", Uri.encode("#")));
+        if (route.account == null) {
+            startVerifiedSingleSimCall(context, address);
+            return;
+        }
         Bundle extras = new Bundle();
         extras.putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, route.account);
         route.telecom.placeCall(address, extras);
@@ -102,10 +107,12 @@ final class SimCallManager {
             throw new IllegalStateException("Route d’appel ambiguë pour le slot "
                     + (requestedSlot + 1) + ". Vérifiez puis liez de nouveau cette SIM.");
         }
-        String component = resolution.account.getComponentName() == null ? ""
-                : resolution.account.getComponentName().flattenToString();
-        AppConfig.updateCallRoute(context, profileId, resolution.account.getId(), component,
-                resolution.confidence);
+        if (resolution.account != null) {
+            String component = resolution.account.getComponentName() == null ? ""
+                    : resolution.account.getComponentName().flattenToString();
+            AppConfig.updateCallRoute(context, profileId, resolution.account.getId(), component,
+                    resolution.confidence);
+        }
         return new Route(telecom, target, resolution.account);
     }
 
@@ -119,7 +126,11 @@ final class SimCallManager {
             PhoneAccount account = telecom.getPhoneAccount(handle);
             if (account != null && account.supportsUriScheme(PhoneAccount.SCHEME_TEL)) cellular.add(handle);
         }
-        if (cellular.isEmpty()) return null;
+        if (cellular.isEmpty()) {
+            return isOnlyActiveSubscription(subscriptions, target)
+                    && verifiedPhysicalSim(context, profileId, target)
+                    ? new AccountResolution(null, "VERIFIED_SINGLE_SIM_DEFAULT") : null;
+        }
 
         int targetSubscription = target.getSubscriptionId();
         if (Build.VERSION.SDK_INT >= 30) {
@@ -206,12 +217,18 @@ final class SimCallManager {
         }
         if (slotHints.size() > 1) return null;
 
-        // The sole active subscription and sole TEL account are unambiguous.
+        // Une seule SIM active rend la route système non ambiguë, même lorsque le dialer publie
+        // plusieurs PhoneAccount techniques (urgence, IMS, VoLTE). C'était le comportement utile
+        // de la 2.4.5; l'identité physique de la SIM reste contrôlée juste avant ce choix.
         try {
             List<SubscriptionInfo> active = subscriptions.getActiveSubscriptionInfoList();
-            if (active != null && active.size() == 1 && cellular.size() == 1
-                    && active.get(0).getSubscriptionId() == targetSubscription) {
-                return new AccountResolution(cellular.get(0), "SOLE_ACTIVE_SIM");
+            if (active != null && active.size() == 1
+                    && active.get(0).getSubscriptionId() == targetSubscription
+                    && verifiedPhysicalSim(context, profileId, target)) {
+                if (cellular.size() == 1) {
+                    return new AccountResolution(cellular.get(0), "SOLE_ACTIVE_SIM");
+                }
+                return new AccountResolution(null, "VERIFIED_SINGLE_SIM_DEFAULT");
             }
         } catch (Exception ignored) {
         }
@@ -228,7 +245,6 @@ final class SimCallManager {
                 if (info != null && info.getSimSlotIndex() >= 0) ordered.add(info);
             }
             Collections.sort(ordered, Comparator.comparingInt(SubscriptionInfo::getSimSlotIndex));
-            if (ordered.size() != cellular.size()) return null;
             int position = -1;
             for (int index = 0; index < ordered.size(); index++) {
                 if (ordered.get(index).getSubscriptionId() == targetSubscription) {
@@ -242,6 +258,26 @@ final class SimCallManager {
         } catch (Exception ignored) {
         }
         return null;
+    }
+
+    private static boolean isOnlyActiveSubscription(SubscriptionManager subscriptions,
+                                                     SubscriptionInfo target) {
+        try {
+            List<SubscriptionInfo> active = subscriptions.getActiveSubscriptionInfoList();
+            return active != null && active.size() == 1
+                    && active.get(0).getSubscriptionId() == target.getSubscriptionId();
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private static void startVerifiedSingleSimCall(Context context, Uri address) {
+        Intent call = new Intent(Intent.ACTION_CALL, address);
+        call.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        if (call.resolveActivity(context.getPackageManager()) == null) {
+            throw new IllegalStateException("Aucune application Téléphone compatible.");
+        }
+        context.startActivity(call);
     }
 
     private static boolean verifiedPhysicalSim(Context context, String profileId,

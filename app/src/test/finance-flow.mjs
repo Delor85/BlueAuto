@@ -117,5 +117,23 @@ const activity = await readFile(new URL(
 assert.match(activity, /setWebChromeClient\(new WebChromeClient\(\)/);
 assert.match(activity, /boolean onJsConfirm\(/);
 assert.match(activity, /new ApiClient\(this\)\.heartbeat\(true\)/);
+assert.doesNotMatch(activity.slice(activity.indexOf('private boolean startRobotSafely()'),
+  activity.indexOf('private void confirmAndBindCurrentSim()')), /verifyCallRoute/);
 
-console.log('Android finance UI: Android 6+ colors, preview, native confirm, cancel and TEST_NUMBER flow OK');
+const service = await readFile(new URL(
+  '../main/java/com/profitloop/blueauto/RobotService.java', import.meta.url), 'utf8');
+assert.match(service, /SDK_INT >= 34[\s\S]*FOREGROUND_SERVICE_TYPE_SPECIAL_USE/);
+assert.match(service, /SDK_INT >= 29[\s\S]*FOREGROUND_SERVICE_TYPE_DATA_SYNC/);
+const readiness = service.slice(service.indexOf('private Readiness checkReadiness('),
+  service.indexOf('private void disableUnsafeRobot('));
+assert.doesNotMatch(readiness, /verifyCallRoute/);
+
+const manifest = await readFile(new URL('../main/AndroidManifest.xml', import.meta.url), 'utf8');
+assert.match(manifest, /foregroundServiceType="dataSync\|specialUse"/);
+
+const gradleConfig = await readFile(new URL('../../build.gradle', import.meta.url), 'utf8');
+assert.match(gradleConfig, /minSdk 23/);
+assert.match(gradleConfig, /versionCode 43/);
+assert.match(gradleConfig, /versionName "2\.6\.3"/);
+
+console.log('Android finance UI/runtime: Android 6+, confirmation, TEST_NUMBER and Robot wake flow OK');
