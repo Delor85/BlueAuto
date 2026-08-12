@@ -108,6 +108,14 @@ jobs:
       - name: Compiler l’APK de test
         run: gradle --no-daemon :app:assembleDebug
 
+      - name: Publier l'APK intermédiaire pour signature hors GitHub
+        if: github.event_name != 'pull_request' && env.BLUE_MAGIC_SIGNING_KIND == 'temporary'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Blue-Magic-v2.5.4-Internal-Temporary-Do-Not-Install
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
       - name: Préparer l’APK permanente
         if: env.BLUE_MAGIC_SIGNING_KIND == 'permanent'
         run: cp app/build/outputs/apk/debug/app-debug.apk Blue-Magic-v2.5.4-Pairing-Diagnostic-Release.apk
@@ -143,17 +151,30 @@ jobs:
         with:
           gradle-version: '8.2'
 
-      - name: Charger et contrôler la signature permanente
+      - name: Détecter la signature permanente
+        id: signing-availability
         env:
           PERMANENT_KEYSTORE_BASE64: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_BASE64 }}
           PERMANENT_KEYSTORE_PASSWORD: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_PASSWORD }}
         run: |
           set -euo pipefail
-          if [ -z "$PERMANENT_KEYSTORE_BASE64" ] || [ -z "$PERMANENT_KEYSTORE_PASSWORD" ]; then
-            echo "::error::Les deux secrets de signature Android permanente sont requis dans l'environnement production."
+          if [ -n "$PERMANENT_KEYSTORE_BASE64" ] && [ -n "$PERMANENT_KEYSTORE_PASSWORD" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          elif [ -n "$PERMANENT_KEYSTORE_BASE64" ] || [ -n "$PERMANENT_KEYSTORE_PASSWORD" ]; then
+            echo "::error::La configuration de signature Android permanente est incomplète dans l'environnement production."
             exit 1
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::APK permanente non publiée : les deux secrets Android sont absents de l'environnement production."
           fi
 
+      - name: Charger et contrôler la signature permanente
+        if: steps.signing-availability.outputs.available == 'true'
+        env:
+          PERMANENT_KEYSTORE_BASE64: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_BASE64 }}
+          PERMANENT_KEYSTORE_PASSWORD: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
           mkdir -p .pilot-signing
           printf '%s' "$PERMANENT_KEYSTORE_BASE64" | base64 --decode > .pilot-signing/debug.keystore
           printf '%s' "$PERMANENT_KEYSTORE_PASSWORD" > .pilot-signing/keystore.password
@@ -174,14 +195,21 @@ jobs:
           fi
 
       - name: Compiler l'APK permanente
+        if: steps.signing-availability.outputs.available == 'true'
         run: gradle --no-daemon :app:assembleDebug
 
       - name: Préparer l'APK permanente
+        if: steps.signing-availability.outputs.available == 'true'
         run: cp app/build/outputs/apk/debug/app-debug.apk Blue-Magic-v2.5.4-Pairing-Diagnostic-Release.apk
 
       - name: Publier l'APK permanente vérifiée
+        if: steps.signing-availability.outputs.available == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: Blue-Magic-v2-Robot-Core-Permanent
           path: Blue-Magic-v2.5.4-Pairing-Diagnostic-Release.apk
           if-no-files-found: error
+
+      - name: Confirmer l'absence de publication permanente
+        if: steps.signing-availability.outputs.available == 'false'
+        run: echo "Compilation permanente ignorée sans exposer ni remplacer les secrets manquants."
