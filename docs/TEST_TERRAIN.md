@@ -2,7 +2,7 @@
 
 ## Gate 0 — installation et diagnostic v2.6
 
-1. Installer la v2.6 **par-dessus** l’APK actuelle, sans désinstallation, puis confirmer `2.6.0 • versionCode 40`.
+1. Si l’APK installée est une v2.5.3/v2.5.4 à certificat permanent, installer la v2.6 **par-dessus**, sans désinstallation, puis confirmer `2.6.0 • versionCode 40`. Si Android refuse pour incompatibilité de signature ou si le téléphone est resté exactement en v2.4.5, ne rien désinstaller et relever la version installée.
 2. Toucher **VÉRIFIER LE SERVEUR** avant de saisir un secret.
 3. Noter le code affiché : `SERVER_CHECK_OK` confirme HTTPS, le Worker et D1 depuis le téléphone ; `NETWORK_DNS`, `NETWORK_TIMEOUT`, `NETWORK_TLS` ou `NETWORK_CONNECT` isole le réseau Android.
 4. Remplir le formulaire puis toucher **APPAIRER CE TÉLÉPHONE**.

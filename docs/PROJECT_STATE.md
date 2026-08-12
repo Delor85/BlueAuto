@@ -42,7 +42,7 @@ Aucune migration créée, appliquée ou modifiée. La v2.6 reste compatible avec
 `2.6.0` / `40` ; paquet `com.profitloop.blueauto` ; Android minimum 6.0 conservé.
 
 **Signature :**
-Certificat permanent `CN=Blue Magic Permanent Release, O=ProfitLoop, C=CM`, RSA 4096. Empreinte certificat SHA-256 `f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5`. Vérification `apksigner` réussie en v1, v2 et v3. Certificat, paquet et lignée identiques à la v2.5.4, avec `versionCode` 40 supérieur à 34 : installation directe en mise à jour, sans désinstallation.
+Certificat permanent `CN=Blue Magic Permanent Release, O=ProfitLoop, C=CM`, RSA 4096. Empreinte certificat SHA-256 `f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5`. Vérification `apksigner` réussie en v1, v2 et v3. Certificat, paquet et lignée identiques aux v2.5.3/v2.5.4, avec `versionCode` 40 supérieur à 34 : installation directe en mise à jour depuis ces versions. La v2.4.5 historique porte le certificat pilote `59065fb716f9ef6a737e8a4621aff9d5bae9df7389c45ff96f262e8cce9cddcf`, différent ; une installation restée exactement en v2.4.5 n’acceptera pas cette mise à jour. Son ancienne clé privée n’est pas disponible dans l’état durable audité et ne doit pas être recréée ou simulée.
 
 **SHA-256 :**
 `6f0305c92e70d15d0adeacb15bb5091fade44aecf62d04216fe16d4884c79cd5`
@@ -94,7 +94,7 @@ Aucun.
 - calcul GitHub de la PR #4 : fusionnable, état `clean`.
 
 **Résultats :**
-Tous les tests statiques, unitaires, d’intégration et de compilation automatisés sont réussis. Les cinq assertions prouvent notamment que `TEST_NUMBER` reste autorisé sans PIN/Accessibilité et avec un ancien `pinBlocked`, tandis que les deux commandes financières restent refusées si leur PIN ou l’Accessibilité manque. L’APK finale est intègre, signée et compatible en mise à jour. Aucun test sur le téléphone/Camtel réel n’a encore été exécuté : la validation fonctionnelle terrain reste bloquante avant fusion ou argent significatif.
+Tous les tests statiques, unitaires, d’intégration et de compilation automatisés sont réussis. Les cinq assertions prouvent notamment que `TEST_NUMBER` reste autorisé sans PIN/Accessibilité et avec un ancien `pinBlocked`, tandis que les deux commandes financières restent refusées si leur PIN ou l’Accessibilité manque. L’APK finale est intègre, signée et compatible en mise à jour avec la lignée permanente v2.5.3/v2.5.4, mais pas avec le certificat pilote distinct de la v2.4.5. Aucun test sur le téléphone/Camtel réel n’a encore été exécuté : la validation fonctionnelle terrain reste bloquante avant fusion ou argent significatif.
 
 **Ce qui est maintenant acquis :**
 - une branche v2.6 isolée, une PR #4 propre et une APK signée compatible ;
@@ -116,7 +116,7 @@ Tous les tests statiques, unitaires, d’intégration et de compilation automati
 - Worker/D1 de production actuellement fonctionnels et inchangés.
 
 **Ce qui reste à faire :**
-1. Installer la v2.6 par-dessus la version installée, sans désinstaller ni supprimer les comptes.
+1. Vérifier la version actuellement installée. Si c’est une v2.5.3/v2.5.4, installer la v2.6 par-dessus sans désinstaller ni supprimer les comptes. Si c’est exactement la v2.4.5 ou si Android signale une incompatibilité de signature, ne rien désinstaller et demander une stratégie de migration des données.
 2. Exécuter Gate 1 : `TEST_NUMBER` sans Accessibilité et sans argent, sur chaque SIM.
 3. Exécuter Gate 2 : verrou simple sans identifiant et vérifier que le PIN n’est jamais visible ; tester séparément qu’un verrou sécurisé n’est pas contourné.
 4. Exécuter Gate 3 avec une transaction minimale supervisée et relever le code exact en cas d’échec.
@@ -133,6 +133,7 @@ Tous les tests statiques, unitaires, d’intégration et de compilation automati
 - ne pas rendre PIN/Accessibilité obligatoires pour `TEST_NUMBER` ;
 - ne pas retirer le garde-fou qui transforme une absence de preuve en `UNKNOWN` sans nouvelle exécution automatique ;
 - ne jamais changer de certificat Android pour une mise à jour ;
+- ne pas désinstaller la v2.4.5 pour contourner son ancienne signature avant d’avoir sauvegardé ou migré les profils locaux ;
 - ne pas réécrire le design, l’appairage, le multi-SIM ou l’arborescence sans cas de test démontré et autorisation.
 
 **Régressions éventuelles :**
@@ -145,6 +146,7 @@ Aucune régression détectée par les tests automatisés. La non-régression ter
 - la réception de preuve dépend du texte réel du pop-up/SMS Camtel ; toute variante inconnue doit échouer fermée ;
 - l’APK reste `debuggable`, héritage du pilote ; une vraie variante release durcie reste à produire après validation fonctionnelle ;
 - les secrets de signature permanents manquent dans GitHub `production` ;
+- l’ancienne clé privée correspondant au certificat pilote de la v2.4.5 n’est pas disponible ; une migration depuis cette légacy exacte doit donc protéger les données locales avant toute réinstallation ;
 - l’artefact temporaire du run #122 porte une signature éphémère et ne doit jamais être installé ;
 - dépendances externes : Android Téléphone/Accessibilité/permissions/batterie, SIM et réseau Camtel, Worker Cloudflare, D1, jetons appareils, `PAIRING_SECRET`, GitHub Actions et certificat APK permanent.
 
@@ -152,7 +154,7 @@ Aucune régression détectée par les tests automatisés. La non-régression ter
 Lire ce document et `docs/BLUE_MAGIC_DELIVERY_PROCEDURE.md`, vérifier le HEAD de `fix/blue-magic-v2-6-recovery`, la PR #4 et les runs #123/#124. Ne modifier aucun fichier avant de recevoir le résultat de Gate 1. Le premier diagnostic attendu est : le Robot démarre-t-il, `*825*3*3#` s’ouvre-t-il sur la bonne SIM, et quel code exact reste visible en cas d’échec ?
 
 **Prochaine action recommandée :**
-Installer `Blue-Magic-v2.6.0-Recovery-Release.apk` comme mise à jour, ouvrir le compte Robot, utiliser **VÉRIFIER / LIER LA SIM**, démarrer le Robot puis lancer uniquement **Tester la SIM Robot**. Ne tester aucun montant avant ce succès.
+Si la version installée est v2.5.3/v2.5.4, installer `Blue-Magic-v2.6.0-Recovery-Release.apk` comme mise à jour, ouvrir le compte Robot, utiliser **VÉRIFIER / LIER LA SIM**, démarrer le Robot puis lancer uniquement **Tester la SIM Robot**. Si la version installée est exactement v2.4.5, ne pas désinstaller : communiquer d’abord cette information. Ne tester aucun montant avant le succès de `TEST_NUMBER`.
 
 **Autorisation nécessaire avant la prochaine action :**
 Oui pour toute nouvelle modification, fusion ou extension fonctionnelle. Non pour exécuter le protocole de test terrain déjà documenté.

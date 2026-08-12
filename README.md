@@ -62,7 +62,7 @@ La reprise permanente du projet se trouve dans [`docs/PROJECT_STATE.md`](docs/PR
 - `docs/TEST_TERRAIN.md` : validation obligatoire avant argent réel ;
 - `.github/workflows/build.yml` : compilation automatique de l’APK de test.
 
-La signature permanente reste hors du dépôt et son empreinte attendue est contrôlée par la CI. Les secrets de signature sont actuellement absents de l’environnement GitHub `production` : la CI compile et teste, mais refuse donc de publier une APK permanente. L’APK v2.6 livrée a été re-signée dans le circuit contrôlé avec le même certificat que la v2.5.4.
+La signature permanente reste hors du dépôt et son empreinte attendue est contrôlée par la CI. Les secrets de signature sont actuellement absents de l’environnement GitHub `production` : la CI compile et teste, mais refuse donc de publier une APK permanente. L’APK v2.6 livrée a été re-signée dans le circuit contrôlé avec le même certificat que les v2.5.3/v2.5.4. La v2.4.5 historique avait un ancien certificat pilote différent : ne pas la désinstaller ni forcer une mise à jour en cas d’erreur de signature.
 
 ## Limite technique honnête
 
