@@ -60,7 +60,7 @@ final class ApiClient {
         SimIdentityManager.Verification sim = SimIdentityManager.verify(context, targetProfile);
         boolean locallyEnabled = AppConfig.robotEnabled(context, targetProfile);
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.6.1");
+        payload.put("app_version", "2.6.2");
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
         payload.put("robot_enabled", locallyEnabled && sim.valid);
@@ -87,6 +87,24 @@ final class ApiClient {
         JSONObject payload = new JSONObject();
         payload.put("mode", mode);
         return post("update_device_mode", payload, true);
+    }
+
+    JSONObject activateRobot() throws Exception {
+        String targetProfile = profileIdOverride.isEmpty()
+                ? AppConfig.profileId(context) : profileIdOverride;
+        SimIdentityManager.Verification sim = SimIdentityManager.verify(context, targetProfile);
+        return activateRobot(sim, AppConfig.simSlot(context, targetProfile));
+    }
+
+    JSONObject activateRobot(SimIdentityManager.Verification sim, int simSlot) throws Exception {
+        JSONObject payload = new JSONObject();
+        payload.put("app_version", "2.6.2");
+        payload.put("android_version", Build.VERSION.RELEASE);
+        payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
+        payload.put("sim_verified", sim.valid);
+        payload.put("sim_fingerprint", sim.attestation());
+        payload.put("sim_slot", Math.max(0, simSlot));
+        return post("activate_robot", payload, true);
     }
 
     JSONObject createCommand(JSONObject payload) throws Exception {

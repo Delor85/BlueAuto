@@ -1,4 +1,4 @@
-# Blue Magic v2.6.1 — flux financier Android 6 et routage Robot exact
+# Blue Magic v2.6.2 — flux financier Android 6+ et Robot lié à la SIM
 
 Blue Magic automatise, sur un téléphone Android dédié, les transferts de crédit de distribution Blue/Camtel qui nécessitent désormais deux étapes :
 
@@ -14,11 +14,13 @@ La régression v2.5 provenait d’un mélange entre deux niveaux de prérequis. 
 
 Ainsi `TEST_NUMBER` reste exécutable lorsque la route SIM est sûre, même si l’Accessibilité est désactivée. Une commande financière reste refusée avant composition si ses conditions propres ne sont pas remplies.
 
-La v2.6.1 corrige en plus le blocage silencieux des achats et ventes : l’ancien WebView Android 6 dispose de couleurs de secours explicites et sa boîte de confirmation est maintenant relayée par Android. Après la pression sur le bouton, le Worker résout le fournisseur et le bénéficiaire enregistrés dans D1, renvoie leurs deux numéros pour confirmation, puis refuse la création si ces données changent. Le démarrage d’un Robot vérifié élit aussi un seul téléphone pour le nœud/SIM concerné ; l’ancien téléphone reste en attente et ne peut plus prendre la commande.
+La v2.6.2 corrige le blocage des achats et ventes sur **toutes** les versions Android : le flux financier dépend de `preview_command`, désormais livré avec le Worker correspondant, et la boîte de confirmation JavaScript est relayée par Android. Les quatre boutons d’action utilisent le même état actif bleu explicite, y compris sur l’ancien WebView Android 6. Après la pression, le Worker résout le fournisseur et le bénéficiaire enregistrés dans D1, renvoie leurs deux numéros pour confirmation, puis refuse la création si ces données changent.
+
+Le Robot déjà actif conserve toujours la priorité. Appairer un téléphone plus récent ou toucher Robot par erreur depuis un Remote ne déconnecte plus l’ancien téléphone. Le nouveau téléphone est refusé tant que l’ancien Robot n’a pas été arrêté explicitement et que la SIM physique n’a pas été déplacée puis vérifiée sur le nouveau téléphone.
 
 Le diagnostic d’appairage v2.5.4, le design bleu et or, la mise en page adaptative, le multi-SIM, l’ordonnancement FIFO et la reprise automatique sont conservés. Pendant la saisie automatique, un écran confidentiel non interactif masque le pop-up afin que le PIN ne soit pas lisible par une personne présente. Ce masque ne contourne aucun verrou Android et n’est activé qu’après concordance du numéro et du montant.
 
-Cette livraison modifie le Worker Cloudflare sans migration D1 : elle ajoute la prévisualisation signée et l’élection du téléphone Robot. Elle ne modifie ni le schéma, ni les migrations, ni les secrets de production.
+Cette livraison modifie le Worker Cloudflare sans migration D1 : elle ajoute la prévisualisation signée et l’élection non destructive du téléphone Robot. Elle ne modifie ni le schéma, ni les migrations, ni les secrets de production.
 
 La reprise permanente du projet se trouve dans [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md) et sa procédure obligatoire dans [`docs/BLUE_MAGIC_DELIVERY_PROCEDURE.md`](docs/BLUE_MAGIC_DELIVERY_PROCEDURE.md).
 
@@ -28,9 +30,9 @@ La reprise permanente du projet se trouve dans [`docs/PROJECT_STATE.md`](docs/PR
 - l’interface web ne peut plus demander l’exécution d’un code USSD arbitraire ;
 - numéro et montant sont recalculés par le Robot et comparés au pop-up Camtel avant le PIN ;
 - chaque opération financière reçoit une prévisualisation D1 du fournisseur, du bénéficiaire et du montant, une confirmation lisible sur la Télécommande, puis une seconde confirmation automatique sur le pop-up Camtel ;
-- le bouton financier reste bleu/violet sur l’ancien WebView d’Android 6 et la confirmation native ne peut plus disparaître silencieusement ;
+- tous les boutons Achat, Vente et Test partagent le même état actif bleu sur Android 6 comme sur les versions récentes, et la confirmation native ne peut plus disparaître silencieusement ;
 - chaque profil Robot est lié à l’empreinte de sa SIM physique : SIM absente, déplacée ou différente signifie arrêt avant la location d’une commande ;
-- le Worker n’accorde un lease qu’à l’unique téléphone Robot explicitement élu pour ce nœud et ayant envoyé une attestation SIM valide ;
+- le Worker n’accorde un lease qu’à l’unique téléphone Robot explicitement élu pour ce nœud et ayant envoyé une attestation SIM valide ; un nouveau Remote ne peut jamais l’évincer ;
 - chaque commande louée indique explicitement son nœud exécuteur et possède une empreinte d’intégrité contrôlée dans Android ;
 - chaque demande possède une clé d’idempotence et un lease anti-double exécution ;
 - les états réels sont `PENDING → LEASED → DIALING → AWAITING_PIN → PIN_SUBMITTED → AWAITING_RESULT → SUCCEEDED/FAILED/UNKNOWN/BLOCKED` ;

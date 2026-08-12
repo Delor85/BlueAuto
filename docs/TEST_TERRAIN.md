@@ -1,8 +1,8 @@
 # Protocole de test terrain — avant argent réel
 
-## Gate 0 — installation et diagnostic v2.6.1
+## Gate 0 — installation et diagnostic v2.6.2
 
-1. Si l’APK installée appartient à la lignée permanente v2.5.3/v2.5.4/v2.6.0, installer la v2.6.1 **par-dessus**, sans désinstallation, puis confirmer `2.6.1 • versionCode 41`. Si Android refuse pour incompatibilité de signature ou si le téléphone est resté exactement en v2.4.5, ne rien désinstaller et relever la version installée.
+1. Si l’APK installée appartient à la lignée permanente v2.5.3/v2.5.4/v2.6.0/v2.6.1, installer la v2.6.2 **par-dessus**, sans désinstallation, puis confirmer `2.6.2 • versionCode 42`. Si Android refuse pour incompatibilité de signature ou si le téléphone est resté exactement en v2.4.5, ne rien désinstaller et relever la version installée.
 2. Toucher **VÉRIFIER LE SERVEUR** avant de saisir un secret.
 3. Noter le code affiché : `SERVER_CHECK_OK` confirme HTTPS, le Worker et D1 depuis le téléphone ; `NETWORK_DNS`, `NETWORK_TIMEOUT`, `NETWORK_TLS` ou `NETWORK_CONNECT` isole le réseau Android.
 4. Remplir le formulaire puis toucher **APPAIRER CE TÉLÉPHONE**.
@@ -38,7 +38,7 @@ Après la mise à jour, ouvrez successivement chaque compte déjà appairé, san
 - `DSM` doit voir **Achat de crédit** et **Approvisionnement** ;
 - `POS` doit voir **Achat de crédit** et **Vente client** ;
 - chaque écran doit afficher une phrase qui confirme explicitement les actions autorisées pour le rôle.
-- sur Android 6 comme sur les versions récentes, les boutons financiers visibles doivent être bleu/violet, jamais gris ou blancs au repos ;
+- sur Android 6 comme sur les versions récentes, Achat, Vente et Test doivent avoir le même état actif bleu, jamais gris ou blanc au repos ;
 - après pression, l’écran doit afficher « Vérification des numéros officiels et de la filiation… », puis la confirmation native avec fournisseur, bénéficiaire et montant ;
 - **ANNULER** ne doit créer ni composer aucune commande ; **CONFIRMER** doit transmettre exactement l’empreinte de cette prévisualisation.
 
@@ -120,9 +120,10 @@ Le même modèle de téléphone, la même version Android, la même application 
 ## Test obligatoire de déplacement d’une SIM
 
 1. Sur T1, liez POS1 au slot 2 et DSM1 au slot 1, puis démarrez les deux Robots.
-2. Éteignez T1, retirez POS1 du slot 2 et insérez-la dans T2.
-3. Sur T2, appairez POS1, sélectionnez son slot réel, confirmez **VÉRIFIER / LIER LA SIM**, puis démarrez le Robot.
-4. Rallumez T1 : l’ancien profil POS1 doit rester en attente serveur et ne jamais louer la file, tandis que DSM1 reste actif. Une SIM physiquement absente doit toujours arrêter localement son profil Robot.
-5. Depuis T3 Remote, lancez uniquement `TEST_NUMBER` pour POS1 : T2 doit louer et exécuter la commande ; T1 ne doit ni composer le test ni capturer la commande.
-6. Répétez avec un deuxième `TEST_NUMBER` pour DSM1 : seul le slot 1 de T1 doit être utilisé.
-7. Ne passez à une transaction de 1 FCFA qu’après dix alternances POS1/DSM1 sans erreur de SIM, de slot ou de nœud.
+2. Depuis T2, appairez d’abord POS1 en mode **REMOTE**. Si vous tentez Robot pendant que T1 est actif, T2 doit afficher `ROBOT_ALREADY_ACTIVE` et T1 doit rester Robot.
+3. Sur T1, arrêtez explicitement le Robot POS1. Retirez ensuite POS1 du slot 2 et insérez-la dans T2.
+4. Sur T2, sélectionnez le slot réel, confirmez **VÉRIFIER / LIER LA SIM**, puis passez en Robot. T2 doit être accepté seulement après cet ordre d’actions.
+5. Sur T1, l’ancien profil POS1 doit rester en attente serveur et ne jamais louer la file, tandis que DSM1 reste actif. Une SIM physiquement absente doit toujours arrêter localement son profil Robot.
+6. Depuis T3 Remote, lancez uniquement `TEST_NUMBER` pour POS1 : T2 doit louer et exécuter la commande ; T1 ne doit ni composer le test ni capturer la commande.
+7. Répétez avec un deuxième `TEST_NUMBER` pour DSM1 : seul le slot 1 de T1 doit être utilisé.
+8. Ne passez à une transaction de 1 FCFA qu’après dix alternances POS1/DSM1 sans erreur de SIM, de slot ou de nœud.

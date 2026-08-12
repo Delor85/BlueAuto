@@ -112,14 +112,14 @@ jobs:
 
       - name: Préparer l’APK permanente
         if: env.BLUE_MAGIC_SIGNING_KIND == 'permanent'
-        run: cp app/build/outputs/apk/debug/app-debug.apk Blue-Magic-v2.6.1-Finance-Flow-Release.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk Blue-Magic-v2.6.2-Finance-Robot-Release.apk
 
       - name: Publier uniquement l’APK à signature permanente
         if: env.BLUE_MAGIC_SIGNING_KIND == 'permanent'
         uses: actions/upload-artifact@v4
         with:
           name: Blue-Magic-v2-Robot-Core-Permanent
-          path: Blue-Magic-v2.6.1-Finance-Flow-Release.apk
+          path: Blue-Magic-v2.6.2-Finance-Robot-Release.apk
           if-no-files-found: error
 
       - name: Confirmer la compilation temporaire sans publication
@@ -196,14 +196,14 @@ jobs:
 
       - name: Préparer l'APK permanente
         if: steps.signing-availability.outputs.available == 'true'
-        run: cp app/build/outputs/apk/debug/app-debug.apk Blue-Magic-v2.6.1-Finance-Flow-Release.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk Blue-Magic-v2.6.2-Finance-Robot-Release.apk
 
       - name: Publier l'APK permanente vérifiée
         if: steps.signing-availability.outputs.available == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: Blue-Magic-v2-Robot-Core-Permanent
-          path: Blue-Magic-v2.6.1-Finance-Flow-Release.apk
+          path: Blue-Magic-v2.6.2-Finance-Robot-Release.apk
           if-no-files-found: error
 
       - name: Confirmer l'absence de publication permanente

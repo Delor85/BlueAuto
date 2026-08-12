@@ -218,23 +218,43 @@ try {
   assert.equal(staleStatus.data.command.state, 'UNKNOWN');
   await complete(afterStale.data.command, pos.data.device_token);
 
-  // A SIM/node explicitly started on a second phone becomes the only elected Robot. A stale
-  // heartbeat from the former phone cannot steal the queue back.
+  // A Remote cannot evict the phone that already owns the verified SIM Robot, even if it is the
+  // newest pairing. Transfer requires an explicit stop on the old phone, then a verified start.
   const posReplacement = await pair({
-    node_code: 'POS5', parent_node_code: 'DSM-TEST', role: 'POS', mode: 'ROBOT',
+    node_code: 'POS5', parent_node_code: 'DSM-TEST', role: 'POS', mode: 'REMOTE',
     phone_number: '699000003', device_name: 'Nouveau téléphone POS'
   });
-  await attest(posReplacement.data.device_token, 'c'.repeat(64), 1, true);
-  await attest(pos.data.device_token, 'c'.repeat(64), 1, false, false);
+  const missingSim = await requestFailure('activate_robot', {
+    ...robotPresence('', 1), sim_verified: false
+  }, posReplacement.data.device_token, 409);
+  assert.equal(missingSim.error.code, 'ROBOT_SIM_NOT_VERIFIED');
+  const refusedReplacement = await requestFailure('activate_robot',
+    robotPresence('c'.repeat(64), 1), posReplacement.data.device_token, 409);
+  assert.equal(refusedReplacement.error.code, 'ROBOT_ALREADY_ACTIVE');
+  assert.match(refusedReplacement.error.message, /Arrêtez d’abord cet ancien Robot/);
+  await attest(pos.data.device_token, 'c'.repeat(64), 1, false, true);
   const electedCommand = await request('create_command', {
     request_type: 'TEST_NUMBER', client_request_id: 'integration-elected-pos-01'
+  }, pos.data.device_token);
+  const originalPhoneLease = await request('lease_command', {}, pos.data.device_token);
+  assert.equal(originalPhoneLease.data.command.public_id, electedCommand.data.command.public_id);
+  await complete(originalPhoneLease.data.command, pos.data.device_token);
+
+  await disableRobot(pos.data.device_token, 'c'.repeat(64), 1);
+  const activatedReplacement = await request('activate_robot',
+    robotPresence('c'.repeat(64), 1), posReplacement.data.device_token);
+  assert.equal(activatedReplacement.data.robot_enabled, true);
+  assert.equal(activatedReplacement.data.mode, 'ROBOT');
+  await attest(pos.data.device_token, 'c'.repeat(64), 1, false, false);
+  const transferredCommand = await request('create_command', {
+    request_type: 'TEST_NUMBER', client_request_id: 'integration-transferred-pos-01'
   }, pos.data.device_token);
   const formerPhoneLease = await request('lease_command', {}, pos.data.device_token);
   assert.equal(formerPhoneLease.data.available, false);
   assert.equal(formerPhoneLease.data.standby, true);
-  const electedPhoneLease = await request('lease_command', {}, posReplacement.data.device_token);
-  assert.equal(electedPhoneLease.data.command.public_id, electedCommand.data.command.public_id);
-  await complete(electedPhoneLease.data.command, posReplacement.data.device_token);
+  const replacementLease = await request('lease_command', {}, posReplacement.data.device_token);
+  assert.equal(replacementLease.data.command.public_id, transferredCommand.data.command.public_id);
+  await complete(replacementLease.data.command, posReplacement.data.device_token);
 
   console.log('Cloudflare integration: Remote/mode, cancellation, per-SIM isolation, aliases and full state flow OK');
 } finally {
@@ -247,15 +267,24 @@ async function pair(payload) {
 
 async function attest(token, fingerprint, simSlot, claimRobot = true, expectedEnabled = true) {
   const heartbeat = await request('heartbeat', {
-    robot_enabled: true,
-    claim_robot: claimRobot,
-    sim_verified: true,
-    sim_fingerprint: fingerprint,
-    sim_slot: simSlot,
-    app_version: 'integration', android_version: 'test', device_model: 'Miniflare'
+    ...robotPresence(fingerprint, simSlot), robot_enabled: true, claim_robot: claimRobot
   }, token);
   assert.equal(heartbeat.data.robot_enabled, expectedEnabled);
   assert.equal(heartbeat.data.sim_verified, true);
+}
+
+async function disableRobot(token, fingerprint, simSlot) {
+  const heartbeat = await request('heartbeat', {
+    ...robotPresence(fingerprint, simSlot), robot_enabled: false, claim_robot: false
+  }, token);
+  assert.equal(heartbeat.data.robot_enabled, false);
+}
+
+function robotPresence(fingerprint, simSlot) {
+  return {
+    sim_verified: Boolean(fingerprint), sim_fingerprint: fingerprint, sim_slot: simSlot,
+    app_version: 'integration', android_version: 'test', device_model: 'Miniflare'
+  };
 }
 
 async function complete(command, token) {

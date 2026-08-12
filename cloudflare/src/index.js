@@ -1,4 +1,4 @@
-const API_VERSION = '2.6.1-cloudflare';
+const API_VERSION = '2.6.2-cloudflare';
 const TERMINAL_STATES = new Set(['SUCCEEDED', 'FAILED', 'UNKNOWN', 'BLOCKED', 'CANCELLED']);
 const EVENT_STATES = new Set([
   'DIALING', 'AWAITING_PIN', 'PIN_SUBMITTED', 'AWAITING_RESULT',
@@ -37,6 +37,7 @@ export default {
       const auth = await authenticate(request, env);
       switch (action) {
         case 'heartbeat': return await heartbeat(env, auth, input, headers);
+        case 'activate_robot': return await activateRobot(env, auth, input, headers);
         case 'update_device_mode': return await updateDeviceMode(env, auth, input, headers);
         case 'preview_command': return await previewCommand(env, auth, input, headers);
         case 'create_command': return await createCommand(env, auth, input, headers);
@@ -134,12 +135,20 @@ async function heartbeat(env, auth, input, headers) {
   const wantsRobot = input.robot_enabled === true && simVerified
     && ['ROBOT', 'HYBRID'].includes(auth.mode);
   const claimsRobot = wantsRobot && input.claim_robot === true;
-  // A periodic heartbeat cannot silently steal a SIM route from the device that explicitly
-  // started this Robot. Only a verified start/restart claim can elect a new phone.
-  const robotEnabled = wantsRobot && (claimsRobot || Boolean(auth.robot_enabled));
   const simSlot = Number.isInteger(input.sim_slot) && input.sim_slot >= 0 && input.sim_slot <= 3
     ? input.sim_slot : null;
-  const updateCurrent = env.DB.prepare(
+  if (claimsRobot) {
+    await claimRobotSlot(env, auth, input, simFingerprint, simSlot, false);
+    return success({
+      server_time: new Date().toISOString(), node_code: auth.node_code,
+      robot_enabled: true, sim_verified: true, robot_claimed: true
+    }, 200, headers);
+  }
+
+  // A periodic heartbeat preserves only the device already elected by the server. It can never
+  // promote a Remote or evict the phone that currently owns the physical SIM route.
+  const robotEnabled = wantsRobot && Boolean(auth.robot_enabled);
+  await env.DB.prepare(
     "UPDATE devices SET last_seen_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), robot_enabled = ?, "
     + 'sim_verified = ?, sim_fingerprint = ?, sim_slot = ?, '
     + 'app_version = ?, android_version = ?, device_model = ? WHERE device_id = ?'
@@ -152,21 +161,51 @@ async function heartbeat(env, auth, input, headers) {
     cleanText(input.android_version, 40),
     cleanText(input.device_model, 160),
     auth.device_id
-  );
-  if (claimsRobot) {
-    await env.DB.batch([
-      env.DB.prepare(
-        'UPDATE devices SET robot_enabled = 0 WHERE node_code = ? AND device_id <> ?'
-      ).bind(auth.node_code, auth.device_id),
-      updateCurrent
-    ]);
-  } else {
-    await updateCurrent.run();
-  }
+  ).run();
   return success({
     server_time: new Date().toISOString(), node_code: auth.node_code,
-    robot_enabled: robotEnabled, sim_verified: simVerified, robot_claimed: claimsRobot
+    robot_enabled: robotEnabled, sim_verified: simVerified, robot_claimed: false
   }, 200, headers);
+}
+
+async function activateRobot(env, auth, input, headers) {
+  const simFingerprint = String(input.sim_fingerprint || '').trim().toLowerCase();
+  const simVerified = input.sim_verified === true && /^[a-f0-9]{64}$/.test(simFingerprint);
+  if (!simVerified) {
+    throw new ApiError('ROBOT_SIM_NOT_VERIFIED',
+      'Installez et vérifiez d’abord la SIM officielle de ce compte sur ce téléphone.', 409);
+  }
+  const simSlot = Number.isInteger(input.sim_slot) && input.sim_slot >= 0 && input.sim_slot <= 3
+    ? input.sim_slot : null;
+  await claimRobotSlot(env, auth, input, simFingerprint, simSlot, true);
+  return success({
+    mode: 'ROBOT', node_code: auth.node_code, robot_enabled: true,
+    sim_verified: true, robot_claimed: true
+  }, 200, headers);
+}
+
+async function claimRobotSlot(env, auth, input, simFingerprint, simSlot, activateMode) {
+  const targetMode = activateMode ? 'ROBOT' : auth.mode;
+  if (!['ROBOT', 'HYBRID'].includes(targetMode)) {
+    throw new ApiError('NOT_A_ROBOT', 'Passez d’abord ce compte en mode Robot.', 403);
+  }
+  const result = await env.DB.prepare(
+    "UPDATE devices SET mode = ?, robot_enabled = 1, sim_verified = 1, sim_fingerprint = ?, "
+    + "sim_slot = ?, app_version = ?, android_version = ?, device_model = ?, "
+    + "last_seen_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') "
+    + 'WHERE device_id = ? AND NOT EXISTS ('
+    + 'SELECT 1 FROM devices other WHERE other.node_code = ? AND other.device_id <> ? '
+    + 'AND other.active = 1 AND other.robot_enabled = 1)'
+  ).bind(
+    targetMode, simFingerprint, simSlot,
+    cleanText(input.app_version, 40), cleanText(input.android_version, 40),
+    cleanText(input.device_model, 160), auth.device_id, auth.node_code, auth.device_id
+  ).run();
+  if (!result.meta?.changes) {
+    throw new ApiError('ROBOT_ALREADY_ACTIVE',
+      'La SIM de ce compte possède déjà un Robot actif sur un autre téléphone. '
+      + 'Arrêtez d’abord cet ancien Robot, déplacez la SIM, vérifiez-la ici, puis recommencez.', 409);
+  }
 }
 
 async function updateDeviceMode(env, auth, input, headers) {

@@ -82,9 +82,24 @@ public class RobotService extends Service {
                 lastHeartbeatByProfile.remove(profileId);
             }
             if (!AppConfig.anyRobotEnabled(this)) releaseStandbyWakeLock();
-            if (!hasServiceWork()) {
-                updateNotification("Tous les Robots sont arrêtés");
-                stopSelf();
+            final String stoppedProfile = profileId;
+            final boolean stopAfterRelease = !hasServiceWork();
+            executor.execute(() -> {
+                try {
+                    if (!stoppedProfile.isEmpty()) {
+                        ApiClient.forProfile(this, stoppedProfile).heartbeat();
+                    }
+                } catch (Exception ignored) {
+                    // Local stop remains authoritative; no other phone is elected automatically.
+                } finally {
+                    if (stopAfterRelease) {
+                        updateNotification("Tous les Robots sont arrêtés");
+                        stopSelf();
+                    }
+                }
+            });
+            if (stopAfterRelease) {
+                updateNotification("Arrêt du Robot en cours de confirmation…");
                 return START_NOT_STICKY;
             }
             updateNotification(robotSummary("Robot arrêté; autres Robots actifs"));

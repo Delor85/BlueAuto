@@ -61,6 +61,7 @@ public class MainActivity extends Activity {
     private WebView webView;
     private View managementPanel;
     private Button manageButton;
+    private volatile boolean robotStartInProgress;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -736,28 +737,43 @@ public class MainActivity extends Activity {
         toast("Changement de mode en cours…");
         new Thread(() -> {
             try {
-                updateDeviceModeCompat(mode);
-                if (!newPin.isEmpty()) SecurePinStore.save(this, newPin);
-                AppConfig.updateActiveSimSlot(this, simSlot);
-                AppConfig.updateActiveMode(this, mode);
-                SimIdentityManager.Verification sim = null;
                 if ("REMOTE".equals(mode)) {
+                    updateDeviceModeCompat(mode);
                     AppConfig.setRobotEnabled(this, false);
+                    AppConfig.updateActiveMode(this, mode);
                     RobotService.stop(this);
                 } else {
-                    sim = SimIdentityManager.bindSelectedSim(this, AppConfig.profileId(this));
-                    if (!sim.valid) AppConfig.setRobotEnabled(this, false);
+                    String profileId = AppConfig.profileId(this);
+                    SimIdentityManager.Verification inspected =
+                            SimIdentityManager.inspectSelectedSim(this, profileId, simSlot);
+                    if (!inspected.valid) throw new IllegalStateException(inspected.message);
+
+                    // The server elects this verified physical SIM before any local mode is changed.
+                    // A Remote therefore cannot evict an already active Robot by mistake.
+                    new ApiClient(this).activateRobot(inspected, simSlot);
+                    if (!newPin.isEmpty()) SecurePinStore.save(this, newPin);
+                    if (!AppConfig.updateActiveSimSlot(this, simSlot)
+                            || !AppConfig.updateActiveMode(this, mode)) {
+                        throw new IllegalStateException("Le profil local n’a pas pu être enregistré.");
+                    }
+                    SimIdentityManager.Verification bound =
+                            SimIdentityManager.bindSelectedSim(this, profileId);
+                    if (!bound.valid) throw new IllegalStateException(bound.message);
+                    AppConfig.setRobotEnabled(this, true);
+                    RobotService.start(this);
                 }
-                final SimIdentityManager.Verification finalSim = sim;
                 runOnUiThread(() -> {
-                    String detail = finalSim == null || finalSim.valid ? ""
-                            : " SIM non activée : " + finalSim.message;
-                    Toast.makeText(this, "Mode " + mode + " activé sur ce compte." + detail,
+                    Toast.makeText(this, "Mode " + mode + " activé sur ce compte.",
                             Toast.LENGTH_LONG).show();
                     recreate();
                 });
             } catch (Exception error) {
-                runOnUiThread(() -> toast("Changement impossible : " + readable(error)));
+                if ("ROBOT".equals(mode)) AppConfig.setRobotEnabled(this, false);
+                runOnUiThread(() -> new AlertDialog.Builder(this)
+                        .setTitle("ROBOT".equals(mode) ? "Mode Robot refusé" : "Changement refusé")
+                        .setMessage(readable(error))
+                        .setPositiveButton("COMPRIS", null)
+                        .show());
             }
         }).start();
     }
@@ -862,6 +878,10 @@ public class MainActivity extends Activity {
     }
 
     private boolean startRobotSafely() {
+        if (robotStartInProgress) {
+            toast("Vérification du Robot déjà en cours…");
+            return false;
+        }
         requestCorePermissions();
         if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED
                 || checkSelfPermission(Manifest.permission.READ_PHONE_STATE)
@@ -889,10 +909,35 @@ public class MainActivity extends Activity {
             refreshNativeStatus();
             return false;
         }
-        RobotService.start(this);
-        if (!BlueAccessibilityService.isEnabled(this)) {
-            toast("Robot démarré pour TEST_NUMBER. Activez l’Accessibilité avant tout achat ou vente.");
-        }
+        AppConfig.setRobotEnabled(this, true);
+        robotStartInProgress = true;
+        refreshNativeStatus();
+        new Thread(() -> {
+            try {
+                new ApiClient(this).heartbeat(true);
+                RobotService.start(this);
+                robotStartInProgress = false;
+                runOnUiThread(() -> {
+                    if (!BlueAccessibilityService.isEnabled(this)) {
+                        toast("Robot démarré pour TEST_NUMBER. Activez l’Accessibilité avant tout achat ou vente.");
+                    } else {
+                        toast("Robot démarré sur la SIM vérifiée de ce téléphone.");
+                    }
+                    refreshNativeStatus();
+                });
+            } catch (Exception error) {
+                AppConfig.setRobotEnabled(this, false);
+                robotStartInProgress = false;
+                runOnUiThread(() -> {
+                    refreshNativeStatus();
+                    new AlertDialog.Builder(this)
+                            .setTitle("Robot non démarré")
+                            .setMessage(readable(error))
+                            .setPositiveButton("COMPRIS", null)
+                            .show();
+                });
+            }
+        }).start();
         return true;
     }
 

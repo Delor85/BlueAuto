@@ -110,5 +110,12 @@ const literalGradient = 'background:linear-gradient(105deg,#2670ff,#875cff)';
 const variableGradient = 'background:linear-gradient(105deg,var(--blue),var(--violet))';
 assert.ok(css.indexOf(literalGradient) >= 0);
 assert.ok(css.indexOf(literalGradient) < css.indexOf(variableGradient));
+assert.match(css, /\.transaction-action\{background:linear-gradient\(105deg,#087eae,#1668df\)/);
 
-console.log('Android finance UI: Android 6 colors, preview, confirm, cancel and TEST_NUMBER flow OK');
+const activity = await readFile(new URL(
+  '../main/java/com/profitloop/blueauto/MainActivity.java', import.meta.url), 'utf8');
+assert.match(activity, /setWebChromeClient\(new WebChromeClient\(\)/);
+assert.match(activity, /boolean onJsConfirm\(/);
+assert.match(activity, /new ApiClient\(this\)\.heartbeat\(true\)/);
+
+console.log('Android finance UI: Android 6+ colors, preview, native confirm, cancel and TEST_NUMBER flow OK');
