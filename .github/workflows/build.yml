@@ -108,14 +108,6 @@ jobs:
       - name: Compiler l’APK de test
         run: gradle --no-daemon :app:assembleDebug
 
-      - name: Publier l'APK intermédiaire pour signature hors GitHub
-        if: env.BLUE_MAGIC_SIGNING_KIND == 'temporary'
-        uses: actions/upload-artifact@v4
-        with:
-          name: Blue-Magic-v2.5.4-Internal-Temporary-Do-Not-Install
-          path: app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-
       - name: Préparer l’APK permanente
         if: env.BLUE_MAGIC_SIGNING_KIND == 'permanent'
         run: cp app/build/outputs/apk/debug/app-debug.apk Blue-Magic-v2.5.4-Pairing-Diagnostic-Release.apk
