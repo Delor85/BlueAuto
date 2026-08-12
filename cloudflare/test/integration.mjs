@@ -97,6 +97,11 @@ try {
   assert.equal(supplyPreview.data.preview.target_phone, '699000002');
   assert.match(supplyPreview.data.preview.confirmation_fingerprint, /^[a-f0-9]{64}$/);
 
+  const unconfirmed = await requestFailure('create_command', {
+    request_type: 'REQUEST_SUPPLY', amount: '500', client_request_id: 'integration-unconfirmed-01'
+  }, dsm.data.device_token, 409);
+  assert.equal(unconfirmed.error.code, 'CONFIRMATION_REQUIRED');
+
   const created = await request('create_command', {
     request_type: 'REQUEST_SUPPLY', amount: '500', client_request_id: 'integration-test-0001',
     confirmation_fingerprint: supplyPreview.data.preview.confirmation_fingerprint
@@ -274,5 +279,16 @@ async function request(action, payload = {}, token = '') {
   const body = await response.json();
   assert.equal(response.status < 400, true, JSON.stringify(body));
   assert.equal(body.ok, true, JSON.stringify(body));
+  return body;
+}
+
+async function requestFailure(action, payload, token, expectedStatus) {
+  const headers = {'Content-Type': 'application/json', 'X-Device-Token': token};
+  const response = await mf.dispatchFetch(`http://blue-magic.test/api?action=${action}`, {
+    method: 'POST', headers, body: JSON.stringify(payload)
+  });
+  const body = await response.json();
+  assert.equal(response.status, expectedStatus, JSON.stringify(body));
+  assert.equal(body.ok, false, JSON.stringify(body));
   return body;
 }
