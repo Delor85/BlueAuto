@@ -123,3 +123,65 @@ jobs:
       - name: Confirmer la compilation temporaire sans publication
         if: env.BLUE_MAGIC_SIGNING_KIND == 'temporary'
         run: echo "Compilation réussie. APK non publiée car la signature permanente n'est pas disponible dans ce contexte."
+
+  android-permanent-apk:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v5
+
+      - name: Installer Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Installer Gradle 8.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+
+      - name: Charger et contrôler la signature permanente
+        env:
+          PERMANENT_KEYSTORE_BASE64: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_BASE64 }}
+          PERMANENT_KEYSTORE_PASSWORD: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "$PERMANENT_KEYSTORE_BASE64" ] || [ -z "$PERMANENT_KEYSTORE_PASSWORD" ]; then
+            echo "::error::Les deux secrets de signature Android permanente sont requis dans l'environnement production."
+            exit 1
+          fi
+
+          mkdir -p .pilot-signing
+          printf '%s' "$PERMANENT_KEYSTORE_BASE64" | base64 --decode > .pilot-signing/debug.keystore
+          printf '%s' "$PERMANENT_KEYSTORE_PASSWORD" > .pilot-signing/keystore.password
+
+          pilot_password="$(tr -d '\r\n' < .pilot-signing/keystore.password)"
+          echo "::add-mask::$pilot_password"
+          echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$pilot_password" >> "$GITHUB_ENV"
+
+          actual_fingerprint="$(keytool -list -v \
+            -keystore .pilot-signing/debug.keystore \
+            -storepass "$pilot_password" \
+            -alias androiddebugkey \
+            | awk '/SHA256:/{gsub(":", "", $2); print tolower($2); exit}')"
+          expected_fingerprint="f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5"
+          if [ "$actual_fingerprint" != "$expected_fingerprint" ]; then
+            echo "::error::La clé Android ne correspond pas à la signature permanente Blue Magic."
+            exit 1
+          fi
+
+      - name: Compiler l'APK permanente
+        run: gradle --no-daemon :app:assembleDebug
+
+      - name: Préparer l'APK permanente
+        run: cp app/build/outputs/apk/debug/app-debug.apk Blue-Magic-v2.5.4-Pairing-Diagnostic-Release.apk
+
+      - name: Publier l'APK permanente vérifiée
+        uses: actions/upload-artifact@v4
+        with:
+          name: Blue-Magic-v2-Robot-Core-Permanent
+          path: Blue-Magic-v2.5.4-Pairing-Diagnostic-Release.apk
+          if-no-files-found: error
