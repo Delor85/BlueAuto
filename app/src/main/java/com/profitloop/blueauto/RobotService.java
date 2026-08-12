@@ -188,16 +188,6 @@ public class RobotService extends Service {
                 return;
             }
 
-            // A credential-protected keyguard cannot safely expose the Camtel PIN prompt. Keep
-            // every Robot enabled and retry shortly after the user unlocks; a swipe-only keyguard
-            // is handled temporarily when the call is actually placed.
-            if (DeviceLockState.isSecurelyLocked(this)) {
-                updateNotification(robotSummary(
-                        "Téléphone protégé — reprise automatique après déverrouillage"));
-                nextDelay = AppConfig.LOCKED_POLL_MS;
-                return;
-            }
-
             long sinceLastCommand = System.currentTimeMillis() - lastCommandFinishedAt;
             if (lastCommandFinishedAt > 0L && sinceLastCommand < AppConfig.NEXT_COMMAND_GAP_MS) {
                 nextDelay = AppConfig.NEXT_COMMAND_GAP_MS - sinceLastCommand;
@@ -211,7 +201,6 @@ public class RobotService extends Service {
                 int index = (roundRobinIndex + offset) % count;
                 String profileId = profiles.get(index);
                 if (!AppConfig.isPaired(this, profileId) || !AppConfig.isRobotMode(this, profileId)) continue;
-                if (AppConfig.pinBlocked(this, profileId)) continue;
                 if (PendingCommandStore.get(this, profileId) != null) continue;
 
                 ApiClient api = ApiClient.forProfile(this, profileId);
@@ -246,7 +235,8 @@ public class RobotService extends Service {
                         command.put("state_changed_at", System.currentTimeMillis());
                         PendingCommandStore.save(this, profileId, command);
                         roundRobinIndex = (index + 1) % count;
-                        if (DeviceLockState.isSecurelyLocked(this)) {
+                        if (UssdCommandFactory.requiresPin(command)
+                                && DeviceLockState.isSecurelyLocked(this)) {
                             releaseLockedLease(profileId, command, api);
                             nextDelay = AppConfig.LOCKED_POLL_MS;
                             return;
@@ -329,14 +319,13 @@ public class RobotService extends Service {
             }
             String ussd = UssdCommandFactory.buildAndValidate(this, profileId, command);
             boolean requiresPin = UssdCommandFactory.requiresPin(command);
-            if (requiresPin && !SecurePinStore.hasPin(this, profileId)) {
-                finishCommand(profileId, false, "PIN_NOT_CONFIGURED",
-                        "Aucun PIN opérateur chiffré sur ce Robot.", "");
-                return;
-            }
-            if (requiresPin && !BlueAccessibilityService.isEnabled(this)) {
-                finishCommand(profileId, false, "ACCESSIBILITY_DISABLED",
-                        "Service d’accessibilité Blue Magic désactivé.", "");
+            CommandExecutionPolicy.Capability capability = CommandExecutionPolicy.capability(
+                    command.optString("operation", ""),
+                    SecurePinStore.hasPin(this, profileId),
+                    BlueAccessibilityService.isEnabled(this),
+                    AppConfig.pinBlocked(this, profileId));
+            if (!capability.ready) {
+                finishCommand(profileId, false, capability.code, capability.message, "");
                 return;
             }
             if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
@@ -415,9 +404,9 @@ public class RobotService extends Service {
         String state;
         if (success) {
             state = "SUCCEEDED";
-        } else if ("WRONG_PIN".equals(code)) {
+        } else if ("WRONG_PIN".equals(code) || "PIN_BLOCKED".equals(code)) {
             state = "BLOCKED";
-            AppConfig.setPinBlocked(this, profileId, true);
+            if ("WRONG_PIN".equals(code)) AppConfig.setPinBlocked(this, profileId, true);
         } else if ("RESULT_TIMEOUT".equals(code)
                 || "USER_CANCELLED_UNCERTAIN".equals(code)
                 || "CONCURRENT_COMMAND_RECOVERY".equals(code)) {
@@ -531,12 +520,6 @@ public class RobotService extends Service {
         }
         if (checkSelfPermission(Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
             return Readiness.failure("Autorisation État du téléphone absente; SIM invérifiable.");
-        }
-        if (!SecurePinStore.hasPin(this, profileId)) {
-            return Readiness.failure("PIN Camtel local absent.");
-        }
-        if (!BlueAccessibilityService.isEnabled(this)) {
-            return Readiness.failure("Service d’accessibilité Blue Magic désactivé.");
         }
         SimIdentityManager.Verification sim = SimIdentityManager.verify(this, profileId);
         if (!sim.valid) return Readiness.failure(sim.message);

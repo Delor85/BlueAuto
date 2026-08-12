@@ -1,15 +1,36 @@
 # Protocole de test terrain — avant argent réel
 
-## Gate 0 — diagnostic d’appairage v2.5.4
+## Gate 0 — installation et diagnostic v2.6
 
-1. Confirmer que l’accueil affiche `2.5.4-pairing-diagnostic • versionCode 34`.
+1. Installer la v2.6 **par-dessus** l’APK actuelle, sans désinstallation, puis confirmer `2.6.0 • versionCode 40`.
 2. Toucher **VÉRIFIER LE SERVEUR** avant de saisir un secret.
 3. Noter le code affiché : `SERVER_CHECK_OK` confirme HTTPS, le Worker et D1 depuis le téléphone ; `NETWORK_DNS`, `NETWORK_TIMEOUT`, `NETWORK_TLS` ou `NETWORK_CONNECT` isole le réseau Android.
 4. Remplir le formulaire puis toucher **APPAIRER CE TÉLÉPHONE**.
 5. Photographier le dialogue et son code exact si l’appairage échoue. Aucun secret ne doit apparaître dans la photo.
 6. Ne poursuivre vers un test financier qu’après `PAIRING_COMPLETE` et l’ouverture de l’écran de contrôle.
 
-## Contrôle prioritaire v2.5.2 — cartes financières
+Si le compte est déjà appairé, ne le supprimez pas et ne saisissez aucun secret : ouvrez directement l’écran de contrôle.
+
+## Gate 1 — rétablissement de `TEST_NUMBER` sans fonds
+
+1. Sur le compte Robot, accordez Téléphone et État du téléphone, puis utilisez **VÉRIFIER / LIER LA SIM**.
+2. Désactivez temporairement l’Accessibilité Blue Magic : l’interface doit avertir que seule la finance est indisponible.
+3. Démarrez le Robot. Il doit rester actif au lieu d’être arrêté pour absence d’Accessibilité.
+4. Depuis le même profil polyvalent ou depuis le Remote, lancez **Tester la SIM Robot**.
+5. Le Robot doit composer uniquement `*825*3*3#`. Relevez le numéro affiché et le code d’erreur exact si la composition n’a pas lieu.
+6. Réactivez l’Accessibilité avant toute transaction financière.
+
+Ce Gate valide la correction de la régression principale sans exposer de fonds. Aucun achat ni vente ne doit être tenté avant sa réussite.
+
+## Gate 2 — confidentialité du PIN et verrou simple
+
+1. Utilisez un téléphone Robot physiquement surveillé, avec un simple verrou par glissement, sans PIN, schéma, mot de passe ni empreinte Android.
+2. Lancez une transaction minimale supervisée seulement après la réussite de Gate 1.
+3. Le verrou simple peut être retiré temporairement pour exposer la fenêtre système USSD, puis doit être restauré.
+4. Après vérification du numéro et du montant, un écran **Validation confidentielle en cours — PIN protégé** doit couvrir la saisie et disparaître après la validation.
+5. Un verrou Android sécurisé ne doit jamais être contourné ; la commande financière doit être différée jusqu’au déverrouillage.
+
+## Gate 3 — cartes et opérations financières
 
 Après la mise à jour, ouvrez successivement chaque compte déjà appairé, sans le supprimer :
 

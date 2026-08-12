@@ -858,11 +858,6 @@ public class MainActivity extends Activity {
             toast("Accordez Téléphone et État du téléphone, puis touchez de nouveau DÉMARRER ROBOT.");
             return false;
         }
-        if (!BlueAccessibilityService.isEnabled(this)) {
-            toast("Activez le service d’accessibilité Blue Magic.");
-            openAccessibilitySettings();
-            return false;
-        }
         SimIdentityManager.Verification sim = SimIdentityManager.verify(this, AppConfig.profileId(this));
         if (!sim.valid) {
             AppConfig.setRobotEnabled(this, false);
@@ -884,6 +879,9 @@ public class MainActivity extends Activity {
             return false;
         }
         RobotService.start(this);
+        if (!BlueAccessibilityService.isEnabled(this)) {
+            toast("Robot démarré pour TEST_NUMBER. Activez l’Accessibilité avant tout achat ou vente.");
+        }
         return true;
     }
 
@@ -1023,6 +1021,8 @@ public class MainActivity extends Activity {
                 value.put("robot_enabled", AppConfig.robotEnabled(MainActivity.this));
                 value.put("pin_blocked", AppConfig.pinBlocked(MainActivity.this));
                 value.put("accessibility_enabled", BlueAccessibilityService.isEnabled(MainActivity.this));
+                value.put("pin_configured", SecurePinStore.hasPin(MainActivity.this,
+                        AppConfig.profileId(MainActivity.this)));
                 SimIdentityManager.Verification sim = AppConfig.isRobotMode(MainActivity.this)
                         ? SimIdentityManager.verify(MainActivity.this,
                         AppConfig.profileId(MainActivity.this)) : null;
@@ -1109,6 +1109,11 @@ public class MainActivity extends Activity {
             JSONObject data = new JSONObject();
             data.put("error", true);
             data.put("message", readable(error));
+            if (error instanceof ApiClient.ApiException) {
+                data.put("code", ((ApiClient.ApiException) error).code);
+            } else {
+                data.put("code", error.getClass().getSimpleName());
+            }
             callback(method, data);
         } catch (Exception ignored) {
         }

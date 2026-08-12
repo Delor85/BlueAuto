@@ -1,15 +1,22 @@
-# Blue Magic v2.5.4 — diagnostic d’appairage et opérations financières préservées
+# Blue Magic v2.6.0 — reprise fonctionnelle du noyau Robot USSD
 
 Blue Magic automatise, sur un téléphone Android dédié, les transferts de crédit de distribution Blue/Camtel qui nécessitent désormais deux étapes :
 
 1. composition de `*550*2*numéro*montant#` ou `*550*1*numéro*montant#` ;
 2. vérification de la confirmation Camtel, saisie locale du PIN puis clic sur **ENVOYER**.
 
-Cette version maintient le trajet critique **Télécommande → serveur → Robot → fenêtre USSD → PIN → preuve opérateur** et rétablit l’affichage des actions financières sur les profils migrés d’anciennes versions, notamment sous Android 6.
+Cette version maintient le trajet critique **Télécommande → serveur → Robot → fenêtre USSD → PIN → preuve opérateur** et restaure le comportement opérationnel de la v2.4.5 sans retirer les protections utiles ajoutées ensuite.
 
-L’appairage initial ne peut plus échouer silencieusement : chaque champ invalide affiche maintenant une erreur ciblée et un message visible, le numéro accepte aussi le format `+237`, et l’appel réseau signale immédiatement son démarrage puis son résultat.
+La régression v2.5 provenait d’un mélange entre deux niveaux de prérequis. Le PIN, l’Accessibilité et l’état de blocage du PIN étaient contrôlés avant même la location d’une commande et bloquaient donc aussi `TEST_NUMBER`. La v2.6 sépare désormais :
 
-La v2.5.4 ajoute une version installée visible, un contrôle HTTPS/D1 indépendant et un code de diagnostic persistant. Elle ne modifie ni le Worker, ni D1, ni les commandes financières, ni les règles USSD/SIM/PIN.
+- la **sécurité de route**, obligatoire pour toute commande : profil appairé, SIM physique présente dans le slot choisi, route d’appel exacte et autorisations Téléphone ;
+- la **capacité financière**, exigée seulement pour un achat ou une vente : PIN chiffré disponible, Accessibilité active et PIN non bloqué.
+
+Ainsi `TEST_NUMBER` reste exécutable lorsque la route SIM est sûre, même si l’Accessibilité est désactivée. Une commande financière reste refusée avant composition si ses conditions propres ne sont pas remplies.
+
+La v2.6 conserve le diagnostic d’appairage v2.5.4, le design bleu et or, la mise en page adaptative, le multi-SIM, l’ordonnancement FIFO et la reprise automatique. Pendant la saisie automatique, un écran confidentiel non interactif masque le pop-up afin que le PIN ne soit pas lisible par une personne présente. Ce masque ne contourne aucun verrou Android et n’est activé qu’après concordance du numéro et du montant.
+
+Cette livraison Android ne modifie ni le Worker Cloudflare, ni D1, ni les migrations, ni les secrets de production.
 
 La reprise permanente du projet se trouve dans [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md) et sa procédure obligatoire dans [`docs/BLUE_MAGIC_DELIVERY_PROCEDURE.md`](docs/BLUE_MAGIC_DELIVERY_PROCEDURE.md).
 
