@@ -5,6 +5,7 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
@@ -78,8 +79,7 @@ public class MainActivity extends Activity {
         form.addView(title("BLUE MAGIC — APPAIRAGE SÉCURISÉ"));
         form.addView(help("Vérifiez l’adresse et le secret avant l’appairage. Le PIN Camtel reste uniquement dans le Keystore du téléphone."));
 
-        TextView installedVersion = help("VERSION INSTALLÉE : " + BuildConfig.VERSION_NAME
-                + " • versionCode " + BuildConfig.VERSION_CODE);
+        TextView installedVersion = help("VERSION INSTALLÉE : " + installedVersionLabel());
         installedVersion.setTextColor(CYAN);
         form.addView(installedVersion);
 
@@ -348,6 +348,18 @@ public class MainActivity extends Activity {
         String digits = value == null ? "" : value.replaceAll("\\D", "");
         if (digits.length() == 12 && digits.startsWith("237")) return digits.substring(3);
         return digits;
+    }
+
+    @SuppressWarnings("deprecation")
+    private String installedVersionLabel() {
+        try {
+            PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), 0);
+            long versionCode = Build.VERSION.SDK_INT >= 28
+                    ? info.getLongVersionCode() : info.versionCode;
+            return info.versionName + " • versionCode " + versionCode;
+        } catch (Exception error) {
+            return "version inconnue • " + error.getClass().getSimpleName();
+        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
