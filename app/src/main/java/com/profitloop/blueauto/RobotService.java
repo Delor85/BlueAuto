@@ -221,7 +221,7 @@ public class RobotService extends Service {
                     long lastHeartbeat = lastHeartbeatByProfile.containsKey(profileId)
                             ? lastHeartbeatByProfile.get(profileId) : 0L;
                     if (System.currentTimeMillis() - lastHeartbeat >= AppConfig.HEARTBEAT_MS) {
-                        api.heartbeat();
+                        api.heartbeat(lastHeartbeat == 0L);
                         lastHeartbeatByProfile.put(profileId, System.currentTimeMillis());
                     }
 

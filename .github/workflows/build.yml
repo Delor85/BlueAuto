@@ -106,18 +106,20 @@ jobs:
           fi
 
       - name: Tester et compiler l’APK
-        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
+        run: |
+          node app/src/test/finance-flow.mjs
+          gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
 
       - name: Préparer l’APK permanente
         if: env.BLUE_MAGIC_SIGNING_KIND == 'permanent'
-        run: cp app/build/outputs/apk/debug/app-debug.apk Blue-Magic-v2.6.0-Recovery-Release.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk Blue-Magic-v2.6.1-Finance-Flow-Release.apk
 
       - name: Publier uniquement l’APK à signature permanente
         if: env.BLUE_MAGIC_SIGNING_KIND == 'permanent'
         uses: actions/upload-artifact@v4
         with:
           name: Blue-Magic-v2-Robot-Core-Permanent
-          path: Blue-Magic-v2.6.0-Recovery-Release.apk
+          path: Blue-Magic-v2.6.1-Finance-Flow-Release.apk
           if-no-files-found: error
 
       - name: Confirmer la compilation temporaire sans publication
@@ -188,18 +190,20 @@ jobs:
 
       - name: Compiler l'APK permanente
         if: steps.signing-availability.outputs.available == 'true'
-        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
+        run: |
+          node app/src/test/finance-flow.mjs
+          gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
 
       - name: Préparer l'APK permanente
         if: steps.signing-availability.outputs.available == 'true'
-        run: cp app/build/outputs/apk/debug/app-debug.apk Blue-Magic-v2.6.0-Recovery-Release.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk Blue-Magic-v2.6.1-Finance-Flow-Release.apk
 
       - name: Publier l'APK permanente vérifiée
         if: steps.signing-availability.outputs.available == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: Blue-Magic-v2-Robot-Core-Permanent
-          path: Blue-Magic-v2.6.0-Recovery-Release.apk
+          path: Blue-Magic-v2.6.1-Finance-Flow-Release.apk
           if-no-files-found: error
 
       - name: Confirmer l'absence de publication permanente

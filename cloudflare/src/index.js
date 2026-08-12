@@ -1,4 +1,4 @@
-const API_VERSION = '2.3.1-cloudflare';
+const API_VERSION = '2.6.1-cloudflare';
 const TERMINAL_STATES = new Set(['SUCCEEDED', 'FAILED', 'UNKNOWN', 'BLOCKED', 'CANCELLED']);
 const EVENT_STATES = new Set([
   'DIALING', 'AWAITING_PIN', 'PIN_SUBMITTED', 'AWAITING_RESULT',
@@ -38,6 +38,7 @@ export default {
       switch (action) {
         case 'heartbeat': return await heartbeat(env, auth, input, headers);
         case 'update_device_mode': return await updateDeviceMode(env, auth, input, headers);
+        case 'preview_command': return await previewCommand(env, auth, input, headers);
         case 'create_command': return await createCommand(env, auth, input, headers);
         case 'lease_command': return await leaseCommand(env, auth, headers);
         case 'release_command': return await releaseCommand(env, auth, input, headers);
@@ -130,11 +131,15 @@ async function authenticate(request, env) {
 async function heartbeat(env, auth, input, headers) {
   const simFingerprint = String(input.sim_fingerprint || '').trim().toLowerCase();
   const simVerified = input.sim_verified === true && /^[a-f0-9]{64}$/.test(simFingerprint);
-  const robotEnabled = input.robot_enabled === true && simVerified
+  const wantsRobot = input.robot_enabled === true && simVerified
     && ['ROBOT', 'HYBRID'].includes(auth.mode);
+  const claimsRobot = wantsRobot && input.claim_robot === true;
+  // A periodic heartbeat cannot silently steal a SIM route from the device that explicitly
+  // started this Robot. Only a verified start/restart claim can elect a new phone.
+  const robotEnabled = wantsRobot && (claimsRobot || Boolean(auth.robot_enabled));
   const simSlot = Number.isInteger(input.sim_slot) && input.sim_slot >= 0 && input.sim_slot <= 3
     ? input.sim_slot : null;
-  await env.DB.prepare(
+  const updateCurrent = env.DB.prepare(
     "UPDATE devices SET last_seen_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), robot_enabled = ?, "
     + 'sim_verified = ?, sim_fingerprint = ?, sim_slot = ?, '
     + 'app_version = ?, android_version = ?, device_model = ? WHERE device_id = ?'
@@ -147,10 +152,20 @@ async function heartbeat(env, auth, input, headers) {
     cleanText(input.android_version, 40),
     cleanText(input.device_model, 160),
     auth.device_id
-  ).run();
+  );
+  if (claimsRobot) {
+    await env.DB.batch([
+      env.DB.prepare(
+        'UPDATE devices SET robot_enabled = 0 WHERE node_code = ? AND device_id <> ?'
+      ).bind(auth.node_code, auth.device_id),
+      updateCurrent
+    ]);
+  } else {
+    await updateCurrent.run();
+  }
   return success({
     server_time: new Date().toISOString(), node_code: auth.node_code,
-    robot_enabled: robotEnabled, sim_verified: simVerified
+    robot_enabled: robotEnabled, sim_verified: simVerified, robot_claimed: claimsRobot
   }, 200, headers);
 }
 
@@ -179,6 +194,16 @@ async function createCommand(env, auth, input, headers) {
   if (previous) return success({command: previous, duplicate: true}, 200, headers);
 
   const values = await resolveCommand(env, auth, input, requestType);
+  const expectedPreview = await previewFingerprint(values);
+  const suppliedPreview = String(input.confirmation_fingerprint || '').trim().toLowerCase();
+  if (values.requiresPin && !/^[a-f0-9]{64}$/.test(suppliedPreview)) {
+    throw new ApiError('CONFIRMATION_REQUIRED',
+      'Affichez et confirmez d’abord le fournisseur, le bénéficiaire et le montant.', 409);
+  }
+  if (suppliedPreview && suppliedPreview !== expectedPreview) {
+    throw new ApiError('CONFIRMATION_CHANGED',
+      'Les numéros ou le montant ont changé depuis la confirmation. Recommencez sans composer.', 409);
+  }
   const publicId = crypto.randomUUID();
   const createdAt = new Date().toISOString();
   try {
@@ -208,12 +233,29 @@ async function createCommand(env, auth, input, headers) {
   return success({
     command: {
       public_id: publicId, state: 'PENDING', executor_node_code: values.executor,
-      target_node_code: values.targetNode, target_phone: values.targetPhone,
+      executor_phone: values.executorPhone, target_node_code: values.targetNode,
+      target_phone: values.targetPhone,
       operation: values.operation, amount: values.amount,
       created_at: createdAt, updated_at: createdAt
     },
     duplicate: false
   }, 201, headers);
+}
+
+async function previewCommand(env, auth, input, headers) {
+  const requestType = String(input.request_type || '').trim().toUpperCase();
+  const values = await resolveCommand(env, auth, input, requestType);
+  return success({preview: {
+    request_type: requestType,
+    executor_node_code: values.executor,
+    executor_phone: values.executorPhone,
+    target_node_code: values.targetNode,
+    target_phone: values.targetPhone,
+    amount: values.amount,
+    operation: values.operation,
+    requires_pin: Boolean(values.requiresPin),
+    confirmation_fingerprint: await previewFingerprint(values)
+  }}, 200, headers);
 }
 
 async function resolveCommand(env, auth, input, requestType) {
@@ -223,8 +265,15 @@ async function resolveCommand(env, auth, input, requestType) {
       throw new ApiError('REQUEST_NOT_ALLOWED', 'Ce compte ne peut pas demander une recharge supérieure.', 403);
     }
     const value = amount(input.amount);
+    const parent = await env.DB.prepare(
+      'SELECT node_code, phone_number FROM nodes WHERE node_code = ? AND active = 1'
+    ).bind(auth.parent_node_code).first();
+    if (!parent) {
+      throw new ApiError('PARENT_NOT_FOUND', 'Le fournisseur supérieur actif est introuvable.', 422);
+    }
     return {
-      executor: auth.parent_node_code, targetNode: requester, targetPhone: auth.phone_number,
+      executor: parent.node_code, executorPhone: parent.phone_number,
+      targetNode: requester, targetPhone: auth.phone_number,
       amount: value, operation: 'DISTRIBUTION_TRANSFER',
       ussd: `*550*2*${auth.phone_number}*${value}#`, requiresPin: 1
     };
@@ -238,7 +287,8 @@ async function resolveCommand(env, auth, input, requestType) {
     if (!child) throw new ApiError('CHILD_NOT_FOUND', 'Ce compte n’est pas un enfant direct actif.', 422);
     const value = amount(input.amount);
     return {
-      executor: requester, targetNode: child.node_code, targetPhone: child.phone_number, amount: value,
+      executor: requester, executorPhone: auth.phone_number,
+      targetNode: child.node_code, targetPhone: child.phone_number, amount: value,
       operation: 'DISTRIBUTION_TRANSFER', ussd: `*550*2*${child.phone_number}*${value}#`, requiresPin: 1
     };
   }
@@ -247,13 +297,15 @@ async function resolveCommand(env, auth, input, requestType) {
     const targetPhone = phone(input.target_phone);
     const value = amount(input.amount);
     return {
-      executor: requester, targetNode: null, targetPhone, amount: value,
+      executor: requester, executorPhone: auth.phone_number,
+      targetNode: null, targetPhone, amount: value,
       operation: 'RETAIL_TRANSFER', ussd: `*550*1*${targetPhone}*${value}#`, requiresPin: 1
     };
   }
   if (requestType === 'TEST_NUMBER') {
     return {
-      executor: requester, targetNode: null, targetPhone: null, amount: null,
+      executor: requester, executorPhone: auth.phone_number,
+      targetNode: null, targetPhone: null, amount: null,
       operation: 'TEST_NUMBER', ussd: '*825*3*3#', requiresPin: 0
     };
   }
@@ -264,9 +316,15 @@ async function leaseCommand(env, auth, headers) {
   if (!['ROBOT', 'HYBRID'].includes(auth.mode)) {
     throw new ApiError('NOT_A_ROBOT', 'Cet appareil n’est pas autorisé à louer des commandes.', 403);
   }
-  if (!auth.robot_enabled || !auth.sim_verified || !/^[a-f0-9]{64}$/.test(auth.sim_fingerprint || '')) {
+  if (!auth.sim_verified || !/^[a-f0-9]{64}$/.test(auth.sim_fingerprint || '')) {
     throw new ApiError('ROBOT_SIM_NOT_VERIFIED',
       'Ce Robot doit confirmer la présence et l’identité de sa SIM avant de louer une commande.', 409);
+  }
+  if (!auth.robot_enabled) {
+    return success({
+      available: false, standby: true,
+      reason: 'Cette SIM est actuellement revendiquée par un autre téléphone Robot.'
+    }, 200, headers);
   }
 
   await env.DB.prepare(
@@ -309,6 +367,8 @@ async function leaseCommand(env, auth, headers) {
   await env.DB.prepare(
     "INSERT INTO command_events(command_id, device_id, state, message) VALUES(?, ?, 'LEASED', 'Commande réservée au Robot.')"
   ).bind(command.id, auth.device_id).run();
+  command.executor_phone = auth.phone_number;
+  command.integrity_version = 2;
   const integrityDigest = await commandDigest(command);
   return success({
     available: true,
@@ -317,12 +377,14 @@ async function leaseCommand(env, auth, headers) {
       lease_token: leaseToken,
       requester_node_code: command.requester_node_code,
       executor_node_code: command.executor_node_code,
+      executor_phone: command.executor_phone,
       target_node_code: command.target_node_code,
       operation: command.operation,
       target_phone: command.target_phone,
       amount: command.amount,
       ussd_code: command.ussd_code,
       requires_pin: Boolean(command.requires_pin),
+      integrity_version: command.integrity_version,
       integrity_digest: integrityDigest
     }
   }, 200, headers);
@@ -525,11 +587,20 @@ async function resolveDirectChild(env, parentCode, reference, expectedRole) {
 async function commandDigest(command) {
   const parts = [
     command.public_id || '', command.requester_node_code || '', command.executor_node_code || '',
+    command.integrity_version >= 2 ? command.executor_phone || '' : null,
     command.target_node_code || '', command.operation || '', command.target_phone || '',
     command.amount == null ? '' : String(command.amount), command.ussd_code || '',
     command.requires_pin ? '1' : '0'
   ];
-  return sha256(parts.join('|'));
+  return sha256(parts.filter(value => value !== null).join('|'));
+}
+
+async function previewFingerprint(values) {
+  return sha256([
+    values.executor || '', values.executorPhone || '', values.targetNode || '',
+    values.targetPhone || '', values.amount == null ? '' : String(values.amount),
+    values.operation || '', values.ussd || '', values.requiresPin ? '1' : '0'
+  ].join('|'));
 }
 
 function phone(value) {

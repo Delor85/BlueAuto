@@ -138,7 +138,7 @@ public class BlueAccessibilityService extends AccessibilityService {
             if (hasDefiniteMismatch(command, roots)) {
                 clickFirst(roots, "annuler", "cancel");
                 RobotService.operatorResult(this, profileId, false, "CONFIRMATION_MISMATCH",
-                        "Le numéro ou le montant affiché par Camtel ne correspond pas à l’ordre attendu.", "");
+                        mismatchEvidence(command, visible, profileId), "");
                 resetAutomation();
                 return;
             }
@@ -457,11 +457,32 @@ public class BlueAccessibilityService extends AccessibilityService {
     private static boolean confirmationHasDefiniteMismatch(String text, String phone, String amount) {
         Matcher phoneMatcher = Pattern.compile("(?<!\\d)(6\\d{8})(?!\\d)")
                 .matcher(text.replaceAll("[ ._-]", ""));
-        boolean anotherPhone = phoneMatcher.find() && !phone.equals(phoneMatcher.group(1));
+        boolean sawPhone = false;
+        boolean expectedPhoneSeen = false;
+        while (phoneMatcher.find()) {
+            sawPhone = true;
+            if (phone.equals(phoneMatcher.group(1))) expectedPhoneSeen = true;
+        }
         Matcher amountMatcher = Pattern.compile(
                 "(?i)(?<!\\d)(\\d{1,9})(?:[.,]00)?\\s*(?:f\\s*cfa|fcfa|xaf)").matcher(text);
-        boolean anotherAmount = amountMatcher.find() && !amount.equals(amountMatcher.group(1));
-        return anotherPhone || anotherAmount;
+        boolean sawAmount = false;
+        boolean expectedAmountSeen = false;
+        while (amountMatcher.find()) {
+            sawAmount = true;
+            if (amount.equals(amountMatcher.group(1))) expectedAmountSeen = true;
+        }
+        return (sawPhone && !expectedPhoneSeen) || (sawAmount && !expectedAmountSeen);
+    }
+
+    private String mismatchEvidence(JSONObject command, String visible, String profileId) {
+        String expectedPhone = digits(command.optString("target_phone", ""));
+        String expectedAmount = digits(command.optString("amount", "").replaceFirst("\\.0+$", ""));
+        String observed = safeScreenText(visible == null ? "" : visible, profileId)
+                .replaceAll("\\s+", " ").trim();
+        if (observed.length() > 700) observed = observed.substring(0, 700);
+        return "Transaction annulée avant PIN. Attendu : destinataire " + expectedPhone
+                + ", montant " + expectedAmount + " FCFA. Capture textuelle Camtel : "
+                + (observed.isEmpty() ? "contenu inaccessible" : observed);
     }
 
     private static boolean resultBelongsToVerifiedSession(JSONObject command) {

@@ -51,15 +51,20 @@ final class ApiClient {
     }
 
     JSONObject heartbeat() throws Exception {
+        return heartbeat(false);
+    }
+
+    JSONObject heartbeat(boolean claimRobot) throws Exception {
         String targetProfile = profileIdOverride.isEmpty()
                 ? AppConfig.profileId(context) : profileIdOverride;
         SimIdentityManager.Verification sim = SimIdentityManager.verify(context, targetProfile);
         boolean locallyEnabled = AppConfig.robotEnabled(context, targetProfile);
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.6.0");
+        payload.put("app_version", "2.6.1");
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
         payload.put("robot_enabled", locallyEnabled && sim.valid);
+        payload.put("claim_robot", claimRobot && locallyEnabled && sim.valid);
         payload.put("sim_verified", sim.valid);
         payload.put("sim_fingerprint", sim.attestation());
         payload.put("sim_slot", Math.max(0, AppConfig.simSlot(context, targetProfile)));
@@ -86,6 +91,10 @@ final class ApiClient {
 
     JSONObject createCommand(JSONObject payload) throws Exception {
         return post("create_command", payload, true);
+    }
+
+    JSONObject previewCommand(JSONObject payload) throws Exception {
+        return post("preview_command", payload, true);
     }
 
     JSONObject commandStatus(String publicId) throws Exception {

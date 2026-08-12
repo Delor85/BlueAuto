@@ -67,21 +67,44 @@ try {
   }, pos.data.device_token);
   assert.equal(cancelledStatus.data.command.state, 'CANCELLED');
 
+  const supplyDsmPreview = await request('preview_command', {
+    request_type: 'SUPPLY_CHILD', target_node_code: 'DSM-TEST', amount: '200'
+  }, dae.data.device_token);
   const supplyDsm = await request('create_command', {
     request_type: 'SUPPLY_CHILD', target_node_code: 'DSM-TEST', amount: '200',
-    client_request_id: 'integration-alias-dsm-01'
+    client_request_id: 'integration-alias-dsm-01',
+    confirmation_fingerprint: supplyDsmPreview.data.preview.confirmation_fingerprint
   }, dae.data.device_token);
   assert.equal(supplyDsm.data.command.target_node_code, 'DSM-TEST_DAE-TEST');
 
+  const supplyPosPreview = await request('preview_command', {
+    request_type: 'SUPPLY_CHILD', target_node_code: 'POS5', amount: '100'
+  }, dsm.data.device_token);
   const supplyPos = await request('create_command', {
     request_type: 'SUPPLY_CHILD', target_node_code: 'POS5', amount: '100',
-    client_request_id: 'integration-alias-pos-001'
+    client_request_id: 'integration-alias-pos-001',
+    confirmation_fingerprint: supplyPosPreview.data.preview.confirmation_fingerprint
   }, dsm.data.device_token);
   assert.equal(supplyPos.data.command.target_node_code, 'POS5_DSM-TEST_DAE-TEST');
   assert.match(supplyPos.data.command.created_at, /^\d{4}-\d{2}-\d{2}T/);
 
+  const supplyPreview = await request('preview_command', {
+    request_type: 'REQUEST_SUPPLY', amount: '500'
+  }, dsm.data.device_token);
+  assert.equal(supplyPreview.data.preview.executor_node_code, 'DAE-TEST');
+  assert.equal(supplyPreview.data.preview.executor_phone, '699000001');
+  assert.equal(supplyPreview.data.preview.target_node_code, 'DSM-TEST_DAE-TEST');
+  assert.equal(supplyPreview.data.preview.target_phone, '699000002');
+  assert.match(supplyPreview.data.preview.confirmation_fingerprint, /^[a-f0-9]{64}$/);
+
+  const unconfirmed = await requestFailure('create_command', {
+    request_type: 'REQUEST_SUPPLY', amount: '500', client_request_id: 'integration-unconfirmed-01'
+  }, dsm.data.device_token, 409);
+  assert.equal(unconfirmed.error.code, 'CONFIRMATION_REQUIRED');
+
   const created = await request('create_command', {
-    request_type: 'REQUEST_SUPPLY', amount: '500', client_request_id: 'integration-test-0001'
+    request_type: 'REQUEST_SUPPLY', amount: '500', client_request_id: 'integration-test-0001',
+    confirmation_fingerprint: supplyPreview.data.preview.confirmation_fingerprint
   }, dsm.data.device_token);
   assert.equal(created.data.command.state, 'PENDING');
 
@@ -95,6 +118,8 @@ try {
   assert.equal(firstDaeLease.data.available, true);
   assert.equal(firstDaeLease.data.command.ussd_code, '*550*2*699000002*200#');
   assert.equal(firstDaeLease.data.command.executor_node_code, 'DAE-TEST');
+  assert.equal(firstDaeLease.data.command.executor_phone, '699000001');
+  assert.equal(firstDaeLease.data.command.integrity_version, 2);
   assert.match(firstDaeLease.data.command.integrity_digest, /^[a-f0-9]{64}$/);
   const released = await request('release_command', {
     command_id: firstDaeLease.data.command.public_id,
@@ -193,6 +218,24 @@ try {
   assert.equal(staleStatus.data.command.state, 'UNKNOWN');
   await complete(afterStale.data.command, pos.data.device_token);
 
+  // A SIM/node explicitly started on a second phone becomes the only elected Robot. A stale
+  // heartbeat from the former phone cannot steal the queue back.
+  const posReplacement = await pair({
+    node_code: 'POS5', parent_node_code: 'DSM-TEST', role: 'POS', mode: 'ROBOT',
+    phone_number: '699000003', device_name: 'Nouveau téléphone POS'
+  });
+  await attest(posReplacement.data.device_token, 'c'.repeat(64), 1, true);
+  await attest(pos.data.device_token, 'c'.repeat(64), 1, false, false);
+  const electedCommand = await request('create_command', {
+    request_type: 'TEST_NUMBER', client_request_id: 'integration-elected-pos-01'
+  }, pos.data.device_token);
+  const formerPhoneLease = await request('lease_command', {}, pos.data.device_token);
+  assert.equal(formerPhoneLease.data.available, false);
+  assert.equal(formerPhoneLease.data.standby, true);
+  const electedPhoneLease = await request('lease_command', {}, posReplacement.data.device_token);
+  assert.equal(electedPhoneLease.data.command.public_id, electedCommand.data.command.public_id);
+  await complete(electedPhoneLease.data.command, posReplacement.data.device_token);
+
   console.log('Cloudflare integration: Remote/mode, cancellation, per-SIM isolation, aliases and full state flow OK');
 } finally {
   await mf.dispose();
@@ -202,15 +245,16 @@ async function pair(payload) {
   return request('pair_device', {...payload, pairing_secret: PAIRING_SECRET});
 }
 
-async function attest(token, fingerprint, simSlot) {
+async function attest(token, fingerprint, simSlot, claimRobot = true, expectedEnabled = true) {
   const heartbeat = await request('heartbeat', {
     robot_enabled: true,
+    claim_robot: claimRobot,
     sim_verified: true,
     sim_fingerprint: fingerprint,
     sim_slot: simSlot,
     app_version: 'integration', android_version: 'test', device_model: 'Miniflare'
   }, token);
-  assert.equal(heartbeat.data.robot_enabled, true);
+  assert.equal(heartbeat.data.robot_enabled, expectedEnabled);
   assert.equal(heartbeat.data.sim_verified, true);
 }
 
@@ -235,5 +279,16 @@ async function request(action, payload = {}, token = '') {
   const body = await response.json();
   assert.equal(response.status < 400, true, JSON.stringify(body));
   assert.equal(body.ok, true, JSON.stringify(body));
+  return body;
+}
+
+async function requestFailure(action, payload, token, expectedStatus) {
+  const headers = {'Content-Type': 'application/json', 'X-Device-Token': token};
+  const response = await mf.dispatchFetch(`http://blue-magic.test/api?action=${action}`, {
+    method: 'POST', headers, body: JSON.stringify(payload)
+  });
+  const body = await response.json();
+  assert.equal(response.status, expectedStatus, JSON.stringify(body));
+  assert.equal(body.ok, false, JSON.stringify(body));
   return body;
 }

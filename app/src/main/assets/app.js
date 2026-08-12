@@ -2,12 +2,13 @@
     'use strict';
     var TERMINAL = {SUCCEEDED:true,FAILED:true,UNKNOWN:true,BLOCKED:true,CANCELLED:true};
     var labels = {PENDING:'En attente',LEASED:'Réservée au Robot',DIALING:'Composition USSD',AWAITING_PIN:'Vérification du pop-up',PIN_SUBMITTED:'PIN validé',AWAITING_RESULT:'Confirmation Camtel',SUCCEEDED:'Réussie',FAILED:'Échec',UNKNOWN:'À vérifier',BLOCKED:'Robot bloqué — PIN',CANCELLED:'Annulée'};
-    var configuration = {}, commands = [];
+    var configuration = {}, commands = [], pendingPreview = null;
     function byId(id){return document.getElementById(id);}
     function each(selector,fn){var items=document.querySelectorAll(selector),i;for(i=0;i<items.length;i+=1){fn(items[i]);}}
     function bridge(){return typeof window.AndroidBridge!=='undefined';}
     window.BlueMagicNative={
-        onCommandCreated:function(data){setBusy(false);if(data.error){showActionError(data);return;}clearActionError();var command=data.command||{};if(!command.public_id){showActionError({code:'INVALID_RESPONSE',message:'Réponse serveur incomplète.'});return;}upsert(command);render();showToast(data.duplicate?'Cette demande existait déjà.':'Commande créée.');},
+        onCommandPreview:function(data){handlePreview(data);},
+        onCommandCreated:function(data){setBusy(false);pendingPreview=null;if(data.error){showActionError(data);return;}clearActionError();var command=data.command||{};if(!command.public_id){showActionError({code:'INVALID_RESPONSE',message:'Réponse serveur incomplète.'});return;}upsert(command);render();showToast(data.duplicate?'Cette demande existait déjà.':'Commande créée et transmise au Robot exact.');},
         onCommandStatus:function(data){if(data&&data.command){upsert(data.command);render();}},
         onCommandCancelled:function(data){if(data.error){showToast(data.message||'Annulation impossible.');return;}if(data.command){upsert(data.command);render();showToast('Commande annulée.');}}
     };
@@ -56,15 +57,32 @@
         if(type!=='TEST_NUMBER'&&!/^[1-9]\d{0,8}$/.test(amount)){showToast('Saisissez un montant entier valide.');return;}
         if(type==='SUPPLY_CHILD'&&!node){showToast('Saisissez le code du nœud enfant.');return;}
         if(type==='RETAIL_SALE'&&!/^\d{9}$/.test(phone)){showToast('Le numéro client doit avoir 9 chiffres.');return;}
-        if(type!=='TEST_NUMBER'&&!confirmFinancial(type,node,phone,amount)){return;}
-        setBusy(true);window.AndroidBridge.createCommand(type,node,phone,amount,requestId());
+        pendingPreview={type:type,node:node,phone:phone,amount:amount,request_id:requestId()};
+        setBusy(true);clearActionError();
+        if(type==='TEST_NUMBER'){
+            window.AndroidBridge.createCommand(type,node,phone,amount,pendingPreview.request_id,'');
+            return;
+        }
+        showActionProgress('Vérification des numéros officiels et de la filiation…');
+        window.AndroidBridge.previewCommand(type,node,phone,amount,pendingPreview.request_id);
     }
-    function confirmFinancial(type,node,phone,amount){
-        var title='',destination='';
-        if(type==='REQUEST_SUPPLY'){title='ACHAT / DEMANDE DE CRÉDIT';destination='Votre compte '+(configuration.node_code||'actif')+' sera crédité par son supérieur.';}
-        else if(type==='SUPPLY_CHILD'){title='APPROVISIONNEMENT D’UN ENFANT';destination='Nœud saisi : '+node+'. Le serveur utilisera uniquement son numéro Camtel officiel.';}
-        else{title='VENTE À UN CLIENT';destination='Numéro destinataire : '+phone+'.';}
-        return window.confirm('CONFIRMATION 1 SUR 2\n\n'+title+'\nMontant : '+formatMoney(amount)+' FCFA\n'+destination+'\n\nRelisez attentivement. Après validation, la fenêtre Camtel constituera la confirmation 2 sur 2 et devra afficher exactement le même numéro et le même montant.\n\nCréer cette commande ?');
+    function handlePreview(data){
+        var preview,fingerprint;
+        if(!pendingPreview){setBusy(false);return;}
+        if(data&&data.error){setBusy(false);pendingPreview=null;showActionError(data);return;}
+        preview=data&&data.preview||{};fingerprint=String(preview.confirmation_fingerprint||'');
+        if(!fingerprint){setBusy(false);pendingPreview=null;showActionError({code:'PREVIEW_INCOMPLETE',message:'Le serveur n’a pas certifié les numéros de cette commande.'});return;}
+        clearActionError();
+        if(!confirmFinancial(preview)){setBusy(false);pendingPreview=null;showToast('Commande annulée avant toute composition.');return;}
+        showActionProgress('Commande confirmée. Transmission au Robot de la SIM fournisseur…');
+        window.AndroidBridge.createCommand(pendingPreview.type,pendingPreview.node,pendingPreview.phone,
+            pendingPreview.amount,pendingPreview.request_id,fingerprint);
+    }
+    function confirmFinancial(preview){
+        var title=preview.operation==='RETAIL_TRANSFER'?'VENTE À UN CLIENT':'TRANSFERT DE CRÉDIT';
+        var supplier=(preview.executor_node_code||'FOURNISSEUR')+' — '+(preview.executor_phone||'numéro absent');
+        var beneficiary=(preview.target_node_code||'CLIENT')+' — '+(preview.target_phone||'numéro absent');
+        return window.confirm('CONFIRMATION 1 SUR 2\n\n'+title+'\n\nFOURNISSEUR : '+supplier+'\nBÉNÉFICIAIRE : '+beneficiary+'\nMONTANT : '+formatMoney(preview.amount)+' FCFA\n\nConfirmez uniquement si les deux numéros et le montant sont exacts. Après confirmation, le Robot composera la commande. Blue Magic contrôlera ensuite les mêmes données dans le pop-up Camtel avant d’insérer le PIN.\n\nCONFIRMER CETTE TRANSACTION ?');
     }
     function formatMoney(value){return String(value).replace(/\B(?=(\d{3})+(?!\d))/g,' ');}
     function refresh(){var i;if(!bridge()){return;}for(i=0;i<commands.length;i+=1){if(!TERMINAL[commands[i].state]){window.AndroidBridge.getCommandStatus(commands[i].public_id);}}}
@@ -77,6 +95,7 @@
     function two(value){return value<10?'0'+value:String(value);}
     function requestId(){return 'req_'+new Date().getTime()+'_'+Math.random().toString(36).slice(2,14);}
     function setBusy(value){each('button[data-action]',function(button){button.disabled=value;});}
+    function showActionProgress(message){var notice=byId('actionNotice');notice.textContent=message;notice.className='notice';}
     function showActionError(data){var code=String(data&&data.code||'ACTION_FAILED'),message=String(data&&data.message||'Action impossible.'),notice=byId('actionNotice');notice.textContent=code+' — '+message;notice.className='notice notice-danger';showToast(code+' — '+message);}
     function clearActionError(){var notice=byId('actionNotice');notice.textContent='';notice.className='notice notice-danger hidden';}
     function showToast(message){var toast=byId('toast');toast.textContent=message;toast.className='toast';window.setTimeout(function(){toast.className='toast hidden';},4000);}

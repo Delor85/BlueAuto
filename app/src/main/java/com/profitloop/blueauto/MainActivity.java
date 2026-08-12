@@ -17,6 +17,8 @@ import android.text.InputType;
 import android.view.View;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
+import android.webkit.JsResult;
+import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
@@ -463,10 +465,6 @@ public class MainActivity extends Activity {
                     toast("Ce compte est en mode REMOTE. Activez un compte ROBOT pour exécuter l’USSD.");
                     return;
                 }
-                if (!SecurePinStore.hasPin(this)) {
-                    toast("Enregistrez d’abord le PIN Camtel.");
-                    return;
-                }
                 if (!startRobotSafely()) return;
                 toggle.setText("ARRÊTER ROBOT");
             }
@@ -501,6 +499,19 @@ public class MainActivity extends Activity {
             settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         }
         webView.addJavascriptInterface(new NativeBridge(), "AndroidBridge");
+        webView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onJsConfirm(WebView view, String url, String message, JsResult result) {
+                new AlertDialog.Builder(MainActivity.this)
+                        .setTitle("Confirmation Blue Magic")
+                        .setMessage(message)
+                        .setPositiveButton("CONFIRMER", (dialog, which) -> result.confirm())
+                        .setNegativeButton("ANNULER", (dialog, which) -> result.cancel())
+                        .setOnCancelListener(dialog -> result.cancel())
+                        .show();
+                return true;
+            }
+        });
         webView.setWebViewClient(new WebViewClient() {
             @Override
             @SuppressWarnings("deprecation")
@@ -1035,8 +1046,8 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
-        public void createCommand(String requestType, String targetNode, String targetPhone,
-                                  String amount, String clientRequestId) {
+        public void previewCommand(String requestType, String targetNode, String targetPhone,
+                                   String amount, String clientRequestId) {
             new Thread(() -> {
                 try {
                     JSONObject payload = new JSONObject();
@@ -1045,6 +1056,28 @@ public class MainActivity extends Activity {
                     payload.put("target_phone", targetPhone == null ? "" : targetPhone.trim());
                     payload.put("amount", amount == null ? "" : amount.trim());
                     payload.put("client_request_id", validRequestId(clientRequestId));
+                    JSONObject data = new ApiClient(MainActivity.this).previewCommand(payload);
+                    callback("onCommandPreview", data);
+                } catch (Exception error) {
+                    callbackError("onCommandPreview", error);
+                }
+            }).start();
+        }
+
+        @JavascriptInterface
+        public void createCommand(String requestType, String targetNode, String targetPhone,
+                                  String amount, String clientRequestId,
+                                  String confirmationFingerprint) {
+            new Thread(() -> {
+                try {
+                    JSONObject payload = new JSONObject();
+                    payload.put("request_type", requestType == null ? "" : requestType);
+                    payload.put("target_node_code", targetNode == null ? "" : targetNode.trim().toUpperCase());
+                    payload.put("target_phone", targetPhone == null ? "" : targetPhone.trim());
+                    payload.put("amount", amount == null ? "" : amount.trim());
+                    payload.put("client_request_id", validRequestId(clientRequestId));
+                    payload.put("confirmation_fingerprint", confirmationFingerprint == null
+                            ? "" : confirmationFingerprint.trim().toLowerCase(Locale.ROOT));
                     JSONObject data = new ApiClient(MainActivity.this).createCommand(payload);
                     callback("onCommandCreated", data);
                 } catch (Exception error) {

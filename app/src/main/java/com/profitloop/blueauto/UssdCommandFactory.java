@@ -26,6 +26,18 @@ final class UssdCommandFactory {
         if (!suppliedExecutor.isEmpty() && !expectedExecutor.equals(suppliedExecutor)) {
             throw new SecurityException("La commande appartient à un autre nœud Robot.");
         }
+        int integrityVersion = command.optInt("integrity_version", 1);
+        String executorPhone = digits(string(command, "executor_phone"));
+        String configuredPhone = digits(AppConfig.phoneNumber(context, profileId));
+        if (configuredPhone.length() > 9) {
+            configuredPhone = configuredPhone.substring(configuredPhone.length() - 9);
+        }
+        if (integrityVersion >= 2 && !executorPhone.matches("\\d{9}")) {
+            throw new SecurityException("Le numéro officiel de la SIM exécutrice est absent.");
+        }
+        if (!executorPhone.isEmpty() && !executorPhone.equals(configuredPhone)) {
+            throw new SecurityException("La commande vise une autre SIM fournisseur.");
+        }
 
         String operation = string(command, "operation");
         String phone = digits(string(command, "target_phone"));
@@ -79,7 +91,9 @@ final class UssdCommandFactory {
         if (!suppliedDigest.isEmpty()) {
             String digestInput = commandId + "|"
                     + string(command, "requester_node_code").trim().toUpperCase() + "|"
-                    + suppliedExecutor + "|" + targetNode + "|" + operation + "|"
+                    + suppliedExecutor + "|"
+                    + (integrityVersion >= 2 ? executorPhone + "|" : "")
+                    + targetNode + "|" + operation + "|"
                     + phone + "|" + amount + "|" + built + "|"
                     + (requiresPin(command) ? "1" : "0");
             if (!suppliedDigest.equals(sha256(digestInput))) {
