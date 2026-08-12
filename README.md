@@ -1,4 +1,4 @@
-# Blue Magic v2.5.3 — appairage visible et opérations financières libérées
+# Blue Magic v2.5.4 — diagnostic d’appairage et opérations financières préservées
 
 Blue Magic automatise, sur un téléphone Android dédié, les transferts de crédit de distribution Blue/Camtel qui nécessitent désormais deux étapes :
 
@@ -8,6 +8,10 @@ Blue Magic automatise, sur un téléphone Android dédié, les transferts de cr�
 Cette version maintient le trajet critique **Télécommande → serveur → Robot → fenêtre USSD → PIN → preuve opérateur** et rétablit l’affichage des actions financières sur les profils migrés d’anciennes versions, notamment sous Android 6.
 
 L’appairage initial ne peut plus échouer silencieusement : chaque champ invalide affiche maintenant une erreur ciblée et un message visible, le numéro accepte aussi le format `+237`, et l’appel réseau signale immédiatement son démarrage puis son résultat.
+
+La v2.5.4 ajoute une version installée visible, un contrôle HTTPS/D1 indépendant et un code de diagnostic persistant. Elle ne modifie ni le Worker, ni D1, ni les commandes financières, ni les règles USSD/SIM/PIN.
+
+La reprise permanente du projet se trouve dans [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md) et sa procédure obligatoire dans [`docs/BLUE_MAGIC_DELIVERY_PROCEDURE.md`](docs/BLUE_MAGIC_DELIVERY_PROCEDURE.md).
 
 ## Ce qui change par rapport à l’ancien code
 

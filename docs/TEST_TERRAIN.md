@@ -1,5 +1,14 @@
 # Protocole de test terrain — avant argent réel
 
+## Gate 0 — diagnostic d’appairage v2.5.4
+
+1. Confirmer que l’accueil affiche `2.5.4-pairing-diagnostic • versionCode 34`.
+2. Toucher **VÉRIFIER LE SERVEUR** avant de saisir un secret.
+3. Noter le code affiché : `SERVER_CHECK_OK` confirme HTTPS, le Worker et D1 depuis le téléphone ; `NETWORK_DNS`, `NETWORK_TIMEOUT`, `NETWORK_TLS` ou `NETWORK_CONNECT` isole le réseau Android.
+4. Remplir le formulaire puis toucher **APPAIRER CE TÉLÉPHONE**.
+5. Photographier le dialogue et son code exact si l’appairage échoue. Aucun secret ne doit apparaître dans la photo.
+6. Ne poursuivre vers un test financier qu’après `PAIRING_COMPLETE` et l’ouverture de l’écran de contrôle.
+
 ## Contrôle prioritaire v2.5.2 — cartes financières
 
 Après la mise à jour, ouvrez successivement chaque compte déjà appairé, sans le supprimer :
