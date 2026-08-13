@@ -252,28 +252,19 @@ jobs:
           profile: Nexus 6
           disable-animations: true
           script: |
-            set -eu
-            apk="app/build/outputs/apk/debug/app-debug.apk"
-            package="com.profitloop.blueauto"
-            activity="$package/.MainActivity"
-
-            adb install -r "$apk"
+            adb install -r app/build/outputs/apk/debug/app-debug.apk
             adb logcat -c
-            adb shell am start -W -n "$activity" | tee /tmp/blue-magic-first-start.txt
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/blue-magic-first-start.txt
             grep -q "Status: ok" /tmp/blue-magic-first-start.txt
-            adb shell pidof "$package"
+            adb shell pidof com.profitloop.blueauto
 
-            adb shell am force-stop "$package"
+            adb shell am force-stop com.profitloop.blueauto
             adb push app/src/test/fixtures/android11_robot_profile.xml /data/local/tmp/blue-magic-prefs.xml
-            adb shell run-as "$package" mkdir -p shared_prefs
-            adb shell run-as "$package" cp /data/local/tmp/blue-magic-prefs.xml \
-              shared_prefs/blue_magic_native_v2.xml
+            adb shell run-as com.profitloop.blueauto mkdir -p shared_prefs
+            adb shell run-as com.profitloop.blueauto cp /data/local/tmp/blue-magic-prefs.xml shared_prefs/blue_magic_native_v2.xml
             adb logcat -c
-            adb shell am start -W -n "$activity" | tee /tmp/blue-magic-robot-start.txt
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/blue-magic-robot-start.txt
             grep -q "Status: ok" /tmp/blue-magic-robot-start.txt
             sleep 3
-            adb shell pidof "$package"
-            if adb logcat -d -b crash | grep -q "$package"; then
-              adb logcat -d -b crash
-              exit 1
-            fi
+            adb shell pidof com.profitloop.blueauto
+            if adb logcat -d -b crash | grep -q com.profitloop.blueauto; then adb logcat -d -b crash; exit 1; fi
