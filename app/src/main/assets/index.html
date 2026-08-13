@@ -22,14 +22,6 @@
     <section id="roleNotice" class="notice hidden"></section>
     <section id="browserNotice" class="notice hidden">Cette interface doit être ouverte dans l’application Android.</section>
 
-    <nav class="module-tabs" aria-label="Modules Blue Magic">
-        <button type="button" class="module-tab" data-tab="reports">📊<span>Rapports</span></button>
-        <button type="button" class="module-tab active" data-tab="flux">⚡<span>Flux</span></button>
-        <button type="button" class="module-tab" data-tab="fleet">🌳<span>Flotte</span></button>
-        <button type="button" class="module-tab" data-tab="config">⚙<span>Robot</span></button>
-        <button type="button" class="module-tab" data-tab="support">🎓<span>SAV</span></button>
-    </nav>
-
     <section class="module-screen hidden" data-tab-panel="reports">
         <article class="panel module-intro">
             <p class="eyebrow">ONGLET 1 — GRAPHES & RAPPORTS</p>
@@ -41,11 +33,13 @@
             <article class="panel metric metric-success"><strong id="metricSuccessCount">0</strong><span>réussies</span></article>
             <article class="panel metric metric-warning"><strong id="metricPendingCount">0</strong><span>à suivre</span></article>
             <article class="panel metric"><strong id="metricLastDuration">—</strong><span>dernière durée</span></article>
+            <article class="panel metric metric-success"><strong id="metricSuccessRate">—</strong><span>taux de réussite</span></article>
+            <article class="panel metric"><strong id="metricFinanceCount">0</strong><span>opérations financières</span></article>
         </div>
-        <article class="panel roadmap-card">
-            <p class="eyebrow">PROCHAINE EXTENSION</p>
-            <h3>Consolidation hiérarchique</h3>
-            <p class="muted">Soldes et volumes DAE → DSM → PoS, périodes journalière/mensuelle/annuelle et preuves Camtel. Cette zone est isolée des transactions déjà validées.</p>
+        <article class="panel module-card">
+            <p class="eyebrow">ACTIVITÉ DU TÉLÉPHONE</p>
+            <h3 id="reportActivityTitle">Aucune activité locale</h3>
+            <p id="reportActivityDetail" class="muted">Les résultats apparaîtront ici sans exposer le PIN.</p>
         </article>
     </section>
 
@@ -90,14 +84,18 @@
             <h3>État du nœud actif</h3>
             <p id="fleetNodeStatus" class="muted">Chargement du compte…</p>
         </article>
-        <article class="panel roadmap-card">
+        <article class="panel module-card">
             <p class="eyebrow">LIAISON PHYSIQUE</p>
             <h3>SIM, slot et propriété Robot</h3>
             <p id="fleetSimStatus" class="muted">Ouvrez ☰ GÉRER pour vérifier ou lier la SIM. Un slot déjà occupé et vérifié reste protégé.</p>
+            <div class="module-actions">
+                <button type="button" class="secondary" data-native-action="accounts">Comptes et slots</button>
+                <button type="button" class="secondary" data-native-action="verify-sim">Vérifier / lier la SIM</button>
+            </div>
         </article>
-        <article class="panel roadmap-card">
-            <p class="eyebrow">À VENIR DANS CE MODULE</p>
-            <p class="muted">Pré-appairage SIM/ID, arborescence DAE–DSM–PoS, maintenance et cycle de vie. Aucun bouton financier existant n’est déplacé vers cette zone.</p>
+        <article class="panel module-card">
+            <p class="eyebrow">RÈGLE DE PROPRIÉTÉ ACTIVE</p>
+            <p class="muted">Le téléphone qui prouve physiquement la bonne SIM et le bon slot peut remplacer un Robot fantôme. Une SIM différente et un second Robot vivant restent refusés.</p>
         </article>
     </section>
 
@@ -107,7 +105,7 @@
             <h3>Hall Remote / Robot</h3>
             <p id="configRobotStatus" class="muted">Chargement de la configuration…</p>
         </article>
-        <article class="panel roadmap-card">
+        <article class="panel module-card">
             <p class="eyebrow">ORDRE SÛR</p>
             <ol class="compact-steps">
                 <li>Entrer dans le hall Robot.</li>
@@ -115,7 +113,12 @@
                 <li>Choisir le slot puis vérifier/lier la SIM.</li>
                 <li>Enregistrer le PIN local et démarrer.</li>
             </ol>
-            <p class="muted">Les réglages natifs restent dans ☰ GÉRER afin de préserver Android 6.</p>
+            <div class="module-actions">
+                <button type="button" class="secondary" data-native-action="permissions">1. Autorisations</button>
+                <button type="button" class="secondary" data-native-action="pin">2. PIN Camtel</button>
+                <button type="button" class="secondary" data-native-action="manage">Tous les réglages</button>
+                <button type="button" data-native-action="start-robot">Démarrer le Robot</button>
+            </div>
         </article>
     </section>
 
@@ -125,17 +128,29 @@
             <h3>Contrôle sans fonds</h3>
             <p class="muted">Le test numéro reste dans l’onglet Flux et compose uniquement <code>*825*3*3#</code>. Commencez toujours par lui après une installation ou un changement de Robot.</p>
         </article>
-        <article class="panel roadmap-card">
+        <article class="panel module-card">
             <p class="eyebrow">DIAGNOSTIC RAPIDE</p>
             <p id="supportStatus" class="muted">Aucun blocage local détecté.</p>
             <p class="muted">Si une commande reste PENDING, ne la recréez pas : relevez son identifiant, l’état ONLINE/OFFLINE/STALE et la notification du Robot.</p>
+            <div class="module-actions">
+                <button type="button" class="secondary" data-native-action="server-health">Vérifier le serveur</button>
+                <button type="button" class="secondary" data-native-action="go-test">Ouvrir le test sans fonds</button>
+            </div>
+            <p id="serverHealthStatus" class="health-line muted">Serveur non vérifié pendant cette ouverture.</p>
         </article>
-        <article class="panel roadmap-card">
-            <p class="eyebrow">SUITE DU CAHIER</p>
-            <p class="muted">Sandbox USSD encadrée, guide intégré et assistance seront développés après stabilisation terrain de cette navigation.</p>
+        <article class="panel module-card">
+            <p class="eyebrow">GUIDE INTÉGRÉ</p>
+            <p class="muted">Installation : vérifier le serveur, accorder les autorisations, lier la SIM, enregistrer le PIN, démarrer le Robot puis lancer le test numéro avant tout montant réel.</p>
         </article>
     </section>
 </main>
+<nav class="module-tabs" aria-label="Modules Blue Magic">
+    <button type="button" class="module-tab" data-tab="reports"><span class="module-icon">▥</span><span>Rapports</span></button>
+    <button type="button" class="module-tab" data-tab="fleet"><span class="module-icon">♧</span><span>Flotte</span></button>
+    <button type="button" class="module-tab module-tab-primary active" data-tab="flux"><span class="module-icon">⚡</span><span>Flux</span></button>
+    <button type="button" class="module-tab" data-tab="config"><span class="module-icon">⚙</span><span>Robot</span></button>
+    <button type="button" class="module-tab" data-tab="support"><span class="module-icon">◇</span><span>SAV</span></button>
+</nav>
 <div id="toast" class="toast hidden" role="status"></div>
 <script src="app.js"></script>
 </body>

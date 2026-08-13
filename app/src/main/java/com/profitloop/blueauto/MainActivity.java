@@ -4,6 +4,7 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.KeyguardManager;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -49,6 +50,8 @@ import java.util.UUID;
 import javax.net.ssl.SSLException;
 
 public class MainActivity extends Activity {
+    static final String ACTION_PREPARE_INSECURE_USSD =
+            "com.profitloop.blueauto.action.PREPARE_INSECURE_USSD";
     private static final int REQUEST_CORE_PERMISSIONS = 550;
     private static final int GOLD = Color.rgb(255, 205, 92);
     private static final int CYAN = Color.rgb(78, 225, 255);
@@ -70,6 +73,42 @@ public class MainActivity extends Activity {
         applyRobotWindowPolicy();
         if (AppConfig.isPaired(this)) showControlScreen();
         else showPairingScreen(false);
+        requestSimpleKeyguardDismissal(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        requestSimpleKeyguardDismissal(intent);
+    }
+
+    /**
+     * The Robot may bring this normal activity to the foreground only for a swipe/no-credential
+     * keyguard. There is deliberately no secret-covering overlay: Android opens the phone surface,
+     * then its own verified USSD prompt stays visible while Accessibility writes and validates it.
+     */
+    private void requestSimpleKeyguardDismissal(Intent intent) {
+        if (intent == null || !ACTION_PREPARE_INSECURE_USSD.equals(intent.getAction())) return;
+        intent.setAction(null);
+        if (DeviceLockState.isSecurelyLocked(this) || !DeviceLockState.isInsecurelyLocked(this)) return;
+        if (Build.VERSION.SDK_INT >= 27) {
+            setTurnScreenOn(true);
+        } else {
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
+        }
+        getWindow().getDecorView().postDelayed(() -> {
+            if (DeviceLockState.isSecurelyLocked(this)
+                    || !DeviceLockState.isInsecurelyLocked(this)) return;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                KeyguardManager manager = (KeyguardManager) getSystemService(KEYGUARD_SERVICE);
+                if (manager != null) {
+                    manager.requestDismissKeyguard(this, new KeyguardManager.KeyguardDismissCallback() {});
+                }
+            } else {
+                DeviceLockState.dismissInsecureKeyguard(this);
+            }
+        }, 180L);
     }
 
     private void showPairingScreen(boolean addingAccount) {
@@ -388,6 +427,11 @@ public class MainActivity extends Activity {
 
         ScrollView toolsScroll = new ScrollView(this);
         toolsScroll.setFillViewport(false);
+        toolsScroll.setVerticalScrollBarEnabled(true);
+        toolsScroll.setScrollbarFadingEnabled(false);
+        toolsScroll.setScrollBarStyle(View.SCROLLBARS_INSIDE_INSET);
+        toolsScroll.setVerticalFadingEdgeEnabled(true);
+        toolsScroll.setFadingEdgeLength(dp(26));
         LinearLayout tools = new LinearLayout(this);
         tools.setOrientation(LinearLayout.VERTICAL);
         tools.setPadding(dp(2), dp(3), dp(2), dp(5));
@@ -404,6 +448,13 @@ public class MainActivity extends Activity {
         accountButtons.addView(addAccount, weighted());
         accountButtons.addView(verifySim, weighted());
         tools.addView(accountButtons);
+
+        Button pinSettings = actionButton("🔐 MODIFIER LE PIN CAMTEL", GOLD);
+        if (AppConfig.isRobotMode(this)) tools.addView(pinSettings);
+
+        TextView scrollHint = help("Faites défiler ce panneau : la barre à droite indique les autres réglages.");
+        scrollHint.setTextColor(CYAN);
+        tools.addView(scrollHint);
 
         LinearLayout buttons = new LinearLayout(this);
         buttons.setOrientation(LinearLayout.HORIZONTAL);
@@ -423,15 +474,6 @@ public class MainActivity extends Activity {
         Button pendingOperations = actionButton("FILES / ANNULER UNE OPÉRATION BLOQUÉE", GOLD);
         tools.addView(pendingOperations);
 
-        LinearLayout pinRow = new LinearLayout(this);
-        pinRow.setOrientation(LinearLayout.HORIZONTAL);
-        EditText newPin = field("Nouveau PIN (4 chiffres)", "", true);
-        newPin.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
-        Button savePin = actionButton("ENREGISTRER PIN", GOLD);
-        pinRow.addView(newPin, weighted());
-        pinRow.addView(savePin, weighted());
-        if (AppConfig.isRobotMode(this)) tools.addView(pinRow);
-
         webView = new WebView(this);
         webView.setBackgroundColor(BACKGROUND);
         page.addView(webView, new LinearLayout.LayoutParams(
@@ -441,13 +483,13 @@ public class MainActivity extends Activity {
         accounts.setOnClickListener(v -> showAccountManager());
         manageButton.setOnClickListener(v -> {
             boolean opening = managementPanel.getVisibility() != View.VISIBLE;
-            managementPanel.setVisibility(opening ? View.VISIBLE : View.GONE);
-            manageButton.setText(opening ? "✕ FERMER" : "☰ GÉRER");
+            setManagementOpen(opening);
         });
         addAccount.setOnClickListener(v -> {
             showPairingScreen(true);
         });
         verifySim.setOnClickListener(v -> confirmAndBindCurrentSim());
+        pinSettings.setOnClickListener(v -> showPinEditorDialog());
 
         prepare.setOnClickListener(v -> prepareRobotPermissions());
         switchMode.setOnClickListener(v -> showModeSwitcher());
@@ -471,19 +513,6 @@ public class MainActivity extends Activity {
             }
             applyRobotWindowPolicy();
             refreshNativeStatus();
-        });
-
-        savePin.setOnClickListener(v -> {
-            String value = newPin.getText().toString().trim();
-            try {
-                SecurePinStore.save(this, value);
-                AppConfig.setPinBlocked(this, false);
-                newPin.setText("");
-                toast("PIN chiffré enregistré. Arrêt d’urgence levé.");
-                refreshNativeStatus();
-            } catch (Exception error) {
-                toast(readable(error));
-            }
         });
 
         WebSettings settings = webView.getSettings();
@@ -537,6 +566,73 @@ public class MainActivity extends Activity {
         });
         webView.loadUrl("file:///android_asset/index.html");
         refreshNativeStatus();
+    }
+
+    private void setManagementOpen(boolean opening) {
+        if (managementPanel == null) return;
+        managementPanel.setVisibility(opening ? View.VISIBLE : View.GONE);
+        if (manageButton != null) manageButton.setText(opening ? "✕ FERMER" : "☰ GÉRER");
+        if (opening && managementPanel instanceof ScrollView) {
+            ScrollView scroll = (ScrollView) managementPanel;
+            scroll.post(() -> scroll.smoothScrollTo(0, 0));
+        }
+    }
+
+    private void showPinEditorDialog() {
+        if (!AppConfig.isRobotMode(this)) {
+            toast("Entrez d’abord dans le hall Robot pour enregistrer son PIN local.");
+            return;
+        }
+        if (!canModifyActiveProfile()) return;
+
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(20), dp(8), dp(20), 0);
+
+        TextView explanation = help("Ce PIN reste chiffré dans ce téléphone. Il n’est jamais envoyé au serveur ni au JavaScript.");
+        explanation.setTextColor(Color.DKGRAY);
+        content.addView(explanation);
+
+        EditText pin = field("Nouveau PIN Camtel (4 chiffres)", "", true);
+        pin.setTextColor(Color.BLACK);
+        pin.setHintTextColor(Color.DKGRAY);
+        pin.setBackgroundColor(Color.rgb(238, 243, 250));
+        pin.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+        content.addView(pin);
+
+        CheckBox reveal = new CheckBox(this);
+        reveal.setText("Afficher le PIN pendant la saisie");
+        reveal.setTextColor(Color.DKGRAY);
+        reveal.setOnCheckedChangeListener((button, checked) -> {
+            pin.setInputType(InputType.TYPE_CLASS_NUMBER | (checked
+                    ? InputType.TYPE_NUMBER_VARIATION_NORMAL
+                    : InputType.TYPE_NUMBER_VARIATION_PASSWORD));
+            pin.setSelection(pin.length());
+        });
+        content.addView(reveal);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("PIN Camtel — " + AppConfig.nodeCode(this))
+                .setView(content)
+                .setPositiveButton("ENREGISTRER", null)
+                .setNegativeButton("Annuler", null)
+                .create();
+        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                .setOnClickListener(v -> {
+                    String value = pin.getText().toString().trim();
+                    try {
+                        SecurePinStore.save(this, value);
+                        AppConfig.setPinBlocked(this, false);
+                        pin.setText("");
+                        dialog.dismiss();
+                        toast("PIN chiffré enregistré. Arrêt d’urgence levé.");
+                        refreshNativeStatus();
+                    } catch (Exception error) {
+                        pin.setError(readable(error));
+                        pin.requestFocus();
+                    }
+                }));
+        dialog.show();
     }
 
     private void showAccountManager() {
@@ -1205,14 +1301,52 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public void stopRobot() {
-            runOnUiThread(() -> RobotService.stop(MainActivity.this));
+            runOnUiThread(() -> {
+                RobotService.stop(MainActivity.this);
+                refreshNativeStatus();
+            });
+        }
+
+        @JavascriptInterface
+        public void openManagement() {
+            runOnUiThread(() -> setManagementOpen(true));
+        }
+
+        @JavascriptInterface
+        public void openAccounts() {
+            runOnUiThread(() -> showAccountManager());
+        }
+
+        @JavascriptInterface
+        public void openPinSettings() {
+            runOnUiThread(() -> showPinEditorDialog());
+        }
+
+        @JavascriptInterface
+        public void verifySim() {
+            runOnUiThread(() -> confirmAndBindCurrentSim());
+        }
+
+        @JavascriptInterface
+        public void prepareRobotPermissions() {
+            runOnUiThread(() -> MainActivity.this.prepareRobotPermissions());
+        }
+
+        @JavascriptInterface
+        public void checkServerHealth() {
+            new Thread(() -> {
+                try {
+                    callback("onServerHealth", new ApiClient(MainActivity.this).health());
+                } catch (Exception error) {
+                    callbackError("onServerHealth", error);
+                }
+            }).start();
         }
 
         @JavascriptInterface
         public void setFormEditing(boolean editing) {
             runOnUiThread(() -> {
-                if (managementPanel != null) managementPanel.setVisibility(View.GONE);
-                if (manageButton != null) manageButton.setText("☰ GÉRER");
+                setManagementOpen(false);
                 if (nativeStatus != null) nativeStatus.setVisibility(editing ? View.GONE : View.VISIBLE);
             });
         }

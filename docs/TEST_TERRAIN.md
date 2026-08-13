@@ -1,15 +1,20 @@
 # Protocole de test terrain — avant argent réel
 
-## Gate 0 — installation et diagnostic v2.6.5
+## Gate 0 — mise à jour v2.6.5 → v2.6.6
 
-1. Depuis la v2.6.4 permanente actuellement installée, installer la v2.6.5 **par-dessus**, sans désinstallation, puis confirmer `2.6.5 • versionCode 45`. La CI doit avoir réussi la mise à jour v2.6.4→v2.6.5 sur API 23, 26, 30 et 36 avec conservation des données. Si le téléphone refuse encore, ne pas désinstaller : relever la version installée, le modèle, Android et le message exact.
-2. Toucher **VÉRIFIER LE SERVEUR** avant de saisir un secret.
-3. Noter le code affiché : `SERVER_CHECK_OK` confirme HTTPS, le Worker et D1 depuis le téléphone ; `NETWORK_DNS`, `NETWORK_TIMEOUT`, `NETWORK_TLS` ou `NETWORK_CONNECT` isole le réseau Android.
-4. Remplir le formulaire puis toucher **APPAIRER CE TÉLÉPHONE**.
-5. Photographier le dialogue et son code exact si l’appairage échoue. Aucun secret ne doit apparaître dans la photo.
-6. Ne poursuivre vers un test financier qu’après `PAIRING_COMPLETE` et l’ouverture de l’écran de contrôle.
+1. Depuis la v2.6.5 permanente actuellement installée, installer la v2.6.6 **par-dessus**, sans désinstallation, puis confirmer `2.6.6 • versionCode 46`. La CI doit avoir réussi la mise à jour v2.6.5→v2.6.6 sur API 23, 26, 30 et 36 avec conservation des données.
+2. Sur Android 11 en particulier, si l’installation directe échoue, ne pas multiplier immédiatement les désinstallations : photographier le message, relever la version installée, le modèle et l’espace libre, puis tester la même APK une seconde fois. Une désinstallation efface les comptes locaux et empêche de prouver la compatibilité de mise à jour.
+3. Dans l’écran principal, ouvrir **SAV → Vérifier le serveur**. Le résultat doit indiquer `blue-magic-api`, `2.6.5-cloudflare` et D1 `online`.
+4. Ne supprimer ni ne recréer un compte existant pour ce test ; vérifier que ses données, son mode et son slot sont conservés.
 
-Si le compte est déjà appairé, ne le supprimez pas et ne saisissez aucun secret : ouvrez directement l’écran de contrôle.
+## Gate 0B — ergonomie et modules v2.6.6
+
+1. Vérifier que le nœud actif reste en haut et que les cinq modules sont dans le dock flottant inférieur, avec **Flux** au centre.
+2. Ouvrir successivement Rapports, Flotte, Flux, Robot et SAV. Aucun écran ne doit être vide ni déplacer les cartes financières hors de Flux.
+3. Dans **Gérer**, vérifier que **MODIFIER LE PIN CAMTEL** est visible avant Autorisations, que la barre de défilement latérale reste visible et que le texte signale les autres réglages.
+4. Ouvrir le réglage PIN, saisir quatre chiffres dans l’environnement surveillé, contrôler la case d’affichage volontaire puis annuler. Le PIN réel ne doit jamais figurer dans une capture de test.
+5. Dans Flotte, vérifier que **Comptes et slots** et **Vérifier / lier la SIM** ouvrent les écrans natifs attendus. Dans Robot, vérifier Autorisations, PIN et Gérer. Dans SAV, vérifier la santé du serveur et le renvoi vers le test sans fonds.
+6. Lorsque le clavier d’un montant ou numéro est ouvert, le dock inférieur doit disparaître ; il doit revenir après fermeture du clavier.
 
 ## Gate 1 — rétablissement de `TEST_NUMBER` sans fonds
 

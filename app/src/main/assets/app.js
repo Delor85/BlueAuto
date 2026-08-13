@@ -10,7 +10,8 @@
         onCommandPreview:function(data){handlePreview(data);},
         onCommandCreated:function(data){setBusy(false);pendingPreview=null;if(data.error){showActionError(data);return;}clearActionError();var command=data.command||{};if(!command.public_id){showActionError({code:'INVALID_RESPONSE',message:'Réponse serveur incomplète.'});return;}upsert(command);render();if(command.robot_ready===false){showActionProgress((command.robot_status||'ROBOT_OFFLINE')+' — '+(command.robot_message||'Commande créée, mais le Robot ne communique pas encore.'));showToast('Commande créée, mais Robot hors ligne.');return;}showActionProgress('Commande créée. Le Robot détenteur de la SIM est connecté et va la prendre.');showToast(data.duplicate?'Cette demande existait déjà.':'Commande créée et transmise au Robot exact.');},
         onCommandStatus:function(data){if(data&&data.command){upsert(data.command);render();}},
-        onCommandCancelled:function(data){if(data.error){showToast(data.message||'Annulation impossible.');return;}if(data.command){upsert(data.command);render();showToast('Commande annulée.');}}
+        onCommandCancelled:function(data){if(data.error){showToast(data.message||'Annulation impossible.');return;}if(data.command){upsert(data.command);render();showToast('Commande annulée.');}},
+        onServerHealth:function(data){var line=byId('serverHealthStatus');if(data&&data.error){line.textContent=(data.code||'SERVER_ERROR')+' — '+(data.message||'Serveur inaccessible.');line.className='health-line notice-danger';showToast('Serveur inaccessible.');return;}line.textContent='EN LIGNE — '+(data.service||'blue-magic-api')+' • '+(data.version||'version inconnue')+' • D1 '+(data.database||'inconnu');line.className='health-line muted';showToast('Serveur Blue Magic en ligne.');}
     };
     function initialize(){
         if(!bridge()){byId('nativeBadge').textContent='PONT ABSENT';byId('browserNotice').className='notice';return;}
@@ -32,10 +33,11 @@
         if(configuration.role==='DAE'||configuration.role==='DSM'){byId('supplyChildCard').className='panel command-card';}
         if(configuration.role==='POS'){byId('retailCard').className='panel command-card';}
         each('button[data-action]',function(button){button.onclick=function(){execute(button.getAttribute('data-action'));};});
+        each('button[data-native-action]',function(button){button.onclick=function(){runNativeAction(button.getAttribute('data-native-action'));};});
         initializeTabs();
         byId('refreshCommands').onclick=refresh;
-        document.addEventListener('focusin',function(event){if(event.target&&event.target.tagName==='INPUT'){try{window.AndroidBridge.setFormEditing(true);}catch(ignored){}}});
-        document.addEventListener('focusout',function(){window.setTimeout(function(){if(!document.activeElement||document.activeElement.tagName!=='INPUT'){try{window.AndroidBridge.setFormEditing(false);}catch(ignored){}}},180);});
+        document.addEventListener('focusin',function(event){if(event.target&&event.target.tagName==='INPUT'){document.body.className='form-editing';try{window.AndroidBridge.setFormEditing(true);}catch(ignored){}}});
+        document.addEventListener('focusout',function(){window.setTimeout(function(){if(!document.activeElement||document.activeElement.tagName!=='INPUT'){document.body.className='';try{window.AndroidBridge.setFormEditing(false);}catch(ignored){}}},180);});
         render();refresh();window.setInterval(refresh,15000);
     }
     function initializeTabs(){
@@ -48,7 +50,23 @@
         each('[data-tab-panel]',function(panel){var active=panel.getAttribute('data-tab-panel')===name;found=found||active;panel.className=active?'module-screen':'module-screen hidden';});
         if(!found&&name!=='flux'){showTab('flux');return;}
         each('button[data-tab]',function(button){button.className=button.getAttribute('data-tab')===name?'module-tab active':'module-tab';});
+        each('button[data-tab="flux"]',function(button){button.className=button.getAttribute('data-tab')===name?'module-tab module-tab-primary active':'module-tab module-tab-primary';});
         localStorage.setItem('blue_magic_active_module',name);
+        window.scrollTo(0,0);
+    }
+
+    function runNativeAction(action){
+        if(!bridge()){return;}
+        try{
+            if(action==='accounts'){window.AndroidBridge.openAccounts();}
+            else if(action==='verify-sim'){window.AndroidBridge.verifySim();}
+            else if(action==='permissions'){window.AndroidBridge.prepareRobotPermissions();}
+            else if(action==='pin'){window.AndroidBridge.openPinSettings();}
+            else if(action==='manage'){window.AndroidBridge.openManagement();}
+            else if(action==='start-robot'){window.AndroidBridge.startRobot();showToast('Contrôle du Robot lancé. Suivez le message Android.');}
+            else if(action==='server-health'){byId('serverHealthStatus').textContent='Vérification HTTPS et D1 en cours…';window.AndroidBridge.checkServerHealth();}
+            else if(action==='go-test'){showTab('flux');var test=document.querySelector('button[data-action="test-number"]');if(test&&test.parentNode&&test.parentNode.scrollIntoView){test.parentNode.scrollIntoView(true);}}
+        }catch(error){showToast('Action Android indisponible : '+error.message);}
     }
     function normalizeRole(config){
         var role=String(config.role||'').replace(/^\s+|\s+$/g,'').toUpperCase(),node,parent;
@@ -105,11 +123,14 @@
     function storageKey(){return 'blue_magic_embedded_commands_'+(configuration.profile_id||configuration.node_code||'default');}
     function render(){var html='',i,c,state,detail,time;if(!commands.length){byId('commandList').innerHTML='<p class="muted">Aucune commande sur ce téléphone.</p>';updateModuleData();return;}for(i=0;i<commands.length;i+=1){c=commands[i];state=escapeHtml(c.state||'PENDING');detail=escapeHtml(c.result_message||c.operation||'Commande');time=c.updated_at||c.created_at||'';html+='<article class="command-item"><div class="command-item-top"><span class="command-id">'+escapeHtml(c.public_id||'')+'</span><span class="command-state state-'+state+'">'+escapeHtml(labels[c.state]||c.state||'—')+'</span></div><div class="command-detail">'+detail+'</div>'+(time?'<div class="command-time">Horodatage : '+escapeHtml(formatTime(time))+'</div>':'')+(c.state==='PENDING'?'<button type="button" class="button-small secondary" data-cancel-command="'+escapeHtml(c.public_id||'')+'">Annuler cette commande</button>':'')+'</article>';}byId('commandList').innerHTML=html;each('button[data-cancel-command]',function(button){button.onclick=function(){cancelRemote(button.getAttribute('data-cancel-command'));};});updateModuleData();}
     function updateModuleData(){
-        var success=0,pending=0,i,c,start,end,duration='—',support='Aucun blocage local détecté.';
+        var success=0,pending=0,terminal=0,finance=0,i,c,start,end,duration='—',support='Aucun blocage local détecté.',last=null;
         for(i=0;i<commands.length;i+=1){
             c=commands[i];
             if(c.state==='SUCCEEDED'){success+=1;}
             if(!TERMINAL[c.state]){pending+=1;}
+            else{terminal+=1;}
+            if(c.operation&&c.operation!=='TEST_NUMBER'){finance+=1;}
+            if(!last){last=c;}
             if(duration==='—'&&c.created_at&&(c.completed_at||TERMINAL[c.state]&&c.updated_at)){
                 start=new Date(c.created_at);end=new Date(c.completed_at||c.updated_at);
                 if(!isNaN(start.getTime())&&!isNaN(end.getTime())&&end.getTime()>=start.getTime()){
@@ -121,6 +142,10 @@
         byId('metricSuccessCount').textContent=String(success);
         byId('metricPendingCount').textContent=String(pending);
         byId('metricLastDuration').textContent=duration;
+        byId('metricSuccessRate').textContent=terminal?Math.round(success*100/terminal)+' %':'—';
+        byId('metricFinanceCount').textContent=String(finance);
+        byId('reportActivityTitle').textContent=last?(labels[last.state]||last.state||'Commande locale'):'Aucune activité locale';
+        byId('reportActivityDetail').textContent=last?((last.operation||'Commande')+' • '+formatTime(last.updated_at||last.created_at||'')):'Les résultats apparaîtront ici sans exposer le PIN.';
         byId('fleetNodeStatus').textContent=(configuration.node_code||'Nœud non configuré')+' • '+(configuration.role||'—')+' • '+(configuration.mode||'—');
         byId('fleetSimStatus').textContent=configuration.mode==='ROBOT'
             ? ('SIM '+((configuration.sim_slot||0)+1)+' • '+(configuration.sim_verified?'VÉRIFIÉE':'À VÉRIFIER / LIER')+' • '+(configuration.robot_enabled?'ROBOT ACTIF':'HALL ROBOT — ARRÊTÉ'))

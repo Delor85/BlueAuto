@@ -29,7 +29,7 @@ public class BlueAccessibilityService extends AccessibilityService {
     private static final Pattern TX_ID = Pattern.compile(
             "(?i)(?:transaction\\s*id|transactionid)(?:\\s+is)?\\s*[:#-]?\\s*(\\d{6,})");
     private static final int MAX_PROMPT_RETRIES = 100;
-    private static final int MAX_PIN_WRITE_ATTEMPTS = 5;
+    private static final int MAX_PIN_WRITE_ATTEMPTS = 3;
     private static final int MAX_BUTTON_RETRIES = 24;
 
     private static volatile BlueAccessibilityService liveInstance;
@@ -182,7 +182,7 @@ public class BlueAccessibilityService extends AccessibilityService {
                     return;
                 }
                 boolean accepted = setText(refreshed.field, pin);
-                if (currentAttempt >= 2) accepted = pastePin(refreshed.field, pin) || accepted;
+                if (!accepted) accepted = pastePin(refreshed.field, pin);
                 final boolean actionAccepted = accepted;
                 handler.postDelayed(() -> verifyPinWrite(commandId, profileId,
                         currentAttempt, pin, actionAccepted), 260L);
@@ -203,8 +203,11 @@ public class BlueAccessibilityService extends AccessibilityService {
             return;
         }
         PromptTarget target = findVerifiedPrompt(command, externalRoots());
-        if (target != null && (fieldContainsPin(target.field, pin)
-                || (actionAccepted && attempt >= MAX_PIN_WRITE_ATTEMPTS - 1))) {
+        // Several Android 6/8/11 dialers accept ACTION_SET_TEXT but deliberately expose an empty
+        // or masked value back to Accessibility. A successful Android action on the already
+        // verified Camtel prompt is therefore sufficient proof; waiting for the last retry made
+        // the old code spin even though the PIN had been written.
+        if (target != null && (fieldContainsPin(target.field, pin) || actionAccepted)) {
             markPinReady(commandId, profileId);
             return;
         }

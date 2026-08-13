@@ -4,7 +4,67 @@ Ce document permet à un autre développeur ou agent de reprendre Blue Magic san
 
 Il est volontairement plus complet qu'une simple note de version. En cas de contradiction avec une réponse de conversation, le code publié, les preuves GitHub Actions, l'état Cloudflare et les limites écrites ici priment.
 
-## 0. Résumé de la reprise v2.6.4 au 13 août 2026
+## 0A. Journal de reprise v2.6.6 — 13 août 2026
+
+### Retour du propriétaire conservé comme preuve terrain
+
+- La v2.6.5 a pu être installée et ouverte sous Android 11 après plusieurs essais avec désinstallations/réinstallations. Ce n’est pas une preuve de mise à jour directe fiable sur ce modèle.
+- Les autres versions Android essayées ont accepté la mise à jour.
+- Le message qui attribue correctement l’échec financier à l’Accessibilité ou aux autorisations manquantes du Robot est jugé utile et doit rester.
+- Le propriétaire ne demande pas de réécrire le moteur financier. Tout comportement non critiqué reste un acquis, notamment Test/Achat/Vente, Remote/Robot, confirmation 1/2, contrôle de la SIM et refus d’un slot déjà occupé par une autre SIM.
+
+### Problèmes demandés
+
+1. Le réglage du PIN se trouvait tout en bas d’un panneau **Gérer** haut de 260 dp, sans indicateur de défilement assez évident.
+2. Sous un verrou simple sans mot de passe, le dialogue Camtel pouvait être présent mais la saisie semblait tourner : le dialer acceptait parfois `ACTION_SET_TEXT` tout en masquant ou en ne réexposant pas la valeur à l’Accessibilité ; l’ancienne logique attendait alors la dernière des cinq tentatives.
+3. Le réveil et le retrait temporaire du verrou simple avaient lieu trop près de la composition. Certains OEM avaient besoin que l’activité normale devienne visible et que le keyguard soit réellement libéré avant l’ouverture USSD.
+4. Les cinq onglets, encore placés entre le nœud actif et les opérations, occupaient une zone de lecture importante et les modules hors Flux contenaient surtout des annonces.
+
+### Décisions et modifications v2.6.6 locales
+
+- Version : `2.6.6`, `versionCode 46`, Android 6.0+ inchangé.
+- **Gérer** : barre verticale persistante, fading edge et texte d’indice ; **MODIFIER LE PIN CAMTEL** devient le premier réglage Robot et ouvre une fenêtre dédiée avec affichage volontaire possible.
+- Verrou simple : réveiller l’écran, désactiver seulement le keyguard sans identifiant, demander à Android 8+ de le libérer via l’activité normale si nécessaire, attendre la surface interactive, puis composer. Ne jamais utiliser cette voie pour un PIN, schéma, mot de passe ou verrou biométrique Android.
+- PIN : après concordance du bénéficiaire et du montant, un retour vrai de `ACTION_SET_TEXT` ou du collage local temporaire suffit comme preuve d’écriture même si le dialer garde le champ vide/masqué pour l’Accessibilité. Il n’existe aucun overlay Blue Magic et aucune prétendue dissimulation du PIN à l’écran.
+- Fin de transaction : conserver le wake lock de l’écran jusqu’au résultat/finalisation ; restaurer ensuite le verrou simple. Le PIN reste chiffré localement et n’est jamais journalisé ou transmis.
+- Navigation : dock inférieur flottant à cinq entrées, Flux au centre ; dock caché pendant la saisie clavier pour ne pas recouvrir les formulaires.
+- Modules activés sans changer le protocole financier : rapports locaux, accès Comptes/SIM dans Flotte, commandes sûres du hall Robot, santé serveur et accès au test sans fonds dans SAV.
+- Backend : aucune modification du Worker, aucune migration D1. La production reste `2.6.5-cloudflare` tant que l’API n’a pas de besoin fonctionnel nouveau.
+- CI : la matrice doit désormais tester la mise à jour v2.6.5 → v2.6.6 sur API 23, 26, 30 et 36 et conserver un marqueur de données. Le test Android 11 reste obligatoire.
+- Livraison APK : si les secrets permanents ne sont toujours pas disponibles dans GitHub, le workflow peut exporter l’APK interne une seule fois, uniquement sur la branche de reprise et pour le message exact du commit v2.6.6, avec une rétention d’un jour. Télécharger une fois, re-signer hors dépôt, vérifier, puis supprimer immédiatement cette étape et ne jamais relancer le run complet.
+
+### Invariants explicitement non modifiés
+
+- ne jamais réintroduire une route `PhoneAccount` parfaite comme prérequis au démarrage ou au lease ;
+- ne pas toucher à la prévisualisation, à la confirmation 1/2, à l’idempotence, au FIFO, au lease ou au résultat `UNKNOWN` ;
+- `TEST_NUMBER` reste sans PIN et sans Accessibilité ;
+- une finance reste interdite si PIN/Accessibilité/permissions manquent ;
+- un Remote, une SIM différente ou une preuve de slot invalide ne peut pas éjecter un Robot vivant ;
+- aucune modification de schéma D1, de secret ou de clé de signature n’est incluse.
+
+### État de preuve au moment de cette écriture
+
+- `node app/src/test/finance-flow.mjs` : réussi ;
+- syntaxe JavaScript : réussie ;
+- `git diff --check` : réussi ;
+- compilation Java/Android, matrice API 23/26/30/36, signature APK et test réel Camtel sous verrou simple : encore à exécuter ; ne pas les présenter comme réussis avant leurs preuves.
+
+## 0. Résumé de la reprise v2.6.5 au 13 août 2026
+
+- Le propriétaire a autorisé explicitement la mise en index, le commit et le push de la v2.6.5 sur `fix/blue-magic-v2-6-recovery`/PR `#4`, son déploiement unique sans migration D1, l'export interne unique, la re-signature permanente et la livraison. Il a ensuite autorisé explicitement la publication publique, dans son dépôt `Delor85/BlueAuto`, de la procédure interne, des états, des scénarios de test et des workflows contenus dans le commit local `c7dbce4`.
+- Le commit GitHub publié est `c7b9404e22e8c314f95723105b2e474e2b21194c`. Son arbre `43cfc0fdb69c2ac7e504cd58d1508fb432eded47` est exactement celui du commit local autorisé `c7dbce4`; l'identifiant du commit diffère uniquement parce que l'objet a été recréé par l'API GitHub avec ses propres métadonnées.
+- Le commit de nettoyage distant est `9b1d35f05630effa5e1683bfaa3da2195691ed61`, HEAD de la PR `#4` ouverte et non fusionnée. Il supprime le marqueur et le workflow Cloudflare ponctuels. Son message contient `[skip ci]`, donc il n'a déclenché aucun nouveau build, export ou déploiement.
+- Le Worker de production `blue-magic-api` exécute maintenant `2.6.5-cloudflare` avec D1 `blue-magic` en ligne. Version Cloudflare : `b2cc65a1-9d86-4d37-8d18-9e48b746e90e`.
+- Le workflow Cloudflare `31710676858` a réussi les tests, le dry-run, la vérification `No migrations to apply!` et le déploiement. Son contrôle de santé immédiat a seul échoué en lisant encore `2.6.4` pendant la propagation ; le contrôle indépendant suivant a confirmé `2.6.5-cloudflare` et D1 `online`.
+- Le build GitHub Actions est le run `31710676903`. L'artefact interne unique `Blue-Magic-v2.6.5-Internal-Resign`, identifiant `9185102053`, a été créé le 13 août à 14:32 UTC et expire le 14 août à 14:32 UTC.
+- API 23 (Android 6) et API 26 (Android 8) ont validé la mise à jour v2.6.4 → v2.6.5 avec conservation du fichier de données. Les trois échecs ont été relancés une fois, sans recréer l'artefact interne. Sur API 30 et 36, le runner très ralenti a renvoyé `Status: timeout` ou `Broken pipe` pendant le lancement de la v2.6.4 de référence, donc avant l'installation v2.6.5. Le job de lancement Android 11 a installé l'APK avec succès mais le gestionnaire Activity a immédiatement renvoyé une fois `MainActivity does not exist`, en contradiction avec le manifeste décodé. Aucun de ces journaux ne contient un crash Blue Magic, mais Android 11/36 ne sont pas validés pour la v2.6.5. Une correction du harnais a été préparée localement puis écartée de la publication, car l'autorisation publique visait exactement les workflows de `c7dbce4`.
+- L'APK finale est `Blue-Magic-v2.6.5-Hall-SIM-Tabs-Release.apk`, paquet `com.profitloop.blueauto`, `versionName 2.6.5`, `versionCode 45`, `minSdk 23` et `targetSdk 34`.
+- Son SHA-256 est `5b95a1bf61f397b3e1f4fe81328ccddda2e011704c18c13e955e7bda6b023384`. Sa taille est 115 522 octets. Les signatures v1/v2/v3 sont valides et le certificat permanent RSA 4096 a l'empreinte `f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5`, identique à la v2.6.4.
+- Le déclencheur et le workflow de déploiement ponctuels ont été supprimés après usage. La suppression de l'étape d'export dans `build.yml` a été préparée localement mais sa publication a été refusée, car elle modifierait un workflow au-delà du contenu public exactement autorisé. L'étape distante reste bornée au message exact du commit de remise : aucun futur commit ordinaire ne peut l'activer. Ne jamais relancer le run complet `31710676903`; une nouvelle autorisation explicite de publication de `build.yml` permettra de la retirer définitivement.
+- La validation terrain Test/Achat/Vente en moins de 30 secondes reste celle de la v2.6.4. La v2.6.5 doit d'abord être installée par-dessus, sans désinstallation, puis valider `TEST_NUMBER` avant tout essai financier supervisé.
+- La version publique GitHub de cette procédure reste celle exactement autorisée dans `c7dbce4`. Les résultats postérieurs ont été refusés à la publication publique faute d'autorisation distincte ; la présente version finale est conservée dans l'espace durable du propriétaire et constitue la relève complète.
+
+## 0.1 Socle v2.6.4 conservé
 
 - Le Worker de production `blue-magic-api` exécute `2.6.4-cloudflare` avec D1 `blue-magic` en ligne.
 - L'APK permanente livrée est `Blue-Magic-v2.6.4-Remote-Robot-Release.apk`.
@@ -16,7 +76,7 @@ Il est volontairement plus complet qu'une simple note de version. En cas de cont
 - Le retour terrain du 13 août confirme que Test, Achat et Vente fonctionnent en Remote et Robot, avec une durée observée inférieure ou égale à 30 secondes.
 - La PR `#4` reste ouverte et non fusionnée jusqu'à la répétition de ce verdict terrain avec la v2.6.5.
 
-## 0.1 Retour terrain v2.6.4 et chantier ciblé v2.6.5
+## 0.2 Retour terrain v2.6.4 et chantier ciblé v2.6.5
 
 Le propriétaire a validé le cœur v2.6.4 sur de vraies SIM Camtel : opérations financières et test réussis en Remote comme en Robot. Cet acquis devient le nouveau socle de non-régression.
 
@@ -27,7 +87,7 @@ Quatre limites ont ensuite été constatées :
 3. supprimer localement un compte Robot pouvait retirer son jeton avant la confirmation d'arrêt serveur et créer un propriétaire fantôme récent ;
 4. installation/mise à jour : Android 8 a accepté la mise à jour directe, Android 6.0.1 a exigé une désinstallation et Android 11 a accepté v2.6.4 après installation intermédiaire de v2.6.2.
 
-La v2.6.5 est le lot minimal préparé pour ces cas. Elle ne modifie ni la création financière, ni la confirmation, ni la FIFO, ni le routage USSD validé. Son Worker source n'est pas à considérer actif tant que `/health` reste `2.6.4-cloudflare`.
+La v2.6.5 est le lot minimal publié pour ces cas. Elle ne modifie ni la création financière, ni la confirmation, ni la FIFO, ni le routage USSD validé. Son Worker est actif depuis que le contrôle indépendant de `/health` renvoie `2.6.5-cloudflare` et D1 `online`.
 
 ## Partie I — mémoire complète depuis le début du projet
 
@@ -687,13 +747,13 @@ Le système ne doit être déclaré opérationnel avec argent réel qu’après 
 - test sans fonds sur les téléphones physiques : oui, confirmé par le propriétaire ;
 - opérations Camtel supervisées : oui, Achat et Vente validés en Remote et Robot, en 30 secondes au maximum.
 
-### État de ces critères pour v2.6.5 avant autorisation de publication
+### État de ces critères pour v2.6.5 après publication autorisée
 
-- correctifs locaux ciblés et navigation initiale à cinq modules : prêts ;
-- tests JavaScript/Android invariants, Worker/D1 et format du diff : verts localement ;
-- compilation APK et matrice de mise à jour API 23/26/30/36 : à exécuter en CI ;
-- commit/push et mise à jour de la PR : non effectués ;
-- Worker 2.6.5 en production : non, production encore 2.6.4 ;
-- migration D1 : aucune nécessaire et aucune autorisée ;
-- APK permanente v2.6.5 : non produite ni livrée ;
+- correctifs ciblés et navigation initiale à cinq modules : publiés sur la PR `#4` ;
+- tests JavaScript/Android invariants, Worker/D1 et format du diff : verts localement et dans la CI ;
+- compilation APK : réussie ; mise à jour API 23/26 réussie ; API 30/36 non conclue à cause des délais et erreurs du gestionnaire Activity de l'émulateur avant la v2.6.5 ;
+- commit/push et mise à jour de la PR : effectués, arbre identique au commit local autorisé ;
+- Worker 2.6.5 en production : oui, version Cloudflare `b2cc65a1-9d86-4d37-8d18-9e48b746e90e` ;
+- migration D1 : aucune appliquée, `No migrations to apply!` ;
+- APK permanente v2.6.5 : produite, re-signée et vérifiée ;
 - test terrain v2.6.5 : à répéter après livraison, en commençant sans fonds.

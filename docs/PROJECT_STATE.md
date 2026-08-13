@@ -1,8 +1,52 @@
-# ÉTAT DU PROJET — v2.6.4 EN PRODUCTION / v2.6.5 PRÉPARÉE
+# ÉTAT DU PROJET — v2.6.6 EN PRÉPARATION / v2.6.5 EN PRODUCTION
 
 État vérifié le 13 août 2026. La reprise doit commencer ici puis continuer dans `docs/PROCEDURE_REPRISE_EXTERNE.md`, qui contient le cahier des charges synthétisé, l'historique complet, les causes de régression, la procédure et les limites terrain.
 
-## 0. Chantier v2.6.5 préparé après validation terrain
+## 0A. Reprise v2.6.6 — demande, retour terrain et état réel
+
+Retour terrain reçu après la livraison v2.6.5 :
+
+- Android 11 a finalement accepté l’installation, mais seulement après plusieurs essais, désinstallations et réinstallations ; ce résultat prouve que l’APK peut s’ouvrir sur ce téléphone, pas encore que la mise à jour directe y est fiable ;
+- les autres versions Android essayées acceptent la mise à jour ;
+- le diagnostic qui explique qu’une finance échoue lorsque l’Accessibilité ou les autorisations du Robot manquent est approuvé et doit être conservé ;
+- Test, Achat et Vente, le trajet Remote → Worker/D1 → Robot, la confirmation 1/2, la propriété SIM/slot et le remplacement encadré d’un Robot fantôme restent des acquis à ne pas réécrire.
+
+Demande ciblée v2.6.6 : rendre le réglage PIN immédiatement accessible dans **Gérer**, corriger l’insertion/validation du PIN sous verrou simple sans voile de confidentialité, repositionner les cinq onglets dans une navigation ergonomique et commencer à rendre chaque module utile, sans régression financière.
+
+État local avant publication :
+
+- version Android préparée : `2.6.6`, code `46`, `minSdk 23`, `targetSdk 34` ;
+- le réglage **MODIFIER LE PIN CAMTEL** est placé avant Autorisations et ouvre un dialogue dédié ; le panneau **Gérer** affiche une barre de défilement persistante et un indice explicite ;
+- le verrou simple est traité avant la composition : réveil de l’écran, retrait temporaire du keyguard sans identifiant, ouverture de l’activité normale si l’OEM l’exige, stabilisation de la fenêtre puis appel USSD ; un verrou sécurisé n’est jamais contourné ;
+- aucun overlay Blue Magic ne masque le dialogue Camtel ; le PIN peut être visible physiquement pendant l’insertion, tout en restant absent des journaux, du JavaScript, du Worker et de D1 ;
+- lorsque le dialer Android confirme `ACTION_SET_TEXT` mais ne réexpose pas la valeur du champ, cette confirmation devient la preuve de saisie au lieu de provoquer cinq tentatives et une boucle apparente ;
+- l’écran reste réveillé jusqu’au résultat ou à la fin de la commande, puis le verrou simple est restauré ;
+- les onglets deviennent un dock inférieur flottant : Flux est central, le nœud actif reste dégagé et le dock disparaît pendant l’édition d’un formulaire ;
+- Rapports calcule les indicateurs locaux, Flotte ouvre Comptes/SIM, Robot ouvre Autorisations/PIN/Gérer/Démarrer, SAV contrôle le serveur et renvoie vers le test sans fonds ;
+- aucun changement Worker, D1, protocole financier, élection Robot ou migration n’est nécessaire pour cette tranche ; le Worker `2.6.5-cloudflare` reste compatible ;
+- si les secrets GitHub restent absents, un export interne est autorisé uniquement pour le commit au message exact `release: Blue Magic v2.6.6 ergonomics and simple-lock PIN`, avec conservation d’un jour ; il doit être téléchargé une fois, re-signé avec la clé permanente hors dépôt, puis retiré du workflow ;
+- test statique/local `app/src/test/finance-flow.mjs` et `git diff --check` : réussis ; compilation Android et matrice de mise à jour v2.6.5 → v2.6.6 : à exécuter en CI avant livraison.
+
+Autorisation reçue : le propriétaire autorise les actions utiles à la livraison complète. Cette autorisation ne permet jamais d’exposer un secret, de contourner un verrou sécurisé, de modifier D1 sans besoin démontré ou d’affirmer un test terrain non réalisé.
+
+## 0. Livraison v2.6.5 autorisée et exécutée
+
+Le propriétaire a autorisé le commit/push sur `fix/blue-magic-v2-6-recovery`/PR `#4`, un déploiement unique de `2.6.5-cloudflare` sans migration D1, un export interne unique, la re-signature permanente et la livraison. Il a ensuite autorisé explicitement la publication publique des documents et workflows du commit local `c7dbce4` dans son dépôt public `Delor85/BlueAuto`.
+
+- Commit GitHub : `c7b9404e22e8c314f95723105b2e474e2b21194c` ; arbre `43cfc0fdb69c2ac7e504cd58d1508fb432eded47`, identique au commit local autorisé `c7dbce4`.
+- Commit de nettoyage distant : `9b1d35f05630effa5e1683bfaa3da2195691ed61`, HEAD de la PR `#4`, ouverte et non fusionnée. Aucun run n'a été créé pour ce commit `[skip ci]`.
+- Run build : `31710676903` ; artefact interne unique `9185102053`, expiration le 14 août 2026 à 14:32 UTC.
+- Résultat final de matrice : mise à jour et conservation des données réussies sur API 23/Android 6 et API 26/Android 8. Les jobs API 30 et 36 ont été relancés une fois, mais `am start -W` a encore expiré sur la v2.6.4 de référence avant l'installation v2.6.5. Le job de lancement Android 11 a installé l'APK, puis le gestionnaire Activity a renvoyé `MainActivity does not exist` alors que cette activité est présente dans le manifeste décodé. Aucun crash Blue Magic n'est consigné, mais Android 11/36 restent à valider sur téléphone pour la v2.6.5. Une amélioration locale du harnais a été écartée de la publication parce que l'autorisation publique visait exactement les workflows de `c7dbce4`.
+- Run Cloudflare : `31710676858` ; aucun fichier de migration en attente, aucune migration appliquée.
+- Worker actif : `2.6.5-cloudflare`, D1 `online`, version Cloudflare `b2cc65a1-9d86-4d37-8d18-9e48b746e90e`.
+- APK finale : `Blue-Magic-v2.6.5-Hall-SIM-Tabs-Release.apk`, 115 522 octets, SHA-256 `5b95a1bf61f397b3e1f4fe81328ccddda2e011704c18c13e955e7bda6b023384`.
+- Paquet/version : `com.profitloop.blueauto`, `2.6.5`, code 45, minSdk 23, targetSdk 34.
+- Signature : v1/v2/v3 valides ; certificat permanent RSA 4096 `f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5`, identique à la v2.6.4.
+- Le contrôle de santé du workflow a lu `2.6.4` immédiatement après publication et a donc marqué le job en échec. Le déploiement lui-même était réussi ; un contrôle indépendant après propagation confirme `2.6.5-cloudflare` et D1 `online`.
+- Le déclencheur et le workflow Cloudflare ponctuels ont été retirés après usage. Le retrait de l'étape d'export de `build.yml` est prêt localement mais sa publication a été refusée car l'autorisation publique visait le workflow exact de `c7dbce4`. L'étape distante reste conditionnée au message exact du commit de remise et ne peut pas être activée par un futur commit ordinaire ; ne pas relancer le run complet `31710676903`.
+- Les ajouts postérieurs de cette procédure et de cet état ont eux aussi été refusés à la publication publique, l'autorisation visant exactement leurs versions dans `c7dbce4`. La version finale reste disponible localement et dans l'espace durable du propriétaire.
+
+## 0.1 Périmètre fonctionnel livré après validation terrain v2.6.4
 
 Le propriétaire confirme que la v2.6.4 libère enfin Test, Achat et Vente en Remote comme en Robot, avec une durée maximale observée d'environ 30 secondes. Ce cœur ne doit plus être réécrit.
 
@@ -16,7 +60,7 @@ La source v2.6.5/45 prépare uniquement :
 - navigation initiale Rapports, Flux, Flotte, Robot et SAV, le moteur financier restant dans Flux ;
 - test de mise à jour v2.6.4 → v2.6.5 et conservation des données sur API 23, 26, 30 et 36.
 
-État de publication à cet instant : modifications et tests locaux prêts ; production toujours `2.6.4-cloudflare`. Ne pas installer une APK v2.6.5 avant déploiement de son Worker correspondant, car le remplacement immédiat du Robot fantôme dépend de la nouvelle action serveur. Aucune migration D1 n'est créée ou nécessaire.
+État de publication : le Worker v2.6.5 est déployé et l'APK permanente est prête. Aucune migration D1 n'a été créée ni appliquée.
 
 Retours d'installation v2.6.4 à conserver : mise à jour réussie sous Android 8 ; désinstallation nécessaire sous Android 6.0.1 ; sous Android 11, installation v2.6.2 puis v2.6.4. La v2.6.5 ajoute donc un vrai scénario CI de mise à jour avec la même clé sur ces trois API et sur API 36/Android 16.
 

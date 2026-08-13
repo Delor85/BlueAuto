@@ -112,28 +112,29 @@ jobs:
 
       - name: Préparer l’APK permanente
         if: env.BLUE_MAGIC_SIGNING_KIND == 'permanent'
-        run: cp app/build/outputs/apk/debug/app-debug.apk Blue-Magic-v2.6.5-Hall-SIM-Tabs-Release.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk Blue-Magic-v2.6.6-Ergonomie-Verrou-PIN-Release.apk
 
       - name: Publier uniquement l’APK à signature permanente
         if: env.BLUE_MAGIC_SIGNING_KIND == 'permanent'
         uses: actions/upload-artifact@v4
         with:
           name: Blue-Magic-v2-Robot-Core-Permanent
-          path: Blue-Magic-v2.6.5-Hall-SIM-Tabs-Release.apk
+          path: Blue-Magic-v2.6.6-Ergonomie-Verrou-PIN-Release.apk
           if-no-files-found: error
 
       - name: Confirmer la compilation temporaire sans publication
         if: env.BLUE_MAGIC_SIGNING_KIND == 'temporary'
         run: echo "Compilation réussie. APK non publiée car la signature permanente n'est pas disponible dans ce contexte."
 
-      - name: Exporter une fois l’APK interne v2.6.5 autorisée
+      - name: Exporter une fois l’APK interne v2.6.6 autorisée
         if: >-
           env.BLUE_MAGIC_SIGNING_KIND == 'temporary' &&
           github.event_name == 'push' &&
-          github.event.head_commit.message == 'release: authorized Blue Magic v2.6.5 production handoff'
+          github.ref == 'refs/heads/fix/blue-magic-v2-6-recovery' &&
+          github.event.head_commit.message == 'release: Blue Magic v2.6.6 ergonomics and simple-lock PIN'
         uses: actions/upload-artifact@v4
         with:
-          name: Blue-Magic-v2.6.5-Internal-Resign
+          name: Blue-Magic-v2.6.6-Internal-Resign
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 1
@@ -208,14 +209,14 @@ jobs:
 
       - name: Préparer l'APK permanente
         if: steps.signing-availability.outputs.available == 'true'
-        run: cp app/build/outputs/apk/debug/app-debug.apk Blue-Magic-v2.6.5-Hall-SIM-Tabs-Release.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk Blue-Magic-v2.6.6-Ergonomie-Verrou-PIN-Release.apk
 
       - name: Publier l'APK permanente vérifiée
         if: steps.signing-availability.outputs.available == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: Blue-Magic-v2-Robot-Core-Permanent
-          path: Blue-Magic-v2.6.5-Hall-SIM-Tabs-Release.apk
+          path: Blue-Magic-v2.6.6-Ergonomie-Verrou-PIN-Release.apk
           if-no-files-found: error
 
       - name: Confirmer l'absence de publication permanente
@@ -281,7 +282,7 @@ jobs:
             adb shell pidof com.profitloop.blueauto
             if adb logcat -d -b crash | grep -q com.profitloop.blueauto; then adb logcat -d -b crash; exit 1; fi
 
-  android-upgrade-v264-to-v265:
+  android-upgrade-v265-to-v266:
     name: android-upgrade-${{ matrix.api }}
     runs-on: ubuntu-latest
     strategy:
@@ -317,7 +318,7 @@ jobs:
         with:
           gradle-version: '8.2'
 
-      - name: Compiler v2.6.4 et v2.6.5 avec la même clé de test
+      - name: Compiler v2.6.5 et v2.6.6 avec la même clé de test
         run: |
           set -euo pipefail
           openssl rand -hex 32 > /tmp/blue-magic-upgrade.password
@@ -334,11 +335,11 @@ jobs:
             -dname "CN=Blue Magic Upgrade Test,O=ProfitLoop,C=CM" \
             -keyalg RSA -keysize 2048 -validity 2 -noprompt
 
-          git worktree add /tmp/blue-magic-v264 381adc2
-          mkdir -p /tmp/blue-magic-v264/.pilot-signing
-          cp .pilot-signing/debug.keystore /tmp/blue-magic-v264/.pilot-signing/debug.keystore
+          git worktree add /tmp/blue-magic-v265 9b1d35f05630effa5e1683bfaa3da2195691ed61
+          mkdir -p /tmp/blue-magic-v265/.pilot-signing
+          cp .pilot-signing/debug.keystore /tmp/blue-magic-v265/.pilot-signing/debug.keystore
           (
-            cd /tmp/blue-magic-v264
+            cd /tmp/blue-magic-v265
             BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD="$upgrade_password" \
               gradle --no-daemon :app:assembleDebug
           )
@@ -353,16 +354,16 @@ jobs:
           profile: ${{ matrix.profile }}
           disable-animations: true
           script: |
-            adb install /tmp/blue-magic-v264/app/build/outputs/apk/debug/app-debug.apk
-            adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/v264-start.txt
-            grep -q "Status: ok" /tmp/v264-start.txt
+            adb install /tmp/blue-magic-v265/app/build/outputs/apk/debug/app-debug.apk
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/v265-start.txt
+            grep -q "Status: ok" /tmp/v265-start.txt
             adb shell run-as com.profitloop.blueauto mkdir -p files
-            adb shell run-as com.profitloop.blueauto touch files/upgrade-v264-marker
+            adb shell run-as com.profitloop.blueauto touch files/upgrade-v265-marker
 
             adb install -r app/build/outputs/apk/debug/app-debug.apk
             adb shell am force-stop com.profitloop.blueauto
-            adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/v265-start.txt
-            grep -q "Status: ok" /tmp/v265-start.txt
-            adb shell run-as com.profitloop.blueauto ls files/upgrade-v264-marker
-            adb shell dumpsys package com.profitloop.blueauto | grep -q "versionName=2.6.5"
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/v266-start.txt
+            grep -q "Status: ok" /tmp/v266-start.txt
+            adb shell run-as com.profitloop.blueauto ls files/upgrade-v265-marker
+            adb shell dumpsys package com.profitloop.blueauto | grep -q "versionName=2.6.6"
             if adb logcat -d -b crash | grep -q com.profitloop.blueauto; then adb logcat -d -b crash; exit 1; fi

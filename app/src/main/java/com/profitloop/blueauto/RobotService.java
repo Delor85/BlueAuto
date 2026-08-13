@@ -44,7 +44,7 @@ public class RobotService extends Service {
     private static final int WATCHDOG_REQUEST_CODE = 5503;
     private static final long STANDBY_WAKE_MS = 30 * 60_000L;
     private static final long WATCHDOG_INTERVAL_MS = 15 * 60_000L;
-    private static final long SYSTEM_USSD_SCREEN_WAKE_MS = 20_000L;
+    private static final long SYSTEM_USSD_SCREEN_WAKE_MS = 45_000L;
 
     private ScheduledExecutorService executor;
     private final AtomicBoolean cycleRunning = new AtomicBoolean(false);
@@ -370,8 +370,12 @@ public class RobotService extends Service {
                 boolean needsWakeSettle = !DeviceLockState.isScreenInteractive(this)
                         || DeviceLockState.isInsecurelyLocked(this);
                 acquireCommandScreenWakeLock();
-                insecureKeyguardDismissed = DeviceLockState.dismissInsecureKeyguard(this);
-                waitForSystemUssdWindow(needsWakeSettle);
+                prepareSystemUssdSurface(needsWakeSettle);
+                if (DeviceLockState.isSecurelyLocked(this)) {
+                    finishCommand(profileId, false, "DEVICE_SECURELY_LOCKED",
+                            "Le téléphone a été reverrouillé avec un code; transaction différée.", "");
+                    return;
+                }
                 SimCallManager.placeUssdCall(this, ussd, profileId);
                 if (requiresPin) BlueAccessibilityService.kick(this);
             } catch (SecurityException permissionError) {
@@ -386,11 +390,44 @@ public class RobotService extends Service {
         }
     }
 
-    private void waitForSystemUssdWindow(boolean needsWakeSettle) {
+    private void prepareSystemUssdSurface(boolean needsWakeSettle) {
         if (!needsWakeSettle) return;
+        long deadline = System.currentTimeMillis() + 4_000L;
+        boolean activityRequested = false;
+        do {
+            if (DeviceLockState.isSecurelyLocked(this)) return;
+            if (DeviceLockState.isInsecurelyLocked(this)) {
+                insecureKeyguardDismissed = DeviceLockState.dismissInsecureKeyguard(this)
+                        || insecureKeyguardDismissed;
+                if (!activityRequested) {
+                    activityRequested = true;
+                    try {
+                        Intent unlock = new Intent(this, MainActivity.class);
+                        unlock.setAction(MainActivity.ACTION_PREPARE_INSECURE_USSD);
+                        unlock.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                                | Intent.FLAG_ACTIVITY_SINGLE_TOP
+                                | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                        startActivity(unlock);
+                    } catch (Exception ignored) {
+                        // The legacy keyguard release above remains the Android 6/7 fallback.
+                    }
+                }
+            }
+            if (DeviceLockState.isScreenInteractive(this)
+                    && !DeviceLockState.isKeyguardLocked(this)) break;
+            try {
+                Thread.sleep(140L);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        } while (System.currentTimeMillis() < deadline);
+
+        // Give the Phone app a stable, visible window. No Blue Magic overlay is created.
         try {
-            Thread.sleep(1_200L);
-        } catch (Exception ignored) {
+            Thread.sleep(420L);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -398,7 +435,6 @@ public class RobotService extends Service {
         if (profileId == null || profileId.isEmpty()) return;
         JSONObject command = PendingCommandStore.get(this, profileId);
         if (command == null) return;
-        if ("PIN_SUBMITTED".equals(state)) releaseCommandScreenWakeLock();
         try {
             ApiClient api = ApiClient.forProfile(this, profileId);
             api.sendEvent(command, state, message, "");

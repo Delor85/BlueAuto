@@ -7,7 +7,10 @@ const ids = [
   'nativeBadge', 'browserNotice', 'nodeCode', 'nodeMeta', 'robotState', 'fatalNotice',
   'actionNotice', 'roleNotice', 'requestSupplyCard', 'supplyChildCard', 'retailCard',
   'requestSupplyAmount', 'childNode', 'childAmount', 'retailPhone', 'retailAmount',
-  'refreshCommands', 'commandList', 'toast'
+  'refreshCommands', 'commandList', 'toast', 'serverHealthStatus', 'metricCommandCount',
+  'metricSuccessCount', 'metricPendingCount', 'metricLastDuration', 'metricSuccessRate',
+  'metricFinanceCount', 'reportActivityTitle', 'reportActivityDetail', 'fleetNodeStatus',
+  'fleetSimStatus', 'configRobotStatus', 'supportStatus'
 ];
 
 function element(id = '') {
@@ -29,12 +32,16 @@ const actions = ['request-supply', 'supply-child', 'retail-sale', 'test-number']
 const moduleNames = ['reports', 'flux', 'fleet', 'config', 'support'];
 const tabButtons = moduleNames.map(tab => Object.assign(element(tab), {tab, tagName: 'BUTTON'}));
 const tabPanels = moduleNames.map(panel => Object.assign(element(panel), {panel}));
+const nativeActions = ['accounts', 'verify-sim', 'permissions', 'pin', 'manage', 'start-robot',
+  'server-health', 'go-test'].map(action => Object.assign(element(action), {
+    nativeAction: action, tagName: 'BUTTON'
+  }));
 const bridgeCalls = [];
 let confirmResult = true;
 let confirmationText = '';
 
 const document = {
-  readyState: 'complete', activeElement: null,
+  readyState: 'complete', activeElement: null, body: {className: ''},
   getElementById(id) {
     if (!elements.has(id)) elements.set(id, element(id));
     return elements.get(id);
@@ -42,9 +49,12 @@ const document = {
   querySelectorAll(selector) {
     if (selector === 'button[data-action]') return actions;
     if (selector === 'button[data-tab]') return tabButtons;
+    if (selector === 'button[data-tab="flux"]') return tabButtons.filter(item => item.tab === 'flux');
+    if (selector === 'button[data-native-action]') return nativeActions;
     if (selector === '[data-tab-panel]') return tabPanels;
     return [];
   },
+  querySelector() { return null; },
   addEventListener() {}
 };
 
@@ -59,10 +69,12 @@ const window = {
     },
     previewCommand(...args) { bridgeCalls.push(['preview', ...args]); },
     createCommand(...args) { bridgeCalls.push(['create', ...args]); },
-    getCommandStatus() {}, cancelCommand() {}, setFormEditing() {}
+    getCommandStatus() {}, cancelCommand() {}, setFormEditing() {}, openAccounts() {},
+    verifySim() {}, prepareRobotPermissions() {}, openPinSettings() {}, openManagement() {},
+    startRobot() {}, checkServerHealth() {}
   },
   confirm(message) { confirmationText = message; return confirmResult; },
-  setTimeout() {}, setInterval() {}
+  setTimeout() {}, setInterval() {}, scrollTo() {}
 };
 const localStorage = {
   values: new Map(),
@@ -147,6 +159,8 @@ const accessibility = await readFile(new URL(
   '../main/java/com/profitloop/blueauto/BlueAccessibilityService.java', import.meta.url), 'utf8');
 assert.match(accessibility, /ACTION_SET_TEXT/);
 assert.match(accessibility, /ACTION_PASTE/);
+assert.match(accessibility, /fieldContainsPin\(target\.field, pin\) \|\| actionAccepted/);
+assert.doesNotMatch(accessibility, /actionAccepted && attempt >= MAX_PIN_WRITE_ATTEMPTS/);
 assert.doesNotMatch(accessibility, /TYPE_ACCESSIBILITY_OVERLAY/);
 assert.doesNotMatch(accessibility, /PIN protégé/);
 
@@ -158,14 +172,18 @@ assert.match(service, /catch \(RuntimeException primaryFailure\)[\s\S]*FOREGROUN
 const readiness = service.slice(service.indexOf('private Readiness checkReadiness('),
   service.indexOf('private void disableUnsafeRobot('));
 assert.doesNotMatch(readiness, /verifyCallRoute/);
+assert.ok(service.indexOf('prepareSystemUssdSurface(needsWakeSettle)')
+  < service.indexOf('SimCallManager.placeUssdCall(this, ussd, profileId)'));
+assert.match(service, /SYSTEM_USSD_SCREEN_WAKE_MS = 45_000L/);
+assert.doesNotMatch(service, /"PIN_SUBMITTED"\.equals\(state\)\) releaseCommandScreenWakeLock/);
 
 const manifest = await readFile(new URL('../main/AndroidManifest.xml', import.meta.url), 'utf8');
 assert.match(manifest, /foregroundServiceType="dataSync\|specialUse"/);
 
 const gradleConfig = await readFile(new URL('../../build.gradle', import.meta.url), 'utf8');
 assert.match(gradleConfig, /minSdk 23/);
-assert.match(gradleConfig, /versionCode 45/);
-assert.match(gradleConfig, /versionName "2\.6\.5"/);
+assert.match(gradleConfig, /versionCode 46/);
+assert.match(gradleConfig, /versionName "2\.6\.6"/);
 
 const apiClient = await readFile(new URL(
   '../main/java/com/profitloop/blueauto/ApiClient.java', import.meta.url), 'utf8');
@@ -184,5 +202,11 @@ for (const moduleName of moduleNames) {
 }
 assert.match(html, /ONGLET 1 — GRAPHES & RAPPORTS/);
 assert.match(html, /ONGLET 5 — SAV & DIAGNOSTIC/);
+assert.match(css, /\.module-tabs\{position:fixed/);
+assert.match(css, /\.module-tab-primary/);
+assert.ok(activity.indexOf('MODIFIER LE PIN CAMTEL') < activity.indexOf('1. AUTORISATIONS'));
+assert.match(activity, /setScrollbarFadingEnabled\(false\)/);
+assert.match(activity, /requestDismissKeyguard/);
+assert.match(activity, /openPinSettings/);
 
-console.log('Android UI/runtime: five tabs, Android 6+, finance confirmation, TEST_NUMBER and Robot wake flow OK');
+console.log('Android UI/runtime: dock, PIN access, simple-lock wake flow, finance confirmation and TEST_NUMBER OK');
