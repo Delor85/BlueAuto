@@ -2,6 +2,9 @@ name: Déployer Blue Magic sur Cloudflare
 
 on:
   workflow_dispatch:
+  push:
+    branches: [fix/blue-magic-v2-6-recovery]
+    paths: [.github/authorized-v264-production.trigger]
 
 permissions:
   contents: read
@@ -12,6 +15,9 @@ concurrency:
 
 jobs:
   deploy-production:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.head_commit.message == 'ci: one-time authorized v2.6.4 production handoff'
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 20
@@ -50,9 +56,6 @@ jobs:
 
       - name: Vérifier les migrations D1 en attente
         run: npx wrangler d1 migrations list blue-magic --remote --config wrangler.production.jsonc
-
-      - name: Appliquer les migrations additives D1
-        run: npx wrangler d1 migrations apply blue-magic --remote --config wrangler.production.jsonc
 
       - name: Déployer uniquement blue-magic-api
         run: npx wrangler deploy --config wrangler.production.jsonc
