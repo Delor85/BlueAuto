@@ -60,7 +60,7 @@ final class ApiClient {
         SimIdentityManager.Verification sim = SimIdentityManager.verify(context, targetProfile);
         boolean locallyEnabled = AppConfig.robotEnabled(context, targetProfile);
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.6.4");
+        payload.put("app_version", "2.6.5");
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
         payload.put("robot_enabled", locallyEnabled && sim.valid);
@@ -97,13 +97,19 @@ final class ApiClient {
     }
 
     JSONObject activateRobot(SimIdentityManager.Verification sim, int simSlot) throws Exception {
+        return activateRobot(sim, simSlot, false);
+    }
+
+    JSONObject activateRobot(SimIdentityManager.Verification sim, int simSlot,
+                             boolean replaceVerifiedSameSimRobot) throws Exception {
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.6.4");
+        payload.put("app_version", "2.6.5");
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
         payload.put("sim_verified", sim.valid);
         payload.put("sim_fingerprint", sim.attestation());
         payload.put("sim_slot", Math.max(0, simSlot));
+        payload.put("replace_verified_same_sim_robot", replaceVerifiedSameSimRobot);
         return post("activate_robot", payload, true);
     }
 

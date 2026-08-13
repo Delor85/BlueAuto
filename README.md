@@ -1,4 +1,4 @@
-# Blue Magic v2.6.4 — Remote → Robot rétabli et Android 6+
+# Blue Magic v2.6.5 — hall Robot, priorité SIM physique et cinq modules
 
 Blue Magic automatise, sur un téléphone Android dédié, les transferts de crédit de distribution Blue/Camtel qui nécessitent désormais deux étapes :
 
@@ -14,15 +14,15 @@ La régression v2.5 provenait d’un mélange entre deux niveaux de prérequis. 
 
 Ainsi `TEST_NUMBER` reste exécutable lorsque la route SIM est sûre, même si l’Accessibilité est désactivée. Une commande financière reste refusée avant composition si ses conditions propres ne sont pas remplies.
 
-La v2.6.4 rétablit le trajet complet sur **Android 6 et plus récent** : Remote distinct → commande D1 → Robot détenteur de la SIM → USSD. Le flux financier dépend de `preview_command` et la boîte de confirmation JavaScript est relayée par Android. Les quatre boutons d’action utilisent le même état actif bleu explicite, y compris sur l’ancien WebView Android 6. Après la pression, le Worker résout le fournisseur et le bénéficiaire enregistrés dans D1, renvoie leurs deux numéros pour confirmation, puis refuse la création si ces données changent.
+La v2.6.5 conserve le trajet validé sur le terrain en v2.6.4 — Remote distinct → commande D1 → Robot détenteur de la SIM → USSD — et corrige trois cas ciblés : PIN sous verrou simple sans voile d’Accessibilité, entrée Remote → hall Robot avant permissions, et remplacement explicite d’un Robot fantôme par le téléphone qui prouve la même SIM physique au bon slot. Elle amorce aussi les cinq modules du cahier des charges en laissant toutes les opérations existantes dans **Flux & Automation**.
 
-Cette version corrige aussi les propriétaires Robot fantômes créés par d’anciens renouvellements de jeton. Une réparation réutilise désormais le même appareil serveur. Un ancien enregistrement sans attestation SIM ne peut plus capter la file, tandis qu’un Remote sans la SIM physique ne peut toujours pas évincer le Robot vivant. L’interface indique après création si le Robot exact est réellement en ligne ou si la commande attend un Robot hors connexion.
+Cette version corrige aussi les propriétaires Robot fantômes créés par d’anciens renouvellements de jeton ou par la suppression locale d’un compte actif. Une réparation réutilise le même appareil serveur et la suppression tente d’abord un arrêt serveur. Si un conflit subsiste, le remplacement n’est proposé qu’après une nouvelle vérification locale de la même SIM physique au bon slot. Le transfert D1 est atomique : une SIM absente ou différente ne désactive rien. L’interface indique après création si le Robot exact est réellement en ligne ou si la commande attend un Robot hors connexion.
 
-Le Robot déjà actif conserve toujours la priorité. Appairer un téléphone plus récent ou toucher Robot par erreur depuis un Remote ne déconnecte plus l’ancien téléphone. Le nouveau téléphone est refusé tant que l’ancien Robot n’a pas été arrêté explicitement et que la SIM physique n’a pas été déplacée puis vérifiée sur le nouveau téléphone.
+Le Robot déjà actif conserve la priorité contre tout Remote ordinaire et contre toute SIM différente. Au moment précis d’un conflit, seul le téléphone qui prouve l’empreinte de la même SIM physique peut demander explicitement le transfert ; cette preuve désactive l’ancien propriétaire de cette empreinte et démarre le nouveau. Toucher Robot par erreur depuis un Remote ou présenter une autre SIM ne déconnecte jamais l’ancien téléphone.
 
 Le diagnostic d’appairage v2.5.4, le design bleu et or, la mise en page adaptative, le multi-SIM, l’ordonnancement FIFO et la reprise automatique sont conservés. Pendant la saisie automatique, un écran confidentiel non interactif masque le pop-up afin que le PIN ne soit pas lisible par une personne présente. Ce masque ne contourne aucun verrou Android et n’est activé qu’après concordance du numéro et du montant.
 
-Cette livraison modifie le Worker Cloudflare sans migration D1 : elle ajoute la prévisualisation signée et l’élection non destructive du téléphone Robot. Elle ne modifie ni le schéma, ni les migrations, ni les secrets de production.
+Cette livraison modifie le Worker Cloudflare sans migration D1 : elle conserve la prévisualisation signée et l’élection non destructive, puis ajoute le transfert atomique demandé pour une même SIM revérifiée. Elle ne modifie ni le schéma, ni les migrations, ni les secrets de production.
 
 La reprise permanente du projet se trouve dans [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md) et sa procédure obligatoire dans [`docs/BLUE_MAGIC_DELIVERY_PROCEDURE.md`](docs/BLUE_MAGIC_DELIVERY_PROCEDURE.md).
 

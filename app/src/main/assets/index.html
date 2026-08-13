@@ -21,6 +21,35 @@
     <section id="actionNotice" class="notice notice-danger hidden" role="alert"></section>
     <section id="roleNotice" class="notice hidden"></section>
     <section id="browserNotice" class="notice hidden">Cette interface doit être ouverte dans l’application Android.</section>
+
+    <nav class="module-tabs" aria-label="Modules Blue Magic">
+        <button type="button" class="module-tab" data-tab="reports">📊<span>Rapports</span></button>
+        <button type="button" class="module-tab active" data-tab="flux">⚡<span>Flux</span></button>
+        <button type="button" class="module-tab" data-tab="fleet">🌳<span>Flotte</span></button>
+        <button type="button" class="module-tab" data-tab="config">⚙<span>Robot</span></button>
+        <button type="button" class="module-tab" data-tab="support">🎓<span>SAV</span></button>
+    </nav>
+
+    <section class="module-screen hidden" data-tab-panel="reports">
+        <article class="panel module-intro">
+            <p class="eyebrow">ONGLET 1 — GRAPHES & RAPPORTS</p>
+            <h3>Centre pilote local</h3>
+            <p class="muted">Première brique du cahier des charges : synthèse vérifiable des opérations conservées sur ce téléphone. Les consolidations DAE/DSM/PoS seront ajoutées sans modifier le moteur USSD.</p>
+        </article>
+        <div class="metric-grid">
+            <article class="panel metric"><strong id="metricCommandCount">0</strong><span>commandes locales</span></article>
+            <article class="panel metric metric-success"><strong id="metricSuccessCount">0</strong><span>réussies</span></article>
+            <article class="panel metric metric-warning"><strong id="metricPendingCount">0</strong><span>à suivre</span></article>
+            <article class="panel metric"><strong id="metricLastDuration">—</strong><span>dernière durée</span></article>
+        </div>
+        <article class="panel roadmap-card">
+            <p class="eyebrow">PROCHAINE EXTENSION</p>
+            <h3>Consolidation hiérarchique</h3>
+            <p class="muted">Soldes et volumes DAE → DSM → PoS, périodes journalière/mensuelle/annuelle et preuves Camtel. Cette zone est isolée des transactions déjà validées.</p>
+        </article>
+    </section>
+
+    <section class="module-screen" data-tab-panel="flux">
     <section class="grid">
         <article id="requestSupplyCard" class="panel command-card hidden">
             <p class="eyebrow">ACHAT DE CRÉDIT</p><h3>Demander à mon supérieur</h3>
@@ -52,6 +81,59 @@
         <div class="section-heading"><div><p class="eyebrow">REGISTRE LOCAL</p><h3>Commandes récentes</h3></div>
             <button type="button" id="refreshCommands" class="button-small secondary">Actualiser</button></div>
         <div id="commandList" class="command-list"><p class="muted">Aucune commande sur ce téléphone.</p></div>
+    </section>
+    </section>
+
+    <section class="module-screen hidden" data-tab-panel="fleet">
+        <article class="panel module-intro">
+            <p class="eyebrow">ONGLET 3 — FLOTTE & CYCLE DE VIE</p>
+            <h3>État du nœud actif</h3>
+            <p id="fleetNodeStatus" class="muted">Chargement du compte…</p>
+        </article>
+        <article class="panel roadmap-card">
+            <p class="eyebrow">LIAISON PHYSIQUE</p>
+            <h3>SIM, slot et propriété Robot</h3>
+            <p id="fleetSimStatus" class="muted">Ouvrez ☰ GÉRER pour vérifier ou lier la SIM. Un slot déjà occupé et vérifié reste protégé.</p>
+        </article>
+        <article class="panel roadmap-card">
+            <p class="eyebrow">À VENIR DANS CE MODULE</p>
+            <p class="muted">Pré-appairage SIM/ID, arborescence DAE–DSM–PoS, maintenance et cycle de vie. Aucun bouton financier existant n’est déplacé vers cette zone.</p>
+        </article>
+    </section>
+
+    <section class="module-screen hidden" data-tab-panel="config">
+        <article class="panel module-intro">
+            <p class="eyebrow">ONGLET 4 — CONFIGURATION & ROBOTIQUE</p>
+            <h3>Hall Remote / Robot</h3>
+            <p id="configRobotStatus" class="muted">Chargement de la configuration…</p>
+        </article>
+        <article class="panel roadmap-card">
+            <p class="eyebrow">ORDRE SÛR</p>
+            <ol class="compact-steps">
+                <li>Entrer dans le hall Robot.</li>
+                <li>Accorder Téléphone, État du téléphone et Accessibilité.</li>
+                <li>Choisir le slot puis vérifier/lier la SIM.</li>
+                <li>Enregistrer le PIN local et démarrer.</li>
+            </ol>
+            <p class="muted">Les réglages natifs restent dans ☰ GÉRER afin de préserver Android 6.</p>
+        </article>
+    </section>
+
+    <section class="module-screen hidden" data-tab-panel="support">
+        <article class="panel module-intro">
+            <p class="eyebrow">ONGLET 5 — SAV & DIAGNOSTIC</p>
+            <h3>Contrôle sans fonds</h3>
+            <p class="muted">Le test numéro reste dans l’onglet Flux et compose uniquement <code>*825*3*3#</code>. Commencez toujours par lui après une installation ou un changement de Robot.</p>
+        </article>
+        <article class="panel roadmap-card">
+            <p class="eyebrow">DIAGNOSTIC RAPIDE</p>
+            <p id="supportStatus" class="muted">Aucun blocage local détecté.</p>
+            <p class="muted">Si une commande reste PENDING, ne la recréez pas : relevez son identifiant, l’état ONLINE/OFFLINE/STALE et la notification du Robot.</p>
+        </article>
+        <article class="panel roadmap-card">
+            <p class="eyebrow">SUITE DU CAHIER</p>
+            <p class="muted">Sandbox USSD encadrée, guide intégré et assistance seront développés après stabilisation terrain de cette navigation.</p>
+        </article>
     </section>
 </main>
 <div id="toast" class="toast hidden" role="status"></div>

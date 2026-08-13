@@ -112,19 +112,31 @@ jobs:
 
       - name: Préparer l’APK permanente
         if: env.BLUE_MAGIC_SIGNING_KIND == 'permanent'
-        run: cp app/build/outputs/apk/debug/app-debug.apk Blue-Magic-v2.6.4-Remote-Robot-Release.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk Blue-Magic-v2.6.5-Hall-SIM-Tabs-Release.apk
 
       - name: Publier uniquement l’APK à signature permanente
         if: env.BLUE_MAGIC_SIGNING_KIND == 'permanent'
         uses: actions/upload-artifact@v4
         with:
           name: Blue-Magic-v2-Robot-Core-Permanent
-          path: Blue-Magic-v2.6.4-Remote-Robot-Release.apk
+          path: Blue-Magic-v2.6.5-Hall-SIM-Tabs-Release.apk
           if-no-files-found: error
 
       - name: Confirmer la compilation temporaire sans publication
         if: env.BLUE_MAGIC_SIGNING_KIND == 'temporary'
         run: echo "Compilation réussie. APK non publiée car la signature permanente n'est pas disponible dans ce contexte."
+
+      - name: Exporter une fois l’APK interne v2.6.5 autorisée
+        if: >-
+          env.BLUE_MAGIC_SIGNING_KIND == 'temporary' &&
+          github.event_name == 'push' &&
+          github.event.head_commit.message == 'release: authorized Blue Magic v2.6.5 production handoff'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Blue-Magic-v2.6.5-Internal-Resign
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 1
 
   android-permanent-apk:
     if: github.event_name != 'pull_request'
@@ -196,14 +208,14 @@ jobs:
 
       - name: Préparer l'APK permanente
         if: steps.signing-availability.outputs.available == 'true'
-        run: cp app/build/outputs/apk/debug/app-debug.apk Blue-Magic-v2.6.4-Remote-Robot-Release.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk Blue-Magic-v2.6.5-Hall-SIM-Tabs-Release.apk
 
       - name: Publier l'APK permanente vérifiée
         if: steps.signing-availability.outputs.available == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: Blue-Magic-v2-Robot-Core-Permanent
-          path: Blue-Magic-v2.6.4-Remote-Robot-Release.apk
+          path: Blue-Magic-v2.6.5-Hall-SIM-Tabs-Release.apk
           if-no-files-found: error
 
       - name: Confirmer l'absence de publication permanente
@@ -267,4 +279,90 @@ jobs:
             grep -q "Status: ok" /tmp/blue-magic-robot-start.txt
             sleep 3
             adb shell pidof com.profitloop.blueauto
+            if adb logcat -d -b crash | grep -q com.profitloop.blueauto; then adb logcat -d -b crash; exit 1; fi
+
+  android-upgrade-v264-to-v265:
+    name: android-upgrade-${{ matrix.api }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - api: 23
+            arch: x86
+            profile: Nexus 5
+          - api: 26
+            arch: x86_64
+            profile: Nexus 5
+          - api: 30
+            arch: x86_64
+            profile: Nexus 6
+          - api: 36
+            arch: x86_64
+            profile: Nexus 6
+    steps:
+      - name: Récupérer tout l’historique utile
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Installer Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Installer Gradle 8.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+
+      - name: Compiler v2.6.4 et v2.6.5 avec la même clé de test
+        run: |
+          set -euo pipefail
+          openssl rand -hex 32 > /tmp/blue-magic-upgrade.password
+          upgrade_password="$(tr -d '\r\n' < /tmp/blue-magic-upgrade.password)"
+          echo "::add-mask::$upgrade_password"
+          echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$upgrade_password" >> "$GITHUB_ENV"
+
+          mkdir -p .pilot-signing
+          keytool -genkeypair \
+            -keystore .pilot-signing/debug.keystore \
+            -storepass "$upgrade_password" \
+            -alias androiddebugkey \
+            -keypass "$upgrade_password" \
+            -dname "CN=Blue Magic Upgrade Test,O=ProfitLoop,C=CM" \
+            -keyalg RSA -keysize 2048 -validity 2 -noprompt
+
+          git worktree add /tmp/blue-magic-v264 381adc2
+          mkdir -p /tmp/blue-magic-v264/.pilot-signing
+          cp .pilot-signing/debug.keystore /tmp/blue-magic-v264/.pilot-signing/debug.keystore
+          (
+            cd /tmp/blue-magic-v264
+            BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD="$upgrade_password" \
+              gradle --no-daemon :app:assembleDebug
+          )
+          BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD="$upgrade_password" \
+            gradle --no-daemon :app:assembleDebug
+
+      - name: Vérifier la mise à jour Android ${{ matrix.api }} sans perte de données
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: ${{ matrix.arch }}
+          profile: ${{ matrix.profile }}
+          disable-animations: true
+          script: |
+            adb install /tmp/blue-magic-v264/app/build/outputs/apk/debug/app-debug.apk
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/v264-start.txt
+            grep -q "Status: ok" /tmp/v264-start.txt
+            adb shell run-as com.profitloop.blueauto mkdir -p files
+            adb shell run-as com.profitloop.blueauto touch files/upgrade-v264-marker
+
+            adb install -r app/build/outputs/apk/debug/app-debug.apk
+            adb shell am force-stop com.profitloop.blueauto
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/v265-start.txt
+            grep -q "Status: ok" /tmp/v265-start.txt
+            adb shell run-as com.profitloop.blueauto ls files/upgrade-v264-marker
+            adb shell dumpsys package com.profitloop.blueauto | grep -q "versionName=2.6.5"
             if adb logcat -d -b crash | grep -q com.profitloop.blueauto; then adb logcat -d -b crash; exit 1; fi

@@ -5,20 +5,14 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.ComponentName;
 import android.content.Context;
-import android.graphics.Color;
-import android.graphics.PixelFormat;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
 import android.text.TextUtils;
-import android.view.Gravity;
-import android.view.View;
-import android.view.WindowManager;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
-import android.widget.TextView;
 
 import org.json.JSONObject;
 
@@ -48,9 +42,6 @@ public class BlueAccessibilityService extends AccessibilityService {
     private int promptRetries = 0;
     private boolean pinWorkScheduled = false;
     private boolean submitScheduled = false;
-    private WindowManager privacyWindowManager;
-    private View pinPrivacyShield;
-    private final Runnable privacyTimeout = this::hidePinPrivacyShield;
 
     @Override
     protected void onServiceConnected() {
@@ -190,7 +181,6 @@ public class BlueAccessibilityService extends AccessibilityService {
                     retryPinWrite(commandId, profileId, currentAttempt);
                     return;
                 }
-                showPinPrivacyShield();
                 boolean accepted = setText(refreshed.field, pin);
                 if (currentAttempt >= 2) accepted = pastePin(refreshed.field, pin) || accepted;
                 final boolean actionAccepted = accepted;
@@ -271,7 +261,6 @@ public class BlueAccessibilityService extends AccessibilityService {
         boolean clicked = target != null && clickFirst(target.root,
                 "envoyer", "send", "confirmer", "confirm", "valider", "submit", "ok");
         if (clicked) {
-            hidePinPrivacyShield();
             PendingCommandStore.updateState(this, profileId, PendingCommandStore.AWAITING_RESULT);
             submitScheduled = false;
             resetCountersOnly();
@@ -279,7 +268,6 @@ public class BlueAccessibilityService extends AccessibilityService {
             return;
         }
         if (attempt >= MAX_BUTTON_RETRIES) {
-            hidePinPrivacyShield();
             submitScheduled = false;
             RobotService.operatorResult(this, profileId, false, "CONFIRM_BUTTON_NOT_FOUND",
                     "Le PIN a été inséré, mais le bouton de validation Camtel n’est pas accessible.", "");
@@ -380,9 +368,8 @@ public class BlueAccessibilityService extends AccessibilityService {
             CharSequence className = node.getClassName();
             boolean supportsSetText = supportsAction(node, AccessibilityNodeInfo.ACTION_SET_TEXT);
             boolean editText = className != null && className.toString().contains("EditText");
-            boolean coveredByPrivacyShield = pinPrivacyShield != null;
             if (!(node.isEditable() || supportsSetText || editText)
-                    || (!node.isVisibleToUser() && !coveredByPrivacyShield)) continue;
+                    || !node.isVisibleToUser()) continue;
             int score = 0;
             if (node.isFocused()) score += 8;
             if (node.isEditable()) score += 4;
@@ -547,68 +534,11 @@ public class BlueAccessibilityService extends AccessibilityService {
 
     private void resetAutomation() {
         handler.removeCallbacksAndMessages(null);
-        hidePinPrivacyShield();
         retryCommandId = "";
         retryProfileId = "";
         promptRetries = 0;
         pinWorkScheduled = false;
         submitScheduled = false;
-    }
-
-    /**
-     * Covers the system prompt only while the PIN is written and submitted. TYPE_ACCESSIBILITY_OVERLAY
-     * is granted to this AccessibilityService itself and does not require SYSTEM_ALERT_WINDOW.
-     * The view is non-touchable, so it never changes the Camtel confirmation interaction.
-     */
-    private void showPinPrivacyShield() {
-        if (pinPrivacyShield != null) {
-            handler.removeCallbacks(privacyTimeout);
-            handler.postDelayed(privacyTimeout, 10_000L);
-            return;
-        }
-        try {
-            WindowManager manager = (WindowManager) getSystemService(WINDOW_SERVICE);
-            if (manager == null) return;
-            TextView shield = new TextView(this);
-            shield.setBackgroundColor(Color.rgb(5, 18, 42));
-            shield.setTextColor(Color.rgb(255, 205, 92));
-            shield.setGravity(Gravity.CENTER);
-            shield.setTextSize(19f);
-            shield.setPadding(32, 32, 32, 32);
-            shield.setText("BLUE MAGIC\n\nValidation confidentielle en cours…\nPIN protégé");
-
-            WindowManager.LayoutParams params = new WindowManager.LayoutParams(
-                    WindowManager.LayoutParams.MATCH_PARENT,
-                    WindowManager.LayoutParams.MATCH_PARENT,
-                    WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                            | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
-                            | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
-                            | WindowManager.LayoutParams.FLAG_SECURE,
-                    PixelFormat.OPAQUE);
-            params.gravity = Gravity.TOP | Gravity.START;
-            manager.addView(shield, params);
-            privacyWindowManager = manager;
-            pinPrivacyShield = shield;
-            handler.removeCallbacks(privacyTimeout);
-            handler.postDelayed(privacyTimeout, 10_000L);
-        } catch (Exception ignored) {
-            privacyWindowManager = null;
-            pinPrivacyShield = null;
-        }
-    }
-
-    private void hidePinPrivacyShield() {
-        handler.removeCallbacks(privacyTimeout);
-        View shield = pinPrivacyShield;
-        WindowManager manager = privacyWindowManager;
-        pinPrivacyShield = null;
-        privacyWindowManager = null;
-        if (shield == null || manager == null) return;
-        try {
-            manager.removeViewImmediate(shield);
-        } catch (Exception ignored) {
-        }
     }
 
     private String safeScreenText(String value, String profileId) {

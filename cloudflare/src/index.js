@@ -1,4 +1,4 @@
-const API_VERSION = '2.6.4-cloudflare';
+const API_VERSION = '2.6.5-cloudflare';
 const ROBOT_LIVE_WINDOW_MINUTES = 15;
 const TERMINAL_STATES = new Set(['SUCCEEDED', 'FAILED', 'UNKNOWN', 'BLOCKED', 'CANCELLED']);
 const EVENT_STATES = new Set([
@@ -233,11 +233,62 @@ async function activateRobot(env, auth, input, headers) {
   }
   const simSlot = Number.isInteger(input.sim_slot) && input.sim_slot >= 0 && input.sim_slot <= 3
     ? input.sim_slot : null;
-  await claimRobotSlot(env, auth, input, simFingerprint, simSlot, true);
+  let replacedRobotCount = 0;
+  if (input.replace_verified_same_sim_robot === true) {
+    replacedRobotCount = await replaceVerifiedSameSimOwner(
+      env, auth, input, simFingerprint, simSlot);
+  } else {
+    await claimRobotSlot(env, auth, input, simFingerprint, simSlot, true);
+  }
   return success({
     mode: 'ROBOT', node_code: auth.node_code, robot_enabled: true,
-    sim_verified: true, robot_claimed: true
+    sim_verified: true, robot_claimed: true,
+    replaced_verified_same_sim_robots: replacedRobotCount
   }, 200, headers);
+}
+
+async function replaceVerifiedSameSimOwner(env, auth, input, simFingerprint, simSlot) {
+  // One SQLite statement transfers ownership and disables only owners carrying the exact same
+  // verified SIM attestation. If another verified fingerprint owns the node, NOT EXISTS makes the
+  // whole statement a no-op: the previous Robot therefore remains untouched.
+  const result = await env.DB.prepare(
+    "UPDATE devices SET robot_enabled = CASE WHEN device_id = ? THEN 1 ELSE 0 END, "
+    + "mode = CASE WHEN device_id = ? THEN 'ROBOT' ELSE mode END, "
+    + 'sim_verified = CASE WHEN device_id = ? THEN 1 ELSE sim_verified END, '
+    + 'sim_fingerprint = CASE WHEN device_id = ? THEN ? ELSE sim_fingerprint END, '
+    + 'sim_slot = CASE WHEN device_id = ? THEN ? ELSE sim_slot END, '
+    + 'app_version = CASE WHEN device_id = ? THEN ? ELSE app_version END, '
+    + 'android_version = CASE WHEN device_id = ? THEN ? ELSE android_version END, '
+    + 'device_model = CASE WHEN device_id = ? THEN ? ELSE device_model END, '
+    + "last_seen_at = CASE WHEN device_id = ? THEN strftime('%Y-%m-%dT%H:%M:%fZ', 'now') ELSE last_seen_at END "
+    + 'WHERE node_code = ? AND active = 1 AND ('
+    + 'device_id = ? OR (device_id <> ? AND robot_enabled = 1 '
+    + 'AND sim_verified = 1 AND sim_fingerprint = ?)) '
+    + 'AND NOT EXISTS (SELECT 1 FROM devices other WHERE other.node_code = ? '
+    + 'AND other.device_id <> ? AND other.active = 1 AND other.robot_enabled = 1 '
+    + 'AND other.sim_verified = 1 AND length(other.sim_fingerprint) = 64 '
+    + 'AND other.sim_fingerprint <> ?)'
+  ).bind(
+    auth.device_id,
+    auth.device_id,
+    auth.device_id,
+    auth.device_id, simFingerprint,
+    auth.device_id, simSlot,
+    auth.device_id, cleanText(input.app_version, 40),
+    auth.device_id, cleanText(input.android_version, 40),
+    auth.device_id, cleanText(input.device_model, 160),
+    auth.device_id,
+    auth.node_code,
+    auth.device_id, auth.device_id, simFingerprint,
+    auth.node_code, auth.device_id, simFingerprint
+  ).run();
+  const changed = Number(result.meta?.changes || 0);
+  if (!changed) {
+    throw new ApiError('ROBOT_ALREADY_ACTIVE',
+      'Une autre SIM vérifiée possède encore ce Robot. Insérez la SIM officielle dans le slot '
+      + 'choisi, vérifiez-la, puis recommencez.', 409);
+  }
+  return Math.max(0, changed - 1);
 }
 
 async function claimRobotSlot(env, auth, input, simFingerprint, simSlot, activateMode) {

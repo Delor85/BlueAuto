@@ -233,8 +233,9 @@ try {
   assert.equal(staleStatus.data.command.state, 'UNKNOWN');
   await complete(afterStale.data.command, pos.data.device_token);
 
-  // A Remote cannot evict the phone that already owns the verified SIM Robot, even if it is the
-  // newest pairing. Transfer requires an explicit stop on the old phone, then a verified start.
+  // A Remote cannot evict the active Robot by merely changing mode. At the exact moment of a
+  // conflict, however, a second physical inspection of the same SIM may replace only the owner
+  // carrying that identical attestation. A missing or different SIM never receives this right.
   const posReplacement = await pair({
     node_code: 'POS5', parent_node_code: 'DSM-TEST', role: 'POS', mode: 'REMOTE',
     phone_number: '699000003', device_name: 'Nouveau téléphone POS'
@@ -243,6 +244,10 @@ try {
     ...robotPresence('', 1), sim_verified: false
   }, posReplacement.data.device_token, 409);
   assert.equal(missingSim.error.code, 'ROBOT_SIM_NOT_VERIFIED');
+  const wrongSimReplacement = await requestFailure('activate_robot', {
+    ...robotPresence('f'.repeat(64), 1), replace_verified_same_sim_robot: true
+  }, posReplacement.data.device_token, 409);
+  assert.equal(wrongSimReplacement.error.code, 'ROBOT_ALREADY_ACTIVE');
   const refusedReplacement = await requestFailure('activate_robot',
     robotPresence('c'.repeat(64), 1), posReplacement.data.device_token, 409);
   assert.equal(refusedReplacement.error.code, 'ROBOT_ALREADY_ACTIVE');
@@ -255,11 +260,12 @@ try {
   assert.equal(originalPhoneLease.data.command.public_id, electedCommand.data.command.public_id);
   await complete(originalPhoneLease.data.command, pos.data.device_token);
 
-  await disableRobot(pos.data.device_token, 'c'.repeat(64), 1);
-  const activatedReplacement = await request('activate_robot',
-    robotPresence('c'.repeat(64), 1), posReplacement.data.device_token);
+  const activatedReplacement = await request('activate_robot', {
+    ...robotPresence('c'.repeat(64), 1), replace_verified_same_sim_robot: true
+  }, posReplacement.data.device_token);
   assert.equal(activatedReplacement.data.robot_enabled, true);
   assert.equal(activatedReplacement.data.mode, 'ROBOT');
+  assert.equal(activatedReplacement.data.replaced_verified_same_sim_robots, 1);
   await attest(pos.data.device_token, 'c'.repeat(64), 1, false, false);
   const transferredCommand = await request('create_command', {
     request_type: 'TEST_NUMBER', client_request_id: 'integration-transferred-pos-01'

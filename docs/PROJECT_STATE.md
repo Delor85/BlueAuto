@@ -1,6 +1,24 @@
-# ÉTAT DU PROJET — BLUE MAGIC v2.6.4
+# ÉTAT DU PROJET — v2.6.4 EN PRODUCTION / v2.6.5 PRÉPARÉE
 
 État vérifié le 13 août 2026. La reprise doit commencer ici puis continuer dans `docs/PROCEDURE_REPRISE_EXTERNE.md`, qui contient le cahier des charges synthétisé, l'historique complet, les causes de régression, la procédure et les limites terrain.
+
+## 0. Chantier v2.6.5 préparé après validation terrain
+
+Le propriétaire confirme que la v2.6.4 libère enfin Test, Achat et Vente en Remote comme en Robot, avec une durée maximale observée d'environ 30 secondes. Ce cœur ne doit plus être réécrit.
+
+La source v2.6.5/45 prépare uniquement :
+
+- retrait du voile PIN qui gênait l'Accessibilité sous verrou simple ; le PIN peut être visible à l'écran mais reste masqué dans les journaux et absent du serveur ;
+- entrée Remote → hall Robot sans autorisations ni élection, puis séquence autorisations → slot → liaison SIM → PIN → démarrage ;
+- arrêt serveur avant suppression locale du profil ;
+- remplacement explicite d'un Robot fantôme uniquement après seconde preuve de la même SIM physique ;
+- mauvaise SIM, SIM absente ou autre empreinte : refus et ancien Robot préservé ;
+- navigation initiale Rapports, Flux, Flotte, Robot et SAV, le moteur financier restant dans Flux ;
+- test de mise à jour v2.6.4 → v2.6.5 et conservation des données sur API 23, 26, 30 et 36.
+
+État de publication à cet instant : modifications et tests locaux prêts ; production toujours `2.6.4-cloudflare`. Ne pas installer une APK v2.6.5 avant déploiement de son Worker correspondant, car le remplacement immédiat du Robot fantôme dépend de la nouvelle action serveur. Aucune migration D1 n'est créée ou nécessaire.
+
+Retours d'installation v2.6.4 à conserver : mise à jour réussie sous Android 8 ; désinstallation nécessaire sous Android 6.0.1 ; sous Android 11, installation v2.6.2 puis v2.6.4. La v2.6.5 ajoute donc un vrai scénario CI de mise à jour avec la même clé sur ces trois API et sur API 36/Android 16.
 
 ## 1. Résultat de la présente reprise
 
@@ -9,7 +27,7 @@ La v2.6.4 répare deux causes distinctes qui rendaient l'application vivante en 
 1. Android exigeait une route `PhoneAccount` parfaite avant le démarrage et le lease, alors que plusieurs dialers Android 6/8/11 ne publient cette information qu'au moment de l'appel.
 2. La réparation d'un jeton appareil pouvait créer une nouvelle ligne D1 et laisser l'ancien appareil marqué Robot, ce qui attribuait la file à un propriétaire fantôme.
 
-Le code Android et le Worker corrigés sont publiés. Le Worker `2.6.4-cloudflare` est en production. L'APK permanente v2.6.4 est produite, signée et vérifiée. Les tests prouvent le flux Remote distinct → Worker/D1 → Robot distinct et le lancement Android 11. Le dernier test Camtel sur deux téléphones physiques reste obligatoire.
+Le code Android et le Worker corrigés sont publiés. Le Worker `2.6.4-cloudflare` est en production. L'APK permanente v2.6.4 est produite, signée et vérifiée. Les tests prouvent le flux Remote distinct → Worker/D1 → Robot distinct et le lancement Android 11. Le propriétaire a ensuite validé sur le terrain Test, Achat et Vente en Remote et Robot, en 30 secondes au maximum. Cette validation vaut pour v2.6.4 ; la v2.6.5 devra répéter ces essais après livraison.
 
 ## 2. Références Git
 
@@ -140,20 +158,20 @@ Les premiers essais du job Android 11 ont échoué dans le script CI, pas dans l
 - Android 11/API 30 ouvre l'application et redémarre le Robot mémorisé sans crash.
 - L'APK finale a la bonne version et la bonne signature permanente.
 
-### Non prouvé sans téléphone Camtel
+### Validé sur les téléphones Camtel du propriétaire pour v2.6.4
 
-- la présentation exacte du dialogue USSD par chaque dialer Android 6/8/11/récent ;
-- la reconnaissance du texte Camtel actuel ;
-- l'insertion du PIN dans le pop-up réel ;
-- le résultat financier réel sur la SIM.
+- Test, Achat et Vente en Remote comme en Robot ;
+- communication entre téléphone Remote et téléphone Robot ;
+- prise, composition et résultat en 30 secondes au maximum ;
+- présentation réelle du dialogue USSD et insertion du PIN lorsque l'écran est déjà ouvert.
 
-Il est interdit d'assimiler tests automatisés verts et validation d'argent réel.
+Ce retour ne prouve ni tous les dialers Android, ni la correction v2.6.5 sous verrou simple, ni la mise à jour directe sur Android 6/11. Il est interdit d'étendre une validation terrain à un modèle ou une version non essayé.
 
 ## 10. Test terrain obligatoire
 
 1. Ne désinstaller aucune ancienne version permanente.
-2. Installer l'APK v2.6.4 par-dessus.
-3. Vérifier `2.6.4` et `versionCode 44`.
+2. Après déploiement du Worker 2.6.5, installer l'APK permanente v2.6.5 par-dessus la v2.6.4.
+3. Vérifier `2.6.5` et `versionCode 45` ; si la mise à jour échoue, ne pas désinstaller et relever le message exact.
 4. Sur le Robot, vérifier le profil, la SIM physique et le slot, puis démarrer le Robot.
 5. Sur un autre téléphone en Remote, vérifier `ONLINE`.
 6. Lancer uniquement `TEST_NUMBER`.
@@ -201,7 +219,7 @@ Ne pas dégrader le trajet Remote→Robot pour ajouter ces modules. Chaque nouve
 - ne pas permettre à un Remote d'éjecter un Robot vivant ;
 - ne pas créer une finance avant pression et confirmation ;
 - ne pas rendre PIN/Accessibilité obligatoires pour `TEST_NUMBER` ;
-- ne pas afficher, transmettre ou journaliser le PIN ;
+- ne pas afficher le PIN dans l'interface Blue Magic, le transmettre ou le journaliser ; le champ système Camtel peut toutefois le montrer brièvement pendant l'insertion demandée ;
 - ne pas rejouer automatiquement après composition ;
 - ne pas changer de certificat Android ;
 - ne pas désinstaller l'app de production pour contourner un échec de mise à jour ;
@@ -211,10 +229,10 @@ Ne pas dégrader le trajet Remote→Robot pour ajouter ces modules. Chaque nouve
 
 1. Lire `docs/PROCEDURE_REPRISE_EXTERNE.md` en entier.
 2. Vérifier le HEAD de `fix/blue-magic-v2-6-recovery` et la PR `#4`.
-3. Vérifier `/api?action=health = 2.6.4-cloudflare` sans redéployer.
+3. Tant que la v2.6.5 n'est pas autorisée et publiée, vérifier `/api?action=health = 2.6.4-cloudflare` sans redéployer.
 4. Contrôler que le déclencheur, le workflow de déploiement et l'export temporaire ont disparu.
-5. Commencer par le test terrain sans fonds sur deux téléphones distincts.
+5. Après livraison v2.6.5, commencer par la mise à jour sans désinstallation puis le test sans fonds sur deux téléphones distincts.
 6. Documenter chaque résultat par version Android, modèle, SIM/slot, identifiant de commande et état final.
 7. Ne fusionner qu'après validation terrain explicite.
 
-Prochaine action : installer l'APK v2.6.4 sans désinstaller, puis exécuter `TEST_NUMBER` depuis un Remote distinct vers le Robot détenteur de la SIM.
+Prochaine action autorisée : publier le code v2.6.5, exécuter la CI de mise à jour API 23/26/30, déployer le Worker 2.6.5 sans migration, puis produire l'APK permanente. Ensuite seulement, installer cette APK par-dessus la v2.6.4 et répéter `TEST_NUMBER`, Achat et Vente depuis un Remote distinct vers le Robot détenteur de la SIM.

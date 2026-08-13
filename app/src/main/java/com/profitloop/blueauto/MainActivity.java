@@ -565,12 +565,8 @@ public class MainActivity extends Activity {
                 if (!canModifyActiveProfile()) return;
                 new AlertDialog.Builder(this)
                         .setTitle("Supprimer " + AppConfig.nodeCode(this) + " ?")
-                        .setMessage("Le compte sera retiré uniquement de ce téléphone. Son PIN local chiffré sera effacé.")
-                        .setPositiveButton("SUPPRIMER", (confirm, which) -> {
-                            RobotService.stop(this);
-                            AppConfig.removeActiveProfile(this);
-                            recreate();
-                        })
+                        .setMessage("Le Robot sera d’abord arrêté sur le serveur, puis le compte et son PIN chiffré seront retirés de ce téléphone.")
+                        .setPositiveButton("SUPPRIMER", (confirm, which) -> deleteActiveProfileSafely())
                         .setNegativeButton("Annuler", null)
                         .show();
             });
@@ -609,6 +605,26 @@ public class MainActivity extends Activity {
         return !PendingCommandStore.REPORT_PENDING.equals(state);
     }
 
+    private void deleteActiveProfileSafely() {
+        final String profileId = AppConfig.profileId(this);
+        if (profileId.isEmpty()) return;
+        AppConfig.setRobotEnabled(this, profileId, false);
+        RobotService.stop(this, profileId);
+        toast("Arrêt du Robot et suppression du compte…");
+        new Thread(() -> {
+            try {
+                ApiClient.forProfile(this, profileId).heartbeat();
+            } catch (Exception ignored) {
+                // La suppression locale reste possible hors réseau. La reprise par preuve de la
+                // même SIM physique neutralisera ensuite cet éventuel propriétaire fantôme.
+            }
+            runOnUiThread(() -> {
+                AppConfig.removeActiveProfile(this);
+                recreate();
+            });
+        }).start();
+    }
+
     private void showModeSwitcher() {
         if (isActiveUssdForCurrentProfile()) {
             toast("Une transaction est en cours sur ce compte. Attendez sa fin avant de changer de mode.");
@@ -620,35 +636,16 @@ public class MainActivity extends Activity {
                     .setTitle("Passer en mode Remote ?")
                     .setMessage("Ce compte cessera de recevoir les commandes USSD, mais les autres Robots du téléphone resteront actifs.")
                     .setPositiveButton("PASSER EN REMOTE", (dialog, which) ->
-                            changeActiveMode("REMOTE", "", AppConfig.simSlot(this)))
+                            changeActiveMode("REMOTE"))
                     .setNegativeButton("Annuler", null)
                     .show();
             return;
         }
-
-        LinearLayout content = verticalContainer();
-        content.setPadding(dp(16), dp(8), dp(16), dp(8));
-        EditText pin = field("PIN Camtel 4 chiffres", "", true);
-        pin.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
-        Spinner slot = spinner(SimCallManager.slotLabels(this));
-        slot.setSelection(Math.min(AppConfig.simSlot(this), slot.getCount() - 1));
-        content.addView(help(SecurePinStore.hasPin(this)
-                ? "Le PIN déjà chiffré sera conservé. Choisissez seulement la SIM."
-                : "Saisissez le PIN une fois et choisissez la SIM à automatiser."));
-        if (!SecurePinStore.hasPin(this)) content.addView(pin);
-        content.addView(label("SIM utilisée par ce Robot"));
-        content.addView(slot);
         new AlertDialog.Builder(this)
-                .setTitle("Passer en mode Robot")
-                .setView(content)
-                .setPositiveButton("PASSER EN ROBOT", (dialog, which) -> {
-                    String value = pin.getText().toString().trim();
-                    if (!SecurePinStore.hasPin(this) && !value.matches("\\d{4}")) {
-                        toast("Le PIN Camtel doit contenir exactement 4 chiffres.");
-                        return;
-                    }
-                    changeActiveMode("ROBOT", value, slot.getSelectedItemPosition());
-                })
+                .setTitle("Entrer dans le hall Robot ?")
+                .setMessage("Le compte passera dans l’espace Robot sans démarrer et sans exiger immédiatement les autorisations. Dans ☰ GÉRER, accordez ensuite les autorisations, choisissez le slot, liez la SIM physique, enregistrez le PIN puis touchez DÉMARRER ROBOT. Vous pourrez revenir en Remote à tout moment.")
+                .setPositiveButton("ENTRER DANS LE HALL ROBOT", (dialog, which) ->
+                        changeActiveMode("ROBOT"))
                 .setNegativeButton("Annuler", null)
                 .show();
     }
@@ -741,7 +738,7 @@ public class MainActivity extends Activity {
         dialog.show();
     }
 
-    private void changeActiveMode(String mode, String newPin, int simSlot) {
+    private void changeActiveMode(String mode) {
         toast("Changement de mode en cours…");
         new Thread(() -> {
             try {
@@ -751,34 +748,25 @@ public class MainActivity extends Activity {
                     AppConfig.updateActiveMode(this, mode);
                     RobotService.stop(this);
                 } else {
-                    String profileId = AppConfig.profileId(this);
-                    SimIdentityManager.Verification inspected =
-                            SimIdentityManager.inspectSelectedSim(this, profileId, simSlot);
-                    if (!inspected.valid) throw new IllegalStateException(inspected.message);
-
-                    // The server elects this verified physical SIM before any local mode is changed.
-                    // A Remote therefore cannot evict an already active Robot by mistake.
-                    new ApiClient(this).activateRobot(inspected, simSlot);
-                    if (!newPin.isEmpty()) SecurePinStore.save(this, newPin);
-                    if (!AppConfig.updateActiveSimSlot(this, simSlot)
-                            || !AppConfig.updateActiveMode(this, mode)) {
+                    // Entrer dans le hall Robot ne donne aucun droit d'exécution. L'élection ne
+                    // se fera qu'après autorisations, liaison de la SIM et pression sur DÉMARRER.
+                    updateDeviceModeCompat(mode);
+                    AppConfig.setRobotEnabled(this, false);
+                    if (!AppConfig.updateActiveMode(this, mode)) {
                         throw new IllegalStateException("Le profil local n’a pas pu être enregistré.");
                     }
-                    SimIdentityManager.Verification bound =
-                            SimIdentityManager.bindSelectedSim(this, profileId);
-                    if (!bound.valid) throw new IllegalStateException(bound.message);
-                    AppConfig.setRobotEnabled(this, true);
-                    RobotService.start(this);
                 }
                 runOnUiThread(() -> {
-                    Toast.makeText(this, "Mode " + mode + " activé sur ce compte.",
+                    Toast.makeText(this, "ROBOT".equals(mode)
+                                    ? "Hall Robot ouvert. Configurez les autorisations et liez la SIM avant de démarrer."
+                                    : "Mode Remote activé sur ce compte.",
                             Toast.LENGTH_LONG).show();
                     recreate();
                 });
             } catch (Exception error) {
                 if ("ROBOT".equals(mode)) AppConfig.setRobotEnabled(this, false);
                 runOnUiThread(() -> new AlertDialog.Builder(this)
-                        .setTitle("ROBOT".equals(mode) ? "Mode Robot refusé" : "Changement refusé")
+                        .setTitle("ROBOT".equals(mode) ? "Hall Robot indisponible" : "Changement refusé")
                         .setMessage(readable(error))
                         .setPositiveButton("COMPRIS", null)
                         .show());
@@ -937,6 +925,11 @@ public class MainActivity extends Activity {
                 robotStartInProgress = false;
                 runOnUiThread(() -> {
                     refreshNativeStatus();
+                    if (error instanceof ApiClient.ApiException
+                            && "ROBOT_ALREADY_ACTIVE".equals(((ApiClient.ApiException) error).code)) {
+                        offerVerifiedSimTakeover(sim);
+                        return;
+                    }
                     new AlertDialog.Builder(this)
                             .setTitle("Robot non démarré")
                             .setMessage(readable(error))
@@ -946,6 +939,53 @@ public class MainActivity extends Activity {
             }
         }).start();
         return true;
+    }
+
+    private void offerVerifiedSimTakeover(SimIdentityManager.Verification expectedSim) {
+        new AlertDialog.Builder(this)
+                .setTitle("Robot existant ou fantôme")
+                .setMessage("Un autre appareil est encore enregistré comme Robot de ce compte. Si la SIM officielle est physiquement dans ce téléphone et dans le slot choisi, Blue Magic peut la vérifier de nouveau, arrêter uniquement l’ancien Robot lié à cette même SIM, puis démarrer celui-ci. Si la vérification échoue, rien ne sera remplacé.")
+                .setPositiveButton("VÉRIFIER LA SIM ET REMPLACER", (dialog, which) ->
+                        replaceRobotWithVerifiedSim(expectedSim))
+                .setNegativeButton("GARDER L’ANCIEN ROBOT", null)
+                .show();
+    }
+
+    private void replaceRobotWithVerifiedSim(SimIdentityManager.Verification expectedSim) {
+        final String profileId = AppConfig.profileId(this);
+        final SimIdentityManager.Verification current =
+                SimIdentityManager.verify(this, profileId);
+        if (!current.valid || !current.attestation().equals(expectedSim.attestation())) {
+            AppConfig.setRobotEnabled(this, false);
+            toast("Remplacement refusé : la SIM physique ou le slot ne correspond plus à ce compte.");
+            refreshNativeStatus();
+            return;
+        }
+        robotStartInProgress = true;
+        toast("Preuve de la SIM confirmée. Remplacement du Robot fantôme…");
+        new Thread(() -> {
+            try {
+                new ApiClient(this).activateRobot(current, AppConfig.simSlot(this), true);
+                AppConfig.setRobotEnabled(this, true);
+                RobotService.start(this);
+                robotStartInProgress = false;
+                runOnUiThread(() -> {
+                    toast("Ancien Robot de cette SIM arrêté. Ce téléphone est maintenant le Robot actif.");
+                    refreshNativeStatus();
+                });
+            } catch (Exception error) {
+                AppConfig.setRobotEnabled(this, false);
+                robotStartInProgress = false;
+                runOnUiThread(() -> {
+                    refreshNativeStatus();
+                    new AlertDialog.Builder(this)
+                            .setTitle("Remplacement refusé")
+                            .setMessage(readable(error))
+                            .setPositiveButton("COMPRIS", null)
+                            .show();
+                });
+            }
+        }).start();
     }
 
     private void confirmAndBindCurrentSim() {

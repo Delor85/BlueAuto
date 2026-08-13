@@ -1,8 +1,8 @@
 # Protocole de test terrain — avant argent réel
 
-## Gate 0 — installation et diagnostic v2.6.4
+## Gate 0 — installation et diagnostic v2.6.5
 
-1. Si l’APK installée appartient à la lignée permanente v2.5.3/v2.5.4/v2.6.0/v2.6.1/v2.6.2, installer la v2.6.4 **par-dessus**, sans désinstallation, puis confirmer `2.6.4 • versionCode 44`. Si Android refuse pour incompatibilité de signature ou si le téléphone est resté exactement en v2.4.5, ne rien désinstaller et relever la version installée.
+1. Depuis la v2.6.4 permanente actuellement installée, installer la v2.6.5 **par-dessus**, sans désinstallation, puis confirmer `2.6.5 • versionCode 45`. La CI doit avoir réussi la mise à jour v2.6.4→v2.6.5 sur API 23, 26, 30 et 36 avec conservation des données. Si le téléphone refuse encore, ne pas désinstaller : relever la version installée, le modèle, Android et le message exact.
 2. Toucher **VÉRIFIER LE SERVEUR** avant de saisir un secret.
 3. Noter le code affiché : `SERVER_CHECK_OK` confirme HTTPS, le Worker et D1 depuis le téléphone ; `NETWORK_DNS`, `NETWORK_TIMEOUT`, `NETWORK_TLS` ou `NETWORK_CONNECT` isole le réseau Android.
 4. Remplir le formulaire puis toucher **APPAIRER CE TÉLÉPHONE**.
@@ -23,12 +23,12 @@ Si le compte est déjà appairé, ne le supprimez pas et ne saisissez aucun secr
 
 Ce Gate valide la correction de la régression principale sans exposer de fonds. Aucun achat ni vente ne doit être tenté avant sa réussite.
 
-## Gate 2 — confidentialité du PIN et verrou simple
+## Gate 2 — insertion du PIN sous verrou simple
 
 1. Utilisez un téléphone Robot physiquement surveillé, avec un simple verrou par glissement, sans PIN, schéma, mot de passe ni empreinte Android.
 2. Lancez une transaction minimale supervisée seulement après la réussite de Gate 1.
-3. Le verrou simple peut être retiré temporairement pour exposer la fenêtre système USSD, puis doit être restauré.
-4. Après vérification du numéro et du montant, un écran **Validation confidentielle en cours — PIN protégé** doit couvrir la saisie et disparaître après la validation.
+3. Le verrou simple doit être retiré temporairement pour exposer la fenêtre système USSD, puis restauré après l'opération.
+4. Après vérification du numéro et du montant, Blue Magic doit écrire le PIN puis toucher le bouton de validation. Aucun voile « PIN protégé » ne doit recouvrir ou gêner le dialogue. Le PIN peut être visible physiquement pendant ces quelques secondes, mais il doit rester absent des journaux, du Worker et de D1.
 5. Un verrou Android sécurisé ne doit jamais être contourné ; la commande financière doit être différée jusqu’au déverrouillage.
 
 ## Gate 3 — cartes et opérations financières
@@ -120,13 +120,14 @@ Le même modèle de téléphone, la même version Android, la même application 
 5. Chaque profil garde séparément son jeton, son PIN chiffré, son slot SIM et son historique local.
 6. Lancez deux demandes rapprochées : la seconde doit rester `PENDING` jusqu’à la fermeture complète de la première, puis démarrer après le délai de séparation.
 
-## Test obligatoire de déplacement d’une SIM
+## Test obligatoire de déplacement ou remplacement d’une SIM
 
 1. Sur T1, liez POS1 au slot 2 et DSM1 au slot 1, puis démarrez les deux Robots.
-2. Depuis T2, appairez d’abord POS1 en mode **REMOTE**. Si vous tentez Robot pendant que T1 est actif, T2 doit afficher `ROBOT_ALREADY_ACTIVE` et T1 doit rester Robot.
-3. Sur T1, arrêtez explicitement le Robot POS1. Retirez ensuite POS1 du slot 2 et insérez-la dans T2.
-4. Sur T2, sélectionnez le slot réel, confirmez **VÉRIFIER / LIER LA SIM**, puis passez en Robot. T2 doit être accepté seulement après cet ordre d’actions.
-5. Sur T1, l’ancien profil POS1 doit rester en attente serveur et ne jamais louer la file, tandis que DSM1 reste actif. Une SIM physiquement absente doit toujours arrêter localement son profil Robot.
-6. Depuis T3 Remote, lancez uniquement `TEST_NUMBER` pour POS1 : T2 doit louer et exécuter la commande ; T1 ne doit ni composer le test ni capturer la commande.
-7. Répétez avec un deuxième `TEST_NUMBER` pour DSM1 : seul le slot 1 de T1 doit être utilisé.
-8. Ne passez à une transaction de 1 FCFA qu’après dix alternances POS1/DSM1 sans erreur de SIM, de slot ou de nœud.
+2. Depuis T2, appairez POS1 en mode **REMOTE**, puis entrez dans le **hall Robot**. Cette entrée ne doit demander aucune permission et ne doit pas démarrer le Robot.
+3. Dans le hall, accordez les autorisations, choisissez le slot réel et confirmez **VÉRIFIER / LIER LA SIM**. Sans la SIM, le démarrage doit rester impossible.
+4. Cas normal : arrêtez explicitement T1, déplacez la SIM vers T2 et démarrez T2.
+5. Cas fantôme : si le compte de T1 a été supprimé et que `ROBOT_ALREADY_ACTIVE` apparaît, T2 doit proposer **VÉRIFIER LA SIM ET REMPLACER**. La même SIM au bon slot doit désactiver uniquement l'ancien propriétaire correspondant et démarrer T2. Une SIM absente ou différente doit être refusée.
+6. Sur T1, l’ancien profil POS1 doit rester en attente serveur et ne jamais louer la file, tandis que DSM1 reste actif. Une SIM physiquement absente doit toujours arrêter localement son profil Robot.
+7. Depuis T3 Remote, lancez uniquement `TEST_NUMBER` pour POS1 : T2 doit louer et exécuter la commande ; T1 ne doit ni composer le test ni capturer la commande.
+8. Répétez avec un deuxième `TEST_NUMBER` pour DSM1 : seul le slot 1 de T1 doit être utilisé.
+9. Ne passez à une transaction de 1 FCFA qu’après dix alternances POS1/DSM1 sans erreur de SIM, de slot ou de nœud.

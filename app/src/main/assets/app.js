@@ -32,10 +32,23 @@
         if(configuration.role==='DAE'||configuration.role==='DSM'){byId('supplyChildCard').className='panel command-card';}
         if(configuration.role==='POS'){byId('retailCard').className='panel command-card';}
         each('button[data-action]',function(button){button.onclick=function(){execute(button.getAttribute('data-action'));};});
+        initializeTabs();
         byId('refreshCommands').onclick=refresh;
         document.addEventListener('focusin',function(event){if(event.target&&event.target.tagName==='INPUT'){try{window.AndroidBridge.setFormEditing(true);}catch(ignored){}}});
         document.addEventListener('focusout',function(){window.setTimeout(function(){if(!document.activeElement||document.activeElement.tagName!=='INPUT'){try{window.AndroidBridge.setFormEditing(false);}catch(ignored){}}},180);});
         render();refresh();window.setInterval(refresh,15000);
+    }
+    function initializeTabs(){
+        var saved=localStorage.getItem('blue_magic_active_module')||'flux';
+        each('button[data-tab]',function(button){button.onclick=function(){showTab(button.getAttribute('data-tab'));};});
+        showTab(saved);
+    }
+    function showTab(name){
+        var found=false;
+        each('[data-tab-panel]',function(panel){var active=panel.getAttribute('data-tab-panel')===name;found=found||active;panel.className=active?'module-screen':'module-screen hidden';});
+        if(!found&&name!=='flux'){showTab('flux');return;}
+        each('button[data-tab]',function(button){button.className=button.getAttribute('data-tab')===name?'module-tab active':'module-tab';});
+        localStorage.setItem('blue_magic_active_module',name);
     }
     function normalizeRole(config){
         var role=String(config.role||'').replace(/^\s+|\s+$/g,'').toUpperCase(),node,parent;
@@ -90,7 +103,36 @@
     function upsert(command){var i,index=-1,key;for(i=0;i<commands.length;i+=1){if(commands[i].public_id===command.public_id){index=i;break;}}if(index<0){commands.unshift(command);}else{for(key in command){if(Object.prototype.hasOwnProperty.call(command,key)){commands[index][key]=command[key];}}}commands=commands.slice(0,20);localStorage.setItem(storageKey(),JSON.stringify(commands));}
     function load(){try{var value=JSON.parse(localStorage.getItem(storageKey())||'[]');return Object.prototype.toString.call(value)==='[object Array]'?value:[];}catch(ignored){return [];}}
     function storageKey(){return 'blue_magic_embedded_commands_'+(configuration.profile_id||configuration.node_code||'default');}
-    function render(){var html='',i,c,state,detail,time;if(!commands.length){byId('commandList').innerHTML='<p class="muted">Aucune commande sur ce téléphone.</p>';return;}for(i=0;i<commands.length;i+=1){c=commands[i];state=escapeHtml(c.state||'PENDING');detail=escapeHtml(c.result_message||c.operation||'Commande');time=c.updated_at||c.created_at||'';html+='<article class="command-item"><div class="command-item-top"><span class="command-id">'+escapeHtml(c.public_id||'')+'</span><span class="command-state state-'+state+'">'+escapeHtml(labels[c.state]||c.state||'—')+'</span></div><div class="command-detail">'+detail+'</div>'+(time?'<div class="command-time">Horodatage : '+escapeHtml(formatTime(time))+'</div>':'')+(c.state==='PENDING'?'<button type="button" class="button-small secondary" data-cancel-command="'+escapeHtml(c.public_id||'')+'">Annuler cette commande</button>':'')+'</article>';}byId('commandList').innerHTML=html;each('button[data-cancel-command]',function(button){button.onclick=function(){cancelRemote(button.getAttribute('data-cancel-command'));};});}
+    function render(){var html='',i,c,state,detail,time;if(!commands.length){byId('commandList').innerHTML='<p class="muted">Aucune commande sur ce téléphone.</p>';updateModuleData();return;}for(i=0;i<commands.length;i+=1){c=commands[i];state=escapeHtml(c.state||'PENDING');detail=escapeHtml(c.result_message||c.operation||'Commande');time=c.updated_at||c.created_at||'';html+='<article class="command-item"><div class="command-item-top"><span class="command-id">'+escapeHtml(c.public_id||'')+'</span><span class="command-state state-'+state+'">'+escapeHtml(labels[c.state]||c.state||'—')+'</span></div><div class="command-detail">'+detail+'</div>'+(time?'<div class="command-time">Horodatage : '+escapeHtml(formatTime(time))+'</div>':'')+(c.state==='PENDING'?'<button type="button" class="button-small secondary" data-cancel-command="'+escapeHtml(c.public_id||'')+'">Annuler cette commande</button>':'')+'</article>';}byId('commandList').innerHTML=html;each('button[data-cancel-command]',function(button){button.onclick=function(){cancelRemote(button.getAttribute('data-cancel-command'));};});updateModuleData();}
+    function updateModuleData(){
+        var success=0,pending=0,i,c,start,end,duration='—',support='Aucun blocage local détecté.';
+        for(i=0;i<commands.length;i+=1){
+            c=commands[i];
+            if(c.state==='SUCCEEDED'){success+=1;}
+            if(!TERMINAL[c.state]){pending+=1;}
+            if(duration==='—'&&c.created_at&&(c.completed_at||TERMINAL[c.state]&&c.updated_at)){
+                start=new Date(c.created_at);end=new Date(c.completed_at||c.updated_at);
+                if(!isNaN(start.getTime())&&!isNaN(end.getTime())&&end.getTime()>=start.getTime()){
+                    duration=Math.round((end.getTime()-start.getTime())/1000)+' s';
+                }
+            }
+        }
+        byId('metricCommandCount').textContent=String(commands.length);
+        byId('metricSuccessCount').textContent=String(success);
+        byId('metricPendingCount').textContent=String(pending);
+        byId('metricLastDuration').textContent=duration;
+        byId('fleetNodeStatus').textContent=(configuration.node_code||'Nœud non configuré')+' • '+(configuration.role||'—')+' • '+(configuration.mode||'—');
+        byId('fleetSimStatus').textContent=configuration.mode==='ROBOT'
+            ? ('SIM '+((configuration.sim_slot||0)+1)+' • '+(configuration.sim_verified?'VÉRIFIÉE':'À VÉRIFIER / LIER')+' • '+(configuration.robot_enabled?'ROBOT ACTIF':'HALL ROBOT — ARRÊTÉ'))
+            : 'Mode Remote : aucune SIM n’est requise. Passez dans le hall Robot avant de demander les autorisations.';
+        byId('configRobotStatus').textContent=configuration.mode==='ROBOT'
+            ? ((configuration.robot_enabled?'Robot actif.':'Hall Robot ouvert, Robot non démarré.')+' Accessibilité '+(configuration.accessibility_enabled?'OK.':'à activer.')+' PIN '+(configuration.pin_configured?'enregistré localement.':'à enregistrer.'))
+            : 'Compte Remote. Le passage vers Robot ouvre d’abord le hall sans exiger de permission.';
+        if(configuration.pin_blocked){support='PIN BLOQUÉ : corrigez le PIN dans ☰ GÉRER avant une finance.';}
+        else if(configuration.mode==='ROBOT'&&!configuration.sim_verified){support='SIM non vérifiée : le Robot reste sans privilège dans son hall.';}
+        else if(pending){support=String(pending)+' commande(s) non terminale(s) à suivre dans le registre Flux.';}
+        byId('supportStatus').textContent=support;
+    }
     function cancelRemote(commandId){if(!bridge()||!window.confirm('Annuler cette commande encore en attente ?')){return;}window.AndroidBridge.cancelCommand(commandId);}
     function formatTime(value){var d=new Date(value);if(isNaN(d.getTime())){return String(value);}return two(d.getDate())+'/'+two(d.getMonth()+1)+'/'+d.getFullYear()+' à '+two(d.getHours())+':'+two(d.getMinutes())+':'+two(d.getSeconds());}
     function two(value){return value<10?'0'+value:String(value);}

@@ -14,13 +14,21 @@ function element(id = '') {
   return {
     id, className: '', textContent: '', innerHTML: '', value: '', disabled: false,
     tagName: id.includes('Amount') || id.includes('Phone') ? 'INPUT' : 'DIV',
-    getAttribute(name) { return name === 'data-action' ? this.action : ''; }
+    getAttribute(name) {
+      if (name === 'data-action') return this.action || '';
+      if (name === 'data-tab') return this.tab || '';
+      if (name === 'data-tab-panel') return this.panel || '';
+      return '';
+    }
   };
 }
 
 for (const id of ids) elements.set(id, element(id));
 const actions = ['request-supply', 'supply-child', 'retail-sale', 'test-number']
   .map(action => Object.assign(element(action), {action, tagName: 'BUTTON'}));
+const moduleNames = ['reports', 'flux', 'fleet', 'config', 'support'];
+const tabButtons = moduleNames.map(tab => Object.assign(element(tab), {tab, tagName: 'BUTTON'}));
+const tabPanels = moduleNames.map(panel => Object.assign(element(panel), {panel}));
 const bridgeCalls = [];
 let confirmResult = true;
 let confirmationText = '';
@@ -33,6 +41,8 @@ const document = {
   },
   querySelectorAll(selector) {
     if (selector === 'button[data-action]') return actions;
+    if (selector === 'button[data-tab]') return tabButtons;
+    if (selector === '[data-tab-panel]') return tabPanels;
     return [];
   },
   addEventListener() {}
@@ -62,6 +72,14 @@ const localStorage = {
 
 const script = await readFile(new URL('../main/assets/app.js', import.meta.url), 'utf8');
 vm.runInNewContext(script, {window, document, localStorage, Date, Math, JSON, String, Object, isNaN});
+
+assert.match(tabButtons.find(item => item.tab === 'flux').className, /active/);
+assert.equal(tabPanels.find(item => item.panel === 'flux').className, 'module-screen');
+tabButtons.find(item => item.tab === 'reports').onclick();
+assert.match(tabButtons.find(item => item.tab === 'reports').className, /active/);
+assert.equal(tabPanels.find(item => item.panel === 'reports').className, 'module-screen');
+assert.equal(tabPanels.find(item => item.panel === 'flux').className, 'module-screen hidden');
+assert.equal(localStorage.getItem('blue_magic_active_module'), 'reports');
 
 elements.get('retailPhone').value = '620550255';
 elements.get('retailAmount').value = '1';
@@ -119,6 +137,18 @@ assert.match(activity, /boolean onJsConfirm\(/);
 assert.match(activity, /new ApiClient\(this\)\.heartbeat\(true\)/);
 assert.doesNotMatch(activity.slice(activity.indexOf('private boolean startRobotSafely()'),
   activity.indexOf('private void confirmAndBindCurrentSim()')), /verifyCallRoute/);
+assert.match(activity, /Entrer dans le hall Robot/);
+assert.match(activity, /changeActiveMode\("ROBOT"\)/);
+assert.match(activity, /replaceRobotWithVerifiedSim/);
+assert.match(activity, /activateRobot\(current, AppConfig\.simSlot\(this\), true\)/);
+assert.match(activity, /deleteActiveProfileSafely/);
+
+const accessibility = await readFile(new URL(
+  '../main/java/com/profitloop/blueauto/BlueAccessibilityService.java', import.meta.url), 'utf8');
+assert.match(accessibility, /ACTION_SET_TEXT/);
+assert.match(accessibility, /ACTION_PASTE/);
+assert.doesNotMatch(accessibility, /TYPE_ACCESSIBILITY_OVERLAY/);
+assert.doesNotMatch(accessibility, /PIN protégé/);
 
 const service = await readFile(new URL(
   '../main/java/com/profitloop/blueauto/RobotService.java', import.meta.url), 'utf8');
@@ -134,16 +164,25 @@ assert.match(manifest, /foregroundServiceType="dataSync\|specialUse"/);
 
 const gradleConfig = await readFile(new URL('../../build.gradle', import.meta.url), 'utf8');
 assert.match(gradleConfig, /minSdk 23/);
-assert.match(gradleConfig, /versionCode 44/);
-assert.match(gradleConfig, /versionName "2\.6\.4"/);
+assert.match(gradleConfig, /versionCode 45/);
+assert.match(gradleConfig, /versionName "2\.6\.5"/);
 
 const apiClient = await readFile(new URL(
   '../main/java/com/profitloop/blueauto/ApiClient.java', import.meta.url), 'utf8');
 assert.match(apiClient, /replace_device_id/);
 assert.match(apiClient, /repair_sim_fingerprint/);
+assert.match(apiClient, /replace_verified_same_sim_robot/);
 
 const appConfig = await readFile(new URL(
   '../main/java/com/profitloop/blueauto/AppConfig.java', import.meta.url), 'utf8');
 assert.match(appConfig, /serverDeviceId/);
 
-console.log('Android finance UI/runtime: Android 6+, confirmation, TEST_NUMBER and Robot wake flow OK');
+const html = await readFile(new URL('../main/assets/index.html', import.meta.url), 'utf8');
+for (const moduleName of moduleNames) {
+  assert.match(html, new RegExp('data-tab="' + moduleName + '"'));
+  assert.match(html, new RegExp('data-tab-panel="' + moduleName + '"'));
+}
+assert.match(html, /ONGLET 1 — GRAPHES & RAPPORTS/);
+assert.match(html, /ONGLET 5 — SAV & DIAGNOSTIC/);
+
+console.log('Android UI/runtime: five tabs, Android 6+, finance confirmation, TEST_NUMBER and Robot wake flow OK');

@@ -13,8 +13,21 @@ Il est volontairement plus complet qu'une simple note de version. En cas de cont
 - Le SHA-256 de l'APK est `76dcb157723da77aa68794c3a4f8ff9abc98c04e4f34388d17b98d0c9cc58e6b`.
 - Le flux Remote distinct vers Robot distinct, `TEST_NUMBER`, Achat, Approvisionnement et Vente sont couverts par les tests Android/JavaScript et Worker/D1.
 - L'ouverture sous Android 11 et le redémarrage avec un profil Robot mémorisé sont prouvés par la CI sur API 30.
-- Une transaction financière Camtel réelle n'est pas simulable dans GitHub Actions : le dernier verdict reste un test physique supervisé, d'abord sans fonds puis avec le montant minimal accepté.
-- La PR `#4` reste ouverte et non fusionnée jusqu'à ce verdict terrain.
+- Le retour terrain du 13 août confirme que Test, Achat et Vente fonctionnent en Remote et Robot, avec une durée observée inférieure ou égale à 30 secondes.
+- La PR `#4` reste ouverte et non fusionnée jusqu'à la répétition de ce verdict terrain avec la v2.6.5.
+
+## 0.1 Retour terrain v2.6.4 et chantier ciblé v2.6.5
+
+Le propriétaire a validé le cœur v2.6.4 sur de vraies SIM Camtel : opérations financières et test réussis en Remote comme en Robot. Cet acquis devient le nouveau socle de non-régression.
+
+Quatre limites ont ensuite été constatées :
+
+1. sous verrou simple sans mot de passe/schéma/empreinte, le voile d'Accessibilité « PIN protégé » empêchait ou perturbait l'insertion ; écran ouvert, le PIN était de toute façon visible malgré le message contraire ;
+2. Remote → Robot exigeait la SIM et les autorisations avant d'ouvrir l'espace Robot, alors que le comportement attendu est un hall sans privilège, puis autorisations, slot, liaison SIM, PIN et démarrage ;
+3. supprimer localement un compte Robot pouvait retirer son jeton avant la confirmation d'arrêt serveur et créer un propriétaire fantôme récent ;
+4. installation/mise à jour : Android 8 a accepté la mise à jour directe, Android 6.0.1 a exigé une désinstallation et Android 11 a accepté v2.6.4 après installation intermédiaire de v2.6.2.
+
+La v2.6.5 est le lot minimal préparé pour ces cas. Elle ne modifie ni la création financière, ni la confirmation, ni la FIFO, ni le routage USSD validé. Son Worker source n'est pas à considérer actif tant que `/health` reste `2.6.4-cloudflare`.
 
 ## Partie I — mémoire complète depuis le début du projet
 
@@ -82,11 +95,11 @@ La priorité explicite était toutefois de rétablir d'abord l'interaction avec 
 
 | Exigence | État v2.6.4 | Preuve ou limite |
 |---|---|---|
-| Remote → serveur → Robot distinct | Implémenté et testé automatiquement | Le test Worker crée avec le jeton Remote A et loue uniquement avec le jeton Robot B. Validation physique encore requise. |
-| Achat DSM/PoS | Implémenté | Prévisualisation, confirmation, création D1, lease, contrôles et états testés ; Camtel réel à valider. |
-| Approvisionnement DAE→DSM / DSM→PoS | Implémenté | Hiérarchie, numéros officiels et montant contrôlés ; Camtel réel à valider. |
-| Vente PoS→client | Implémenté | Réservée au rôle PoS ; destinataire externe et montant contrôlés ; Camtel réel à valider. |
-| Test sans fonds `*825*3*3#` | Implémenté | Ne dépend ni du PIN ni de l'Accessibilité ; à exécuter en premier sur le terrain. |
+| Remote → serveur → Robot distinct | Acquis et validé terrain | Le test Worker crée avec le jeton Remote A et loue uniquement avec le jeton Robot B ; le terrain confirme Remote et Robot. |
+| Achat DSM/PoS | Acquis et validé terrain | Prévisualisation, confirmation, création D1, lease, contrôles, PIN et résultat Camtel fonctionnent. |
+| Approvisionnement DAE→DSM / DSM→PoS | Acquis et validé terrain | Hiérarchie, numéros officiels, montant et exécution sont conservés. |
+| Vente PoS→client | Acquis et validé terrain | Réservée au rôle PoS ; destinataire externe et montant contrôlés. |
+| Test sans fonds `*825*3*3#` | Acquis et validé terrain | Fonctionne en Remote et Robot et reste indépendant du PIN. |
 | Confirmation 1/2 | Acquis | Aucun ordre financier n'est créé avant confirmation. |
 | Contrôle du pop-up Camtel 2/2 | Implémenté défensivement | L'Accessibilité exige les mêmes numéros et le même montant ; toute variation non reconnue échoue sans PIN. Dépend du dialer du fabricant. |
 | PIN local uniquement | Acquis | Android Keystore/chiffrement local ; Worker et D1 ne le reçoivent pas. |
@@ -94,10 +107,10 @@ La priorité explicite était toutefois de rétablir d'abord l'interaction avec 
 | FIFO, lease, idempotence | Acquis | Tests D1/Miniflare, expiration, annulation avant lease et absence de rejeu après composition. |
 | Liaison à la SIM physique et au slot | Acquis | Attestation avant activation, lease et composition. |
 | Multi-SIM et multi-comptes | Implémenté et testé au niveau logiciel | Validation recommandée sur chaque fabricant/dialer réel. |
-| Remote ne remplace pas un Robot vivant | Acquis | `ROBOT_ALREADY_ACTIVE`; transfert uniquement après arrêt explicite ou récupération prouvée par la même SIM devenue silencieuse. |
+| Propriété Robot | Acquis v2.6.4, précisé v2.6.5 | Un Remote ordinaire ne remplace personne. Lors d'un conflit explicite, seul le téléphone qui revérifie la même SIM physique au bon slot peut remplacer l'ancien propriétaire de cette empreinte. |
 | Android 6+ | Paramétré et partiellement prouvé | `minSdk 23`; anciens appareils Android 6/8 ont ouvert l'app ; API 30 prouvée par émulateur ; chaque téléphone terrain reste à tester. |
 | Robot après veille/redémarrage | Implémenté | Foreground Service, watchdog et réveil ; après redémarrage complet, Android peut exiger un premier déverrouillage. |
-| Cinq onglets ERP complets | Non livré | Hors trajet critique de la v2.6.4 ; ne pas annoncer comme acquis. |
+| Cinq onglets ERP complets | Démarré en v2.6.5 | Navigation Rapports, Flux, Flotte, Robot et SAV ; Flux conserve le moteur existant, les autres modules commencent par des synthèses isolées. |
 | Reporting, KYC, CRM, Tchoronko, mercenaires | Non livré ou seulement présent dans le cahier | À traiter dans des lots futurs après validation financière. |
 
 ### D. Chronologie technique et leçons des versions
@@ -230,6 +243,43 @@ Le workflow Cloudflare `#4`, run `31683508389`, a réussi. Version Cloudflare : 
 - Valeurs vérifiées après décodage : paquet, version 2.6.4/44, minSdk 23, targetSdk 34.
 - Certificat comparé directement et identique aux APK v2.5.3, v2.5.4, v2.6.0, v2.6.1 et v2.6.2.
 
+#### E.8 Retour terrain qui clôt la régression principale
+
+Le 13 août 2026, le propriétaire confirme :
+
+- Test, Achat et Vente fonctionnent parfaitement en mode Remote et Robot ;
+- une transaction dure au maximum environ 30 secondes ;
+- Android 8 accepte la mise à jour directe ;
+- Android 6.0.1 n'a accepté qu'après désinstallation ;
+- Android 11 a accepté après installation préalable de v2.6.2 ;
+- le refus d'un Robot sur un slot déjà occupé et vérifié est apprécié et doit rester.
+
+Les captures montrent aussi le PIN réellement visible dans le champ Camtel lorsque l'écran est ouvert, un voile blanc/confidentiel inutile, le refus `ROBOT_ALREADY_ACTIVE`, les échecs d'installation et une erreur DNS temporaire distincte du code.
+
+#### E.9 Corrections v2.6.5 préparées sans élargir le moteur financier
+
+- suppression du voile `TYPE_ACCESSIBILITY_OVERLAY`; la saisie reste locale et les journaux continuent de masquer le PIN, mais l'écran physique peut l'afficher ;
+- réveil et retrait temporaire uniquement d'un verrou simple, jamais d'un verrou Android sécurisé ;
+- Remote → Robot ouvre un hall avec Robot arrêté, sans demander la SIM, le PIN ou l'Accessibilité ;
+- les privilèges ne commencent qu'après autorisations, choix du slot, liaison de la SIM et pression sur DÉMARRER ;
+- suppression d'un profil : arrêt serveur tenté avant effacement local ;
+- en cas de `ROBOT_ALREADY_ACTIVE`, dialogue de remplacement explicite et seconde vérification locale de la SIM ;
+- le Worker transfère atomiquement la propriété seulement entre appareils du même nœud portant exactement la même empreinte SIM ; mauvaise SIM, SIM absente ou conflit d'une autre empreinte : aucune modification ;
+- création d'une navigation à cinq modules ; les opérations validées restent intactes dans Flux ;
+- ajout d'un test CI de mise à jour v2.6.4 → v2.6.5 avec la même clé sur API 23, 26, 30 et 36, en contrôlant la conservation d'un fichier de données.
+
+#### E.10 Vérifications et limite d'autorisation de la v2.6.5
+
+Après ces changements, `node app/src/test/finance-flow.mjs`, `npm --prefix cloudflare run check` et `git diff --check` réussissent localement. Le test Worker couvre aussi le cas négatif : une autre empreinte SIM ne remplace pas l'ancien Robot, qui conserve ensuite la capacité de louer la commande. Le transfert de la même empreinte est réalisé par une seule instruction SQLite afin d'éviter un état intermédiaire où les deux Robots seraient arrêtés.
+
+Le conteneur local ne contient ni Gradle ni émulateur Android. La compilation Java, l'installation v2.6.4 → v2.6.5, la conservation des données et le lancement API 23/26/30/36 doivent donc être prouvés par GitHub Actions après publication autorisée du commit.
+
+Un contrôle HTTPS indépendant en lecture seule confirme encore `2.6.4-cloudflare` et D1 `online`. À cet instant de la procédure, aucune action distante v2.6.5 n'a été effectuée : pas de commit Git, pas de push, pas de redéploiement Cloudflare, pas de migration D1 et pas d'export APK. L'autorisation antérieure concernait exclusivement la livraison v2.6.4 et ne doit pas être réutilisée. La relève doit obtenir une autorisation explicite pour :
+
+1. commiter et pousser la v2.6.5 sur la branche/PR existante ;
+2. déployer une fois `2.6.5-cloudflare` en production, sans migration ;
+3. exporter une fois l'APK interne, puis la re-signer avec le certificat permanent et livrer uniquement l'APK finale vérifiée.
+
 ### F. Avancées, acquis, problèmes et blocages pour la relève
 
 #### F.1 Acquis techniques
@@ -250,7 +300,7 @@ Le workflow Cloudflare `#4`, run `31683508389`, a réussi. Version Cloudflare : 
 
 #### F.3 Règle de communication honnête
 
-Ne jamais écrire « toutes les opérations fonctionnent en production » avant le test physique. La formulation correcte est : le code, D1, le Worker, la liaison Remote/Robot et le lancement Android 11 sont réparés et testés automatiquement ; la dernière preuve Camtel sur téléphone réel reste obligatoire.
+On peut désormais écrire que le cœur v2.6.4 fonctionne sur le terrain en Remote et Robot. On ne doit pas encore attribuer ce verdict à la v2.6.5 avant son déploiement borné, son APK permanente et la répétition des mêmes opérations.
 
 ## Partie II — procédure technique permanente
 
@@ -260,10 +310,12 @@ Ne jamais écrire « toutes les opérations fonctionnent en production » avant 
 - Branche de travail : `fix/blue-magic-v2-6-recovery`
 - PR : `#4`, à conserver ouverte et non fusionnée jusqu’à validation terrain
 - Application Android : `com.profitloop.blueauto`
-- Version de cette reprise : `2.6.4`, `versionCode 44`
+- Version de production au début de cette reprise : `2.6.4`, `versionCode 44`
+- Version suivante préparée : `2.6.5`, `versionCode 45` ; Worker et APK non déployés/livrés à ce point de la procédure
 - Android minimum : API 23, Android 6.0
 - Android cible de compilation : API 34
-- Worker attendu après déploiement de cette version : `2.6.4-cloudflare`
+- Worker actuel avant nouvelle autorisation : `2.6.4-cloudflare`
+- Worker attendu après déploiement v2.6.5 : `2.6.5-cloudflare`
 - Base : D1 `blue-magic`
 - Point de santé : `GET /api?action=health`
 
@@ -357,7 +409,8 @@ Correction v2.6.4 à préserver :
   grâce à l’empreinte de la SIM vérifiée, au lieu de créer un second propriétaire ;
 - un propriétaire historique sans attestation SIM valide ne bloque plus la file ;
 - un propriétaire de la même SIM devenu silencieux depuis 15 minutes peut être libéré par le téléphone qui prouve cette même SIM ;
-- un Robot vivant reste prioritaire ;
+- un Robot vivant reste prioritaire contre un Remote ordinaire ou une empreinte différente ;
+- lors d'un conflit explicite seulement, une nouvelle preuve de la même SIM physique au bon slot transfère atomiquement la propriété et désactive l'ancien propriétaire de cette empreinte ;
 - un Remote sans la SIM physique ne peut pas devenir Robot ni évincer l’existant.
 
 ### 4.3 Tests trop superficiels
@@ -394,7 +447,7 @@ Ne pas modifier sans une preuve et un test dédiés :
 - `TEST_NUMBER` reste indépendant du PIN et de l’Accessibilité ;
 - la SIM physique est contrôlée avant lease et avant composition ;
 - le numéro fournisseur, le numéro bénéficiaire et le montant sont contrôlés avant PIN ;
-- un Remote ne peut pas éjecter un Robot vivant ;
+- un Remote ordinaire ou une SIM différente ne peut pas éjecter un Robot vivant ; seule la procédure explicite de conflit avec seconde preuve de la même SIM peut transférer la propriété ;
 - une SIM/nœud bloqué ne bloque pas les autres profils du téléphone ;
 - une seule session USSD est ouverte à la fois par téléphone ;
 - aucune répétition automatique après `DIALING` en cas de résultat inconnu ;
@@ -447,7 +500,7 @@ Le test Cloudflare doit prouver au minimum :
 - FIFO et isolation de deux nœuds ;
 - expiration sans double exécution ;
 - refus d’un second Robot vivant ;
-- transfert après arrêt explicite ;
+- transfert normal après arrêt explicite, plus récupération d'un fantôme par seconde preuve de la même SIM sans toucher une empreinte différente ;
 - renouvellement du même appareil sans propriétaire fantôme ;
 - ancien jeton refusé et nouveau jeton opérationnel.
 
@@ -558,7 +611,7 @@ Le certificat a été comparé directement avec v2.5.3, v2.5.4, v2.6.0, v2.6.1 e
 Ordre obligatoire :
 
 1. installer l’APK sans désinstaller ;
-2. confirmer `2.6.4 • versionCode 44` ;
+2. après publication du Worker correspondant, confirmer `2.6.5 • versionCode 45` ;
 3. ouvrir le téléphone Robot et vérifier la SIM/slot ;
 4. démarrer le Robot ;
 5. depuis un autre téléphone Remote, lancer seulement `TEST_NUMBER` ;
@@ -631,5 +684,16 @@ Le système ne doit être déclaré opérationnel avec argent réel qu’après 
 - Worker v2.6.4 en production et D1 en ligne : oui ;
 - APK permanente signée, décodée et vérifiée : oui ;
 - procédure et état du projet actualisés : oui ;
-- test sans fonds sur deux téléphones physiques : à faire par le propriétaire ;
-- opération Camtel minimale supervisée : à faire uniquement après réussite du test sans fonds.
+- test sans fonds sur les téléphones physiques : oui, confirmé par le propriétaire ;
+- opérations Camtel supervisées : oui, Achat et Vente validés en Remote et Robot, en 30 secondes au maximum.
+
+### État de ces critères pour v2.6.5 avant autorisation de publication
+
+- correctifs locaux ciblés et navigation initiale à cinq modules : prêts ;
+- tests JavaScript/Android invariants, Worker/D1 et format du diff : verts localement ;
+- compilation APK et matrice de mise à jour API 23/26/30/36 : à exécuter en CI ;
+- commit/push et mise à jour de la PR : non effectués ;
+- Worker 2.6.5 en production : non, production encore 2.6.4 ;
+- migration D1 : aucune nécessaire et aucune autorisée ;
+- APK permanente v2.6.5 : non produite ni livrée ;
+- test terrain v2.6.5 : à répéter après livraison, en commençant sans fonds.

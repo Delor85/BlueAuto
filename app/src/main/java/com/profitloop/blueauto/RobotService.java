@@ -742,7 +742,10 @@ public class RobotService extends Service {
     }
 
     static void stop(Context context) {
-        String profileId = AppConfig.profileId(context);
+        stop(context, AppConfig.profileId(context));
+    }
+
+    static void stop(Context context, String profileId) {
         sendServiceAction(context, new Intent(context, RobotService.class)
                 .setAction(ACTION_STOP).putExtra(EXTRA_PROFILE_ID, profileId));
     }
