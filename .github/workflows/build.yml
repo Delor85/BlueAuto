@@ -252,7 +252,7 @@ jobs:
           profile: Nexus 6
           disable-animations: true
           script: |
-            set -euo pipefail
+            set -eu
             apk="app/build/outputs/apk/debug/app-debug.apk"
             package="com.profitloop.blueauto"
             activity="$package/.MainActivity"
