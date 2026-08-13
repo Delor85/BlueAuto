@@ -20,7 +20,7 @@ Il est volontairement plus complet qu'une simple note de version. En cas de cont
 3. Le réveil et le retrait temporaire du verrou simple avaient lieu trop près de la composition. Certains OEM avaient besoin que l’activité normale devienne visible et que le keyguard soit réellement libéré avant l’ouverture USSD.
 4. Les cinq onglets, encore placés entre le nœud actif et les opérations, occupaient une zone de lecture importante et les modules hors Flux contenaient surtout des annonces.
 
-### Décisions et modifications v2.6.6 locales
+### Décisions et modifications v2.6.6 livrées
 
 - Version : `2.6.6`, `versionCode 46`, Android 6.0+ inchangé.
 - **Gérer** : barre verticale persistante, fading edge et texte d’indice ; **MODIFIER LE PIN CAMTEL** devient le premier réglage Robot et ouvre une fenêtre dédiée avec affichage volontaire possible.
@@ -42,12 +42,20 @@ Il est volontairement plus complet qu'une simple note de version. En cas de cont
 - un Remote, une SIM différente ou une preuve de slot invalide ne peut pas éjecter un Robot vivant ;
 - aucune modification de schéma D1, de secret ou de clé de signature n’est incluse.
 
-### État de preuve au moment de cette écriture
+### Publication, CI, export et signature v2.6.6
 
-- `node app/src/test/finance-flow.mjs` : réussi ;
-- syntaxe JavaScript : réussie ;
-- `git diff --check` : réussi ;
-- compilation Java/Android, matrice API 23/26/30/36, signature APK et test réel Camtel sous verrou simple : encore à exécuter ; ne pas les présenter comme réussis avant leurs preuves.
+- Autorisation exacte exécutée : publication publique sur `fix/blue-magic-v2-6-recovery`/PR `#4`, CI Android, export interne unique pendant un jour, téléchargement unique, re-signature permanente, livraison, puis retrait de l’export avec `[skip ci]`. Aucun Worker et aucune migration D1 n’étaient autorisés ou nécessaires.
+- Commit GitHub fonctionnel : `45cca8f33b871a066e049f2b08b7a16e69cab8c5`. Son arbre `5fa0d70b2f8e40a07864ca0858f59dccbd9981ab` est identique à celui du commit local autorisé `b502bfd81168dea7e8cc0004f77ef2c67a6d332b`; seul l’objet commit a été recréé par l’API GitHub.
+- Run push/export : `31722781395`. Run PR indépendant : `31722786172`, puis relance du seul job API 36. L’événement PR n’a jamais exporté d’APK interne.
+- Compilation Android, `finance-flow.mjs`, tests unitaires, contrôle Worker/D1 et création des paquets serveur : réussis. Les sources USSD, le protocole financier, le Worker et les migrations sont identiques à la v2.6.5.
+- Mise à jour v2.6.5 → v2.6.6 avec conservation du marqueur local : réussie sur API 23/Android 6, API 26/Android 8 et API 30/Android 11. Le job Android 11 distinct a réellement démarré la v2.6.6 et le profil Robot mémorisé sans crash dans le run PR.
+- Les échecs API 30 et Android 11 du run push étaient des délais `am start -W` de l’émulateur ; les mêmes scénarios ont réussi dans le run PR. API 36 a été exécutée deux fois puis relancée une fois : à chaque échec, l’émulateur logiciel très lent a expiré sur le démarrage de la v2.6.5 de référence avant l’installation v2.6.6. `MainActivity` était bien l’activité active et aucun crash Blue Magic n’est présent. API 36 reste donc non prouvée par ce harnais, sans constituer une régression applicative démontrée.
+- Artefact interne unique : `Blue-Magic-v2.6.6-Internal-Resign`, identifiant `9190012328`, créé le 13 août 2026 à 16:52 UTC et expirant le 14 août à 16:52 UTC. Taille ZIP 107 636 octets ; SHA-256 `671b0041d44c96d292bce5e00e4abdbfef50fc59dc78ddd3d14bec25fdbe7e1b`. Ne jamais installer ni redistribuer cet artefact interne.
+- APK finale : `Blue-Magic-v2.6.6-Ergonomie-Verrou-PIN-Release.apk`, 119 515 octets, SHA-256 `9ff5fc65925030b4ef29a07550d0010cebb1d93c06fdc7d86bf7f4c5cdf3602b` ; paquet `com.profitloop.blueauto`, `versionName 2.6.6`, `versionCode 46`, `minSdk 23`, `targetSdk 34`.
+- Signature : v1, v2 et v3 valides ; certificat `CN=Blue Magic Permanent Release, O=ProfitLoop, C=CM`, RSA 4096, SHA-256 `f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5`, identique à la v2.6.5.
+- Le décodage de l’APK confirme que `index.html`, `app.js` et `style.css` embarqués correspondent octet pour octet aux sources publiées. Le dock inférieur, le réglage PIN prioritaire et le traitement du verrou simple sont présents ; l’ancien overlay de confidentialité et le texte trompeur « PIN protégé » sont absents.
+- L’étape d’export ponctuel a été supprimée après usage. Le commit de nettoyage porte `[skip ci]`; vérifier que le HEAD de branche ne déclenche aucun nouveau run.
+- Limite terrain : ni GitHub Actions ni un émulateur ne possèdent une SIM Camtel ou le dialer du fabricant. Le test réel sous verrou simple, d’abord avec `TEST_NUMBER`, puis avec une transaction minimale supervisée, reste obligatoire avant de déclarer ce cas validé.
 
 ## 0. Résumé de la reprise v2.6.5 au 13 août 2026
 

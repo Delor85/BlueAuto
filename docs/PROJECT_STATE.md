@@ -1,4 +1,4 @@
-# ÉTAT DU PROJET — v2.6.6 EN PRÉPARATION / v2.6.5 EN PRODUCTION
+# ÉTAT DU PROJET — APK v2.6.6 LIVRÉE / WORKER v2.6.5 EN PRODUCTION
 
 État vérifié le 13 août 2026. La reprise doit commencer ici puis continuer dans `docs/PROCEDURE_REPRISE_EXTERNE.md`, qui contient le cahier des charges synthétisé, l'historique complet, les causes de régression, la procédure et les limites terrain.
 
@@ -13,7 +13,7 @@ Retour terrain reçu après la livraison v2.6.5 :
 
 Demande ciblée v2.6.6 : rendre le réglage PIN immédiatement accessible dans **Gérer**, corriger l’insertion/validation du PIN sous verrou simple sans voile de confidentialité, repositionner les cinq onglets dans une navigation ergonomique et commencer à rendre chaque module utile, sans régression financière.
 
-État local avant publication :
+État fonctionnel livré :
 
 - version Android préparée : `2.6.6`, code `46`, `minSdk 23`, `targetSdk 34` ;
 - le réglage **MODIFIER LE PIN CAMTEL** est placé avant Autorisations et ouvre un dialogue dédié ; le panneau **Gérer** affiche une barre de défilement persistante et un indice explicite ;
@@ -24,10 +24,16 @@ Demande ciblée v2.6.6 : rendre le réglage PIN immédiatement accessible dans *
 - les onglets deviennent un dock inférieur flottant : Flux est central, le nœud actif reste dégagé et le dock disparaît pendant l’édition d’un formulaire ;
 - Rapports calcule les indicateurs locaux, Flotte ouvre Comptes/SIM, Robot ouvre Autorisations/PIN/Gérer/Démarrer, SAV contrôle le serveur et renvoie vers le test sans fonds ;
 - aucun changement Worker, D1, protocole financier, élection Robot ou migration n’est nécessaire pour cette tranche ; le Worker `2.6.5-cloudflare` reste compatible ;
-- si les secrets GitHub restent absents, un export interne est autorisé uniquement pour le commit au message exact `release: Blue Magic v2.6.6 ergonomics and simple-lock PIN`, avec conservation d’un jour ; il doit être téléchargé une fois, re-signé avec la clé permanente hors dépôt, puis retiré du workflow ;
-- test statique/local `app/src/test/finance-flow.mjs` et `git diff --check` : réussis ; compilation Android et matrice de mise à jour v2.6.5 → v2.6.6 : à exécuter en CI avant livraison.
+- test statique/local `app/src/test/finance-flow.mjs`, tests Worker/D1 et `git diff --check` : réussis ; aucun fichier Worker ou migration n’a changé ;
+- commit GitHub fonctionnel `45cca8f33b871a066e049f2b08b7a16e69cab8c5`, arbre `5fa0d70b2f8e40a07864ca0858f59dccbd9981ab`, identique à l’arbre du commit local autorisé `b502bfd81168dea7e8cc0004f77ef2c67a6d332b` ;
+- runs GitHub Actions `31722781395` (push/export) et `31722786172` (PR, relance API 36) : compilation et tests financiers/serveur réussis ; mise à jour avec conservation des données réussie sur API 23, 26 et 30 ; lancement réel Android 11 et scénario Robot réussis dans le run PR ;
+- API 36 reste une limite du harnais : les deux exécutions et la relance ont expiré sur `am start -W` de la v2.6.5 de référence, avant l’installation v2.6.6, sans crash Blue Magic ;
+- export interne unique `Blue-Magic-v2.6.6-Internal-Resign`, artefact `9190012328`, créé le 13 août 2026 à 16:52 UTC, expiration le 14 août à 16:52 UTC ; ZIP SHA-256 `671b0041d44c96d292bce5e00e4abdbfef50fc59dc78ddd3d14bec25fdbe7e1b` ;
+- APK finale `Blue-Magic-v2.6.6-Ergonomie-Verrou-PIN-Release.apk`, 119 515 octets, SHA-256 `9ff5fc65925030b4ef29a07550d0010cebb1d93c06fdc7d86bf7f4c5cdf3602b` ; paquet `com.profitloop.blueauto`, code 46, minSdk 23, targetSdk 34 ; signatures v1/v2/v3 valides et certificat permanent RSA 4096 `f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5` ;
+- l’export temporaire a été retiré du workflow après le téléchargement unique ; le commit de nettoyage utilise `[skip ci]`, donc aucun nouveau build ni export ne doit être déclenché ;
+- le test Camtel réel sous verrou simple reste obligatoire avant de déclarer ce cas terrain validé.
 
-Autorisation reçue : le propriétaire autorise les actions utiles à la livraison complète. Cette autorisation ne permet jamais d’exposer un secret, de contourner un verrou sécurisé, de modifier D1 sans besoin démontré ou d’affirmer un test terrain non réalisé.
+Autorisation v2.6.6 exécutée dans son périmètre : publication, CI, export unique, re-signature permanente, livraison et nettoyage sans nouveau build. Aucun Worker, aucune migration D1 et aucun secret n’ont été modifiés ou publiés.
 
 ## 0. Livraison v2.6.5 autorisée et exécutée
 

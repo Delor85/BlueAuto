@@ -126,19 +126,6 @@ jobs:
         if: env.BLUE_MAGIC_SIGNING_KIND == 'temporary'
         run: echo "Compilation réussie. APK non publiée car la signature permanente n'est pas disponible dans ce contexte."
 
-      - name: Exporter une fois l’APK interne v2.6.6 autorisée
-        if: >-
-          env.BLUE_MAGIC_SIGNING_KIND == 'temporary' &&
-          github.event_name == 'push' &&
-          github.ref == 'refs/heads/fix/blue-magic-v2-6-recovery' &&
-          github.event.head_commit.message == 'release: Blue Magic v2.6.6 ergonomics and simple-lock PIN'
-        uses: actions/upload-artifact@v4
-        with:
-          name: Blue-Magic-v2.6.6-Internal-Resign
-          path: app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          retention-days: 1
-
   android-permanent-apk:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
