@@ -234,6 +234,7 @@ jobs:
           pilot_password="$(tr -d '\r\n' < .pilot-signing/keystore.password)"
           echo "::add-mask::$pilot_password"
           echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$pilot_password" >> "$GITHUB_ENV"
+          export BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD="$pilot_password"
           keytool -genkeypair \
             -keystore .pilot-signing/debug.keystore \
             -storepass "$pilot_password" \
