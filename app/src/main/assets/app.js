@@ -8,7 +8,7 @@
     function bridge(){return typeof window.AndroidBridge!=='undefined';}
     window.BlueMagicNative={
         onCommandPreview:function(data){handlePreview(data);},
-        onCommandCreated:function(data){setBusy(false);pendingPreview=null;if(data.error){showActionError(data);return;}clearActionError();var command=data.command||{};if(!command.public_id){showActionError({code:'INVALID_RESPONSE',message:'Réponse serveur incomplète.'});return;}upsert(command);render();showToast(data.duplicate?'Cette demande existait déjà.':'Commande créée et transmise au Robot exact.');},
+        onCommandCreated:function(data){setBusy(false);pendingPreview=null;if(data.error){showActionError(data);return;}clearActionError();var command=data.command||{};if(!command.public_id){showActionError({code:'INVALID_RESPONSE',message:'Réponse serveur incomplète.'});return;}upsert(command);render();if(command.robot_ready===false){showActionProgress((command.robot_status||'ROBOT_OFFLINE')+' — '+(command.robot_message||'Commande créée, mais le Robot ne communique pas encore.'));showToast('Commande créée, mais Robot hors ligne.');return;}showActionProgress('Commande créée. Le Robot détenteur de la SIM est connecté et va la prendre.');showToast(data.duplicate?'Cette demande existait déjà.':'Commande créée et transmise au Robot exact.');},
         onCommandStatus:function(data){if(data&&data.command){upsert(data.command);render();}},
         onCommandCancelled:function(data){if(data.error){showToast(data.message||'Annulation impossible.');return;}if(data.command){upsert(data.command);render();showToast('Commande annulée.');}}
     };
@@ -73,6 +73,7 @@
         preview=data&&data.preview||{};fingerprint=String(preview.confirmation_fingerprint||'');
         if(!fingerprint){setBusy(false);pendingPreview=null;showActionError({code:'PREVIEW_INCOMPLETE',message:'Le serveur n’a pas certifié les numéros de cette commande.'});return;}
         clearActionError();
+        if(preview.robot_ready===false){showActionProgress((preview.robot_status||'ROBOT_OFFLINE')+' — '+(preview.robot_message||'Le Robot ne communique pas encore. La commande peut être mise en attente.'));}
         if(!confirmFinancial(preview)){setBusy(false);pendingPreview=null;showToast('Commande annulée avant toute composition.');return;}
         showActionProgress('Commande confirmée. Transmission au Robot de la SIM fournisseur…');
         window.AndroidBridge.createCommand(pendingPreview.type,pendingPreview.node,pendingPreview.phone,

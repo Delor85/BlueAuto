@@ -54,6 +54,21 @@ try {
   assert.equal(pos.data.node_code, 'POS5_DSM-TEST_DAE-TEST');
   await attest(pos.data.device_token, 'c'.repeat(64), 1);
 
+  // Real field topology: a distinct REMOTE creates the order and the phone that owns the
+  // verified SIM leases it. This must not rely on one token acting as both devices.
+  const posRemote = await pair({
+    node_code: 'POS5', parent_node_code: 'DSM-TEST', role: 'POS', mode: 'REMOTE',
+    phone_number: '699000003', device_name: 'Télécommande POS distincte'
+  });
+  const remoteCreated = await request('create_command', {
+    request_type: 'TEST_NUMBER', client_request_id: 'integration-remote-to-robot-01'
+  }, posRemote.data.device_token);
+  assert.equal(remoteCreated.data.command.robot_ready, true);
+  assert.equal(remoteCreated.data.command.robot_status, 'ONLINE');
+  const remoteRobotLease = await request('lease_command', {}, pos.data.device_token);
+  assert.equal(remoteRobotLease.data.command.public_id, remoteCreated.data.command.public_id);
+  await complete(remoteRobotLease.data.command, pos.data.device_token);
+
   const cancellable = await request('create_command', {
     request_type: 'TEST_NUMBER', client_request_id: 'integration-cancel-pos-01'
   }, pos.data.device_token);
@@ -255,6 +270,71 @@ try {
   const replacementLease = await request('lease_command', {}, posReplacement.data.device_token);
   assert.equal(replacementLease.data.command.public_id, transferredCommand.data.command.public_id);
   await complete(replacementLease.data.command, posReplacement.data.device_token);
+
+  // Token repair reuses the exact device row. An invalid legacy owner cannot capture the SIM
+  // queue, and the distinct REMOTE still creates an order leased only by the repaired ROBOT.
+  const repairRobot = await pair({
+    node_code: 'DAE-REPAIR', role: 'DAE', mode: 'ROBOT',
+    phone_number: '699000011', device_name: 'Robot à réparer'
+  });
+  const repairRemote = await pair({
+    node_code: 'DAE-REPAIR', role: 'DAE', mode: 'REMOTE',
+    phone_number: '699000011', device_name: 'Remote de réparation'
+  });
+  await db.prepare(
+    'UPDATE devices SET robot_enabled = 1, sim_verified = 0, sim_fingerprint = ? WHERE device_id = ?'
+  ).bind('', repairRemote.data.device_id).run();
+  await attest(repairRobot.data.device_token, 'd'.repeat(64), 0);
+
+  const renewed = await pair({
+    node_code: 'DAE-REPAIR', role: 'DAE', mode: 'ROBOT',
+    phone_number: '699000011', device_name: 'Robot réparé',
+    replace_device_id: repairRobot.data.device_id,
+    repair_sim_verified: true, repair_sim_fingerprint: 'd'.repeat(64),
+    repair_robot_enabled: true, sim_slot: 0
+  });
+  assert.equal(renewed.data.device_id, repairRobot.data.device_id);
+  assert.equal(renewed.data.repaired_device, true);
+  const rejectedOldToken = await requestFailure(
+    'heartbeat', {}, repairRobot.data.device_token, 401);
+  assert.equal(rejectedOldToken.error.code, 'AUTH_INVALID');
+
+  const repairedRemoteCommand = await request('create_command', {
+    request_type: 'TEST_NUMBER', client_request_id: 'integration-repaired-remote-01'
+  }, repairRemote.data.device_token);
+  assert.equal(repairedRemoteCommand.data.command.robot_ready, true);
+  const repairedLease = await request('lease_command', {}, renewed.data.device_token);
+  assert.equal(repairedLease.data.command.public_id, repairedRemoteCommand.data.command.public_id);
+  await complete(repairedLease.data.command, renewed.data.device_token);
+
+  // A migrated Android profile may not know its old server device id. The verified SIM itself
+  // must recover that exact Robot row immediately instead of creating a second queue owner.
+  const legacyRobot = await pair({
+    node_code: 'DAE-LEGACY', role: 'DAE', mode: 'ROBOT',
+    phone_number: '699000012', device_name: 'Robot profil migré'
+  });
+  const legacyRemote = await pair({
+    node_code: 'DAE-LEGACY', role: 'DAE', mode: 'REMOTE',
+    phone_number: '699000012', device_name: 'Remote profil migré'
+  });
+  await attest(legacyRobot.data.device_token, 'e'.repeat(64), 0);
+  const legacyRenewed = await pair({
+    node_code: 'DAE-LEGACY', role: 'DAE', mode: 'ROBOT',
+    phone_number: '699000012', device_name: 'Robot migré réparé',
+    repair_sim_verified: true, repair_sim_fingerprint: 'e'.repeat(64),
+    repair_robot_enabled: true, sim_slot: 0
+  });
+  assert.equal(legacyRenewed.data.device_id, legacyRobot.data.device_id);
+  assert.equal(legacyRenewed.data.repaired_device, true);
+  const legacyOldToken = await requestFailure('heartbeat', {}, legacyRobot.data.device_token, 401);
+  assert.equal(legacyOldToken.error.code, 'AUTH_INVALID');
+  const legacyRemoteCommand = await request('create_command', {
+    request_type: 'TEST_NUMBER', client_request_id: 'integration-legacy-remote-01'
+  }, legacyRemote.data.device_token);
+  assert.equal(legacyRemoteCommand.data.command.robot_status, 'ONLINE');
+  const legacyLease = await request('lease_command', {}, legacyRenewed.data.device_token);
+  assert.equal(legacyLease.data.command.public_id, legacyRemoteCommand.data.command.public_id);
+  await complete(legacyLease.data.command, legacyRenewed.data.device_token);
 
   console.log('Cloudflare integration: Remote/mode, cancellation, per-SIM isolation, aliases and full state flow OK');
 } finally {

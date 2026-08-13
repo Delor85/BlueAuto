@@ -1,8 +1,8 @@
 # Protocole de test terrain — avant argent réel
 
-## Gate 0 — installation et diagnostic v2.6.2
+## Gate 0 — installation et diagnostic v2.6.4
 
-1. Si l’APK installée appartient à la lignée permanente v2.5.3/v2.5.4/v2.6.0/v2.6.1, installer la v2.6.2 **par-dessus**, sans désinstallation, puis confirmer `2.6.2 • versionCode 42`. Si Android refuse pour incompatibilité de signature ou si le téléphone est resté exactement en v2.4.5, ne rien désinstaller et relever la version installée.
+1. Si l’APK installée appartient à la lignée permanente v2.5.3/v2.5.4/v2.6.0/v2.6.1/v2.6.2, installer la v2.6.4 **par-dessus**, sans désinstallation, puis confirmer `2.6.4 • versionCode 44`. Si Android refuse pour incompatibilité de signature ou si le téléphone est resté exactement en v2.4.5, ne rien désinstaller et relever la version installée.
 2. Toucher **VÉRIFIER LE SERVEUR** avant de saisir un secret.
 3. Noter le code affiché : `SERVER_CHECK_OK` confirme HTTPS, le Worker et D1 depuis le téléphone ; `NETWORK_DNS`, `NETWORK_TIMEOUT`, `NETWORK_TLS` ou `NETWORK_CONNECT` isole le réseau Android.
 4. Remplir le formulaire puis toucher **APPAIRER CE TÉLÉPHONE**.
@@ -17,8 +17,9 @@ Si le compte est déjà appairé, ne le supprimez pas et ne saisissez aucun secr
 2. Désactivez temporairement l’Accessibilité Blue Magic : l’interface doit avertir que seule la finance est indisponible.
 3. Démarrez le Robot. Il doit rester actif au lieu d’être arrêté pour absence d’Accessibilité.
 4. Depuis le même profil polyvalent ou depuis le Remote, lancez **Tester la SIM Robot**.
-5. Le Robot doit composer uniquement `*825*3*3#`. Relevez le numéro affiché et le code d’erreur exact si la composition n’a pas lieu.
-6. Réactivez l’Accessibilité avant toute transaction financière.
+5. Le Remote doit afficher soit `ONLINE` avec « Robot détenteur de la SIM connecté », soit un diagnostic explicite `OFFLINE`/`STALE`. Il ne doit plus prétendre que la commande a été transmise quand aucun Robot ne communique.
+6. Si `ONLINE` est affiché, le Robot doit louer la commande en moins de 10 secondes et composer uniquement `*825*3*3#`. Relevez le numéro affiché et le code d’erreur exact si la composition n’a pas lieu.
+7. Réactivez l’Accessibilité avant toute transaction financière.
 
 Ce Gate valide la correction de la régression principale sans exposer de fonds. Aucun achat ni vente ne doit être tenté avant sa réussite.
 
@@ -99,6 +100,8 @@ Effectuer d’abord une transaction manuelle minimale et noter le texte exact du
 | `SIM_PERMISSION_MISSING` | l’autorisation État du téléphone manque | Autorisations → Téléphone/État du téléphone → Autoriser |
 | `SIM_SELECTION_FAILED` | slot vide ou compte d’appel Android non associé | vérifier la SIM choisie dans le compte et qu’elle est active pour les appels |
 | `ROBOT_SIM_NOT_VERIFIED` | SIM non liée, déplacée ou attestation serveur absente | ouvrir **☰ GÉRER → VÉRIFIER / LIER LA SIM**, puis redémarrer ce Robot |
+| `OFFLINE` | aucun Robot vérifié n’est actuellement élu pour ce nœud | ouvrir le téléphone portant la SIM, vérifier la SIM, puis démarrer le Robot |
+| `STALE` | un ancien Robot est enregistré mais n’envoie plus de heartbeat | ouvrir l’ancien téléphone s’il existe ; sinon réparer l’appairage sur le téléphone qui possède physiquement la SIM puis redémarrer le Robot |
 | `CONFIRMATION_MISMATCH` | numéro/montant formaté différemment ou réellement faux | ne pas forcer; capturer le pop-up et adapter le parseur |
 | `WRONG_PIN` | PIN local erroné | arrêter, vérifier manuellement, enregistrer le bon PIN; aucune répétition |
 | `UNKNOWN` | transfert possiblement exécuté sans preuve captée | vérifier solde et cinq dernières transactions avant toute nouvelle tentative |

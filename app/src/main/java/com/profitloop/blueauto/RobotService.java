@@ -668,16 +668,27 @@ public class RobotService extends Service {
     }
 
     private void enterForeground(Notification value) {
-        if (Build.VERSION.SDK_INT >= 34) {
-            startForeground(NOTIFICATION_ID, value,
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
-        } else if (Build.VERSION.SDK_INT >= 29) {
-            // Android 10 à 13 ne connaissent pas specialUse. Demander explicitement dataSync
-            // évite que ces versions tentent d'interpréter le type Android 14 du manifeste.
-            startForeground(NOTIFICATION_ID, value,
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
-        } else {
-            startForeground(NOTIFICATION_ID, value);
+        try {
+            if (Build.VERSION.SDK_INT >= 34) {
+                startForeground(NOTIFICATION_ID, value,
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+            } else if (Build.VERSION.SDK_INT >= 29) {
+                // Android 10 à 13 reçoivent uniquement un type connu de leur framework.
+                startForeground(NOTIFICATION_ID, value,
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+            } else {
+                startForeground(NOTIFICATION_ID, value);
+            }
+        } catch (RuntimeException primaryFailure) {
+            // Certains constructeurs Android 10/11 interprètent mal un manifeste compilé avec un
+            // type Android 14. Le type dataSync déclaré sert de repli et empêche le service de
+            // fermer tout le processus au moment où l’activité s’ouvre.
+            if (Build.VERSION.SDK_INT >= 29) {
+                startForeground(NOTIFICATION_ID, value,
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+            } else {
+                startForeground(NOTIFICATION_ID, value);
+            }
         }
     }
 

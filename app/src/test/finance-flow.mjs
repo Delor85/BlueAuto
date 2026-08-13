@@ -75,7 +75,7 @@ assert.equal(actions.every(item => item.disabled), true);
 window.BlueMagicNative.onCommandPreview({preview: {
   operation: 'RETAIL_TRANSFER', executor_node_code: 'POS1_DSM1_OU1',
   executor_phone: '699000003', target_phone: '620550255', amount: 1,
-  confirmation_fingerprint: 'f'.repeat(64)
+  confirmation_fingerprint: 'f'.repeat(64), robot_ready: true, robot_status: 'ONLINE'
 }});
 assert.match(confirmationText, /FOURNISSEUR : POS1_DSM1_OU1 — 699000003/);
 assert.match(confirmationText, /BÉNÉFICIAIRE : CLIENT — 620550255/);
@@ -124,6 +124,7 @@ const service = await readFile(new URL(
   '../main/java/com/profitloop/blueauto/RobotService.java', import.meta.url), 'utf8');
 assert.match(service, /SDK_INT >= 34[\s\S]*FOREGROUND_SERVICE_TYPE_SPECIAL_USE/);
 assert.match(service, /SDK_INT >= 29[\s\S]*FOREGROUND_SERVICE_TYPE_DATA_SYNC/);
+assert.match(service, /catch \(RuntimeException primaryFailure\)[\s\S]*FOREGROUND_SERVICE_TYPE_DATA_SYNC/);
 const readiness = service.slice(service.indexOf('private Readiness checkReadiness('),
   service.indexOf('private void disableUnsafeRobot('));
 assert.doesNotMatch(readiness, /verifyCallRoute/);
@@ -133,7 +134,16 @@ assert.match(manifest, /foregroundServiceType="dataSync\|specialUse"/);
 
 const gradleConfig = await readFile(new URL('../../build.gradle', import.meta.url), 'utf8');
 assert.match(gradleConfig, /minSdk 23/);
-assert.match(gradleConfig, /versionCode 43/);
-assert.match(gradleConfig, /versionName "2\.6\.3"/);
+assert.match(gradleConfig, /versionCode 44/);
+assert.match(gradleConfig, /versionName "2\.6\.4"/);
+
+const apiClient = await readFile(new URL(
+  '../main/java/com/profitloop/blueauto/ApiClient.java', import.meta.url), 'utf8');
+assert.match(apiClient, /replace_device_id/);
+assert.match(apiClient, /repair_sim_fingerprint/);
+
+const appConfig = await readFile(new URL(
+  '../main/java/com/profitloop/blueauto/AppConfig.java', import.meta.url), 'utf8');
+assert.match(appConfig, /serverDeviceId/);
 
 console.log('Android finance UI/runtime: Android 6+, confirmation, TEST_NUMBER and Robot wake flow OK');

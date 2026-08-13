@@ -708,6 +708,14 @@ public class MainActivity extends Activity {
                             payload.put("mode", AppConfig.mode(this));
                             payload.put("pairing_secret", secret);
                             payload.put("device_name", Build.MANUFACTURER + " " + Build.MODEL);
+                            String profileId = AppConfig.profileId(this);
+                            payload.put("replace_device_id", AppConfig.serverDeviceId(this, profileId));
+                            SimIdentityManager.Verification sim =
+                                    SimIdentityManager.verify(this, profileId);
+                            payload.put("repair_sim_verified", sim.valid);
+                            payload.put("repair_sim_fingerprint", sim.attestation());
+                            payload.put("repair_robot_enabled", AppConfig.robotEnabled(this, profileId));
+                            payload.put("sim_slot", Math.max(0, AppConfig.simSlot(this, profileId)));
                             JSONObject data = new ApiClient(this, endpoint, "").pair(payload);
                             String token = data.optString("device_token", "");
                             String serverDeviceId = data.optString("device_id", "");
@@ -798,6 +806,13 @@ public class MainActivity extends Activity {
         payload.put("mode", mode);
         payload.put("pairing_secret", secret);
         payload.put("device_name", Build.MANUFACTURER + " " + Build.MODEL);
+        String profileId = AppConfig.profileId(this);
+        payload.put("replace_device_id", AppConfig.serverDeviceId(this, profileId));
+        SimIdentityManager.Verification sim = SimIdentityManager.verify(this, profileId);
+        payload.put("repair_sim_verified", sim.valid);
+        payload.put("repair_sim_fingerprint", sim.attestation());
+        payload.put("repair_robot_enabled", AppConfig.robotEnabled(this, profileId));
+        payload.put("sim_slot", Math.max(0, AppConfig.simSlot(this, profileId)));
         JSONObject data = new ApiClient(this, AppConfig.apiUrl(this), "").pair(payload);
         if (!AppConfig.repairActivePairing(this, data.optString("device_id", ""),
                 data.optString("device_token", ""),
@@ -943,15 +958,10 @@ public class MainActivity extends Activity {
         String profileId = AppConfig.profileId(this);
         SimIdentityManager.Verification current = SimIdentityManager.verify(this, profileId);
         if (current.valid) {
-            try {
-                AppConfig.clearCallRoute(this, profileId);
-                SimCallManager.verifyCallRoute(this, profileId);
-                toast("SIM et route d’appel vérifiées pour " + AppConfig.nodeCode(this)
-                        + " dans le slot " + (AppConfig.simSlot(this) + 1) + ".");
-            } catch (Exception error) {
-                AppConfig.setRobotEnabled(this, false);
-                toast("SIM présente, mais route d’appel à revérifier : " + readable(error));
-            }
+            AppConfig.clearCallRoute(this, profileId);
+            toast("SIM vérifiée pour " + AppConfig.nodeCode(this)
+                    + " dans le slot " + (AppConfig.simSlot(this) + 1)
+                    + ". La route Téléphone sera résolue au moment de l’USSD.");
             refreshNativeStatus();
             return;
         }
@@ -1021,7 +1031,10 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         applyRobotWindowPolicy();
-        if (AppConfig.anyRobotEnabled(this)) RobotService.startEnabled(this);
+        if (AppConfig.anyRobotEnabled(this)) {
+            View root = webView == null ? nativeStatus : webView;
+            if (root != null) root.postDelayed(() -> RobotService.startEnabled(this), 250L);
+        }
         refreshNativeStatus();
     }
 

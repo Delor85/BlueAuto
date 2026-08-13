@@ -1,4 +1,4 @@
-# Blue Magic v2.6.2 — flux financier Android 6+ et Robot lié à la SIM
+# Blue Magic v2.6.4 — Remote → Robot rétabli et Android 6+
 
 Blue Magic automatise, sur un téléphone Android dédié, les transferts de crédit de distribution Blue/Camtel qui nécessitent désormais deux étapes :
 
@@ -14,7 +14,9 @@ La régression v2.5 provenait d’un mélange entre deux niveaux de prérequis. 
 
 Ainsi `TEST_NUMBER` reste exécutable lorsque la route SIM est sûre, même si l’Accessibilité est désactivée. Une commande financière reste refusée avant composition si ses conditions propres ne sont pas remplies.
 
-La v2.6.2 corrige le blocage des achats et ventes sur **toutes** les versions Android : le flux financier dépend de `preview_command`, désormais livré avec le Worker correspondant, et la boîte de confirmation JavaScript est relayée par Android. Les quatre boutons d’action utilisent le même état actif bleu explicite, y compris sur l’ancien WebView Android 6. Après la pression, le Worker résout le fournisseur et le bénéficiaire enregistrés dans D1, renvoie leurs deux numéros pour confirmation, puis refuse la création si ces données changent.
+La v2.6.4 rétablit le trajet complet sur **Android 6 et plus récent** : Remote distinct → commande D1 → Robot détenteur de la SIM → USSD. Le flux financier dépend de `preview_command` et la boîte de confirmation JavaScript est relayée par Android. Les quatre boutons d’action utilisent le même état actif bleu explicite, y compris sur l’ancien WebView Android 6. Après la pression, le Worker résout le fournisseur et le bénéficiaire enregistrés dans D1, renvoie leurs deux numéros pour confirmation, puis refuse la création si ces données changent.
+
+Cette version corrige aussi les propriétaires Robot fantômes créés par d’anciens renouvellements de jeton. Une réparation réutilise désormais le même appareil serveur. Un ancien enregistrement sans attestation SIM ne peut plus capter la file, tandis qu’un Remote sans la SIM physique ne peut toujours pas évincer le Robot vivant. L’interface indique après création si le Robot exact est réellement en ligne ou si la commande attend un Robot hors connexion.
 
 Le Robot déjà actif conserve toujours la priorité. Appairer un téléphone plus récent ou toucher Robot par erreur depuis un Remote ne déconnecte plus l’ancien téléphone. Le nouveau téléphone est refusé tant que l’ancien Robot n’a pas été arrêté explicitement et que la SIM physique n’a pas été déplacée puis vérifiée sur le nouveau téléphone.
 

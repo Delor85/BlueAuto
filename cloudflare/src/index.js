@@ -1,4 +1,5 @@
-const API_VERSION = '2.6.2-cloudflare';
+const API_VERSION = '2.6.4-cloudflare';
+const ROBOT_LIVE_WINDOW_MINUTES = 15;
 const TERMINAL_STATES = new Set(['SUCCEEDED', 'FAILED', 'UNKNOWN', 'BLOCKED', 'CANCELLED']);
 const EVENT_STATES = new Set([
   'DIALING', 'AWAITING_PIN', 'PIN_SUBMITTED', 'AWAITING_RESULT',
@@ -103,14 +104,69 @@ async function pairDevice(env, input, headers) {
     ).bind(node, role, phoneNumber, parent || null).run();
   }
 
-  const deviceId = crypto.randomUUID();
-  const token = randomHex(32);
-  await env.DB.prepare(
-    'INSERT INTO devices(device_id, node_code, mode, device_name, token_hash, last_seen_at) '
-    + "VALUES(?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
-  ).bind(deviceId, node, mode, deviceName, await sha256(token)).run();
+  const repairFingerprint = String(input.repair_sim_fingerprint || '').trim().toLowerCase();
+  const repairVerified = input.repair_sim_verified === true
+    && /^[a-f0-9]{64}$/.test(repairFingerprint);
+  const repairRobot = repairVerified && input.repair_robot_enabled === true
+    && ['ROBOT', 'HYBRID'].includes(mode);
+  const repairSlot = Number.isInteger(input.sim_slot) && input.sim_slot >= 0 && input.sim_slot <= 3
+    ? input.sim_slot : null;
 
-  return success({device_id: deviceId, device_token: token, node_code: node, role, mode}, 201, headers);
+  const requestedReplacement = String(input.replace_device_id || '').trim();
+  const explicitReplacement = requestedReplacement
+    ? await env.DB.prepare(
+      'SELECT device_id, node_code FROM devices WHERE device_id = ? LIMIT 1'
+    ).bind(requestedReplacement).first()
+    : null;
+  const simReplacement = repairRobot
+    ? await env.DB.prepare(
+      'SELECT device_id, node_code FROM devices WHERE node_code = ? AND active = 1 '
+      + 'AND sim_verified = 1 AND sim_fingerprint = ? '
+      + 'ORDER BY robot_enabled DESC, last_seen_at DESC LIMIT 1'
+    ).bind(node, repairFingerprint).first()
+    : null;
+  // Prefer the row that already owns this verified physical SIM. This repairs profiles created
+  // by older versions that remembered a newer duplicate row while the queue stayed on the old one.
+  const replacement = simReplacement || explicitReplacement;
+  if (replacement && replacement.node_code !== node) {
+    throw new ApiError('DEVICE_IDENTITY_CONFLICT',
+      'L’appareil à réparer appartient à un autre compte.', 409);
+  }
+
+  const deviceId = replacement ? replacement.device_id : crypto.randomUUID();
+  const token = randomHex(32);
+  const tokenHash = await sha256(token);
+  if (replacement) {
+    await env.DB.prepare(
+      'UPDATE devices SET mode = ?, device_name = ?, token_hash = ?, active = 1, '
+      + "robot_enabled = CASE WHEN ? = 'REMOTE' THEN 0 ELSE robot_enabled END, "
+      + "last_seen_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE device_id = ?"
+    ).bind(mode, deviceName, tokenHash, mode, deviceId).run();
+  } else {
+    await env.DB.prepare(
+      'INSERT INTO devices(device_id, node_code, mode, device_name, token_hash, last_seen_at) '
+      + "VALUES(?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+    ).bind(deviceId, node, mode, deviceName, tokenHash).run();
+  }
+
+  // A token renewal must not leave a phantom Robot behind. Ownership may follow the repaired
+  // installation only when this phone proves the same physical SIM and the previous owner has
+  // stopped heartbeating. A Remote without that SIM can never take ownership here.
+  if (repairRobot) {
+    await clearInvalidOrStaleSameSimOwners(env, node, deviceId, repairFingerprint);
+    const liveConflict = await liveRobotOwner(env, node, deviceId);
+    if (!liveConflict) {
+      await env.DB.prepare(
+        'UPDATE devices SET robot_enabled = 1, sim_verified = 1, sim_fingerprint = ?, sim_slot = ? '
+        + 'WHERE device_id = ?'
+      ).bind(repairFingerprint, repairSlot, deviceId).run();
+    }
+  }
+
+  return success({
+    device_id: deviceId, device_token: token, node_code: node, role, mode,
+    repaired_device: Boolean(replacement)
+  }, replacement ? 200 : 201, headers);
 }
 
 async function authenticate(request, env) {
@@ -189,13 +245,15 @@ async function claimRobotSlot(env, auth, input, simFingerprint, simSlot, activat
   if (!['ROBOT', 'HYBRID'].includes(targetMode)) {
     throw new ApiError('NOT_A_ROBOT', 'Passez d’abord ce compte en mode Robot.', 403);
   }
+  await clearInvalidOrStaleSameSimOwners(env, auth.node_code, auth.device_id, simFingerprint);
   const result = await env.DB.prepare(
     "UPDATE devices SET mode = ?, robot_enabled = 1, sim_verified = 1, sim_fingerprint = ?, "
     + "sim_slot = ?, app_version = ?, android_version = ?, device_model = ?, "
     + "last_seen_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') "
     + 'WHERE device_id = ? AND NOT EXISTS ('
     + 'SELECT 1 FROM devices other WHERE other.node_code = ? AND other.device_id <> ? '
-    + 'AND other.active = 1 AND other.robot_enabled = 1)'
+    + 'AND other.active = 1 AND other.robot_enabled = 1 '
+    + 'AND other.sim_verified = 1 AND length(other.sim_fingerprint) = 64)'
   ).bind(
     targetMode, simFingerprint, simSlot,
     cleanText(input.app_version, 40), cleanText(input.android_version, 40),
@@ -206,6 +264,54 @@ async function claimRobotSlot(env, auth, input, simFingerprint, simSlot, activat
       'La SIM de ce compte possède déjà un Robot actif sur un autre téléphone. '
       + 'Arrêtez d’abord cet ancien Robot, déplacez la SIM, vérifiez-la ici, puis recommencez.', 409);
   }
+}
+
+async function clearInvalidOrStaleSameSimOwners(env, nodeCodeValue, deviceId, simFingerprint) {
+  await env.DB.prepare(
+    "UPDATE devices SET robot_enabled = 0 WHERE node_code = ? AND device_id <> ? "
+    + 'AND active = 1 AND robot_enabled = 1 AND ('
+    + 'sim_verified <> 1 OR length(sim_fingerprint) <> 64 OR ('
+    + 'sim_fingerprint = ? AND ('
+    + "last_seen_at IS NULL OR last_seen_at < strftime('%Y-%m-%dT%H:%M:%fZ', 'now', ?))))"
+  ).bind(nodeCodeValue, deviceId, simFingerprint,
+    `-${ROBOT_LIVE_WINDOW_MINUTES} minutes`).run();
+}
+
+async function liveRobotOwner(env, nodeCodeValue, excludedDeviceId = '') {
+  return env.DB.prepare(
+    'SELECT device_id, app_version, android_version, last_seen_at FROM devices '
+    + "WHERE node_code = ? AND device_id <> ? AND mode IN ('ROBOT', 'HYBRID') "
+    + 'AND active = 1 AND robot_enabled = 1 AND sim_verified = 1 '
+    + "AND length(sim_fingerprint) = 64 AND last_seen_at >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', ?) "
+    + 'ORDER BY last_seen_at DESC LIMIT 1'
+  ).bind(nodeCodeValue, excludedDeviceId,
+    `-${ROBOT_LIVE_WINDOW_MINUTES} minutes`).first();
+}
+
+async function robotAvailability(env, nodeCodeValue) {
+  const owner = await liveRobotOwner(env, nodeCodeValue);
+  if (owner) {
+    return {
+      robot_ready: true,
+      robot_status: 'ONLINE',
+      robot_last_seen_at: owner.last_seen_at || '',
+      robot_message: 'Le téléphone Robot détenteur de la SIM est connecté.'
+    };
+  }
+  const configured = await env.DB.prepare(
+    'SELECT last_seen_at FROM devices '
+    + "WHERE node_code = ? AND mode IN ('ROBOT', 'HYBRID') AND active = 1 "
+    + 'AND robot_enabled = 1 AND sim_verified = 1 AND length(sim_fingerprint) = 64 '
+    + 'ORDER BY last_seen_at DESC LIMIT 1'
+  ).bind(nodeCodeValue).first();
+  return {
+    robot_ready: false,
+    robot_status: configured ? 'STALE' : 'OFFLINE',
+    robot_last_seen_at: configured?.last_seen_at || '',
+    robot_message: configured
+      ? 'Le Robot enregistré ne communique plus. Ouvrez ce téléphone et redémarrez son Robot.'
+      : 'Aucun téléphone Robot vérifié ne reçoit actuellement les commandes de cette SIM.'
+  };
 }
 
 async function updateDeviceMode(env, auth, input, headers) {
@@ -227,10 +333,13 @@ async function createCommand(env, auth, input, headers) {
     throw new ApiError('INVALID_REQUEST_ID', 'Clé anti-doublon invalide.', 422);
   }
   const previous = await env.DB.prepare(
-    'SELECT public_id, state, created_at FROM commands '
+    'SELECT public_id, state, created_at, executor_node_code FROM commands '
     + 'WHERE requester_node_code = ? AND client_request_id = ?'
   ).bind(auth.node_code, clientId).first();
-  if (previous) return success({command: previous, duplicate: true}, 200, headers);
+  if (previous) {
+    const availability = await robotAvailability(env, previous.executor_node_code);
+    return success({command: {...previous, ...availability}, duplicate: true}, 200, headers);
+  }
 
   const values = await resolveCommand(env, auth, input, requestType);
   const expectedPreview = await previewFingerprint(values);
@@ -263,19 +372,24 @@ async function createCommand(env, auth, input, headers) {
     ]);
   } catch (error) {
     const duplicate = await env.DB.prepare(
-      'SELECT public_id, state, created_at FROM commands '
+      'SELECT public_id, state, created_at, executor_node_code FROM commands '
       + 'WHERE requester_node_code = ? AND client_request_id = ?'
     ).bind(auth.node_code, clientId).first();
-    if (duplicate) return success({command: duplicate, duplicate: true}, 200, headers);
+    if (duplicate) {
+      const availability = await robotAvailability(env, duplicate.executor_node_code);
+      return success({command: {...duplicate, ...availability}, duplicate: true}, 200, headers);
+    }
     throw error;
   }
+  const availability = await robotAvailability(env, values.executor);
   return success({
     command: {
       public_id: publicId, state: 'PENDING', executor_node_code: values.executor,
       executor_phone: values.executorPhone, target_node_code: values.targetNode,
       target_phone: values.targetPhone,
       operation: values.operation, amount: values.amount,
-      created_at: createdAt, updated_at: createdAt
+      created_at: createdAt, updated_at: createdAt,
+      ...availability
     },
     duplicate: false
   }, 201, headers);
@@ -284,6 +398,7 @@ async function createCommand(env, auth, input, headers) {
 async function previewCommand(env, auth, input, headers) {
   const requestType = String(input.request_type || '').trim().toUpperCase();
   const values = await resolveCommand(env, auth, input, requestType);
+  const availability = await robotAvailability(env, values.executor);
   return success({preview: {
     request_type: requestType,
     executor_node_code: values.executor,
@@ -293,7 +408,8 @@ async function previewCommand(env, auth, input, headers) {
     amount: values.amount,
     operation: values.operation,
     requires_pin: Boolean(values.requiresPin),
-    confirmation_fingerprint: await previewFingerprint(values)
+    confirmation_fingerprint: await previewFingerprint(values),
+    ...availability
   }}, 200, headers);
 }
 

@@ -60,7 +60,7 @@ final class ApiClient {
         SimIdentityManager.Verification sim = SimIdentityManager.verify(context, targetProfile);
         boolean locallyEnabled = AppConfig.robotEnabled(context, targetProfile);
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.6.3");
+        payload.put("app_version", "2.6.4");
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
         payload.put("robot_enabled", locallyEnabled && sim.valid);
@@ -98,7 +98,7 @@ final class ApiClient {
 
     JSONObject activateRobot(SimIdentityManager.Verification sim, int simSlot) throws Exception {
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.6.3");
+        payload.put("app_version", "2.6.4");
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
         payload.put("sim_verified", sim.valid);
@@ -243,6 +243,12 @@ final class ApiClient {
         pairing.put("mode", AppConfig.mode(context, targetProfile));
         pairing.put("pairing_secret", secret);
         pairing.put("device_name", Build.MANUFACTURER + " " + Build.MODEL);
+        pairing.put("replace_device_id", AppConfig.serverDeviceId(context, targetProfile));
+        SimIdentityManager.Verification sim = SimIdentityManager.verify(context, targetProfile);
+        pairing.put("repair_sim_verified", sim.valid);
+        pairing.put("repair_sim_fingerprint", sim.attestation());
+        pairing.put("repair_robot_enabled", AppConfig.robotEnabled(context, targetProfile));
+        pairing.put("sim_slot", Math.max(0, AppConfig.simSlot(context, targetProfile)));
 
         JSONObject data = new ApiClient(context, baseUrl, "")
                 .post("pair_device", pairing, false, false);

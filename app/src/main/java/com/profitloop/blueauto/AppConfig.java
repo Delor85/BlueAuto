@@ -122,6 +122,15 @@ final class AppConfig {
         return profile == null ? "" : profile.optString("device_token", "");
     }
 
+    static String serverDeviceId(Context context, String profileId) {
+        JSONObject profile = profile(context, profileId);
+        if (profile == null) return "";
+        String explicit = profile.optString("server_device_id", "").trim();
+        if (!explicit.isEmpty()) return explicit;
+        String original = profile.optString("id", "").trim();
+        return original.matches("[0-9a-fA-F-]{36}") ? original : "";
+    }
+
     static String userAgent(Context context) {
         return prefs(context).getString("webview_user_agent", "");
     }
