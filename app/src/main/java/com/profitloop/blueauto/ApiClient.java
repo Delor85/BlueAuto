@@ -60,7 +60,7 @@ final class ApiClient {
         SimIdentityManager.Verification sim = SimIdentityManager.verify(context, targetProfile);
         boolean locallyEnabled = AppConfig.robotEnabled(context, targetProfile);
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.6.5");
+        payload.put("app_version", "2.6.7");
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
         payload.put("robot_enabled", locallyEnabled && sim.valid);
@@ -103,7 +103,7 @@ final class ApiClient {
     JSONObject activateRobot(SimIdentityManager.Verification sim, int simSlot,
                              boolean replaceVerifiedSameSimRobot) throws Exception {
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.6.5");
+        payload.put("app_version", "2.6.7");
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
         payload.put("sim_verified", sim.valid);
@@ -119,6 +119,20 @@ final class ApiClient {
 
     JSONObject previewCommand(JSONObject payload) throws Exception {
         return post("preview_command", payload, true);
+    }
+
+    JSONObject checkPurchaseCapacity(JSONObject payload) throws Exception {
+        return post("check_purchase_capacity", payload, true);
+    }
+
+    JSONObject purchaseCapacityStatus(String checkId) throws Exception {
+        JSONObject payload = new JSONObject();
+        payload.put("capacity_check_id", checkId);
+        return post("purchase_capacity_status", payload, true);
+    }
+
+    JSONObject dashboard() throws Exception {
+        return post("network_dashboard", new JSONObject(), true);
     }
 
     JSONObject commandStatus(String publicId) throws Exception {

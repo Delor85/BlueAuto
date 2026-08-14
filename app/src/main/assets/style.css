@@ -26,3 +26,8 @@ body::before{content:"";position:fixed;top:-12%;right:-12%;bottom:-12%;left:-12%
 main{position:relative;z-index:1}.topbar{box-shadow:0 7px 24px rgba(29,18,0,.25)}.topbar h1{background:linear-gradient(90deg,#4ee1ff 0,#fff 43%,#ffd56a 72%,#fff2bd 100%);-webkit-background-clip:text;background-clip:text;color:transparent}.panel{box-shadow:0 10px 28px rgba(0,0,0,.22),0 0 18px rgba(255,205,92,.035)}
 @keyframes magic-dust-drift{0%{transform:translate3d(0,0,0)}50%{transform:translate3d(11px,-8px,0)}100%{transform:translate3d(0,0,0)}}
 @media(prefers-reduced-motion:reduce){body::before{animation:none}}
+
+/* Données actives du cahier : solde Camtel, réseau vérifié et fraîcheur des observations. */
+.balance-hero{border-color:rgba(255,205,92,.45)}.balance-row{display:flex;align-items:center;justify-content:space-between;gap:12px}.balance-row strong{display:block;margin-top:5px;color:#ffd56a;font-size:1.45rem}.balance-row button{max-width:150px}.network-list{margin-top:10px}.network-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid rgba(78,225,255,.13)}.network-item:last-child{border-bottom:0}.network-item strong,.network-item span{display:block}.network-item span{margin-top:3px;color:#8fa9c8;font-size:.68rem}.network-balance{text-align:right;color:#dff8ff;font-size:.74rem;font-weight:900}
+.danger-zone{border-color:rgba(255,107,122,.38)}.admin-actions button{font-size:.68rem}
+@media(max-width:360px){.balance-row{display:block}.balance-row button{max-width:none}.network-item{align-items:flex-start}}

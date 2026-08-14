@@ -36,6 +36,15 @@
             <article class="panel metric metric-success"><strong id="metricSuccessRate">—</strong><span>taux de réussite</span></article>
             <article class="panel metric"><strong id="metricFinanceCount">0</strong><span>opérations financières</span></article>
         </div>
+        <article class="panel module-card balance-hero">
+            <p class="eyebrow">VÉRITÉ SERVEUR & CAMTEL</p>
+            <div class="balance-row"><div><span class="muted">Solde connu du nœud</span><strong id="ownBalance">À actualiser</strong></div><button type="button" class="secondary button-small" data-action="check-balance">Actualiser par USSD</button></div>
+            <p id="balanceFreshness" class="muted">Aucune lecture Camtel horodatée.</p>
+        </article>
+        <article class="panel module-card">
+            <div class="section-heading"><div><p class="eyebrow">RÉSEAU DAE → DSM → POS</p><h3>Soldes, activité et type de terminal</h3></div><button type="button" class="secondary button-small" data-native-action="refresh-dashboard">Rafraîchir</button></div>
+            <div id="networkList" class="network-list"><p class="muted">Lecture du réseau en cours…</p></div>
+        </article>
         <article class="panel module-card">
             <p class="eyebrow">ACTIVITÉ DU TÉLÉPHONE</p>
             <h3 id="reportActivityTitle">Aucune activité locale</h3>
@@ -70,6 +79,21 @@
             <p class="muted">Lance uniquement <code>*825*3*3#</code>.</p>
             <button type="button" class="transaction-action" data-action="test-number">Lancer le test numéro</button>
         </article>
+        <article class="panel command-card">
+            <p class="eyebrow">HISTORIQUE CAMTEL</p><h3>Mes 5 dernières transactions</h3>
+            <p class="muted">Le Robot compose la consultation avec le PIN conservé localement.</p>
+            <button type="button" class="transaction-action" data-action="last-transactions">Consulter l’historique</button>
+        </article>
+        <article class="panel command-card">
+            <p class="eyebrow">PREUVE CAMTEL</p><h3>Détails d’une transaction</h3>
+            <label>Identifiant Camtel</label><input id="transactionId" type="text" autocomplete="off" placeholder="Ex. 123456789">
+            <button type="button" class="transaction-action" data-action="transaction-details">Consulter les détails</button>
+        </article>
+        <article id="childBalanceCard" class="panel command-card hidden">
+            <p class="eyebrow">SUPERVISION ENFANT DIRECT</p><h3>Consulter le solde d’un DSM / PoS</h3>
+            <label>Code du nœud enfant</label><input id="balanceChildNode" type="text" autocomplete="off" placeholder="Ex. DSM7 ou POS5">
+            <button type="button" class="transaction-action" data-action="child-balance">Lire le solde enfant</button>
+        </article>
     </section>
     <section class="panel history">
         <div class="section-heading"><div><p class="eyebrow">REGISTRE LOCAL</p><h3>Commandes récentes</h3></div>
@@ -94,8 +118,26 @@
             </div>
         </article>
         <article class="panel module-card">
+            <p class="eyebrow">FLOTTE SERVEUR</p>
+            <h3 id="fleetNetworkTitle">Inventaire en cours…</h3>
+            <div id="fleetNetworkList" class="network-list"><p class="muted">Le serveur distingue Android et terminal non encore enregistré.</p></div>
+        </article>
+        <article class="panel module-card">
             <p class="eyebrow">RÈGLE DE PROPRIÉTÉ ACTIVE</p>
             <p class="muted">Le téléphone qui prouve physiquement la bonne SIM et le bon slot peut remplacer un Robot fantôme. Une SIM différente et un second Robot vivant restent refusés.</p>
+        </article>
+        <article id="childAdminCard" class="panel module-card hidden">
+            <p class="eyebrow">MAINTENANCE CAMTEL ENFANT DIRECT</p>
+            <h3>PIN, suspension et gel</h3>
+            <label>Code du DSM / PoS enfant</label><input id="adminChildNode" type="text" autocomplete="off" placeholder="Ex. DSM7 ou POS5">
+            <div class="module-actions admin-actions">
+                <button type="button" class="secondary" data-action="init-child-pin-reset">Initier reset PIN</button>
+                <button type="button" class="secondary" data-action="suspend-child">Suspendre</button>
+                <button type="button" class="secondary" data-action="reactivate-child">Réactiver suspendu</button>
+                <button type="button" class="secondary" data-action="freeze-child">Geler la SIM</button>
+                <button type="button" class="secondary" data-action="reactivate-frozen-child">Réactiver SIM gelée</button>
+            </div>
+            <p class="muted">Chaque action affiche une confirmation explicite avant d’être placée dans la file du Robot.</p>
         </article>
     </section>
 
@@ -119,6 +161,12 @@
                 <button type="button" class="secondary" data-native-action="manage">Tous les réglages</button>
                 <button type="button" data-native-action="start-robot">Démarrer le Robot</button>
             </div>
+        </article>
+        <article class="panel module-card danger-zone">
+            <p class="eyebrow">URGENCE VOL / PERTE</p>
+            <h3>Geler cette SIM Camtel</h3>
+            <p class="muted">Commande sensible : elle cible uniquement le numéro officiel du compte actif et exige une confirmation avant envoi.</p>
+            <button type="button" class="secondary" data-action="freeze-self">Préparer le gel de ma SIM</button>
         </article>
     </section>
 

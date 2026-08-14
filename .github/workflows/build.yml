@@ -105,29 +105,16 @@ jobs:
             fi
           fi
 
-      - name: Tester et compiler l’APK
+      - name: Tester et compiler le vrai APK Release
         run: |
           node app/src/test/finance-flow.mjs
-          gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
+          gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
 
-      - name: Préparer l’APK permanente
-        if: env.BLUE_MAGIC_SIGNING_KIND == 'permanent'
-        run: cp app/build/outputs/apk/debug/app-debug.apk Blue-Magic-v2.6.6-Ergonomie-Verrou-PIN-Release.apk
-
-      - name: Publier uniquement l’APK à signature permanente
-        if: env.BLUE_MAGIC_SIGNING_KIND == 'permanent'
-        uses: actions/upload-artifact@v4
-        with:
-          name: Blue-Magic-v2-Robot-Core-Permanent
-          path: Blue-Magic-v2.6.6-Ergonomie-Verrou-PIN-Release.apk
-          if-no-files-found: error
-
-      - name: Confirmer la compilation temporaire sans publication
-        if: env.BLUE_MAGIC_SIGNING_KIND == 'temporary'
-        run: echo "Compilation réussie. APK non publiée car la signature permanente n'est pas disponible dans ce contexte."
+      - name: Confirmer la validation sans seconde publication
+        run: echo "Compilation Release validée. Seul le job de livraison permanente peut publier l'APK."
 
   android-permanent-apk:
-    if: github.event_name != 'pull_request'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -188,22 +175,40 @@ jobs:
             exit 1
           fi
 
-      - name: Compiler l'APK permanente
+      - name: Compiler le vrai APK Release permanent
         if: steps.signing-availability.outputs.available == 'true'
         run: |
           node app/src/test/finance-flow.mjs
-          gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
+          gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
+
+      - name: Vérifier les octets Release, l’alignement et la signature
+        if: steps.signing-availability.outputs.available == 'true'
+        run: |
+          set -euo pipefail
+          build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          apk=app/build/outputs/apk/release/app-release.apk
+          "$build_tools/zipalign" -c -v 4 "$apk"
+          "$build_tools/apksigner" verify --verbose --print-certs "$apk" | tee /tmp/apk-signature.txt
+          grep -qi "Verified using v1 scheme.*true" /tmp/apk-signature.txt
+          grep -qi "Verified using v2 scheme.*true" /tmp/apk-signature.txt
+          grep -qi "Verified using v3 scheme.*true" /tmp/apk-signature.txt
+          if "$build_tools/aapt" dump badging "$apk" | grep -q "application-debuggable"; then
+            echo "::error::Le livrable permanent est encore débogable."
+            exit 1
+          fi
+          sha256sum "$apk" | tee /tmp/blue-magic-v267.sha256
+          cat /tmp/blue-magic-v267.sha256 >> "$GITHUB_STEP_SUMMARY"
 
       - name: Préparer l'APK permanente
         if: steps.signing-availability.outputs.available == 'true'
-        run: cp app/build/outputs/apk/debug/app-debug.apk Blue-Magic-v2.6.6-Ergonomie-Verrou-PIN-Release.apk
+        run: cp app/build/outputs/apk/release/app-release.apk Blue-Magic-v2.6.7-Plateforme-Solde-Release.apk
 
       - name: Publier l'APK permanente vérifiée
         if: steps.signing-availability.outputs.available == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: Blue-Magic-v2-Robot-Core-Permanent
-          path: Blue-Magic-v2.6.6-Ergonomie-Verrou-PIN-Release.apk
+          path: Blue-Magic-v2.6.7-Plateforme-Solde-Release.apk
           if-no-files-found: error
 
       - name: Confirmer l'absence de publication permanente
@@ -211,38 +216,18 @@ jobs:
         run: echo "Compilation permanente ignorée sans exposer ni remplacer les secrets manquants."
 
   android-11-launch:
+    needs: android-permanent-apk
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Récupérer le code
         uses: actions/checkout@v5
 
-      - name: Installer Java 17
-        uses: actions/setup-java@v5
+      - name: Télécharger l’APK Release permanente exacte du run
+        uses: actions/download-artifact@v4
         with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Installer Gradle 8.2
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.2'
-
-      - name: Préparer une signature éphémère non livrable
-        run: |
-          mkdir -p .pilot-signing
-          openssl rand -hex 32 > .pilot-signing/keystore.password
-          pilot_password="$(tr -d '\r\n' < .pilot-signing/keystore.password)"
-          echo "::add-mask::$pilot_password"
-          echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$pilot_password" >> "$GITHUB_ENV"
-          export BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD="$pilot_password"
-          keytool -genkeypair \
-            -keystore .pilot-signing/debug.keystore \
-            -storepass "$pilot_password" \
-            -alias androiddebugkey \
-            -keypass "$pilot_password" \
-            -dname "CN=Blue Magic Android 11 Test,O=ProfitLoop,C=CM" \
-            -keyalg RSA -keysize 2048 -validity 2 -noprompt
-          gradle --no-daemon :app:assembleDebug
+          name: Blue-Magic-v2-Robot-Core-Permanent
+          path: /tmp/blue-magic-v267-final
 
       - name: Démarrer réellement Blue Magic sous Android 11
         uses: reactivecircus/android-emulator-runner@v2
@@ -252,7 +237,8 @@ jobs:
           profile: Nexus 6
           disable-animations: true
           script: |
-            adb install -r app/build/outputs/apk/debug/app-debug.apk
+            adb install -r /tmp/blue-magic-v267-final/Blue-Magic-v2.6.7-Plateforme-Solde-Release.apk | tee /tmp/blue-magic-install.txt
+            grep -q "Success" /tmp/blue-magic-install.txt
             adb logcat -c
             adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/blue-magic-first-start.txt
             grep -q "Status: ok" /tmp/blue-magic-first-start.txt
@@ -269,20 +255,45 @@ jobs:
             adb shell pidof com.profitloop.blueauto
             if adb logcat -d -b crash | grep -q com.profitloop.blueauto; then adb logcat -d -b crash; exit 1; fi
 
-  android-upgrade-v265-to-v266:
+  android-upgrade-v265-to-v267:
     name: android-upgrade-${{ matrix.api }}
+    needs: android-permanent-apk
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    environment: production
     strategy:
       fail-fast: false
+      max-parallel: 3
       matrix:
         include:
           - api: 23
             arch: x86
             profile: Nexus 5
+          - api: 24
+            arch: x86
+            profile: Nexus 5
           - api: 26
             arch: x86_64
             profile: Nexus 5
+          - api: 28
+            arch: x86_64
+            profile: Nexus 6
+          - api: 29
+            arch: x86_64
+            profile: Nexus 6
           - api: 30
+            arch: x86_64
+            profile: Nexus 6
+          - api: 31
+            arch: x86_64
+            profile: Nexus 6
+          - api: 33
+            arch: x86_64
+            profile: Nexus 6
+          - api: 34
+            arch: x86_64
+            profile: Nexus 6
+          - api: 35
             arch: x86_64
             profile: Nexus 6
           - api: 36
@@ -305,22 +316,20 @@ jobs:
         with:
           gradle-version: '8.2'
 
-      - name: Compiler v2.6.5 et v2.6.6 avec la même clé de test
+      - name: Compiler la référence v2.6.5 avec la clé permanente
+        env:
+          PERMANENT_KEYSTORE_BASE64: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_BASE64 }}
+          PERMANENT_KEYSTORE_PASSWORD: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_PASSWORD }}
         run: |
           set -euo pipefail
-          openssl rand -hex 32 > /tmp/blue-magic-upgrade.password
-          upgrade_password="$(tr -d '\r\n' < /tmp/blue-magic-upgrade.password)"
+          test -n "$PERMANENT_KEYSTORE_BASE64"
+          test -n "$PERMANENT_KEYSTORE_PASSWORD"
+          mkdir -p .pilot-signing
+          printf '%s' "$PERMANENT_KEYSTORE_BASE64" | base64 --decode > .pilot-signing/debug.keystore
+          printf '%s' "$PERMANENT_KEYSTORE_PASSWORD" > .pilot-signing/keystore.password
+          upgrade_password="$(tr -d '\r\n' < .pilot-signing/keystore.password)"
           echo "::add-mask::$upgrade_password"
           echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$upgrade_password" >> "$GITHUB_ENV"
-
-          mkdir -p .pilot-signing
-          keytool -genkeypair \
-            -keystore .pilot-signing/debug.keystore \
-            -storepass "$upgrade_password" \
-            -alias androiddebugkey \
-            -keypass "$upgrade_password" \
-            -dname "CN=Blue Magic Upgrade Test,O=ProfitLoop,C=CM" \
-            -keyalg RSA -keysize 2048 -validity 2 -noprompt
 
           git worktree add /tmp/blue-magic-v265 9b1d35f05630effa5e1683bfaa3da2195691ed61
           mkdir -p /tmp/blue-magic-v265/.pilot-signing
@@ -330,8 +339,12 @@ jobs:
             BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD="$upgrade_password" \
               gradle --no-daemon :app:assembleDebug
           )
-          BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD="$upgrade_password" \
-            gradle --no-daemon :app:assembleDebug
+
+      - name: Télécharger l’APK Release permanente exacte du run
+        uses: actions/download-artifact@v4
+        with:
+          name: Blue-Magic-v2-Robot-Core-Permanent
+          path: /tmp/blue-magic-v267-final
 
       - name: Vérifier la mise à jour Android ${{ matrix.api }} sans perte de données
         uses: reactivecircus/android-emulator-runner@v2
@@ -340,17 +353,32 @@ jobs:
           arch: ${{ matrix.arch }}
           profile: ${{ matrix.profile }}
           disable-animations: true
+          emulator-boot-timeout: 1200
           script: |
-            adb install /tmp/blue-magic-v265/app/build/outputs/apk/debug/app-debug.apk
+            adb install /tmp/blue-magic-v265/app/build/outputs/apk/debug/app-debug.apk | tee /tmp/v265-install.txt
+            grep -q "Success" /tmp/v265-install.txt
             adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/v265-start.txt
             grep -q "Status: ok" /tmp/v265-start.txt
             adb shell run-as com.profitloop.blueauto mkdir -p files
             adb shell run-as com.profitloop.blueauto touch files/upgrade-v265-marker
 
-            adb install -r app/build/outputs/apk/debug/app-debug.apk
+            adb install -r /tmp/blue-magic-v267-final/Blue-Magic-v2.6.7-Plateforme-Solde-Release.apk | tee /tmp/v267-install.txt
+            grep -q "Success" /tmp/v267-install.txt
             adb shell am force-stop com.profitloop.blueauto
-            adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/v266-start.txt
-            grep -q "Status: ok" /tmp/v266-start.txt
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/v267-start.txt
+            grep -q "Status: ok" /tmp/v267-start.txt
             adb shell run-as com.profitloop.blueauto ls files/upgrade-v265-marker
-            adb shell dumpsys package com.profitloop.blueauto | grep -q "versionName=2.6.6"
+            adb shell dumpsys package com.profitloop.blueauto | grep -q "versionName=2.6.7"
+            if adb shell dumpsys package com.profitloop.blueauto | grep -q "DEBUGGABLE"; then
+              echo "::error::L’APK candidate ne doit pas être débogable."
+              exit 1
+            fi
             if adb logcat -d -b crash | grep -q com.profitloop.blueauto; then adb logcat -d -b crash; exit 1; fi
+
+            adb uninstall com.profitloop.blueauto | tee /tmp/v267-uninstall.txt
+            grep -q "Success" /tmp/v267-uninstall.txt
+            adb install /tmp/blue-magic-v267-final/Blue-Magic-v2.6.7-Plateforme-Solde-Release.apk | tee /tmp/v267-clean-install.txt
+            grep -q "Success" /tmp/v267-clean-install.txt
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/v267-clean-start.txt
+            grep -q "Status: ok" /tmp/v267-clean-start.txt
+            adb shell dumpsys package com.profitloop.blueauto | grep -q "versionName=2.6.7"

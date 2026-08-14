@@ -2,16 +2,18 @@
     'use strict';
     var TERMINAL = {SUCCEEDED:true,FAILED:true,UNKNOWN:true,BLOCKED:true,CANCELLED:true};
     var labels = {PENDING:'En attente',LEASED:'Réservée au Robot',DIALING:'Composition USSD',AWAITING_PIN:'Vérification du pop-up',PIN_SUBMITTED:'PIN validé',AWAITING_RESULT:'Confirmation Camtel',SUCCEEDED:'Réussie',FAILED:'Échec',UNKNOWN:'À vérifier',BLOCKED:'Robot bloqué — PIN',CANCELLED:'Annulée'};
-    var configuration = {}, commands = [], pendingPreview = null;
+    var configuration = {}, commands = [], pendingPreview = null, capacityPolls = 0, dashboard = null;
     function byId(id){return document.getElementById(id);}
     function each(selector,fn){var items=document.querySelectorAll(selector),i;for(i=0;i<items.length;i+=1){fn(items[i]);}}
     function bridge(){return typeof window.AndroidBridge!=='undefined';}
     window.BlueMagicNative={
         onCommandPreview:function(data){handlePreview(data);},
+        onPurchaseCapacity:function(data){handlePurchaseCapacity(data);},
         onCommandCreated:function(data){setBusy(false);pendingPreview=null;if(data.error){showActionError(data);return;}clearActionError();var command=data.command||{};if(!command.public_id){showActionError({code:'INVALID_RESPONSE',message:'Réponse serveur incomplète.'});return;}upsert(command);render();if(command.robot_ready===false){showActionProgress((command.robot_status||'ROBOT_OFFLINE')+' — '+(command.robot_message||'Commande créée, mais le Robot ne communique pas encore.'));showToast('Commande créée, mais Robot hors ligne.');return;}showActionProgress('Commande créée. Le Robot détenteur de la SIM est connecté et va la prendre.');showToast(data.duplicate?'Cette demande existait déjà.':'Commande créée et transmise au Robot exact.');},
-        onCommandStatus:function(data){if(data&&data.command){upsert(data.command);render();}},
+        onCommandStatus:function(data){if(data&&data.command){upsert(data.command);render();if(TERMINAL[data.command.state]){window.AndroidBridge.loadDashboard();}}},
         onCommandCancelled:function(data){if(data.error){showToast(data.message||'Annulation impossible.');return;}if(data.command){upsert(data.command);render();showToast('Commande annulée.');}},
-        onServerHealth:function(data){var line=byId('serverHealthStatus');if(data&&data.error){line.textContent=(data.code||'SERVER_ERROR')+' — '+(data.message||'Serveur inaccessible.');line.className='health-line notice-danger';showToast('Serveur inaccessible.');return;}line.textContent='EN LIGNE — '+(data.service||'blue-magic-api')+' • '+(data.version||'version inconnue')+' • D1 '+(data.database||'inconnu');line.className='health-line muted';showToast('Serveur Blue Magic en ligne.');}
+        onServerHealth:function(data){var line=byId('serverHealthStatus');if(data&&data.error){line.textContent=(data.code||'SERVER_ERROR')+' — '+(data.message||'Serveur inaccessible.');line.className='health-line notice-danger';showToast('Serveur inaccessible.');return;}line.textContent='EN LIGNE — '+(data.service||'blue-magic-api')+' • '+(data.version||'version inconnue')+' • D1 '+(data.database||'inconnu');line.className='health-line muted';showToast('Serveur Blue Magic en ligne.');},
+        onDashboard:function(data){if(data&&data.error){showToast((data.code||'DASHBOARD_ERROR')+' — '+(data.message||'Rapport indisponible.'));return;}dashboard=data||{};renderDashboard();}
     };
     function initialize(){
         if(!bridge()){byId('nativeBadge').textContent='PONT ABSENT';byId('browserNotice').className='notice';return;}
@@ -31,6 +33,8 @@
         else if(configuration.mode==='ROBOT'&&!configuration.accessibility_enabled){showActionError({code:'FINANCE_ACCESSIBILITY_REQUIRED',message:'TEST_NUMBER reste disponible. Activez l’Accessibilité Blue Magic avant un achat ou une vente.'});}
         if(configuration.role==='DSM'||configuration.role==='POS'){byId('requestSupplyCard').className='panel command-card';}
         if(configuration.role==='DAE'||configuration.role==='DSM'){byId('supplyChildCard').className='panel command-card';}
+        if(configuration.role==='DAE'||configuration.role==='DSM'){byId('childBalanceCard').className='panel command-card';}
+        if(configuration.role==='DAE'||configuration.role==='DSM'){byId('childAdminCard').className='panel module-card';}
         if(configuration.role==='POS'){byId('retailCard').className='panel command-card';}
         each('button[data-action]',function(button){button.onclick=function(){execute(button.getAttribute('data-action'));};});
         each('button[data-native-action]',function(button){button.onclick=function(){runNativeAction(button.getAttribute('data-native-action'));};});
@@ -38,7 +42,7 @@
         byId('refreshCommands').onclick=refresh;
         document.addEventListener('focusin',function(event){if(event.target&&event.target.tagName==='INPUT'){document.body.className='form-editing';try{window.AndroidBridge.setFormEditing(true);}catch(ignored){}}});
         document.addEventListener('focusout',function(){window.setTimeout(function(){if(!document.activeElement||document.activeElement.tagName!=='INPUT'){document.body.className='';try{window.AndroidBridge.setFormEditing(false);}catch(ignored){}}},180);});
-        render();refresh();window.setInterval(refresh,15000);
+        render();refresh();window.AndroidBridge.loadDashboard();window.setInterval(refresh,15000);
     }
     function initializeTabs(){
         var saved=localStorage.getItem('blue_magic_active_module')||'flux';
@@ -65,6 +69,7 @@
             else if(action==='manage'){window.AndroidBridge.openManagement();}
             else if(action==='start-robot'){window.AndroidBridge.startRobot();showToast('Contrôle du Robot lancé. Suivez le message Android.');}
             else if(action==='server-health'){byId('serverHealthStatus').textContent='Vérification HTTPS et D1 en cours…';window.AndroidBridge.checkServerHealth();}
+            else if(action==='refresh-dashboard'){window.AndroidBridge.loadDashboard();showToast('Actualisation du réseau lancée.');}
             else if(action==='go-test'){showTab('flux');var test=document.querySelector('button[data-action="test-number"]');if(test&&test.parentNode&&test.parentNode.scrollIntoView){test.parentNode.scrollIntoView(true);}}
         }catch(error){showToast('Action Android indisponible : '+error.message);}
     }
@@ -80,22 +85,67 @@
     }
     function showRoleNotice(message){var notice=byId('roleNotice');notice.textContent=message;notice.className='notice';}
     function execute(action){
-        if(!bridge()){return;}var type='',node='',phone='',amount='';
+        if(!bridge()){return;}var type='',node='',phone='',amount='',argument='';
         if(action==='request-supply'){type='REQUEST_SUPPLY';amount=byId('requestSupplyAmount').value.replace(/^\s+|\s+$/g,'');}
         else if(action==='supply-child'){type='SUPPLY_CHILD';node=byId('childNode').value.replace(/^\s+|\s+$/g,'').toUpperCase();amount=byId('childAmount').value.replace(/^\s+|\s+$/g,'');}
         else if(action==='retail-sale'){type='RETAIL_SALE';phone=byId('retailPhone').value.replace(/\D/g,'');amount=byId('retailAmount').value.replace(/^\s+|\s+$/g,'');}
+        else if(action==='check-balance'){type='CHECK_BALANCE';}
+        else if(action==='last-transactions'){type='LAST_TRANSACTIONS';}
+        else if(action==='transaction-details'){type='TRANSACTION_DETAILS';argument=byId('transactionId').value.replace(/^\s+|\s+$/g,'');}
+        else if(action==='child-balance'){type='CHILD_BALANCE';node=byId('balanceChildNode').value.replace(/^\s+|\s+$/g,'').toUpperCase();}
+        else if(action==='init-child-pin-reset'){type='INIT_CHILD_PIN_RESET';node=byId('adminChildNode').value.replace(/^\s+|\s+$/g,'').toUpperCase();}
+        else if(action==='suspend-child'){type='SUSPEND_CHILD';node=byId('adminChildNode').value.replace(/^\s+|\s+$/g,'').toUpperCase();}
+        else if(action==='reactivate-child'){type='REACTIVATE_CHILD';node=byId('adminChildNode').value.replace(/^\s+|\s+$/g,'').toUpperCase();}
+        else if(action==='freeze-child'){type='FREEZE_CHILD';node=byId('adminChildNode').value.replace(/^\s+|\s+$/g,'').toUpperCase();}
+        else if(action==='reactivate-frozen-child'){type='REACTIVATE_FROZEN_CHILD';node=byId('adminChildNode').value.replace(/^\s+|\s+$/g,'').toUpperCase();}
+        else if(action==='freeze-self'){type='FREEZE_SELF';}
         else{type='TEST_NUMBER';}
-        if(type!=='TEST_NUMBER'&&!/^[1-9]\d{0,8}$/.test(amount)){showToast('Saisissez un montant entier valide.');return;}
+        if((type==='REQUEST_SUPPLY'||type==='SUPPLY_CHILD'||type==='RETAIL_SALE')&&!/^[1-9]\d{0,8}$/.test(amount)){showToast('Saisissez un montant entier valide.');return;}
         if(type==='SUPPLY_CHILD'&&!node){showToast('Saisissez le code du nœud enfant.');return;}
+        if(type==='CHILD_BALANCE'&&!node){showToast('Saisissez le code du nœud enfant.');return;}
+        if((type==='INIT_CHILD_PIN_RESET'||type==='SUSPEND_CHILD'||type==='REACTIVATE_CHILD'||type==='FREEZE_CHILD'||type==='REACTIVATE_FROZEN_CHILD')&&!node){showToast('Saisissez le code du nœud enfant à administrer.');return;}
         if(type==='RETAIL_SALE'&&!/^\d{9}$/.test(phone)){showToast('Le numéro client doit avoir 9 chiffres.');return;}
-        pendingPreview={type:type,node:node,phone:phone,amount:amount,request_id:requestId()};
+        if(type==='TRANSACTION_DETAILS'&&!/^[A-Za-z0-9_-]{6,64}$/.test(argument)){showToast('Saisissez un identifiant Camtel valide.');return;}
+        pendingPreview={type:type,node:node,phone:phone,amount:amount,argument:argument,request_id:requestId(),capacity_check_id:''};
         setBusy(true);clearActionError();
-        if(type==='TEST_NUMBER'){
-            window.AndroidBridge.createCommand(type,node,phone,amount,pendingPreview.request_id,'');
+        if(type==='REQUEST_SUPPLY'){
+            capacityPolls=0;showActionProgress('Lecture du solde disponible du supérieur avant confirmation…');
+            window.AndroidBridge.checkPurchaseCapacity(amount,pendingPreview.request_id);
+            return;
+        }
+        if(type==='TEST_NUMBER'||type==='CHECK_BALANCE'||type==='LAST_TRANSACTIONS'||type==='TRANSACTION_DETAILS'||type==='CHILD_BALANCE'){
+            window.AndroidBridge.createCommand(type,node,phone,amount,pendingPreview.request_id,'','',argument);
             return;
         }
         showActionProgress('Vérification des numéros officiels et de la filiation…');
-        window.AndroidBridge.previewCommand(type,node,phone,amount,pendingPreview.request_id);
+        window.AndroidBridge.previewCommand(type,node,phone,amount,pendingPreview.request_id,'',argument);
+    }
+    function handlePurchaseCapacity(data){
+        var capacity=data&&data.capacity||{},state=String(capacity.state||'');
+        if(!pendingPreview){setBusy(false);return;}
+        if(data&&data.error){setBusy(false);pendingPreview=null;showActionError(data);return;}
+        if(state==='WAITING'){
+            capacityPolls+=1;
+            showActionProgress('Solde du '+(capacity.supplier_node_code||'supérieur')+' en cours de lecture par son Robot…');
+            if(capacityPolls>30){setBusy(false);pendingPreview=null;showActionError({code:'BALANCE_CHECK_TIMEOUT',message:'La lecture du solde dépasse 45 secondes. Vérifiez le Robot du supérieur.'});return;}
+            window.setTimeout(function(){if(pendingPreview){window.AndroidBridge.getPurchaseCapacityStatus(capacity.capacity_check_id);}},1500);
+            return;
+        }
+        if(state==='INSUFFICIENT'){
+            setBusy(false);pendingPreview=null;
+            showActionError({code:'SOLDE_SUPÉRIEUR_INSUFFISANT',message:'Vous ne pouvez pas commander ce montant. Le solde actuellement disponible du supérieur est de '+formatMoney(capacity.available_balance||0)+' FCFA. Cliquez sur OK puis recommencez avec un montant inférieur ou égal. Faites vite : un autre DSM/PoS peut utiliser ce solde avant vous.'});
+            return;
+        }
+        if(state!=='AVAILABLE'){
+            setBusy(false);pendingPreview=null;showActionError({code:'BALANCE_CHECK_'+(state||'FAILED'),message:capacity.message||'Le solde du supérieur n’a pas pu être certifié.'});return;
+        }
+        pendingPreview.capacity_check_id=String(capacity.capacity_check_id||'');
+        showActionProgress((capacity.balance_reused
+            ? 'Solde Camtel récent réutilisé — aucune commande USSD supplémentaire. '
+            : 'Solde Camtel actualisé. ')
+            +'Disponible : '+formatMoney(capacity.available_balance||0)+' FCFA. Vérification finale des numéros…');
+        window.AndroidBridge.previewCommand(pendingPreview.type,pendingPreview.node,pendingPreview.phone,
+            pendingPreview.amount,pendingPreview.request_id,pendingPreview.capacity_check_id,pendingPreview.argument);
     }
     function handlePreview(data){
         var preview,fingerprint;
@@ -108,9 +158,12 @@
         if(!confirmFinancial(preview)){setBusy(false);pendingPreview=null;showToast('Commande annulée avant toute composition.');return;}
         showActionProgress('Commande confirmée. Transmission au Robot de la SIM fournisseur…');
         window.AndroidBridge.createCommand(pendingPreview.type,pendingPreview.node,pendingPreview.phone,
-            pendingPreview.amount,pendingPreview.request_id,fingerprint);
+            pendingPreview.amount,pendingPreview.request_id,fingerprint,pendingPreview.capacity_check_id,pendingPreview.argument);
     }
     function confirmFinancial(preview){
+        if(preview.dangerous){
+            return window.confirm('COMMANDE CAMTEL SENSIBLE\n\n'+(preview.operation_label||preview.operation||'Maintenance SIM')+'\n\nCOMPTE EXÉCUTEUR : '+(preview.executor_node_code||'—')+' — '+(preview.executor_phone||'—')+'\nCIBLE : '+(preview.target_node_code||preview.executor_node_code||'—')+' — '+(preview.target_phone||preview.executor_phone||'—')+'\n\nCette commande peut suspendre ou geler une SIM. Vérifiez la cible avant de confirmer. Le PIN reste uniquement sur le Robot.\n\nCONFIRMER CETTE COMMANDE ?');
+        }
         var title=preview.operation==='RETAIL_TRANSFER'?'VENTE À UN CLIENT':'TRANSFERT DE CRÉDIT';
         var supplier=(preview.executor_node_code||'FOURNISSEUR')+' — '+(preview.executor_phone||'numéro absent');
         var beneficiary=(preview.target_node_code||'CLIENT')+' — '+(preview.target_phone||'numéro absent');
@@ -157,6 +210,21 @@
         else if(configuration.mode==='ROBOT'&&!configuration.sim_verified){support='SIM non vérifiée : le Robot reste sans privilège dans son hall.';}
         else if(pending){support=String(pending)+' commande(s) non terminale(s) à suivre dans le registre Flux.';}
         byId('supportStatus').textContent=support;
+    }
+    function renderDashboard(){
+        var nodes=dashboard&&dashboard.nodes||[],html='',fleet='',i,n,own=null,total=0,known=0;
+        for(i=0;i<nodes.length;i+=1){
+            n=nodes[i];if(n.node_code===configuration.node_code){own=n;}
+            if(n.balance!==null&&typeof n.balance!=='undefined'){total+=Number(n.balance)||0;known+=1;}
+            html+='<article class="network-item"><div><strong>'+escapeHtml(n.node_code||'—')+'</strong><span>'+escapeHtml((n.role||'—')+' • '+(n.device_kind||'—'))+'</span></div><div class="network-balance">'+(n.balance===null||typeof n.balance==='undefined'?'Non lu':formatMoney(n.balance)+' FCFA')+'</div></article>';
+            fleet+='<article class="network-item"><div><strong>'+escapeHtml(n.node_code||'—')+'</strong><span>'+escapeHtml(n.phone_number||'—')+'</span></div><div class="network-balance">'+escapeHtml(n.device_kind||'—')+'</div></article>';
+        }
+        byId('networkList').innerHTML=html||'<p class="muted">Aucun nœud visible dans cette arborescence.</p>';
+        byId('fleetNetworkList').innerHTML=fleet||'<p class="muted">Aucun terminal rattaché.</p>';
+        byId('fleetNetworkTitle').textContent=String(nodes.length)+' nœud(s) • '+String(known)+' solde(s) connu(s)';
+        byId('ownBalance').textContent=own&&own.balance!==null?formatMoney(own.balance)+' FCFA':'À actualiser';
+        byId('balanceFreshness').textContent=own&&own.observed_at?'Dernière observation : '+formatTime(own.observed_at)+' • '+(own.balance_source||'USSD'):'Aucune lecture Camtel horodatée.';
+        if(nodes.length){byId('reportActivityTitle').textContent='Solde cumulé connu : '+formatMoney(total)+' FCFA';}
     }
     function cancelRemote(commandId){if(!bridge()||!window.confirm('Annuler cette commande encore en attente ?')){return;}window.AndroidBridge.cancelCommand(commandId);}
     function formatTime(value){var d=new Date(value);if(isNaN(d.getTime())){return String(value);}return two(d.getDate())+'/'+two(d.getMonth()+1)+'/'+d.getFullYear()+' à '+two(d.getHours())+':'+two(d.getMinutes())+':'+two(d.getSeconds());}

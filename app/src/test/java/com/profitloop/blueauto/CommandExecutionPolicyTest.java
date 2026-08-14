@@ -47,4 +47,18 @@ public class CommandExecutionPolicyTest {
         assertTrue(CommandExecutionPolicy.capability(
                 "RETAIL_TRANSFER", true, true, false).ready);
     }
+
+    @Test
+    public void directBalanceRequiresLocalPinAndAccessibility() {
+        CommandExecutionPolicy.Capability noPin = CommandExecutionPolicy.capability(
+                "BALANCE_OWN", false, true, false);
+        assertFalse(noPin.ready);
+        assertEquals("PIN_NOT_CONFIGURED", noPin.code);
+        CommandExecutionPolicy.Capability noAccessibility = CommandExecutionPolicy.capability(
+                "BALANCE_OWN", true, false, false);
+        assertFalse(noAccessibility.ready);
+        assertEquals("ACCESSIBILITY_DISABLED", noAccessibility.code);
+        assertTrue(CommandExecutionPolicy.capability(
+                "BALANCE_OWN", true, true, false).ready);
+    }
 }

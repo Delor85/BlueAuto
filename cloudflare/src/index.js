@@ -1,5 +1,6 @@
-const API_VERSION = '2.6.5-cloudflare';
+const API_VERSION = '2.6.7-cloudflare';
 const ROBOT_LIVE_WINDOW_MINUTES = 15;
+const BALANCE_EVIDENCE_TTL_SECONDS = 180;
 const TERMINAL_STATES = new Set(['SUCCEEDED', 'FAILED', 'UNKNOWN', 'BLOCKED', 'CANCELLED']);
 const EVENT_STATES = new Set([
   'DIALING', 'AWAITING_PIN', 'PIN_SUBMITTED', 'AWAITING_RESULT',
@@ -42,6 +43,9 @@ export default {
         case 'update_device_mode': return await updateDeviceMode(env, auth, input, headers);
         case 'preview_command': return await previewCommand(env, auth, input, headers);
         case 'create_command': return await createCommand(env, auth, input, headers);
+        case 'check_purchase_capacity': return await checkPurchaseCapacity(env, auth, input, headers);
+        case 'purchase_capacity_status': return await purchaseCapacityStatus(env, auth, input, headers);
+        case 'network_dashboard': return await networkDashboard(env, auth, headers);
         case 'lease_command': return await leaseCommand(env, auth, headers);
         case 'release_command': return await releaseCommand(env, auth, input, headers);
         case 'cancel_command': return await cancelCommand(env, auth, input, headers);
@@ -393,9 +397,12 @@ async function createCommand(env, auth, input, headers) {
   }
 
   const values = await resolveCommand(env, auth, input, requestType);
+  if (requestType === 'REQUEST_SUPPLY') {
+    values.capacityCheckId = await requireAvailableCapacity(env, auth, input, values);
+  }
   const expectedPreview = await previewFingerprint(values);
   const suppliedPreview = String(input.confirmation_fingerprint || '').trim().toLowerCase();
-  if (values.requiresPin && !/^[a-f0-9]{64}$/.test(suppliedPreview)) {
+  if ((values.requiresPin || values.requiresConfirmation) && !/^[a-f0-9]{64}$/.test(suppliedPreview)) {
     throw new ApiError('CONFIRMATION_REQUIRED',
       'Affichez et confirmez d’abord le fournisseur, le bénéficiaire et le montant.', 409);
   }
@@ -405,21 +412,55 @@ async function createCommand(env, auth, input, headers) {
   }
   const publicId = crypto.randomUUID();
   const createdAt = new Date().toISOString();
+  const insertCommand = values.capacityCheckId
+    ? env.DB.prepare(
+      'INSERT INTO commands(public_id, client_request_id, requester_node_code, executor_node_code, '
+      + 'target_node_code, operation, command_kind, command_argument, target_phone, amount, ussd_code, '
+      + 'requires_pin, capacity_check_id) '
+      + 'SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? '
+      + 'WHERE EXISTS (SELECT 1 FROM purchase_preflights p '
+      + 'JOIN account_balances b ON b.node_code = p.supplier_node_code '
+      + 'LEFT JOIN commands source ON source.public_id = b.source_command_public_id '
+      + 'WHERE p.public_id = ? AND p.requester_node_code = ? AND p.supplier_node_code = ? '
+      + "AND p.requested_amount = ? AND p.state = 'AVAILABLE' "
+      + "AND p.expires_at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now') "
+      + "AND b.valid_until > strftime('%Y-%m-%dT%H:%M:%fZ', 'now') "
+      + "AND b.confidence IN ('OPERATOR_EXPLICIT','DERIVED_FROM_EXPLICIT') "
+      + 'AND ? <= b.balance - COALESCE((SELECT SUM(reserved.amount) FROM commands reserved '
+      + "WHERE reserved.executor_node_code = p.supplier_node_code "
+      + "AND reserved.operation IN ('DISTRIBUTION_TRANSFER','RETAIL_TRANSFER') "
+      + "AND reserved.id > COALESCE(source.id, 0) "
+      + "AND reserved.state NOT IN ('FAILED','CANCELLED')), 0))"
+    ).bind(
+      publicId, clientId, auth.node_code, values.executor, values.targetNode,
+      values.operation, values.commandKind || '', values.commandArgument || '', values.targetPhone,
+      values.amount, values.ussd, values.requiresPin, values.capacityCheckId,
+      values.capacityCheckId, auth.node_code, values.executor, values.amount, values.amount
+    )
+    : env.DB.prepare(
+      'INSERT INTO commands(public_id, client_request_id, requester_node_code, executor_node_code, '
+      + 'target_node_code, operation, command_kind, command_argument, target_phone, amount, ussd_code, '
+      + 'requires_pin, capacity_check_id) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    ).bind(
+      publicId, clientId, auth.node_code, values.executor, values.targetNode,
+      values.operation, values.commandKind || '', values.commandArgument || '', values.targetPhone,
+      values.amount, values.ussd, values.requiresPin, null
+    );
+  let batchResults;
   try {
-    await env.DB.batch([
-      env.DB.prepare(
-        'INSERT INTO commands(public_id, client_request_id, requester_node_code, executor_node_code, '
-        + 'target_node_code, operation, target_phone, amount, ussd_code, requires_pin) '
-        + 'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-      ).bind(
-        publicId, clientId, auth.node_code, values.executor, values.targetNode,
-        values.operation, values.targetPhone, values.amount, values.ussd, values.requiresPin
-      ),
+    batchResults = await env.DB.batch([
+      insertCommand,
       env.DB.prepare(
         "INSERT INTO command_events(command_id, device_id, state, message) "
         + "SELECT id, ?, 'PENDING', 'Commande créée et contrôlée par le serveur.' "
         + 'FROM commands WHERE public_id = ?'
-      ).bind(auth.device_id, publicId)
+      ).bind(auth.device_id, publicId),
+      ...(values.capacityCheckId ? [env.DB.prepare(
+        "UPDATE purchase_preflights SET state = 'CONSUMED', purchase_command_public_id = ?, "
+        + "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') "
+        + "WHERE public_id = ? AND state = 'AVAILABLE' "
+        + 'AND EXISTS (SELECT 1 FROM commands WHERE public_id = ?)'
+      ).bind(publicId, values.capacityCheckId, publicId)] : [])
     ]);
   } catch (error) {
     const duplicate = await env.DB.prepare(
@@ -432,13 +473,25 @@ async function createCommand(env, auth, input, headers) {
     }
     throw error;
   }
+  if (values.capacityCheckId && !batchResults[0].meta?.changes) {
+    const current = await effectiveAvailableBalance(env, values.executor);
+    const available = current?.available ?? 0;
+    await env.DB.prepare(
+      "UPDATE purchase_preflights SET state = 'INSUFFICIENT', available_balance = ?, "
+      + "result_message = 'Le stock a diminué avant la création atomique de la commande.', "
+      + "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE public_id = ? "
+      + "AND state = 'AVAILABLE'"
+    ).bind(available, values.capacityCheckId).run();
+    throw new ApiError('BALANCE_CHANGED',
+      `Le stock disponible a changé : ${available} FCFA. Recommencez la commande.`, 409);
+  }
   const availability = await robotAvailability(env, values.executor);
   return success({
     command: {
       public_id: publicId, state: 'PENDING', executor_node_code: values.executor,
       executor_phone: values.executorPhone, target_node_code: values.targetNode,
       target_phone: values.targetPhone,
-      operation: values.operation, amount: values.amount,
+      operation: values.commandKind || values.operation, amount: values.amount,
       created_at: createdAt, updated_at: createdAt,
       ...availability
     },
@@ -449,6 +502,9 @@ async function createCommand(env, auth, input, headers) {
 async function previewCommand(env, auth, input, headers) {
   const requestType = String(input.request_type || '').trim().toUpperCase();
   const values = await resolveCommand(env, auth, input, requestType);
+  if (requestType === 'REQUEST_SUPPLY') {
+    values.capacityCheckId = await requireAvailableCapacity(env, auth, input, values);
+  }
   const availability = await robotAvailability(env, values.executor);
   return success({preview: {
     request_type: requestType,
@@ -457,11 +513,174 @@ async function previewCommand(env, auth, input, headers) {
     target_node_code: values.targetNode,
     target_phone: values.targetPhone,
     amount: values.amount,
-    operation: values.operation,
+    operation: values.commandKind || values.operation,
     requires_pin: Boolean(values.requiresPin),
+    dangerous: Boolean(values.requiresConfirmation),
+    operation_label: values.operationLabel || '',
+    capacity_check_id: values.capacityCheckId || '',
     confirmation_fingerprint: await previewFingerprint(values),
     ...availability
   }}, 200, headers);
+}
+
+async function checkPurchaseCapacity(env, auth, input, headers) {
+  const clientId = String(input.client_request_id || '').trim();
+  if (!/^[A-Za-z0-9_-]{16,80}$/.test(clientId)) {
+    throw new ApiError('INVALID_REQUEST_ID', 'Clé anti-doublon du contrôle de solde invalide.', 422);
+  }
+  const previous = await env.DB.prepare(
+    'SELECT * FROM purchase_preflights WHERE requester_node_code = ? AND client_request_id = ?'
+  ).bind(auth.node_code, clientId).first();
+  if (previous) return success({capacity: await capacityView(env, previous)}, 200, headers);
+
+  const values = await resolveCommand(env, auth, input, 'REQUEST_SUPPLY');
+  const checkId = crypto.randomUUID();
+  // Le cahier impose de mutualiser les ressources fiables. Une preuve Camtel explicite reste
+  // réutilisable trois minutes; les débits/réservations connus sont déduits avant toute décision.
+  const reusable = await effectiveAvailableBalance(env, values.executor, true);
+  if (reusable) {
+    const state = values.amount <= reusable.available ? 'AVAILABLE' : 'INSUFFICIENT';
+    const message = state === 'AVAILABLE'
+      ? 'Une preuve récente du solde Camtel couvre le montant demandé; aucun USSD supplémentaire.'
+      : 'Le montant demandé dépasse la preuve récente du solde disponible du supérieur.';
+    await env.DB.prepare(
+      'INSERT INTO purchase_preflights(public_id, client_request_id, requester_node_code, '
+      + 'supplier_node_code, requested_amount, available_balance, balance_command_public_id, '
+      + 'balance_reused, balance_observed_at, state, result_message, expires_at) '
+      + "VALUES(?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, "
+      + "strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '+120 seconds'))"
+    ).bind(checkId, clientId, auth.node_code, values.executor, values.amount,
+      reusable.available, reusable.evidence_command_public_id || reusable.source_command_public_id,
+      reusable.observed_at, state, message).run();
+    const availability = await robotAvailability(env, values.executor);
+    return success({capacity: {
+      capacity_check_id: checkId, state, requested_amount: values.amount,
+      supplier_node_code: values.executor, available_balance: reusable.available,
+      balance_command_id: reusable.evidence_command_public_id || reusable.source_command_public_id || '',
+      balance_reused: true, balance_observed_at: reusable.observed_at, message,
+      ...availability
+    }}, 201, headers);
+  }
+
+  // Sans preuve encore valide, une seule consultation BALANCE_OWN est partagée entre toutes les
+  // demandes concurrentes du même fournisseur.
+  let balanceCommand = await env.DB.prepare(
+    "SELECT public_id FROM commands WHERE executor_node_code = ? AND command_kind = 'BALANCE_OWN' "
+    + "AND state IN ('PENDING','LEASED','DIALING','AWAITING_RESULT') ORDER BY id LIMIT 1"
+  ).bind(values.executor).first();
+  if (!balanceCommand) {
+    const commandId = crypto.randomUUID();
+    const balanceClientId = `balance_${randomHex(16)}`;
+    await env.DB.batch([
+      env.DB.prepare(
+        'INSERT INTO commands(public_id, client_request_id, requester_node_code, executor_node_code, '
+        + 'target_node_code, operation, command_kind, command_argument, target_phone, amount, ussd_code, requires_pin) '
+        + "VALUES(?, ?, ?, ?, NULL, 'TEST_NUMBER', 'BALANCE_OWN', '', NULL, NULL, '', 0)"
+      ).bind(commandId, balanceClientId, auth.node_code, values.executor),
+      env.DB.prepare(
+        "INSERT INTO command_events(command_id, device_id, state, message) "
+        + "SELECT id, ?, 'PENDING', 'Actualisation du solde demandée avant un approvisionnement.' "
+        + 'FROM commands WHERE public_id = ?'
+      ).bind(auth.device_id, commandId)
+    ]);
+    balanceCommand = {public_id: commandId};
+  }
+  await env.DB.prepare(
+    'INSERT INTO purchase_preflights(public_id, client_request_id, requester_node_code, '
+    + 'supplier_node_code, requested_amount, balance_command_public_id, state, result_message, expires_at) '
+    + "VALUES(?, ?, ?, ?, ?, ?, 'WAITING', ?, "
+    + "strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '+120 seconds'))"
+  ).bind(checkId, clientId, auth.node_code, values.executor, values.amount,
+    balanceCommand.public_id, 'Lecture USSD du solde du supérieur en cours.').run();
+  const availability = await robotAvailability(env, values.executor);
+  return success({capacity: {
+    capacity_check_id: checkId, state: 'WAITING', requested_amount: values.amount,
+    supplier_node_code: values.executor, available_balance: null,
+    balance_command_id: balanceCommand.public_id, balance_reused: false,
+    balance_observed_at: '', ...availability
+  }}, 202, headers);
+}
+
+async function purchaseCapacityStatus(env, auth, input, headers) {
+  const checkId = String(input.capacity_check_id || '').trim();
+  const row = await env.DB.prepare(
+    'SELECT * FROM purchase_preflights WHERE public_id = ? AND requester_node_code = ?'
+  ).bind(checkId, auth.node_code).first();
+  if (!row) throw new ApiError('CAPACITY_CHECK_NOT_FOUND', 'Contrôle de solde introuvable.', 404);
+  return success({capacity: await capacityView(env, row)}, 200, headers);
+}
+
+async function requireAvailableCapacity(env, auth, input, values) {
+  const checkId = String(input.capacity_check_id || '').trim();
+  if (!checkId) {
+    throw new ApiError('BALANCE_CHECK_REQUIRED',
+      'Vérifiez d’abord le solde disponible du supérieur.', 409);
+  }
+  const row = await env.DB.prepare(
+    'SELECT * FROM purchase_preflights WHERE public_id = ? AND requester_node_code = ? '
+    + 'AND supplier_node_code = ? AND requested_amount = ?'
+  ).bind(checkId, auth.node_code, values.executor, values.amount).first();
+  if (!row) throw new ApiError('BALANCE_CHECK_CHANGED',
+    'Le montant ou le fournisseur a changé depuis le contrôle de solde.', 409);
+  const view = await capacityView(env, row);
+  if (view.state === 'INSUFFICIENT') {
+    throw new ApiError('BALANCE_INSUFFICIENT',
+      `Montant indisponible. Solde actuellement utilisable : ${view.available_balance} FCFA.`, 409);
+  }
+  if (view.state !== 'AVAILABLE') {
+    throw new ApiError('BALANCE_CHECK_NOT_READY',
+      'La lecture du solde du supérieur n’est pas encore disponible.', 409);
+  }
+  return checkId;
+}
+
+async function capacityView(env, row) {
+  let state = row.state;
+  if (['WAITING', 'AVAILABLE'].includes(state)
+      && Date.parse(row.expires_at || '') <= Date.now()) {
+    state = 'EXPIRED';
+    await env.DB.prepare(
+      "UPDATE purchase_preflights SET state = 'EXPIRED', result_message = ?, "
+      + "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE public_id = ? "
+      + "AND state IN ('WAITING','AVAILABLE')"
+    ).bind('Le contrôle de solde a expiré; relancez la demande.', row.public_id).run();
+  }
+  return {
+    capacity_check_id: row.public_id,
+    state,
+    requested_amount: Number(row.requested_amount),
+    available_balance: row.available_balance == null ? null : Number(row.available_balance),
+    supplier_node_code: row.supplier_node_code,
+    balance_command_id: row.balance_command_public_id || '',
+    balance_reused: Boolean(row.balance_reused),
+    balance_observed_at: row.balance_observed_at || '',
+    message: state === 'EXPIRED' ? 'Le contrôle de solde a expiré; relancez la demande.'
+      : row.result_message || '',
+    expires_at: row.expires_at || ''
+  };
+}
+
+async function effectiveAvailableBalance(env, node, requireReusable = false) {
+  const snapshot = await env.DB.prepare(
+    'SELECT b.balance, b.observed_at, b.valid_until, b.confidence, '
+    + 'b.source_command_public_id, b.evidence_command_public_id, c.id AS source_command_id '
+    + 'FROM account_balances b '
+    + 'LEFT JOIN commands c ON c.public_id = b.source_command_public_id WHERE b.node_code = ?'
+  ).bind(node).first();
+  if (!snapshot) return null;
+  if (requireReusable && (Date.parse(snapshot.valid_until || '') <= Date.now()
+      || !['OPERATOR_EXPLICIT', 'DERIVED_FROM_EXPLICIT'].includes(snapshot.confidence))) return null;
+  const reserved = await env.DB.prepare(
+    "SELECT COALESCE(SUM(amount), 0) AS total FROM commands WHERE executor_node_code = ? "
+    + "AND operation IN ('DISTRIBUTION_TRANSFER','RETAIL_TRANSFER') "
+    + 'AND id > COALESCE(?, 0) '
+    + "AND state NOT IN ('FAILED','CANCELLED')"
+  ).bind(node, snapshot.source_command_id).first();
+  return {available: Math.max(0, Number(snapshot.balance) - Number(reserved?.total || 0)),
+    observed_at: snapshot.observed_at, valid_until: snapshot.valid_until,
+    confidence: snapshot.confidence,
+    source_command_public_id: snapshot.source_command_public_id,
+    evidence_command_public_id: snapshot.evidence_command_public_id};
 }
 
 async function resolveCommand(env, auth, input, requestType) {
@@ -515,6 +734,72 @@ async function resolveCommand(env, auth, input, requestType) {
       operation: 'TEST_NUMBER', ussd: '*825*3*3#', requiresPin: 0
     };
   }
+  if (requestType === 'CHECK_BALANCE' || requestType === 'LAST_TRANSACTIONS') {
+    return {
+      executor: requester, executorPhone: auth.phone_number,
+      targetNode: null, targetPhone: null, amount: null,
+      operation: 'TEST_NUMBER',
+      commandKind: requestType === 'CHECK_BALANCE' ? 'BALANCE_OWN' : 'HISTORY_LAST5',
+      commandArgument: '', ussd: '', requiresPin: 0
+    };
+  }
+  if (requestType === 'TRANSACTION_DETAILS') {
+    const transactionId = String(input.transaction_id || '').trim();
+    if (!/^[A-Za-z0-9_-]{6,64}$/.test(transactionId)) {
+      throw new ApiError('INVALID_TRANSACTION_ID', 'Identifiant de transaction invalide.', 422);
+    }
+    return {
+      executor: requester, executorPhone: auth.phone_number,
+      targetNode: null, targetPhone: null, amount: null,
+      operation: 'TEST_NUMBER', commandKind: 'TRANSACTION_DETAIL',
+      commandArgument: transactionId, ussd: '', requiresPin: 0
+    };
+  }
+  if (requestType === 'CHILD_BALANCE') {
+    if (!['DAE', 'DSM'].includes(auth.role)) {
+      throw new ApiError('REQUEST_NOT_ALLOWED', 'Ce rôle ne supervise aucun solde enfant.', 403);
+    }
+    const childRole = auth.role === 'DAE' ? 'DSM' : 'POS';
+    const child = await resolveDirectChild(env, requester, input.target_node_code, childRole);
+    if (!child) throw new ApiError('CHILD_NOT_FOUND', 'Ce compte n’est pas un enfant direct actif.', 422);
+    return {
+      executor: requester, executorPhone: auth.phone_number,
+      targetNode: child.node_code, targetPhone: child.phone_number, amount: null,
+      operation: 'TEST_NUMBER', commandKind: 'BALANCE_CHILD', commandArgument: '',
+      ussd: '', requiresPin: 0
+    };
+  }
+  const childAdminKinds = {
+    INIT_CHILD_PIN_RESET: ['INIT_CHILD_PIN_RESET', 'Initier la réinitialisation du PIN enfant'],
+    SUSPEND_CHILD: ['SUSPEND_CHILD', 'Suspendre l’enfant'],
+    REACTIVATE_CHILD: ['REACTIVATE_CHILD', 'Réactiver l’enfant suspendu'],
+    FREEZE_CHILD: ['FREEZE_CHILD', 'Geler la SIM enfant'],
+    REACTIVATE_FROZEN_CHILD: ['REACTIVATE_FROZEN_CHILD', 'Réactiver la SIM enfant gelée']
+  };
+  if (requestType in childAdminKinds) {
+    if (!['DAE', 'DSM'].includes(auth.role)) {
+      throw new ApiError('REQUEST_NOT_ALLOWED', 'Ce rôle ne gère aucun compte enfant.', 403);
+    }
+    const childRole = auth.role === 'DAE' ? 'DSM' : 'POS';
+    const child = await resolveDirectChild(env, requester, input.target_node_code, childRole);
+    if (!child) throw new ApiError('CHILD_NOT_FOUND', 'Ce compte n’est pas un enfant direct actif.', 422);
+    return {
+      executor: requester, executorPhone: auth.phone_number,
+      targetNode: child.node_code, targetPhone: child.phone_number, amount: null,
+      operation: 'TEST_NUMBER', commandKind: childAdminKinds[requestType][0],
+      commandArgument: '', ussd: '', requiresPin: 0, requiresConfirmation: 1,
+      operationLabel: childAdminKinds[requestType][1]
+    };
+  }
+  if (requestType === 'FREEZE_SELF') {
+    return {
+      executor: requester, executorPhone: auth.phone_number,
+      targetNode: requester, targetPhone: auth.phone_number, amount: null,
+      operation: 'TEST_NUMBER', commandKind: 'FREEZE_SELF', commandArgument: '',
+      ussd: '', requiresPin: 0, requiresConfirmation: 1,
+      operationLabel: 'Geler ma propre SIM en cas de vol ou perte'
+    };
+  }
   throw new ApiError('INVALID_REQUEST_TYPE', 'Type de commande inconnu.', 422);
 }
 
@@ -566,7 +851,7 @@ async function leaseCommand(env, auth, headers) {
     + "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') "
     + "WHERE id = (SELECT id FROM commands WHERE executor_node_code = ? AND state = 'PENDING' ORDER BY id LIMIT 1) "
     + "AND state = 'PENDING' RETURNING id, public_id, requester_node_code, executor_node_code, "
-    + "target_node_code, operation, target_phone, amount, ussd_code, requires_pin"
+    + "target_node_code, operation, command_kind, command_argument, target_phone, amount, ussd_code, requires_pin"
   ).bind(await sha256(leaseToken), auth.node_code).first();
   if (!command) return success({available: false}, 200, headers);
 
@@ -574,7 +859,7 @@ async function leaseCommand(env, auth, headers) {
     "INSERT INTO command_events(command_id, device_id, state, message) VALUES(?, ?, 'LEASED', 'Commande réservée au Robot.')"
   ).bind(command.id, auth.device_id).run();
   command.executor_phone = auth.phone_number;
-  command.integrity_version = 2;
+  command.integrity_version = 3;
   const integrityDigest = await commandDigest(command);
   return success({
     available: true,
@@ -586,6 +871,8 @@ async function leaseCommand(env, auth, headers) {
       executor_phone: command.executor_phone,
       target_node_code: command.target_node_code,
       operation: command.operation,
+      command_kind: command.command_kind || '',
+      command_argument: command.command_argument || '',
       target_phone: command.target_phone,
       amount: command.amount,
       ussd_code: command.ussd_code,
@@ -697,13 +984,14 @@ async function commandEvent(env, auth, input, headers) {
     ).bind(command.id, auth.device_id, nextState, message)
   ]);
   if (!results[0].meta?.changes) throw new ApiError('COMMAND_RACE', 'La commande a changé; relisez son état.', 409);
+  if (terminal) await applyTerminalEffects(env, command, nextState, message, publicId);
   return success({command: {public_id: publicId, state: nextState}, already_terminal: false}, 200, headers);
 }
 
 async function commandStatus(env, auth, input, headers) {
   const publicId = String(input.command_id || '').trim();
   const command = await env.DB.prepare(
-    'SELECT public_id, requester_node_code, executor_node_code, target_node_code, operation, target_phone, '
+    'SELECT public_id, requester_node_code, executor_node_code, target_node_code, operation, command_kind, target_phone, '
     + 'amount, state, result_message, operator_transaction_id, created_at, started_at, completed_at, updated_at '
     + 'FROM commands WHERE public_id = ? AND (requester_node_code = ? OR executor_node_code = ?)'
   ).bind(publicId, auth.node_code, auth.node_code).first();
@@ -717,7 +1005,165 @@ function commandView(command) {
     'target_phone', 'amount', 'state', 'result_message', 'operator_transaction_id', 'created_at',
     'started_at', 'completed_at', 'updated_at'
   ];
-  return Object.fromEntries(keys.filter(key => key in command).map(key => [key, command[key]]));
+  const view = Object.fromEntries(keys.filter(key => key in command).map(key => [key, command[key]]));
+  if (command.command_kind) view.operation = command.command_kind;
+  return view;
+}
+
+async function applyTerminalEffects(env, command, state, message, publicId) {
+  const explicitEvidence = state === 'SUCCEEDED' ? explicitBalanceEvidence(command, message) : null;
+  if (explicitEvidence) {
+    await saveObservedBalance(env, explicitEvidence.nodeCode, explicitEvidence.value, publicId,
+      explicitEvidence.kind);
+    await refreshWaitingPreflights(env, explicitEvidence.nodeCode);
+    return;
+  }
+  if (command.command_kind === 'BALANCE_OWN') {
+    await env.DB.prepare(
+      "UPDATE purchase_preflights SET state = 'FAILED', result_message = ?, "
+      + "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') "
+      + "WHERE balance_command_public_id = ? AND state = 'WAITING'"
+    ).bind(state === 'SUCCEEDED'
+      ? 'Le message Camtel a été reçu, mais aucun solde actuel explicite n’a pu être certifié.'
+      : `La consultation du solde a échoué (${state}).`, publicId).run();
+    return;
+  }
+  if (state === 'SUCCEEDED'
+      && ['DISTRIBUTION_TRANSFER', 'RETAIL_TRANSFER'].includes(command.operation)
+      && Number(command.amount) > 0) {
+    const value = Number(command.amount);
+    const statements = [env.DB.prepare(
+      "UPDATE account_balances SET balance = MAX(0, balance - ?), source = 'ESTIMATED_TRANSFER', "
+      + "evidence_kind = 'ESTIMATED_TRANSFER', confidence = 'DERIVED_FROM_EXPLICIT', "
+      + 'source_command_public_id = ?, '
+      + "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE node_code = ?"
+    ).bind(value, publicId, command.executor_node_code)];
+    if (command.target_node_code) {
+      statements.push(env.DB.prepare(
+        "UPDATE account_balances SET balance = balance + ?, source = 'ESTIMATED_TRANSFER', "
+        + "evidence_kind = 'ESTIMATED_TRANSFER', confidence = 'DERIVED_FROM_EXPLICIT', "
+        + 'source_command_public_id = ?, '
+        + "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE node_code = ?"
+      ).bind(value, publicId, command.target_node_code));
+    }
+    await env.DB.batch(statements);
+  }
+}
+
+function explicitBalanceEvidence(command, message) {
+  const value = parseBalanceFcfa(message);
+  if (value == null) return null;
+  if (command.command_kind === 'BALANCE_CHILD' && command.target_node_code) {
+    return {nodeCode: command.target_node_code, value, kind: 'CHILD_BALANCE_QUERY'};
+  }
+  const kinds = {
+    BALANCE_OWN: 'BALANCE_QUERY',
+    HISTORY_LAST5: 'HISTORY_RESULT',
+    TRANSACTION_DETAIL: 'TRANSACTION_DETAIL_RESULT'
+  };
+  if (kinds[command.command_kind]) {
+    return {nodeCode: command.executor_node_code, value, kind: kinds[command.command_kind]};
+  }
+  if (['DISTRIBUTION_TRANSFER', 'RETAIL_TRANSFER'].includes(command.operation)) {
+    return {nodeCode: command.executor_node_code, value, kind: 'FINANCIAL_RESULT'};
+  }
+  return null;
+}
+
+async function refreshWaitingPreflights(env, nodeCode) {
+  const effective = await effectiveAvailableBalance(env, nodeCode, true);
+  if (!effective) return;
+  await env.DB.prepare(
+    "UPDATE purchase_preflights SET state = CASE WHEN requested_amount <= ? "
+    + "THEN 'AVAILABLE' ELSE 'INSUFFICIENT' END, available_balance = ?, balance_reused = 0, "
+    + 'balance_command_public_id = ?, balance_observed_at = ?, '
+    + "result_message = CASE WHEN requested_amount <= ? "
+    + "THEN 'Le solde Camtel certifié couvre le montant demandé.' "
+    + "ELSE 'Le montant demandé dépasse le solde disponible du supérieur.' END, "
+    + "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') "
+    + "WHERE supplier_node_code = ? AND state = 'WAITING'"
+  ).bind(effective.available, effective.available,
+    effective.evidence_command_public_id || effective.source_command_public_id,
+    effective.observed_at, effective.available, nodeCode).run();
+}
+
+async function saveObservedBalance(env, nodeCode, value, publicId, evidenceKind) {
+  await env.DB.prepare(
+    'INSERT INTO account_balances(node_code, balance, source, evidence_kind, confidence, '
+    + 'source_command_public_id, evidence_command_public_id, observed_at, valid_until) '
+    + "VALUES(?, ?, 'USSD', ?, 'OPERATOR_EXPLICIT', ?, ?, "
+    + "strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), "
+    + "strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '+' || ? || ' seconds')) "
+    + 'ON CONFLICT(node_code) DO UPDATE SET balance = excluded.balance, source = excluded.source, '
+    + 'evidence_kind = excluded.evidence_kind, confidence = excluded.confidence, '
+    + 'source_command_public_id = excluded.source_command_public_id, '
+    + 'evidence_command_public_id = excluded.evidence_command_public_id, '
+    + 'observed_at = excluded.observed_at, valid_until = excluded.valid_until, '
+    + "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')"
+  ).bind(nodeCode, value, evidenceKind, publicId, publicId, BALANCE_EVIDENCE_TTL_SECONDS).run();
+}
+
+function parseBalanceFcfa(message) {
+  const plain = String(message || '').replace(/[\u00a0\u202f]/g, ' ');
+  const amountPattern = "(\\d[\\d .,'’]{0,20})\\s*(?:F\\s*CFA|FCFA|XAF)";
+  const patterns = [
+    new RegExp('(?:available|current|remaining)\\s+balance\\s*(?:(?:is|est)(?:\\s+de)?|[:=])?\\s*'
+      + amountPattern, 'i'),
+    new RegExp('balance\\s+(?:available|disponible)\\s*(?:(?:is|est)(?:\\s+de)?|[:=])?\\s*'
+      + amountPattern, 'i'),
+    new RegExp('(?:votre\\s+)?solde\\s+(?:disponible|actuel|restant)\\s*'
+      + '(?:(?:is|est)(?:\\s+de)?|[:=])?\\s*' + amountPattern, 'i'),
+    new RegExp('(?:votre\\s+)?solde\\s*(?:(?:is|est)(?:\\s+de)?|[:=])\\s*'
+      + amountPattern, 'i'),
+    new RegExp('balance\\s+of\\s+\\d{9}\\s*(?:(?:is|est)(?:\\s+de)?|[:=])\\s*'
+      + amountPattern, 'i')
+  ];
+  const match = patterns.map(pattern => pattern.exec(plain)).find(Boolean);
+  if (!match) return null;
+  const digits = match[1].replace(/\D/g, '');
+  if (!/^\d{1,9}$/.test(digits)) return null;
+  const value = Number(digits);
+  return Number.isSafeInteger(value) && value >= 0 ? value : null;
+}
+
+async function networkDashboard(env, auth, headers) {
+  const nodes = await env.DB.prepare(
+    'WITH RECURSIVE network(node_code) AS (SELECT ? UNION ALL '
+    + 'SELECT n.node_code FROM nodes n JOIN network p ON n.parent_node_code = p.node_code '
+    + 'WHERE n.active = 1) '
+    + 'SELECT n.node_code, n.role, n.phone_number, n.parent_node_code, '
+    + 'b.balance, b.source AS balance_source, b.observed_at, '
+    + '(SELECT MAX(c.updated_at) FROM commands c WHERE c.requester_node_code = n.node_code '
+    + 'OR c.executor_node_code = n.node_code OR c.target_node_code = n.node_code) AS last_activity_at, '
+    + '(SELECT COUNT(*) FROM devices d WHERE d.node_code = n.node_code AND d.active = 1) AS android_devices '
+    + 'FROM network x JOIN nodes n ON n.node_code = x.node_code '
+    + 'LEFT JOIN account_balances b ON b.node_code = n.node_code ORDER BY n.role, n.node_code'
+  ).bind(auth.node_code).all();
+  const summary = await env.DB.prepare(
+    'WITH RECURSIVE network(node_code) AS (SELECT ? UNION ALL '
+    + 'SELECT n.node_code FROM nodes n JOIN network p ON n.parent_node_code = p.node_code '
+    + 'WHERE n.active = 1) '
+    + "SELECT COUNT(*) AS command_count, "
+    + "SUM(CASE WHEN state = 'SUCCEEDED' THEN 1 ELSE 0 END) AS success_count, "
+    + "SUM(CASE WHEN state NOT IN ('SUCCEEDED','FAILED','UNKNOWN','BLOCKED','CANCELLED') THEN 1 ELSE 0 END) AS pending_count, "
+    + "SUM(CASE WHEN state = 'SUCCEEDED' AND operation IN ('DISTRIBUTION_TRANSFER','RETAIL_TRANSFER') "
+    + "THEN amount ELSE 0 END) AS successful_volume "
+    + 'FROM commands WHERE requester_node_code IN (SELECT node_code FROM network)'
+  ).bind(auth.node_code).first();
+  return success({
+    generated_at: new Date().toISOString(), root_node_code: auth.node_code,
+    nodes: nodes.results.map(row => ({...row,
+      balance: row.balance == null ? null : Number(row.balance),
+      android_devices: Number(row.android_devices || 0),
+      device_kind: Number(row.android_devices || 0) > 0 ? 'ANDROID' : 'NON_ENREGISTRE'
+    })),
+    summary: {
+      command_count: Number(summary?.command_count || 0),
+      success_count: Number(summary?.success_count || 0),
+      pending_count: Number(summary?.pending_count || 0),
+      successful_volume: Number(summary?.successful_volume || 0)
+    }
+  }, 200, headers);
 }
 
 async function readJson(request) {
@@ -794,7 +1240,10 @@ async function commandDigest(command) {
   const parts = [
     command.public_id || '', command.requester_node_code || '', command.executor_node_code || '',
     command.integrity_version >= 2 ? command.executor_phone || '' : null,
-    command.target_node_code || '', command.operation || '', command.target_phone || '',
+    command.target_node_code || '', command.operation || '',
+    command.integrity_version >= 3 ? command.command_kind || '' : null,
+    command.integrity_version >= 3 ? command.command_argument || '' : null,
+    command.target_phone || '',
     command.amount == null ? '' : String(command.amount), command.ussd_code || '',
     command.requires_pin ? '1' : '0'
   ];
@@ -805,7 +1254,9 @@ async function previewFingerprint(values) {
   return sha256([
     values.executor || '', values.executorPhone || '', values.targetNode || '',
     values.targetPhone || '', values.amount == null ? '' : String(values.amount),
-    values.operation || '', values.ussd || '', values.requiresPin ? '1' : '0'
+    values.operation || '', values.commandKind || '', values.commandArgument || '', values.ussd || '',
+    values.requiresPin ? '1' : '0', values.requiresConfirmation ? '1' : '0',
+    values.capacityCheckId || ''
   ].join('|'));
 }
 

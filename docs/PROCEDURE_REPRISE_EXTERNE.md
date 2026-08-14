@@ -4,6 +4,109 @@ Ce document permet à un autre développeur ou agent de reprendre Blue Magic san
 
 Il est volontairement plus complet qu'une simple note de version. En cas de contradiction avec une réponse de conversation, le code publié, les preuves GitHub Actions, l'état Cloudflare et les limites écrites ici priment.
 
+## 0AA. Chantier v2.6.7 — 14 août 2026 — publication et production autorisées
+
+Le 14 août 2026, le propriétaire a explicitement autorisé, et uniquement pour v2.6.7 : l'indexation, le commit et le push sur `fix/blue-magic-v2-6-recovery`/PR #4, la CI complète, l'application de la seule migration D1 `0003`, un déploiement du Worker `2.6.7-cloudflare`, puis un lancement manuel produisant l'APK Release permanente, sa vérification Android 6–16 et sa livraison. Aucun autre changement de production n'est autorisé.
+
+Il précise en même temps une règle d'architecture du cahier : les modules doivent partager les preuves fiables déjà obtenues et éviter les commandes USSD en double. Une consultation de solde, un historique des cinq dernières transactions, un détail ou un résultat financier peut donc alimenter le même registre de solde si — et seulement si — la fenêtre Camtel fiable contient un solde actuel explicite.
+
+### Demande et acquis à préserver
+
+Le propriétaire confirme que les onglets v2.6.6 ne suffisent pas encore et demande simultanément :
+
+1. une installation/mise à jour vérifiée sur Android 6, 7, 8, 9, 10, 11, 12, 13, 14 et versions suivantes ;
+2. la suppression définitive de la surface/du « voile » qui empêche la saisie du PIN sous verrou simple ;
+3. avant la confirmation 1/2 d'un achat DSM/PoS auprès de son supérieur, une lecture du solde du fournisseur, puis un refus indiquant le montant exact disponible si le stock est insuffisant ;
+4. des onglets réellement alimentés par le serveur et l'activation progressive des commandes du cahier révisé ;
+5. aucune régression de Test/Achat/Vente, Remote/Robot, FIFO, confirmation, contrôle SIM/slot, remplacement du Robot fantôme et messages de prérequis.
+
+Le cahier source maître de cette reprise est `Blue Magic Cahier des Charges Fonctionnel juillet 2026(3).docx`. Son texte a été extrait intégralement, sa structure a été analysée et un rendu de contrôle de 81 pages a été produit. En cas de contradiction interne, sa partie révisée précédant l'ancien « Cahier définitif v2 » est prioritaire. Les codes Camtel retenus sont ceux du répertoire révisé : transfert `*550*2*...`, vente `*550*1*...`, solde propre `*550*3*1*PIN#`, historique/détail et maintenance `*550*3/*4/*5`.
+
+### Audit Codex demandé par le propriétaire
+
+Un audit indépendant, sans modification de fichiers, a constaté :
+
+- aucun `TYPE_ACCESSIBILITY_OVERLAY` ni texte « PIN protégé » ne subsiste dans la source ou l'APK v2.6.6 ;
+- la cause du voile observable est le lancement de la **MainActivity complète** pour retirer le keyguard, puis la poursuite de la composition après quatre secondes sans preuve que le verrou simple a disparu ;
+- v2.6.6 prenait le simple retour `true` de la première action `ACTION_SET_TEXT` comme preuve d'écriture, même si un dialer Android 11 acceptait l'action sans modifier le champ ;
+- l'APK v2.6.6 livrée est encore un build `debuggable=true` re-signé ; le certificat permanent est correct et identique à v2.6.2/v2.6.4/v2.6.5, mais certains installateurs OEM peuvent refuser un APK débogable ;
+- le contrôle binaire a apporté une preuve supplémentaire : `resources.arsc` de la finale v2.6.6 commence à l'offset `103141`, non divisible par 4, donc l'APK a perdu son alignement ZIP après la re-signature manuelle. La v2.6.4 présente le même défaut (`94857`) alors que v2.6.0/2.6.1/2.6.2 et la v2.6.5 utilisée comme passerelle sont alignées. Cette corrélation explique les refus Android 11 de v2.6.4/v2.6.6 malgré le certificat correct ;
+- la CI historique testait une APK temporaire proche, pas le vrai type Release final, et omettait Android 7/9/10/12/13/14/15.
+
+### Correctif verrou simple et PIN
+
+- `MainActivity` n'est plus relancée pour une transaction en veille.
+- Une activité interne `InsecureKeyguardDismissActivity` est transparente, sans contenu, sans assombrissement, `noHistory` et exclue des récents. Elle ne sert qu'à fournir le jeton d'activité exigé par Android 8+ pour retirer un verrou par simple glissement, puis se ferme immédiatement.
+- Le service garde l'écran réveillé pendant 45 secondes au maximum, retire temporairement le verrou simple et **vérifie `isKeyguardLocked()==false` avant de passer à `DIALING`**. Si le verrou reste visible, le lease est relâché sans composition et sans état financier incertain.
+- Un mot de passe, PIN, schéma ou verrou biométrique Android n'est jamais contourné.
+- L'Accessibilité refuse toute écriture/clic tant qu'un keyguard existe. Elle essaie d'abord un collage local sur le champ initialement vide, puis des remplacements déterministes par `ACTION_SET_TEXT` ; elle ne concatène jamais deux méthodes dans le même essai. Le premier booléen positif n'est plus une preuve suffisante.
+- Les textes solde, succès, échec et mauvais PIN ne sont plus agrégés depuis toutes les applications : ils doivent provenir d'une seule fenêtre du dialer par défaut ou d'un composant Phone/Telecom système. Le bouton OK/Fermer est lui aussi recherché uniquement dans cette fenêtre fiable.
+- Un champ n'est considéré comme rempli que s'il contient les quatre chiffres exacts, quatre glyphes de masque reconnus, ou si la dernière méthode a ciblé un champ réellement visible et focalisé sans keyguard.
+- Le PIN peut être physiquement visible comme demandé ; il reste chiffré dans Android Keystore, masqué dans les preuves et absent du JavaScript, du Worker et de D1.
+
+### Contrôle du solde avant achat
+
+Le nouveau trajet `REQUEST_SUPPLY` est le suivant :
+
+1. la Télécommande envoie `check_purchase_capacity` avec montant et clé anti-doublon ;
+2. le Worker recherche d'abord une preuve opérateur explicite encore valide, âgée de 180 secondes au maximum. Elle peut provenir de `BALANCE_OWN`, `BALANCE_CHILD`, `HISTORY_LAST5`, `TRANSACTION_DETAIL` ou du résultat fiable d'une finance ;
+3. un historique ou détail sans libellé explicite de solde actuel n'est jamais interprété à partir des montants de transactions. « Transfer Balance of 1 FCFA » n'est notamment pas un solde ;
+4. les transferts déjà réussis, inconnus ou en attente depuis cette preuve sont déduits. Un succès connu fait évoluer la preuve par dérivation sans prolonger sa date d'expiration ;
+5. si aucune preuve réutilisable n'existe, le Worker place une lecture fraîche `BALANCE_OWN` dans la file du Robot du supérieur. Une seule lecture en cours est partagée entre tous les enfants ; le Robot construit localement `*550*3*1*PIN#` et le Worker ne reçoit jamais le PIN ;
+6. l'Accessibilité renvoie uniquement le texte de la fenêtre Phone/Telecom fiable ; le Worker exige un libellé de solde actuel et extrait le premier montant FCFA/XAF directement associé, jamais les frais ;
+7. montant inférieur ou égal : l'app poursuit vers la prévisualisation et la confirmation 1/2 inchangée ; elle indique si aucune commande USSD supplémentaire n'a été nécessaire ;
+8. montant supérieur : aucune commande financière n'est créée. L'app affiche exactement le solde disponible et demande de recommencer rapidement avec un montant inférieur ou égal, car un autre enfant peut consommer le stock ;
+9. le contrôle expire après 120 secondes et ne réserve pas l'argent réel chez Camtel. À la création, un `INSERT … SELECT … WHERE` D1 revalide aussi l'expiration de la preuve et recalcule atomiquement le disponible en soustrayant achats de distribution, ventes détail et commandes déjà réservées. Deux enfants ne peuvent donc pas engager simultanément le même stock. L'index unique empêche la réutilisation d'un contrôle.
+
+La migration additive `0003_balance_preflight_and_modules.sql` ajoute `account_balances`, `purchase_preflights`, le type logique de commande, son argument local et le lien de capacité. Elle ne modifie ni ne supprime les lignes existantes. **Elle n'est pas encore appliquée en production.**
+
+### Onglets et commandes réellement activés dans le code v2.6.7
+
+| Cahier | État v2.6.7 local | Preuve/limite |
+|---|---|---|
+| Flux Achat/Vente/Test | Conservé | mêmes résolutions hiérarchiques, preview, idempotence, FIFO et contrôle Camtel |
+| Solde propre | Actif | commande locale `*550*3*1*PIN#`, preuve D1 horodatée et mutualisable 180 s entre modules |
+| 5 dernières transactions | Actif | `*550*3*3*PIN#` construit uniquement sur le Robot |
+| Détail transaction | Actif | `*550*3*2*ID*PIN#`, ID validé côté Worker et Android |
+| Solde enfant direct | Actif DAE/DSM | `*550*5*2*numéro*PIN#`, enfant résolu par la filiation serveur |
+| Init reset PIN enfant | Actif avec confirmation sensible | `*550*4*1*numéro*PIN#` |
+| Suspendre/réactiver enfant | Actif avec confirmation sensible | `*550*4*2` / `*550*4*3` |
+| Geler/réactiver SIM enfant | Actif avec confirmation sensible | `*550*5*3` / `*550*5*4` |
+| Geler sa propre SIM | Actif avec confirmation sensible | cible forcée sur le numéro officiel du compte |
+| Rapports | Actif, première tranche serveur | soldes connus, fraîcheur, volume, activité et arborescence visible |
+| Flotte | Actif, première tranche serveur | nœuds, numéros, Android ou terminal non enregistré, comptes/SIM et maintenance Camtel ; ne pas inventer un Tchoronko sans donnée dédiée |
+| Robot/Configuration | Actif pour le socle | hall, permissions, liaison SIM, PIN local, démarrage et multi-comptes |
+| SAV | Actif pour le socle | santé Worker/D1, diagnostic et retour vers test sans fonds |
+| KYC complet, créances, géographie, mercenaires et SAV conversationnel | Restant | ne pas prétendre qu'ils sont livrés ; ils nécessitent modèles de données, écrans et règles métier supplémentaires |
+
+### Installation Android 6 à 16
+
+- Version préparée : `2.6.7`, `versionCode 47`, `minSdk 23`, `targetSdk 34`.
+- Le type livré devient un vrai `assembleRelease`, signé directement par la configuration permanente quand les secrets autorisés sont présents. Il ne doit plus contenir `android:debuggable="true"` et ne doit plus être « décapé puis re-signé » à partir d'un debug.
+- Le workflow exécute `zipalign -c -v 4` et `apksigner verify` sur l'APK finale avant l'export. Aucun octet ne doit être modifié après cette vérification/signature.
+- La même applicationId `com.profitloop.blueauto`, le versionCode croissant et le certificat permanent restent les trois conditions de mise à jour.
+- La matrice couvre un API représentatif de chaque Android majeur : 23/6, 24/7, 26/8, 28/9, 29/10, 30/11, 31/12, 33/13, 34/14, 35/15 et 36/16.
+- Cette couverture est échantillonnée par version majeure : les variantes intermédiaires API 25/Android 7.1, API 27/Android 8.1 et API 32/Android 12L ne sont pas des lignes séparées. Elles restent compatibles par plage SDK mais pourront être ajoutées si un modèle terrain signale un comportement propre à ces variantes.
+- Chaque job sépare le résultat `adb install` du démarrage, installe v2.6.5 avec la même clé permanente, conserve un marqueur, applique `adb install -r` sur **l'artefact Release permanent exact du run**, vérifie la version et refuse le drapeau `DEBUGGABLE`. Il désinstalle ensuite la référence et vérifie aussi l'installation propre du même artefact sur chaque API. L'export permanent et la matrice complète ne s'exécutent qu'en lancement manuel autorisé.
+- Une incompatibilité de signature avec une ancienne APK v2.4.5/v2.5.1 reste techniquement impossible à contourner : ces anciennes APK portent un autre certificat. Relever `adb install -r` et `dumpsys package` avant toute désinstallation.
+
+### Vérifications déjà réalisées et blocages actuels
+
+- `node app/src/test/finance-flow.mjs` : réussi après extension des scénarios UI, confirmation et solde insuffisant.
+- `node --check cloudflare/src/index.js` : réussi.
+- `npm run check` dans `cloudflare` : couvre Remote/Robot, FIFO, preuve fraîche, réutilisation depuis l'historique, rejet d'un faux « Transfer Balance », expiration à 180 s, deux préflights concurrents de 600 FCFA sur 1 000 FCFA (un succès et un `409 BALANCE_CHANGED`) et les états complets.
+- migrations 0001→0003 appliquées dans SQLite en mémoire et `PRAGMA integrity_check` : `ok`.
+- simulation SQL isolée de la garde atomique : engagement 600 FCFA accepté, engagement concurrent 500 FCFA refusé sur un solde observé de 1 000 FCFA ; total réservé final 600 FCFA.
+- parseur solde isolé : « solde 1 250 FCFA, frais 0 FCFA » → 1 250 ; un message de transfert sans libellé solde/balance → refusé.
+- YAML du workflow chargé et matrice des onze API contrôlée.
+- `git diff --check` : réussi.
+- Gradle/SDK Android ne sont pas installés dans ce terminal ; compilation Java, APK Release, vérification non-débogable et émulateurs restent donc des gates CI.
+- Aucun commit, push, run CI, APK, déploiement Worker ou migration D1 de production n'a encore été effectué pour v2.6.7. Le Worker public reste `2.6.5-cloudflare` et ne connaît pas les nouveaux endpoints.
+
+### Périmètre distant reçu
+
+L'autorisation ci-dessus est suffisante pour cette remise coordonnée seulement. Consigner ci-dessous les identifiants réels du commit, de la migration, de la version Cloudflare, des runs et de l'APK ; ne pas réutiliser cette autorisation après la livraison.
+
 ## 0A. Journal de reprise v2.6.6 — 13 août 2026
 
 ### Retour du propriétaire conservé comme preuve terrain

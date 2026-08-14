@@ -4,7 +4,6 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.KeyguardManager;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -50,8 +49,6 @@ import java.util.UUID;
 import javax.net.ssl.SSLException;
 
 public class MainActivity extends Activity {
-    static final String ACTION_PREPARE_INSECURE_USSD =
-            "com.profitloop.blueauto.action.PREPARE_INSECURE_USSD";
     private static final int REQUEST_CORE_PERMISSIONS = 550;
     private static final int GOLD = Color.rgb(255, 205, 92);
     private static final int CYAN = Color.rgb(78, 225, 255);
@@ -73,42 +70,12 @@ public class MainActivity extends Activity {
         applyRobotWindowPolicy();
         if (AppConfig.isPaired(this)) showControlScreen();
         else showPairingScreen(false);
-        requestSimpleKeyguardDismissal(getIntent());
     }
 
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
-        requestSimpleKeyguardDismissal(intent);
-    }
-
-    /**
-     * The Robot may bring this normal activity to the foreground only for a swipe/no-credential
-     * keyguard. There is deliberately no secret-covering overlay: Android opens the phone surface,
-     * then its own verified USSD prompt stays visible while Accessibility writes and validates it.
-     */
-    private void requestSimpleKeyguardDismissal(Intent intent) {
-        if (intent == null || !ACTION_PREPARE_INSECURE_USSD.equals(intent.getAction())) return;
-        intent.setAction(null);
-        if (DeviceLockState.isSecurelyLocked(this) || !DeviceLockState.isInsecurelyLocked(this)) return;
-        if (Build.VERSION.SDK_INT >= 27) {
-            setTurnScreenOn(true);
-        } else {
-            getWindow().addFlags(WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
-        }
-        getWindow().getDecorView().postDelayed(() -> {
-            if (DeviceLockState.isSecurelyLocked(this)
-                    || !DeviceLockState.isInsecurelyLocked(this)) return;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                KeyguardManager manager = (KeyguardManager) getSystemService(KEYGUARD_SERVICE);
-                if (manager != null) {
-                    manager.requestDismissKeyguard(this, new KeyguardManager.KeyguardDismissCallback() {});
-                }
-            } else {
-                DeviceLockState.dismissInsecureKeyguard(this);
-            }
-        }, 180L);
     }
 
     private void showPairingScreen(boolean addingAccount) {
@@ -1228,7 +1195,8 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public void previewCommand(String requestType, String targetNode, String targetPhone,
-                                   String amount, String clientRequestId) {
+                                   String amount, String clientRequestId, String capacityCheckId,
+                                   String commandArgument) {
             new Thread(() -> {
                 try {
                     JSONObject payload = new JSONObject();
@@ -1237,6 +1205,8 @@ public class MainActivity extends Activity {
                     payload.put("target_phone", targetPhone == null ? "" : targetPhone.trim());
                     payload.put("amount", amount == null ? "" : amount.trim());
                     payload.put("client_request_id", validRequestId(clientRequestId));
+                    payload.put("capacity_check_id", capacityCheckId == null ? "" : capacityCheckId.trim());
+                    payload.put("transaction_id", commandArgument == null ? "" : commandArgument.trim());
                     JSONObject data = new ApiClient(MainActivity.this).previewCommand(payload);
                     callback("onCommandPreview", data);
                 } catch (Exception error) {
@@ -1248,7 +1218,8 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void createCommand(String requestType, String targetNode, String targetPhone,
                                   String amount, String clientRequestId,
-                                  String confirmationFingerprint) {
+                                  String confirmationFingerprint, String capacityCheckId,
+                                  String commandArgument) {
             new Thread(() -> {
                 try {
                     JSONObject payload = new JSONObject();
@@ -1259,6 +1230,8 @@ public class MainActivity extends Activity {
                     payload.put("client_request_id", validRequestId(clientRequestId));
                     payload.put("confirmation_fingerprint", confirmationFingerprint == null
                             ? "" : confirmationFingerprint.trim().toLowerCase(Locale.ROOT));
+                    payload.put("capacity_check_id", capacityCheckId == null ? "" : capacityCheckId.trim());
+                    payload.put("transaction_id", commandArgument == null ? "" : commandArgument.trim());
                     JSONObject data = new ApiClient(MainActivity.this).createCommand(payload);
                     callback("onCommandCreated", data);
                     // Sur un téléphone qui héberge aussi le Robot, supprimer toute attente du
@@ -1268,6 +1241,48 @@ public class MainActivity extends Activity {
                     }
                 } catch (Exception error) {
                     callbackError("onCommandCreated", error);
+                }
+            }).start();
+        }
+
+        @JavascriptInterface
+        public void checkPurchaseCapacity(String amount, String clientRequestId) {
+            new Thread(() -> {
+                try {
+                    JSONObject payload = new JSONObject();
+                    payload.put("request_type", "REQUEST_SUPPLY");
+                    payload.put("amount", amount == null ? "" : amount.trim());
+                    payload.put("client_request_id", validRequestId(clientRequestId));
+                    callback("onPurchaseCapacity", new ApiClient(MainActivity.this)
+                            .checkPurchaseCapacity(payload));
+                    if (AppConfig.anyRobotEnabled(MainActivity.this)) {
+                        RobotService.startEnabled(MainActivity.this);
+                    }
+                } catch (Exception error) {
+                    callbackError("onPurchaseCapacity", error);
+                }
+            }).start();
+        }
+
+        @JavascriptInterface
+        public void getPurchaseCapacityStatus(String capacityCheckId) {
+            new Thread(() -> {
+                try {
+                    callback("onPurchaseCapacity", new ApiClient(MainActivity.this)
+                            .purchaseCapacityStatus(capacityCheckId));
+                } catch (Exception error) {
+                    callbackError("onPurchaseCapacity", error);
+                }
+            }).start();
+        }
+
+        @JavascriptInterface
+        public void loadDashboard() {
+            new Thread(() -> {
+                try {
+                    callback("onDashboard", new ApiClient(MainActivity.this).dashboard());
+                } catch (Exception error) {
+                    callbackError("onDashboard", error);
                 }
             }).start();
         }

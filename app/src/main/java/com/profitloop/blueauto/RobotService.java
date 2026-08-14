@@ -333,10 +333,9 @@ public class RobotService extends Service {
                 disableUnsafeRobot(profileId, readiness.message);
                 return;
             }
-            String ussd = UssdCommandFactory.buildAndValidate(this, profileId, command);
-            boolean requiresPin = UssdCommandFactory.requiresPin(command);
+            String operation = UssdCommandFactory.operation(command);
             CommandExecutionPolicy.Capability capability = CommandExecutionPolicy.capability(
-                    command.optString("operation", ""),
+                    operation,
                     SecurePinStore.hasPin(this, profileId),
                     BlueAccessibilityService.isEnabled(this),
                     AppConfig.pinBlocked(this, profileId));
@@ -344,6 +343,8 @@ public class RobotService extends Service {
                 finishCommand(profileId, false, capability.code, capability.message, "");
                 return;
             }
+            String ussd = UssdCommandFactory.buildAndValidate(this, profileId, command);
+            boolean requiresPin = UssdCommandFactory.requiresPin(command);
             if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
                 finishCommand(profileId, false, "CALL_PERMISSION_MISSING",
                         "Autorisation Téléphone non accordée.", "");
@@ -356,26 +357,27 @@ public class RobotService extends Service {
                 return;
             }
             acquireCommandWakeLock();
-            PendingCommandStore.updateState(this, profileId, PendingCommandStore.DIALING);
-            api.sendEvent(command, "DIALING", "Composition USSD déclenchée sur le Robot.", "");
-            updateNotification("Commande " + AppConfig.nodeCode(this, profileId) + " en cours");
-
-            String next = requiresPin ? PendingCommandStore.AWAITING_PIN : PendingCommandStore.AWAITING_RESULT;
-            PendingCommandStore.updateState(this, profileId, next);
-            api.sendEvent(command, next, requiresPin
-                    ? "En attente de la fenêtre de confirmation PIN."
-                    : "En attente du résultat opérateur.", "");
-
             try {
                 boolean needsWakeSettle = !DeviceLockState.isScreenInteractive(this)
                         || DeviceLockState.isInsecurelyLocked(this);
                 acquireCommandScreenWakeLock();
-                prepareSystemUssdSurface(needsWakeSettle);
-                if (DeviceLockState.isSecurelyLocked(this)) {
-                    finishCommand(profileId, false, "DEVICE_SECURELY_LOCKED",
-                            "Le téléphone a été reverrouillé avec un code; transaction différée.", "");
+                if (!prepareSystemUssdSurface(needsWakeSettle)) {
+                    releaseUnexecutedLease(profileId, command, api,
+                            "Le verrou Android est encore visible; aucune composition n’a été lancée.");
+                    updateNotification(robotSummary(
+                            "Commande différée — retirez le verrou ou réveillez l’écran"));
                     return;
                 }
+                PendingCommandStore.updateState(this, profileId, PendingCommandStore.DIALING);
+                api.sendEvent(command, "DIALING", "Composition USSD déclenchée sur le Robot.", "");
+                updateNotification("Commande " + AppConfig.nodeCode(this, profileId) + " en cours");
+
+                String next = requiresPin ? PendingCommandStore.AWAITING_PIN
+                        : PendingCommandStore.AWAITING_RESULT;
+                PendingCommandStore.updateState(this, profileId, next);
+                api.sendEvent(command, next, requiresPin
+                        ? "En attente de la fenêtre de confirmation PIN."
+                        : "En attente du résultat opérateur.", "");
                 SimCallManager.placeUssdCall(this, ussd, profileId);
                 if (requiresPin) BlueAccessibilityService.kick(this);
             } catch (SecurityException permissionError) {
@@ -390,23 +392,23 @@ public class RobotService extends Service {
         }
     }
 
-    private void prepareSystemUssdSurface(boolean needsWakeSettle) {
-        if (!needsWakeSettle) return;
+    private boolean prepareSystemUssdSurface(boolean needsWakeSettle) {
+        if (DeviceLockState.isSecurelyLocked(this)) return false;
+        if (!needsWakeSettle && !DeviceLockState.isKeyguardLocked(this)) return true;
         long deadline = System.currentTimeMillis() + 4_000L;
         boolean activityRequested = false;
         do {
-            if (DeviceLockState.isSecurelyLocked(this)) return;
+            if (DeviceLockState.isSecurelyLocked(this)) return false;
             if (DeviceLockState.isInsecurelyLocked(this)) {
                 insecureKeyguardDismissed = DeviceLockState.dismissInsecureKeyguard(this)
                         || insecureKeyguardDismissed;
                 if (!activityRequested) {
                     activityRequested = true;
                     try {
-                        Intent unlock = new Intent(this, MainActivity.class);
-                        unlock.setAction(MainActivity.ACTION_PREPARE_INSECURE_USSD);
+                        Intent unlock = new Intent(this, InsecureKeyguardDismissActivity.class);
                         unlock.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                                | Intent.FLAG_ACTIVITY_SINGLE_TOP
-                                | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                                | Intent.FLAG_ACTIVITY_NO_ANIMATION
+                                | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
                         startActivity(unlock);
                     } catch (Exception ignored) {
                         // The legacy keyguard release above remains the Android 6/7 fallback.
@@ -429,6 +431,8 @@ public class RobotService extends Service {
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
         }
+        return DeviceLockState.isScreenInteractive(this)
+                && !DeviceLockState.isKeyguardLocked(this);
     }
 
     private void reportProgress(String profileId, String state, String message) {

@@ -10,7 +10,9 @@ const ids = [
   'refreshCommands', 'commandList', 'toast', 'serverHealthStatus', 'metricCommandCount',
   'metricSuccessCount', 'metricPendingCount', 'metricLastDuration', 'metricSuccessRate',
   'metricFinanceCount', 'reportActivityTitle', 'reportActivityDetail', 'fleetNodeStatus',
-  'fleetSimStatus', 'configRobotStatus', 'supportStatus'
+  'fleetSimStatus', 'configRobotStatus', 'supportStatus', 'ownBalance', 'balanceFreshness',
+  'networkList', 'fleetNetworkTitle', 'fleetNetworkList', 'transactionId',
+  'childBalanceCard', 'balanceChildNode', 'childAdminCard', 'adminChildNode'
 ];
 
 function element(id = '') {
@@ -27,13 +29,15 @@ function element(id = '') {
 }
 
 for (const id of ids) elements.set(id, element(id));
-const actions = ['request-supply', 'supply-child', 'retail-sale', 'test-number']
+const actions = ['request-supply', 'supply-child', 'retail-sale', 'test-number', 'check-balance',
+  'last-transactions', 'transaction-details', 'child-balance', 'init-child-pin-reset',
+  'suspend-child', 'reactivate-child', 'freeze-child', 'reactivate-frozen-child', 'freeze-self']
   .map(action => Object.assign(element(action), {action, tagName: 'BUTTON'}));
 const moduleNames = ['reports', 'flux', 'fleet', 'config', 'support'];
 const tabButtons = moduleNames.map(tab => Object.assign(element(tab), {tab, tagName: 'BUTTON'}));
 const tabPanels = moduleNames.map(panel => Object.assign(element(panel), {panel}));
 const nativeActions = ['accounts', 'verify-sim', 'permissions', 'pin', 'manage', 'start-robot',
-  'server-health', 'go-test'].map(action => Object.assign(element(action), {
+  'server-health', 'go-test', 'refresh-dashboard'].map(action => Object.assign(element(action), {
     nativeAction: action, tagName: 'BUTTON'
   }));
 const bridgeCalls = [];
@@ -71,7 +75,9 @@ const window = {
     createCommand(...args) { bridgeCalls.push(['create', ...args]); },
     getCommandStatus() {}, cancelCommand() {}, setFormEditing() {}, openAccounts() {},
     verifySim() {}, prepareRobotPermissions() {}, openPinSettings() {}, openManagement() {},
-    startRobot() {}, checkServerHealth() {}
+    startRobot() {}, checkServerHealth() {}, loadDashboard() {},
+    checkPurchaseCapacity(...args) { bridgeCalls.push(['capacity', ...args]); },
+    getPurchaseCapacityStatus(...args) { bridgeCalls.push(['capacity-status', ...args]); }
   },
   confirm(message) { confirmationText = message; return confirmResult; },
   setTimeout() {}, setInterval() {}, scrollTo() {}
@@ -113,6 +119,7 @@ assert.match(confirmationText, /MONTANT : 1 FCFA/);
 assert.equal(bridgeCalls.length, 2);
 assert.deepEqual(bridgeCalls[1].slice(0, 5), ['create', 'RETAIL_SALE', '', '620550255', '1']);
 assert.equal(bridgeCalls[1][6], 'f'.repeat(64));
+assert.equal(bridgeCalls[1][7], '');
 window.BlueMagicNative.onCommandCreated({command: {public_id: 'command-123456789', state: 'PENDING'}});
 assert.equal(actions.every(item => !item.disabled), true);
 
@@ -134,6 +141,49 @@ assert.equal(bridgeCalls.at(-1)[0], 'create');
 assert.equal(bridgeCalls.at(-1)[1], 'TEST_NUMBER');
 assert.equal(bridgeCalls.at(-1)[6], '');
 assert.equal(bridgeCalls.filter(call => call[0] === 'preview').length, previewsBeforeTest);
+
+elements.get('requestSupplyAmount').value = '700';
+actions.find(item => item.action === 'request-supply').onclick();
+assert.equal(bridgeCalls.at(-1)[0], 'capacity');
+window.BlueMagicNative.onPurchaseCapacity({capacity: {
+  capacity_check_id: 'capacity-insufficient', state: 'INSUFFICIENT',
+  supplier_node_code: 'DSM1', requested_amount: 700, available_balance: 650
+}});
+assert.match(elements.get('actionNotice').textContent, /650 FCFA/);
+assert.match(elements.get('actionNotice').textContent, /autre DSM\/PoS/);
+assert.equal(actions.every(item => !item.disabled), true);
+
+elements.get('requestSupplyAmount').value = '500';
+actions.find(item => item.action === 'request-supply').onclick();
+window.BlueMagicNative.onPurchaseCapacity({capacity: {
+  capacity_check_id: 'capacity-available-123456', state: 'AVAILABLE',
+  supplier_node_code: 'DSM1', requested_amount: 500, available_balance: 650
+}});
+assert.equal(bridgeCalls.at(-1)[0], 'preview');
+assert.equal(bridgeCalls.at(-1)[6], 'capacity-available-123456');
+window.BlueMagicNative.onCommandPreview({preview: {
+  operation: 'DISTRIBUTION_TRANSFER', executor_node_code: 'DSM1',
+  executor_phone: '699000002', target_node_code: 'POS1_DSM1_OU1',
+  target_phone: '699000003', amount: 500, confirmation_fingerprint: 'a'.repeat(64)
+}});
+assert.equal(bridgeCalls.at(-1)[0], 'create');
+assert.equal(bridgeCalls.at(-1)[7], 'capacity-available-123456');
+window.BlueMagicNative.onCommandCreated({command: {public_id: 'capacity-command-123456', state: 'PENDING'}});
+
+elements.get('adminChildNode').value = 'POS5';
+actions.find(item => item.action === 'freeze-child').onclick();
+assert.deepEqual(bridgeCalls.at(-1).slice(0, 3), ['preview', 'FREEZE_CHILD', 'POS5']);
+window.BlueMagicNative.onCommandPreview({preview: {
+  operation: 'FREEZE_CHILD', operation_label: 'Geler la SIM enfant', dangerous: true,
+  executor_node_code: 'DSM1', executor_phone: '699000002',
+  target_node_code: 'POS5_DSM1', target_phone: '699000003',
+  confirmation_fingerprint: 'b'.repeat(64)
+}});
+assert.match(confirmationText, /COMMANDE CAMTEL SENSIBLE/);
+assert.match(confirmationText, /Geler la SIM enfant/);
+assert.equal(bridgeCalls.at(-1)[0], 'create');
+assert.equal(bridgeCalls.at(-1)[1], 'FREEZE_CHILD');
+window.BlueMagicNative.onCommandCreated({command: {public_id: 'admin-command-1234567', state: 'PENDING'}});
 
 const css = await readFile(new URL('../main/assets/style.css', import.meta.url), 'utf8');
 const literalGradient = 'background:linear-gradient(105deg,#2670ff,#875cff)';
@@ -159,8 +209,13 @@ const accessibility = await readFile(new URL(
   '../main/java/com/profitloop/blueauto/BlueAccessibilityService.java', import.meta.url), 'utf8');
 assert.match(accessibility, /ACTION_SET_TEXT/);
 assert.match(accessibility, /ACTION_PASTE/);
-assert.match(accessibility, /fieldContainsPin\(target\.field, pin\) \|\| actionAccepted/);
-assert.doesNotMatch(accessibility, /actionAccepted && attempt >= MAX_PIN_WRITE_ATTEMPTS/);
+assert.match(accessibility, /currentAttempt == 0[\s\S]*pastePin/);
+assert.doesNotMatch(accessibility, /setText\(refreshed\.field, pin\)[\s\S]{0,120}pastePin\(refreshed\.field, pin\)/);
+assert.match(accessibility, /finalFallback/);
+assert.match(accessibility, /compact\.matches\("\[•●∙\*×\]\{4\}"\)/);
+assert.match(accessibility, /trustedUssdResult/);
+assert.match(accessibility, /getDefaultDialerPackage/);
+assert.match(accessibility, /clickTrustedTelephonyFirst/);
 assert.doesNotMatch(accessibility, /TYPE_ACCESSIBILITY_OVERLAY/);
 assert.doesNotMatch(accessibility, /PIN protégé/);
 
@@ -175,6 +230,8 @@ assert.doesNotMatch(readiness, /verifyCallRoute/);
 assert.ok(service.indexOf('prepareSystemUssdSurface(needsWakeSettle)')
   < service.indexOf('SimCallManager.placeUssdCall(this, ussd, profileId)'));
 assert.match(service, /SYSTEM_USSD_SCREEN_WAKE_MS = 45_000L/);
+assert.match(service, /InsecureKeyguardDismissActivity\.class/);
+assert.doesNotMatch(service, /new Intent\(this, MainActivity\.class\)[\s\S]{0,180}PREPARE_INSECURE_USSD/);
 assert.doesNotMatch(service, /"PIN_SUBMITTED"\.equals\(state\)\) releaseCommandScreenWakeLock/);
 
 const manifest = await readFile(new URL('../main/AndroidManifest.xml', import.meta.url), 'utf8');
@@ -182,8 +239,9 @@ assert.match(manifest, /foregroundServiceType="dataSync\|specialUse"/);
 
 const gradleConfig = await readFile(new URL('../../build.gradle', import.meta.url), 'utf8');
 assert.match(gradleConfig, /minSdk 23/);
-assert.match(gradleConfig, /versionCode 46/);
-assert.match(gradleConfig, /versionName "2\.6\.6"/);
+assert.match(gradleConfig, /versionCode 47/);
+assert.match(gradleConfig, /versionName "2\.6\.7"/);
+assert.match(gradleConfig, /release \{[\s\S]*signingConfig signingConfigs\.pilotDebug/);
 
 const apiClient = await readFile(new URL(
   '../main/java/com/profitloop/blueauto/ApiClient.java', import.meta.url), 'utf8');
@@ -206,7 +264,10 @@ assert.match(css, /\.module-tabs\{position:fixed/);
 assert.match(css, /\.module-tab-primary/);
 assert.ok(activity.indexOf('MODIFIER LE PIN CAMTEL') < activity.indexOf('1. AUTORISATIONS'));
 assert.match(activity, /setScrollbarFadingEnabled\(false\)/);
-assert.match(activity, /requestDismissKeyguard/);
+const unlockActivity = await readFile(new URL(
+  '../main/java/com/profitloop/blueauto/InsecureKeyguardDismissActivity.java', import.meta.url), 'utf8');
+assert.match(unlockActivity, /requestDismissKeyguard/);
+assert.match(unlockActivity, /finishAndRemoveTask/);
 assert.match(activity, /openPinSettings/);
 
-console.log('Android UI/runtime: dock, PIN access, simple-lock wake flow, finance confirmation and TEST_NUMBER OK');
+console.log('Android UI/runtime: verrou/PIN, dock actif, précontrôle de solde, confirmation finance, administration sensible et TEST_NUMBER OK');

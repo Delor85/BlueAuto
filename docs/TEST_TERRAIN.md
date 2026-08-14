@@ -1,5 +1,40 @@
 # Protocole de test terrain — avant argent réel
 
+## Gate 0AA — v2.6.7 coordonnée
+
+Ne commencer ce gate qu'après confirmation de `2.6.7-cloudflare`, D1 avec migration `0003` et APK `2.6.7 • versionCode 47`. Une APK v2.6.7 contre le Worker v2.6.5 n'est pas un environnement valide.
+
+1. Installer la vraie APK Release par-dessus la v2.6.5 ou v2.6.6 permanente, sans désinstaller. Conserver un compte, son slot et un marqueur de données.
+2. Sur Android 6, 7, 8, 9, 10, 11, 12, 13, 14 et, si disponibles, 15/16 : relever séparément le message d'installation et le résultat d'ouverture. Ne jamais confondre un délai `am start` avec un refus PackageInstaller.
+3. En cas d'échec Android 11, relever avant désinstallation : modèle, version installée/versionCode, taille et SHA-256 du fichier, espace libre, sources inconnues et sortie exacte `adb install -r` si ADB est disponible.
+4. Vérifier que l'APK n'est pas débogable et que son certificat SHA-256 est le certificat permanent documenté.
+
+## Gate 0AB — solde avant achat
+
+1. Sur le Robot du supérieur, valider d'abord **Consulter mon solde** et vérifier que Rapports affiche le montant et son horodatage.
+2. Dans les trois minutes, depuis un DSM/PoS enfant, demander un montant inférieur : l'app doit annoncer la réutilisation de la preuve et afficher la confirmation 1/2 sans nouvelle commande `BALANCE_OWN`.
+3. Répéter après **5 dernières transactions** contenant un libellé explicite de solde actuel : ce solde doit être réutilisé. Répéter avec une liste ne contenant que montants de transactions et frais : elle ne doit pas remplacer le solde et, après expiration, une lecture fraîche est obligatoire.
+4. Annuler à cette confirmation : aucune commande de transfert ne doit être créée.
+5. Demander ensuite un montant supérieur au solde : aucune confirmation 1/2 et aucune finance ne doivent être créées. Le message doit afficher le montant disponible exact et demander de recommencer avec `montant ≤ disponible`.
+6. Recommencer avec le montant exact disponible. La confirmation 1/2 apparaît, mais signaler que le contrôle ne réserve pas le crédit chez Camtel et qu'un autre enfant peut encore le consommer.
+7. Répéter depuis deux enfants quasi simultanés : une même preuve de capacité ne doit jamais créer deux commandes dépassant ensemble le stock ; achats et ventes en attente doivent réduire le disponible calculé.
+8. Attendre plus de 180 secondes : la preuve doit expirer et entraîner une unique consultation fraîche mutualisée.
+
+## Gate 0AC — verrou simple sans voile
+
+Répéter sur Android 6, 8 et 11 : écran ouvert, écran éteint + swipe, écran allumé + swipe, puis verrou sécurisé.
+
+- aucune activité Blue Magic visible, aucun assombrissement et aucun voile ;
+- prompt Téléphone visible, PIN réellement présent (même exposé), bouton ENVOYER activé, résultat en moins de 30 secondes ;
+- si le swipe lock n'est pas réellement retiré sous quatre secondes, aucun `DIALING` et aucune composition ;
+- verrou sécurisé : commande différée, jamais contournée ;
+- après succès/échec, le verrou simple est restauré ;
+- répéter Test, Achat, Vente, Remote→Robot, annulation, mismatch montant/numéro et multi-SIM.
+
+## Gate 0AD — commandes et onglets du cahier
+
+Tester sans fonds : Test numéro, solde propre, cinq dernières transactions, détail par ID et solde enfant. Ensuite, sur des SIM de recette seulement et avec confirmation de la cible : init reset PIN enfant, suspension/réactivation, gel/réactivation et gel propre. Rapports et Flotte doivent montrer uniquement l'arborescence autorisée, les soldes horodatés et le badge Android ou `NON_ENREGISTRE`. Ne pas tester une commande de gel sur une SIM de production active.
+
 ## Gate 0 — mise à jour v2.6.5 → v2.6.6
 
 1. Depuis la v2.6.5 permanente actuellement installée, installer la v2.6.6 **par-dessus**, sans désinstallation, puis confirmer `2.6.6 • versionCode 46`. La CI doit avoir réussi la mise à jour v2.6.5→v2.6.6 sur API 23, 26, 30 et 36 avec conservation des données.

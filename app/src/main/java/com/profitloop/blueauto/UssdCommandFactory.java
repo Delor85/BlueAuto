@@ -11,7 +11,7 @@ import java.util.Locale;
 final class UssdCommandFactory {
     private UssdCommandFactory() {}
 
-    static String buildAndValidate(Context context, String profileId, JSONObject command) {
+    static String buildAndValidate(Context context, String profileId, JSONObject command) throws Exception {
         String commandId = string(command, "public_id");
         String leaseToken = string(command, "lease_token");
         if (!commandId.matches("[A-Za-z0-9_-]{16,80}")) {
@@ -39,9 +39,11 @@ final class UssdCommandFactory {
             throw new SecurityException("La commande vise une autre SIM fournisseur.");
         }
 
-        String operation = string(command, "operation");
+        String baseOperation = string(command, "operation");
+        String operation = operation(command);
         String phone = digits(string(command, "target_phone"));
         String amount = digits(string(command, "amount"));
+        String argument = string(command, "command_argument").trim();
         String role = AppConfig.role(context, profileId);
         String targetNode = string(command, "target_node_code").trim().toUpperCase();
         String built;
@@ -75,6 +77,65 @@ final class UssdCommandFactory {
                 }
                 built = "*825*3*3#";
                 break;
+            case "BALANCE_OWN": {
+                if (!phone.isEmpty() || !amount.isEmpty() || !targetNode.isEmpty()) {
+                    throw new SecurityException("La consultation du solde contient des paramètres inattendus.");
+                }
+                String localPin = SecurePinStore.read(context, profileId);
+                if (!localPin.matches("\\d{4}")) {
+                    throw new SecurityException("PIN local absent pour consulter le solde.");
+                }
+                built = "*550*3*1*" + localPin + "#";
+                break;
+            }
+            case "HISTORY_LAST5":
+                requireNoTransferParameters(phone, amount, targetNode);
+                built = "*550*3*3*" + localPin(context, profileId) + "#";
+                break;
+            case "TRANSACTION_DETAIL":
+                requireNoTransferParameters(phone, amount, targetNode);
+                if (!argument.matches("[A-Za-z0-9_-]{6,64}")) {
+                    throw new SecurityException("Identifiant de transaction invalide.");
+                }
+                built = "*550*3*2*" + argument + "*" + localPin(context, profileId) + "#";
+                break;
+            case "BALANCE_CHILD":
+                if (!"DAE".equals(role) && !"DSM".equals(role)) {
+                    throw new SecurityException("Ce rôle ne peut pas consulter un solde enfant.");
+                }
+                requirePhone(phone);
+                if (!amount.isEmpty() || targetNode.isEmpty()) {
+                    throw new SecurityException("Paramètres du solde enfant incohérents.");
+                }
+                built = "*550*5*2*" + phone + "*" + localPin(context, profileId) + "#";
+                break;
+            case "FREEZE_SELF":
+                if (!expectedExecutor.equals(targetNode) || !phone.equals(configuredPhone)
+                        || !amount.isEmpty()) {
+                    throw new SecurityException("La commande de gel propre ne correspond pas à cette SIM.");
+                }
+                built = "*550*3*4*" + configuredPhone + "*" + localPin(context, profileId) + "#";
+                break;
+            case "INIT_CHILD_PIN_RESET":
+                requireManagedChild(role, targetNode, phone, amount);
+                built = "*550*4*1*" + phone + "*" + localPin(context, profileId) + "#";
+                break;
+            case "SUSPEND_CHILD":
+                requireManagedChild(role, targetNode, phone, amount);
+                built = "*550*4*2*" + phone + "*" + localPin(context, profileId) + "#";
+                break;
+            case "REACTIVATE_CHILD":
+                requireManagedChild(role, targetNode, phone, amount);
+                built = "*550*4*3*" + phone + "*" + localPin(context, profileId) + "#";
+                break;
+            case "FREEZE_CHILD":
+                requireManagedChild(role, targetNode, phone, amount);
+                built = "*550*5*3*" + phone + "*" + localPin(context, profileId) + "#";
+                break;
+            case "REACTIVATE_FROZEN_CHILD":
+                requireManagedChild(role, targetNode, phone, amount);
+                built = "*550*5*4*" + phone + "*" + localPin(context, profileId) + "#";
+                break;
             default:
                 throw new IllegalArgumentException("Opération USSD inconnue: " + operation);
         }
@@ -89,12 +150,15 @@ final class UssdCommandFactory {
         }
         String suppliedDigest = string(command, "integrity_digest");
         if (!suppliedDigest.isEmpty()) {
+            String digestUssd = integrityVersion >= 3 ? serverValue : built;
             String digestInput = commandId + "|"
                     + string(command, "requester_node_code").trim().toUpperCase() + "|"
                     + suppliedExecutor + "|"
                     + (integrityVersion >= 2 ? executorPhone + "|" : "")
-                    + targetNode + "|" + operation + "|"
-                    + phone + "|" + amount + "|" + built + "|"
+                    + targetNode + "|" + baseOperation + "|"
+                    + (integrityVersion >= 3 ? string(command, "command_kind") + "|" : "")
+                    + (integrityVersion >= 3 ? argument + "|" : "")
+                    + phone + "|" + amount + "|" + digestUssd + "|"
                     + (requiresPin(command) ? "1" : "0");
             if (!suppliedDigest.equals(sha256(digestInput))) {
                 throw new SecurityException("L’empreinte d’intégrité de la commande est invalide.");
@@ -104,8 +168,36 @@ final class UssdCommandFactory {
     }
 
     static boolean requiresPin(JSONObject command) {
-        String operation = command.optString("operation", "");
+        String operation = operation(command);
         return "DISTRIBUTION_TRANSFER".equals(operation) || "RETAIL_TRANSFER".equals(operation);
+    }
+
+    static String operation(JSONObject command) {
+        String kind = command == null ? "" : command.optString("command_kind", "");
+        return kind.isEmpty() ? (command == null ? "" : command.optString("operation", "")) : kind;
+    }
+
+    private static String localPin(Context context, String profileId) throws Exception {
+        String pin = SecurePinStore.read(context, profileId);
+        if (!pin.matches("\\d{4}")) throw new SecurityException("PIN local absent ou invalide.");
+        return pin;
+    }
+
+    private static void requireNoTransferParameters(String phone, String amount, String targetNode) {
+        if (!phone.isEmpty() || !amount.isEmpty() || !targetNode.isEmpty()) {
+            throw new SecurityException("La consultation contient des paramètres financiers inattendus.");
+        }
+    }
+
+    private static void requireManagedChild(String role, String targetNode,
+                                            String phone, String amount) {
+        if (!"DAE".equals(role) && !"DSM".equals(role)) {
+            throw new SecurityException("Ce rôle ne peut pas administrer un enfant.");
+        }
+        requirePhone(phone);
+        if (targetNode.isEmpty() || !amount.isEmpty()) {
+            throw new SecurityException("Paramètres de l’enfant incohérents.");
+        }
     }
 
     private static String digits(String value) {
