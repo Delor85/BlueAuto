@@ -114,7 +114,7 @@ jobs:
         run: echo "Compilation Release validée. Seul le job de livraison permanente peut publier l'APK."
 
   android-permanent-apk:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.event.head_commit.message == 'release: authorized Blue Magic v2.6.7 permanent APK once')
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -217,7 +217,7 @@ jobs:
 
   android-11-launch:
     needs: android-permanent-apk
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.event.head_commit.message == 'release: authorized Blue Magic v2.6.7 permanent APK once')
     runs-on: ubuntu-latest
     steps:
       - name: Récupérer le code
@@ -258,7 +258,7 @@ jobs:
   android-upgrade-v265-to-v267:
     name: android-upgrade-${{ matrix.api }}
     needs: android-permanent-apk
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.event.head_commit.message == 'release: authorized Blue Magic v2.6.7 permanent APK once')
     runs-on: ubuntu-latest
     environment: production
     strategy:
