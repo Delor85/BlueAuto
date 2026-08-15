@@ -65,3 +65,4 @@ jobs:
           git diff --cached --check
           git commit -m "feat: complete Blue Magic v2.6.7 operator intelligence and modules"
           git push origin HEAD:fix/blue-magic-v2-6-recovery
+# retry after completing multipart payload
