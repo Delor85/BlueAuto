@@ -27,7 +27,7 @@ try {
   assert.equal(health.data.database, 'online');
 
   const dae = await pair({
-    node_code: 'DAE-TEST', role: 'DAE', mode: 'ROBOT',
+    node_code: 'CE04', role: 'DAE', mode: 'ROBOT',
     phone_number: '699000001', device_name: 'Robot test'
   });
   const daeRemote = await request('update_device_mode', {mode: 'REMOTE'}, dae.data.device_token);
@@ -35,30 +35,47 @@ try {
   const daeRobot = await request('update_device_mode', {mode: 'ROBOT'}, dae.data.device_token);
   assert.equal(daeRobot.data.mode, 'ROBOT');
   await attest(dae.data.device_token, 'a'.repeat(64), 0);
+  const unapprovedDsm = await rawRequest('pair_device', {
+    node_code: 'DSM12', parent_node_code: 'CE04', role: 'DSM', mode: 'ROBOT',
+    phone_number: '699000002', device_name: 'DSM sans validation', pairing_secret: PAIRING_SECRET
+  }, '');
+  assert.equal(unapprovedDsm.status, 409);
+  assert.equal(unapprovedDsm.body.error.code, 'SUBORDINATE_APPROVAL_REQUIRED');
+  const approvedDsm = await request('shadow_enroll', {
+    node_code: 'DSM12', phone_number: '699000002', display_name: 'DSM 12', zone: 'Centre'
+  }, dae.data.device_token);
+  assert.equal(approvedDsm.data.shadow.node_code, 'DSM12_CE04');
   const dsm = await pair({
-    node_code: 'DSM-TEST', parent_node_code: 'DAE-TEST', role: 'DSM', mode: 'ROBOT',
+    node_code: 'DSM12', parent_node_code: 'CE04', role: 'DSM', mode: 'ROBOT',
     phone_number: '699000002', device_name: 'Télécommande test'
   });
-  assert.equal(dsm.data.node_code, 'DSM-TEST_DAE-TEST');
+  assert.equal(dsm.data.node_code, 'DSM12_CE04');
   await attest(dsm.data.device_token, 'b'.repeat(64), 0);
 
+  await request('shadow_enroll', {node_code: 'DSM2', phone_number: '699000004'}, dae.data.device_token);
   const dsmTwo = await pair({
-    node_code: 'DSM2', parent_node_code: 'DAE-TEST', role: 'DSM', mode: 'REMOTE',
+    node_code: 'DSM2', parent_node_code: 'CE04', role: 'DSM', mode: 'REMOTE',
     phone_number: '699000004', device_name: 'Deuxième DSM légitime'
   });
-  assert.equal(dsmTwo.data.node_code, 'DSM2_DAE-TEST');
+  assert.equal(dsmTwo.data.node_code, 'DSM2_CE04');
 
+  await request('shadow_enroll', {node_code: 'POS37', phone_number: '699000003'}, dsm.data.device_token);
   const pos = await pair({
-    node_code: 'POS5', parent_node_code: 'DSM-TEST', role: 'POS', mode: 'ROBOT',
+    node_code: 'POS37', parent_node_code: 'DSM12_CE04', role: 'POS', mode: 'ROBOT',
     phone_number: '699000003', device_name: 'Second Robot test'
   });
-  assert.equal(pos.data.node_code, 'POS5_DSM-TEST_DAE-TEST');
+  assert.equal(pos.data.node_code, 'POS37_DSM12_CE04');
   await attest(pos.data.device_token, 'c'.repeat(64), 1);
+  const shortPosFromDae = await requestFailure('create_command', {
+    request_type: 'CHILD_BALANCE', target_node_code: 'POS37',
+    client_request_id: 'integration-dae-short-pos-refused-01'
+  }, dae.data.device_token, 422);
+  assert.equal(shortPosFromDae.error.code, 'POS_FULL_NAME_REQUIRED');
 
   // Real field topology: a distinct REMOTE creates the order and the phone that owns the
   // verified SIM leases it. This must not rely on one token acting as both devices.
   const posRemote = await pair({
-    node_code: 'POS5', parent_node_code: 'DSM-TEST', role: 'POS', mode: 'REMOTE',
+    node_code: 'POS37', parent_node_code: 'DSM12_CE04', role: 'POS', mode: 'REMOTE',
     phone_number: '699000003', device_name: 'Télécommande POS distincte'
   });
   const remoteCreated = await request('create_command', {
@@ -84,30 +101,30 @@ try {
   assert.equal(cancelledStatus.data.command.state, 'CANCELLED');
 
   const supplyDsmPreview = await request('preview_command', {
-    request_type: 'SUPPLY_CHILD', target_node_code: 'DSM-TEST', amount: '200'
+    request_type: 'SUPPLY_CHILD', target_node_code: 'DSM12', amount: '200'
   }, dae.data.device_token);
   const supplyDsm = await request('create_command', {
-    request_type: 'SUPPLY_CHILD', target_node_code: 'DSM-TEST', amount: '200',
+    request_type: 'SUPPLY_CHILD', target_node_code: 'DSM12', amount: '200',
     client_request_id: 'integration-alias-dsm-01',
     confirmation_fingerprint: supplyDsmPreview.data.preview.confirmation_fingerprint
   }, dae.data.device_token);
-  assert.equal(supplyDsm.data.command.target_node_code, 'DSM-TEST_DAE-TEST');
+  assert.equal(supplyDsm.data.command.target_node_code, 'DSM12_CE04');
 
   const supplyPosPreview = await request('preview_command', {
-    request_type: 'SUPPLY_CHILD', target_node_code: 'POS5', amount: '100'
+    request_type: 'SUPPLY_CHILD', target_node_code: 'POS37', amount: '100'
   }, dsm.data.device_token);
   const supplyPos = await request('create_command', {
-    request_type: 'SUPPLY_CHILD', target_node_code: 'POS5', amount: '100',
+    request_type: 'SUPPLY_CHILD', target_node_code: 'POS37', amount: '100',
     client_request_id: 'integration-alias-pos-001',
     confirmation_fingerprint: supplyPosPreview.data.preview.confirmation_fingerprint
   }, dsm.data.device_token);
-  assert.equal(supplyPos.data.command.target_node_code, 'POS5_DSM-TEST_DAE-TEST');
+  assert.equal(supplyPos.data.command.target_node_code, 'POS37_DSM12_CE04');
   assert.match(supplyPos.data.command.created_at, /^\d{4}-\d{2}-\d{2}T/);
 
   const firstDaeLease = await request('lease_command', {}, dae.data.device_token);
   assert.equal(firstDaeLease.data.available, true);
   assert.equal(firstDaeLease.data.command.ussd_code, '*550*2*699000002*200#');
-  assert.equal(firstDaeLease.data.command.executor_node_code, 'DAE-TEST');
+  assert.equal(firstDaeLease.data.command.executor_node_code, 'CE04');
   assert.equal(firstDaeLease.data.command.executor_phone, '699000001');
   assert.equal(firstDaeLease.data.command.integrity_version, 3);
   assert.match(firstDaeLease.data.command.integrity_digest, /^[a-f0-9]{64}$/);
@@ -150,9 +167,9 @@ try {
     request_type: 'REQUEST_SUPPLY', amount: '500',
     capacity_check_id: capacity.data.capacity.capacity_check_id
   }, dsm.data.device_token);
-  assert.equal(supplyPreview.data.preview.executor_node_code, 'DAE-TEST');
+  assert.equal(supplyPreview.data.preview.executor_node_code, 'CE04');
   assert.equal(supplyPreview.data.preview.executor_phone, '699000001');
-  assert.equal(supplyPreview.data.preview.target_node_code, 'DSM-TEST_DAE-TEST');
+  assert.equal(supplyPreview.data.preview.target_node_code, 'DSM12_CE04');
   assert.equal(supplyPreview.data.preview.target_phone, '699000002');
   assert.match(supplyPreview.data.preview.confirmation_fingerprint, /^[a-f0-9]{64}$/);
 
@@ -214,7 +231,7 @@ try {
   assert.equal(status.data.command.state, 'SUCCEEDED');
   assert.equal(status.data.command.amount, 500);
 
-  await db.prepare("DELETE FROM account_balances WHERE node_code = 'DAE-TEST'").run();
+  await db.prepare("DELETE FROM account_balances WHERE node_code = 'CE04'").run();
   const waitingCapacity = await request('check_purchase_capacity', {
     request_type: 'REQUEST_SUPPLY', amount: '700',
     client_request_id: 'integration-capacity-live-ussd-01'
@@ -241,7 +258,7 @@ try {
   assert.equal(checkedCapacity.data.capacity.available_balance, 650);
 
   const dashboard = await request('network_dashboard', {}, dae.data.device_token);
-  assert.equal(dashboard.data.nodes.some(node => node.node_code === 'DAE-TEST'
+  assert.equal(dashboard.data.nodes.some(node => node.node_code === 'CE04'
     && node.balance === 650), true);
   assert.equal(dashboard.data.nodes.some(node => node.device_kind === 'ANDROID'), true);
 
@@ -255,7 +272,7 @@ try {
   await complete(ambiguousHistoryLease.data.command, dae.data.device_token,
     'Transfer Balance of 1FCFA to 621081275. Fee 0 FCFA.');
   const afterAmbiguousHistory = await request('network_dashboard', {}, dae.data.device_token);
-  assert.equal(afterAmbiguousHistory.data.nodes.find(node => node.node_code === 'DAE-TEST').balance,
+  assert.equal(afterAmbiguousHistory.data.nodes.find(node => node.node_code === 'CE04').balance,
     650);
 
   const explicitHistory = await request('create_command', {
@@ -267,8 +284,8 @@ try {
     '5 last transactions. Current balance is 1000 FCFA, fee 0 FCFA.');
 
   const exactHistoryMessage = 'Your mini statement is: '
-    + 'ReceiptNumber:900001 CurrentBalance:880.00 FCFA AccountNo:500001 Details: Airtime Transfer to 699000002 - DSM-TEST Company Airtime Account 15/08/26 Airtime Transfer Dr 20.00 FCFA CH0.00 FCFA CM0.00 FCFA Status:Completed '
-    + 'ReceiptNumber:900000 CurrentBalance:900.00 FCFA AccountNo:500001 Details: Airtime Transfer to 699000002 - DSM-TEST Company Airtime Account 15/08/26 Airtime Transfer Dr 10.00 FCFA CH0.00 FCFA CM0.00 FCFA Status:Completed';
+    + 'ReceiptNumber:900001 CurrentBalance:880.00 FCFA AccountNo:500001 Details: Airtime Transfer to 699000002 - DSM12 Company Airtime Account 15/08/26 Airtime Transfer Dr 20.00 FCFA CH0.00 FCFA CM0.00 FCFA Status:Completed '
+    + 'ReceiptNumber:900000 CurrentBalance:900.00 FCFA AccountNo:500001 Details: Airtime Transfer to 699000002 - DSM12 Company Airtime Account 15/08/26 Airtime Transfer Dr 10.00 FCFA CH0.00 FCFA CM0.00 FCFA Status:Completed';
   const liveHistory = await request('create_command', {
     request_type: 'LAST_TRANSACTIONS', client_request_id: 'integration-live-history-priority-01'
   }, dae.data.device_token);
@@ -276,27 +293,34 @@ try {
   assert.equal(liveHistoryLease.data.command.public_id, liveHistory.data.command.public_id);
   await complete(liveHistoryLease.data.command, dae.data.device_token, exactHistoryMessage);
   let liveDashboard = await request('network_dashboard', {}, dae.data.device_token);
-  let liveDae = liveDashboard.data.nodes.find(node => node.node_code === 'DAE-TEST');
+  let liveDae = liveDashboard.data.nodes.find(node => node.node_code === 'CE04');
   assert.equal(liveDae.balance, 880);
   assert.equal(liveDae.evidence_kind, 'HISTORY_RESULT');
   assert.equal(liveDae.balance_quality, 'EXACT');
   assert.equal(liveDae.balance_reusable, true);
 
   await request('record_operator_message', {
-    message: 'Your Transfer Airtime to 699000002 - DSM-TEST has been successfully processed.Amount is 5.00 FCFA. Now your balance is 100.00 FCFA. TransactionID 000039365092, 07-07-2026 at 12:14:09.'
+    message: 'Your Transfer Airtime to 699000002 - DSM12 has been successfully processed.Amount is 5.00 FCFA. Now your balance is 100.00 FCFA. TransactionID 000039365092, 07-07-2026 at 12:14:09.'
   }, dae.data.device_token);
   liveDashboard = await request('network_dashboard', {}, dae.data.device_token);
-  liveDae = liveDashboard.data.nodes.find(node => node.node_code === 'DAE-TEST');
+  liveDae = liveDashboard.data.nodes.find(node => node.node_code === 'CE04');
   assert.equal(liveDae.balance, 880);
 
   await request('record_operator_message', {
     message: 'Your available voucher stock is: 15.00 FCFA; Uncleared balance: 0.00 FCFA; Reserved balance: 0.00 FCFA; Current balance: 15.00 FCFA.'
   }, dae.data.device_token);
   liveDashboard = await request('network_dashboard', {}, dae.data.device_token);
-  assert.equal(liveDashboard.data.nodes.find(node => node.node_code === 'DAE-TEST').balance, 880);
+  assert.equal(liveDashboard.data.nodes.find(node => node.node_code === 'CE04').balance, 880);
+
+  await request('record_operator_message', {
+    message: 'Your Transfer Airtime to 699000002 - DSM12_CE04 has been successfully processed. Amount is 5.00 FCFA. TransactionID 000039300001 on 07-07-2026 at 01:00:00.'
+  }, dae.data.device_token);
+  const afterDelayedOld = await request('platform_snapshot', {}, dae.data.device_token);
+  const delayedNode = afterDelayedOld.data.nodes.find(node => node.node_code === 'CE04');
+  assert.notEqual(delayedNode.balance_report_state, 'RECHECK_REQUIRED');
 
   const childBalance = await request('create_command', {
-    request_type: 'CHILD_BALANCE', target_node_code: 'DSM-TEST_DAE-TEST',
+    request_type: 'CHILD_BALANCE', target_node_code: 'DSM12_CE04',
     client_request_id: 'integration-child-balance-attribution-01'
   }, dae.data.device_token);
   const childBalanceLease = await request('lease_command', {}, dae.data.device_token);
@@ -304,8 +328,8 @@ try {
   await complete(childBalanceLease.data.command, dae.data.device_token,
     'Your available voucher stock is: 123.00 FCFA; Uncleared balance: 0.00 FCFA; Reserved balance: 0.00 FCFA; Current balance: 123.00 FCFA.');
   liveDashboard = await request('network_dashboard', {}, dae.data.device_token);
-  assert.equal(liveDashboard.data.nodes.find(node => node.node_code === 'DAE-TEST').balance, 880);
-  assert.equal(liveDashboard.data.nodes.find(node => node.node_code === 'DSM-TEST_DAE-TEST').balance, 123);
+  assert.equal(liveDashboard.data.nodes.find(node => node.node_code === 'CE04').balance, 880);
+  assert.equal(liveDashboard.data.nodes.find(node => node.node_code === 'DSM12_CE04').balance, 123);
 
   const sharedBalance = await request('check_purchase_capacity', {
     request_type: 'REQUEST_SUPPLY', amount: '100',
@@ -357,7 +381,7 @@ try {
 
   await db.prepare(
     "UPDATE account_balances SET valid_until = strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-1 second') "
-    + "WHERE node_code = 'DAE-TEST'"
+    + "WHERE node_code = 'CE04'"
   ).run();
   const expiredEvidence = await request('check_purchase_capacity', {
     request_type: 'REQUEST_SUPPLY', amount: '100',
@@ -375,19 +399,22 @@ try {
   assert.equal(refreshedAfterExpiry.data.capacity.state, 'AVAILABLE');
 
   // Shared network audit: recent exact evidence is reused; stale descendants are queued bottom-up.
-  await db.prepare("UPDATE purchase_preflights SET state='EXPIRED' WHERE supplier_node_code='DAE-TEST'").run();
+  await db.prepare("UPDATE purchase_preflights SET state='EXPIRED' WHERE supplier_node_code='CE04'").run();
   await db.prepare(
-    "UPDATE account_balances SET observed_at=strftime('%Y-%m-%dT%H:%M:%fZ','now','-20 minutes'), "
-    + "valid_until=strftime('%Y-%m-%dT%H:%M:%fZ','now','+40 minutes') WHERE node_code='DSM-TEST_DAE-TEST'"
+    "UPDATE account_balances SET observed_at=strftime('%Y-%m-%dT%H:%M:%fZ','now','-15 hours'), "
+    + "operator_event_at=strftime('%Y-%m-%dT%H:%M:%fZ','now','-15 hours'), "
+    + "valid_until=strftime('%Y-%m-%dT%H:%M:%fZ','now','-14 hours') WHERE node_code='DSM12_CE04'"
   ).run();
   const networkAudit = await request('network_balance_audit', {}, dae.data.device_token);
-  assert.equal(networkAudit.data.order, 'BOTTOM_UP_POS_DSM_DAE');
+  assert.equal(networkAudit.data.order, 'PRIORITY_THEN_BOTTOM_UP_POS_DSM_DAE');
+  assert.equal(networkAudit.data.report_freshness_seconds, 14 * 3600);
+  assert.equal(networkAudit.data.max_outstanding_per_scope, 12);
   assert.equal(networkAudit.data.reused >= 1, true);
   assert.equal(networkAudit.data.queued >= 1, true);
-  const dsmAuditItem = networkAudit.data.details.find(item => item.node_code === 'DSM-TEST_DAE-TEST');
+  const dsmAuditItem = networkAudit.data.details.find(item => item.node_code === 'DSM12_CE04');
   assert.equal(dsmAuditItem.action, 'QUEUED');
   assert.equal(dsmAuditItem.command_kind, 'BALANCE_OWN');
-  const posAuditItem = networkAudit.data.details.find(item => item.node_code === 'POS5_DSM-TEST_DAE-TEST');
+  const posAuditItem = networkAudit.data.details.find(item => item.node_code === 'POS37_DSM12_CE04');
   assert.ok(posAuditItem);
   await db.prepare("UPDATE commands SET state='CANCELLED' WHERE client_request_id LIKE 'audit_%' AND state='PENDING'").run();
   // DAE can route a PoS balance directly when the PoS/DSM Robot is unavailable; this is covered by
@@ -443,7 +470,7 @@ try {
   // conflict, however, a second physical inspection of the same SIM may replace only the owner
   // carrying that identical attestation. A missing or different SIM never receives this right.
   const posReplacement = await pair({
-    node_code: 'POS5', parent_node_code: 'DSM-TEST', role: 'POS', mode: 'REMOTE',
+    node_code: 'POS37', parent_node_code: 'DSM12_CE04', role: 'POS', mode: 'REMOTE',
     phone_number: '699000003', device_name: 'Nouveau téléphone POS'
   });
   const missingSim = await requestFailure('activate_robot', {
@@ -486,11 +513,11 @@ try {
   // Token repair reuses the exact device row. An invalid legacy owner cannot capture the SIM
   // queue, and the distinct REMOTE still creates an order leased only by the repaired ROBOT.
   const repairRobot = await pair({
-    node_code: 'DAE-REPAIR', role: 'DAE', mode: 'ROBOT',
+    node_code: 'OU1', role: 'DAE', mode: 'ROBOT',
     phone_number: '699000011', device_name: 'Robot à réparer'
   });
   const repairRemote = await pair({
-    node_code: 'DAE-REPAIR', role: 'DAE', mode: 'REMOTE',
+    node_code: 'OU1', role: 'DAE', mode: 'REMOTE',
     phone_number: '699000011', device_name: 'Remote de réparation'
   });
   await db.prepare(
@@ -499,7 +526,7 @@ try {
   await attest(repairRobot.data.device_token, 'd'.repeat(64), 0);
 
   const renewed = await pair({
-    node_code: 'DAE-REPAIR', role: 'DAE', mode: 'ROBOT',
+    node_code: 'OU1', role: 'DAE', mode: 'ROBOT',
     phone_number: '699000011', device_name: 'Robot réparé',
     replace_device_id: repairRobot.data.device_id,
     repair_sim_verified: true, repair_sim_fingerprint: 'd'.repeat(64),
@@ -522,16 +549,16 @@ try {
   // A migrated Android profile may not know its old server device id. The verified SIM itself
   // must recover that exact Robot row immediately instead of creating a second queue owner.
   const legacyRobot = await pair({
-    node_code: 'DAE-LEGACY', role: 'DAE', mode: 'ROBOT',
+    node_code: 'LT10', role: 'DAE', mode: 'ROBOT',
     phone_number: '699000012', device_name: 'Robot profil migré'
   });
   const legacyRemote = await pair({
-    node_code: 'DAE-LEGACY', role: 'DAE', mode: 'REMOTE',
+    node_code: 'LT10', role: 'DAE', mode: 'REMOTE',
     phone_number: '699000012', device_name: 'Remote profil migré'
   });
   await attest(legacyRobot.data.device_token, 'e'.repeat(64), 0);
   const legacyRenewed = await pair({
-    node_code: 'DAE-LEGACY', role: 'DAE', mode: 'ROBOT',
+    node_code: 'LT10', role: 'DAE', mode: 'ROBOT',
     phone_number: '699000012', device_name: 'Robot migré réparé',
     repair_sim_verified: true, repair_sim_fingerprint: 'e'.repeat(64),
     repair_robot_enabled: true, sim_slot: 0

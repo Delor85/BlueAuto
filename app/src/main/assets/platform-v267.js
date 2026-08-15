@@ -13,7 +13,7 @@
   const reports = document.querySelector('[data-tab-panel="reports"], #panel-reports .panel-body, #panel-reports, [data-panel="reports"]');
   add(reports, `<section class="card v267-extra"><h3>🧠 Intelligence Blue & Bottom-Up</h3>
     <p>Solde certifié réutilisable jusqu’à 1 heure si aucune activité non rapprochée n’est apparue. Les débits connus et réservations restent déduits.</p>
-    <div class="actions"><button id="v267-audit">Rafraîchir réseau intelligent</button><button id="v267-snapshot">Rapport réseau</button><button id="v267-messages">Preuves Blue récentes</button></div>
+    <div class="actions"><button id="v267-audit">Rafraîchir réseau intelligent</button><button id="v267-snapshot">Rapport réseau vivant</button><button id="v267-messages">Preuves Blue récentes</button><button id="v267-catalog">Référentiel Camtel</button></div>
     <div id="v267-report-output" class="mono small"></div></section>`);
 
   const flux = document.querySelector('[data-tab-panel="flux"], #panel-flux .panel-body, #panel-flux, [data-panel="flux"]');
@@ -30,7 +30,7 @@
     </details></section>`);
 
   const fleet = document.querySelector('[data-tab-panel="fleet"], #panel-fleet .panel-body, #panel-fleet, [data-panel="fleet"]');
-  add(fleet, `<section class="card v267-extra"><h3>📟 Pré-enrôlement Tchoronko / Compte fantôme</h3>
+  add(fleet, `<section class="card v267-extra"><h3>📟 Validation / pré-enrôlement enfant</h3><p class="small">Le DAE valide ses DSM; le DSM valide ses PoS. La validation initiale est valable 48 h. Un code court est accepté seulement dans sa branche.</p>
     <input id="shadow-id" placeholder="ID enfant"><input id="shadow-phone" placeholder="SIM 9 chiffres">
     <input id="shadow-name" placeholder="Nom / alias"><input id="shadow-zone" placeholder="Zone">
     <button id="shadow-save">Activer la liaison</button><hr>
@@ -56,6 +56,7 @@
   bind('v267-audit', () => request('network_balance_audit'));
   bind('v267-snapshot', () => request('platform_snapshot'));
   bind('v267-messages', () => request('operator_insights'));
+  bind('v267-catalog', () => request('operator_catalog'));
   bind('shadow-save', () => request('shadow_enroll', {node_code:$('shadow-id').value, phone_number:$('shadow-phone').value, display_name:$('shadow-name').value, zone:$('shadow-zone').value}));
   bind('debt-save', () => request('debt_save', {debtor_node_code:$('debt-node').value, amount_advanced:$('debt-amount').value, amount_repaid:$('debt-repaid').value, due_date:$('debt-due').value}));
   bind('kyc-save', () => request('kyc_save', {legal_name:$('kyc-name').value,id_document_number:$('kyc-doc').value,document_reference:$('kyc-ref').value,zone:$('kyc-zone').value,latitude:$('kyc-lat').value,longitude:$('kyc-lon').value}));
@@ -77,17 +78,24 @@
     const action = data?._action || '';
     if (action === 'network_balance_audit') {
       const out=$('v267-report-output');
-      if(out) out.innerHTML=`Audit Bottom-Up lancé : <b>${Number(data.queued||0)}</b> requête(s) sélective(s), <b>${Number(data.reused||0)}</b> preuve(s) réutilisée(s), <b>${Number(data.already_pending||0)}</b> déjà en file, <b>${Number(data.unavailable||0)}</b> indisponible(s).`;
+      if(out) out.innerHTML=`Audit ${esc(data.region_code||'')} / ${esc(data.dae_node_code||data.scope_node_code||'')} : <b>${Number(data.queued||0)}</b> requête(s), <b>${Number(data.reused||0)}</b> preuve(s), <b>${Number(data.deferred||0)}</b> différée(s), <b>${Number(data.unavailable||0)}</b> indisponible(s). Finance 1 h; rapport inactif jusqu’à ${Math.round(Number(data.report_freshness_seconds||0)/3600)} h sans mouvement ultérieur.`;
       return;
     }
     if (action === 'platform_snapshot') {
       const nodes=data.nodes||[]; const dry=nodes.filter(n => n.balance != null && Number(n.balance)<7500);
       const dormant=nodes.filter(n => n.last_activity_at && Date.now()-Date.parse(n.last_activity_at)>48*3600e3);
+      const recheck=nodes.filter(n => n.balance_report_state==='RECHECK_REQUIRED');
+      const certified=nodes.filter(n => n.balance_report_state==='CERTIFIED');
       const coaching=dormant.slice(0,8).map(n=>`🟠 ${esc(n.node_code)} — Bonjour, votre activité Blue semble ralentie. Solde connu : ${money(n.balance)}. Besoin d'aide pour relancer les ventes ?`);
-      $('v267-report-output').innerHTML=`Flotte: <b>${nodes.length}</b> · Zones sèches: <b>${dry.length}</b> · Hibernation >48h: <b>${dormant.length}</b><br>`+
-        dry.slice(0,12).map(n=>`🔴 ${esc(n.node_code)} — ${money(n.balance)}`).join('<br>') +
+      $('v267-report-output').innerHTML=`Rapport vivant au <b>${esc(data.generated_at||'')}</b> · Flotte: <b>${nodes.length}</b> · Certifiés: <b>${certified.length}</b> · À revérifier: <b>${recheck.length}</b> · Zones sèches: <b>${dry.length}</b><br>`+
+        recheck.slice(0,12).map(n=>`⚠ ${esc(n.node_code)} — mouvement après dernière preuve ${esc(n.evidence_at||'inconnue')}`).join('<br>')+
+        (recheck.length?'<hr>':'')+dry.slice(0,12).map(n=>`🔴 ${esc(n.node_code)} — ${money(n.balance)} · ${esc(n.balance_report_state||'UNKNOWN')}`).join('<br>') +
         (coaching.length?'<hr><b>Scripts CRM suggérés</b><br>'+coaching.join('<br>'):'');
       if (data.debts) $('debt-list').innerHTML=data.debts.map(d=>`${esc(d.debtor_node_code)} : ${money(Number(d.amount_advanced)-Number(d.amount_repaid))}`).join('<br>');
+    } else if (action === 'operator_catalog') {
+      const c=data.catalog||{}, regions=c.regions||[], out=$('v267-report-output');
+      if(out) out.innerHTML=`<b>Référentiel Camtel ${esc(c.catalog_version||'')}</b> · Master : ${esc(c.national_master_sim_name||'')}<br>`+
+        regions.map(r=>`${esc(r.code)}=${esc(r.name)}`).join(' · ')+`<br>${esc(c.identity?.dae||'')}<br>${esc(c.identity?.dsm||'')}<br>${esc(c.identity?.pos||'')}<br>${esc(c.identity?.short_alias_rule||'')}`;
     } else if (action === 'operator_insights') {
       const list=data.messages||[]; $('v267-report-output').innerHTML=list.slice(0,20).map(m=>`${esc(m.created_at)} · ${esc(m.node_code)} · ${esc(m.message_kind)} · ${money(m.amount)} · solde ${money(m.current_balance)} · ${esc(m.transaction_id||m.receipt_number)}`).join('<br>');
     } else if (action === 'debt_save' || action === 'debt_list') {

@@ -1,8 +1,11 @@
 import {parseBlueMessage} from './blue-message.mjs';
+import {CAMTEL_USSD, canonicalCamtelIdentity, parseCamtelIdentity, publicCamtelCatalog} from './camtel-catalog.mjs';
 
 const API_VERSION = '2.6.7-cloudflare';
 const ROBOT_LIVE_WINDOW_MINUTES = 15;
 const BALANCE_EVIDENCE_TTL_SECONDS = 3600;
+const REPORT_BALANCE_EVIDENCE_TTL_SECONDS = 14 * 3600;
+const AUDIT_MAX_OUTSTANDING = 12;
 const BALANCE_EVIDENCE_PRIORITY = Object.freeze({
   BALANCE_QUERY: 500,
   CHILD_BALANCE_QUERY: 500,
@@ -57,6 +60,7 @@ export default {
         case 'purchase_capacity_status': return await purchaseCapacityStatus(env, auth, input, headers);
         case 'network_dashboard': return await networkDashboard(env, auth, headers);
         case 'network_balance_audit': return await networkBalanceAudit(env, auth, headers);
+        case 'operator_catalog': return success({catalog: publicCamtelCatalog()}, 200, headers);
         case 'operator_insights': return await operatorInsights(env, auth, headers);
         case 'record_operator_message': return await recordOperatorMessageApi(env, auth, input, headers);
         case 'platform_snapshot': return await platformSnapshot(env, auth, headers);
@@ -97,20 +101,38 @@ async function pairDevice(env, input, headers) {
   let parent = String(input.parent_node_code || '').trim().toUpperCase();
   if (!['DAE', 'DSM', 'POS'].includes(role)) throw new ApiError('INVALID_ROLE', 'Rôle invalide.', 422);
   if (!['REMOTE', 'ROBOT', 'HYBRID'].includes(mode)) throw new ApiError('INVALID_MODE', 'Mode invalide.', 422);
-  if (role === 'DAE') parent = '';
-  if (role !== 'DAE' && !parent) throw new ApiError('PARENT_REQUIRED', 'Le supérieur est obligatoire.', 422);
-  if (parent) {
+
+  // Existing installations remain repairable even if they predate the current Camtel grammar.
+  // New identities, however, must use the official filiation XXY → DSMZ_XXY → POSA_DSMZ_XXY.
+  const legacyExact = await env.DB.prepare(
+    'SELECT node_code, role, phone_number, parent_node_code FROM nodes WHERE node_code = ? AND phone_number = ?'
+  ).bind(requestedNode, phoneNumber).first();
+  let node = '';
+  let identity = null;
+  if (legacyExact && legacyExact.role === role) {
+    node = legacyExact.node_code;
+    parent = String(legacyExact.parent_node_code || '');
+    identity = parseCamtelIdentity(node);
+  } else if (role === 'DAE') {
+    parent = '';
+    identity = canonicalCamtelIdentity(requestedNode, 'DAE', '');
+    if (!identity.ok) throw identityApiError(identity.error);
+    node = identity.node_code;
+  } else {
+    const suppliedIdentity = parseCamtelIdentity(requestedNode);
+    if (!parent && suppliedIdentity.ok && suppliedIdentity.role === role) {
+      parent = suppliedIdentity.parent_node_code;
+    }
+    if (!parent) {
+      throw new ApiError('PARENT_REQUIRED',
+        role === 'DSM' ? 'Indiquez le DAE supérieur (ex. OU3).'
+          : 'Indiquez le DSM supérieur avec son nom complet (ex. DSM7_OU3).', 422);
+    }
     const parentNode = await resolveParentNode(env, parent, role === 'DSM' ? 'DAE' : 'DSM');
     parent = parentNode.node_code;
-  }
-
-  let node = requestedNode;
-  const requestedExisting = await env.DB.prepare(
-    'SELECT node_code, parent_node_code FROM nodes WHERE node_code = ?'
-  ).bind(requestedNode).first();
-  if (role !== 'DAE' && (!requestedExisting
-      || String(requestedExisting.parent_node_code || '') !== parent)) {
-    node = canonicalChildCode(requestedNode, parent, role);
+    identity = canonicalCamtelIdentity(requestedNode, role, parent);
+    if (!identity.ok) throw identityApiError(identity.error);
+    node = identity.node_code;
   }
 
   const existing = await env.DB.prepare(
@@ -119,14 +141,41 @@ async function pairDevice(env, input, headers) {
   if (existing) {
     const same = existing.role === role && existing.phone_number === phoneNumber
       && String(existing.parent_node_code || '') === parent;
-    if (!same) throw new ApiError('NODE_IDENTITY_CONFLICT', 'Ce nœud existe avec une autre identité.', 409);
+    if (!same) throw new ApiError('NODE_IDENTITY_CONFLICT',
+      'Cet identifiant Camtel existe avec une autre SIM, un autre rôle ou une autre filiation.', 409);
   } else {
     const phoneOwner = await env.DB.prepare('SELECT node_code FROM nodes WHERE phone_number = ?')
       .bind(phoneNumber).first();
-    if (phoneOwner) throw new ApiError('PHONE_ALREADY_USED', 'Ce numéro appartient déjà à un autre nœud.', 409);
+    if (phoneOwner) throw new ApiError('PHONE_ALREADY_USED',
+      `Cette SIM est déjà liée à ${phoneOwner.node_code}.`, 409);
+    if (role !== 'DAE') {
+      throw new ApiError('SUBORDINATE_APPROVAL_REQUIRED',
+        role === 'DSM'
+          ? 'Le DAE doit d’abord pré-enrôler et valider ce DSM.'
+          : 'Le DSM doit d’abord pré-enrôler et valider ce PoS.', 409);
+    }
+    // Creation of a root DAE remains protected by the global super-admin pairing secret.
     await env.DB.prepare(
-      'INSERT INTO nodes(node_code, role, phone_number, parent_node_code) VALUES(?, ?, ?, ?)'
-    ).bind(node, role, phoneNumber, parent || null).run();
+      'INSERT INTO nodes(node_code, role, phone_number, parent_node_code) VALUES(?, ?, ?, NULL)'
+    ).bind(node, role, phoneNumber).run();
+  }
+
+  // A first DSM/PoS activation must have been approved by its direct superior during the last 48 h.
+  // Existing accounts with at least one device can still add/repair devices without a new approval.
+  if (role !== 'DAE') {
+    const paired = await env.DB.prepare(
+      'SELECT 1 AS yes FROM devices WHERE node_code = ? LIMIT 1'
+    ).bind(node).first();
+    if (!paired) {
+      const approval = await env.DB.prepare(
+        "SELECT created_at FROM shadow_accounts WHERE node_code = ? "
+        + "AND created_at >= strftime('%Y-%m-%dT%H:%M:%fZ','now','-48 hours') LIMIT 1"
+      ).bind(node).first();
+      if (!approval) {
+        throw new ApiError('SUBORDINATE_APPROVAL_EXPIRED',
+          'La validation du supérieur est absente ou a plus de 48 h. Le supérieur doit la renouveler.', 409);
+      }
+    }
   }
 
   const repairFingerprint = String(input.repair_sim_fingerprint || '').trim().toLowerCase();
@@ -150,8 +199,6 @@ async function pairDevice(env, input, headers) {
       + 'ORDER BY robot_enabled DESC, last_seen_at DESC LIMIT 1'
     ).bind(node, repairFingerprint).first()
     : null;
-  // Prefer the row that already owns this verified physical SIM. This repairs profiles created
-  // by older versions that remembered a newer duplicate row while the queue stayed on the old one.
   const replacement = simReplacement || explicitReplacement;
   if (replacement && replacement.node_code !== node) {
     throw new ApiError('DEVICE_IDENTITY_CONFLICT',
@@ -174,9 +221,6 @@ async function pairDevice(env, input, headers) {
     ).bind(deviceId, node, mode, deviceName, tokenHash).run();
   }
 
-  // A token renewal must not leave a phantom Robot behind. Ownership may follow the repaired
-  // installation only when this phone proves the same physical SIM and the previous owner has
-  // stopped heartbeating. A Remote without that SIM can never take ownership here.
   if (repairRobot) {
     await clearInvalidOrStaleSameSimOwners(env, node, deviceId, repairFingerprint);
     const liveConflict = await liveRobotOwner(env, node, deviceId);
@@ -188,8 +232,13 @@ async function pairDevice(env, input, headers) {
     }
   }
 
+  const official = parseCamtelIdentity(node);
   return success({
-    device_id: deviceId, device_token: token, node_code: node, role, mode,
+    device_id: deviceId, device_token: token, node_code: node,
+    parent_node_code: parent, role, mode,
+    region_code: official.ok ? official.region_code || '' : '',
+    dae_node_code: official.ok ? official.dae_node_code || '' : '',
+    dsm_node_code: official.ok ? official.dsm_node_code || '' : '',
     repaired_device: Boolean(replacement)
   }, replacement ? 200 : 201, headers);
 }
@@ -702,7 +751,7 @@ async function capacityView(env, row) {
 
 async function effectiveAvailableBalance(env, node, requireReusable = false) {
   const snapshot = await env.DB.prepare(
-    'SELECT b.balance, b.observed_at, b.valid_until, b.confidence, b.balance_quality, b.evidence_kind, b.evidence_priority, '
+    'SELECT b.balance, b.observed_at, b.operator_event_at, b.valid_until, b.confidence, b.balance_quality, b.evidence_kind, b.evidence_priority, '
     + 'b.source_command_public_id, b.evidence_command_public_id, c.id AS source_command_id '
     + 'FROM account_balances b '
     + 'LEFT JOIN commands c ON c.public_id = b.source_command_public_id WHERE b.node_code = ?'
@@ -715,8 +764,9 @@ async function effectiveAvailableBalance(env, node, requireReusable = false) {
     const activity = await env.DB.prepare(
       'SELECT last_unbalanced_activity_at FROM node_activity_state WHERE node_code = ?'
     ).bind(node).first();
+    const evidenceAt = snapshot.operator_event_at || snapshot.observed_at || '';
     if (activity?.last_unbalanced_activity_at
-        && Date.parse(activity.last_unbalanced_activity_at) > Date.parse(snapshot.observed_at || '')) return null;
+        && Date.parse(activity.last_unbalanced_activity_at) > Date.parse(evidenceAt)) return null;
   }
   const reserved = await env.DB.prepare(
     "SELECT COALESCE(SUM(amount), 0) AS total FROM commands WHERE executor_node_code = ? "
@@ -738,7 +788,7 @@ async function networkBalanceAudit(env, auth, headers) {
     + 'SELECT node_code, parent_node_code, role, phone_number, 0 FROM nodes WHERE node_code = ? AND active = 1 '
     + 'UNION ALL SELECT n.node_code, n.parent_node_code, n.role, n.phone_number, p.depth + 1 '
     + 'FROM nodes n JOIN network p ON n.parent_node_code = p.node_code WHERE n.active = 1) '
-    + 'SELECT * FROM network ORDER BY depth DESC, node_code'
+    + 'SELECT * FROM network'
   ).bind(auth.node_code).all();
   const nodes = network.results || [];
   const liveRows = await env.DB.prepare(
@@ -747,20 +797,39 @@ async function networkBalanceAudit(env, auth, headers) {
     + "AND last_seen_at >= strftime('%Y-%m-%dT%H:%M:%fZ','now','-15 minutes')"
   ).all();
   const live = new Set((liveRows.results || []).map(row => row.node_code));
+  const candidates = [];
   let reused = 0;
+  const details = [];
+  for (const node of nodes) {
+    const status = await reportBalanceStatus(env, node.node_code);
+    if (status.reusable) {
+      reused += 1;
+      details.push({node_code: node.node_code, action: 'REUSED', priority: status.priority,
+        evidence_kind: status.evidence_kind, evidence_at: status.evidence_at,
+        observed_at: status.observed_at});
+    } else {
+      candidates.push({...node, audit_status: status});
+    }
+  }
+  candidates.sort((left, right) => {
+    const priority = left.audit_status.priority_rank - right.audit_status.priority_rank;
+    if (priority) return priority;
+    const depth = Number(right.depth || 0) - Number(left.depth || 0);
+    return depth || String(left.node_code).localeCompare(String(right.node_code));
+  });
+
+  const outstandingRow = await env.DB.prepare(
+    "SELECT COUNT(*) AS total FROM commands WHERE requester_node_code = ? "
+    + "AND client_request_id LIKE 'audit_%' "
+    + "AND state IN ('PENDING','LEASED','DIALING','AWAITING_PIN','PIN_SUBMITTED','AWAITING_RESULT')"
+  ).bind(auth.node_code).first();
+  let budget = Math.max(0, AUDIT_MAX_OUTSTANDING - Number(outstandingRow?.total || 0));
   let queued = 0;
   let alreadyPending = 0;
   let unavailable = 0;
-  const details = [];
+  let deferred = 0;
 
-  for (const node of nodes) {
-    const fresh = await reportBalanceFresh(env, node.node_code);
-    if (fresh) {
-      reused += 1;
-      details.push({node_code: node.node_code, action: 'REUSED', evidence_kind: fresh.evidence_kind,
-        observed_at: fresh.observed_at});
-      continue;
-    }
+  for (const node of candidates) {
     const existing = await env.DB.prepare(
       "SELECT public_id FROM commands WHERE state IN ('PENDING','LEASED','DIALING','AWAITING_PIN','PIN_SUBMITTED','AWAITING_RESULT') "
       + "AND ((command_kind = 'BALANCE_OWN' AND executor_node_code = ?) "
@@ -768,7 +837,13 @@ async function networkBalanceAudit(env, auth, headers) {
     ).bind(node.node_code, node.node_code).first();
     if (existing) {
       alreadyPending += 1;
-      details.push({node_code: node.node_code, action: 'PENDING', command_id: existing.public_id});
+      details.push({node_code: node.node_code, action: 'PENDING', priority: node.audit_status.priority,
+        command_id: existing.public_id});
+      continue;
+    }
+    if (budget <= 0) {
+      deferred += 1;
+      details.push({node_code: node.node_code, action: 'DEFERRED', priority: node.audit_status.priority});
       continue;
     }
 
@@ -783,7 +858,6 @@ async function networkBalanceAudit(env, auth, headers) {
       if (node.parent_node_code && live.has(node.parent_node_code)) {
         executor = node.parent_node_code;
       } else if (auth.role === 'DAE' && live.has(auth.node_code)) {
-        // Camtel permits a DAE to query any PoS in its descendant network directly.
         executor = auth.node_code;
       }
       if (executor) {
@@ -800,9 +874,21 @@ async function networkBalanceAudit(env, auth, headers) {
 
     if (!executor) {
       unavailable += 1;
-      details.push({node_code: node.node_code, action: 'UNAVAILABLE'});
+      details.push({node_code: node.node_code, action: 'UNAVAILABLE', priority: node.audit_status.priority});
       continue;
     }
+    const executorOutstanding = await env.DB.prepare(
+      "SELECT COUNT(*) AS total FROM commands WHERE executor_node_code = ? "
+      + "AND client_request_id LIKE 'audit_%' "
+      + "AND state IN ('PENDING','LEASED','DIALING','AWAITING_PIN','PIN_SUBMITTED','AWAITING_RESULT')"
+    ).bind(executor).first();
+    if (Number(executorOutstanding?.total || 0) >= AUDIT_MAX_OUTSTANDING) {
+      deferred += 1;
+      details.push({node_code: node.node_code, action: 'DEFERRED', priority: node.audit_status.priority,
+        executor_node_code: executor});
+      continue;
+    }
+
     const commandId = crypto.randomUUID();
     const clientId = `audit_${randomHex(16)}`;
     const result = await env.DB.prepare(
@@ -817,35 +903,65 @@ async function networkBalanceAudit(env, auth, headers) {
       commandKind, node.node_code, commandKind, node.node_code).run();
     if (!result.meta?.changes) {
       alreadyPending += 1;
-      details.push({node_code: node.node_code, action: 'PENDING'});
+      details.push({node_code: node.node_code, action: 'PENDING', priority: node.audit_status.priority});
       continue;
     }
+    budget -= 1;
     queued += 1;
     await env.DB.prepare(
       "INSERT INTO command_events(command_id, device_id, state, message) "
       + "SELECT id, ?, 'PENDING', ? FROM commands WHERE public_id = ?"
     ).bind(auth.device_id,
-      `Audit réseau Bottom-Up: actualiser ${node.node_code} sans requête superflue.`, commandId).run();
-    details.push({node_code: node.node_code, action: 'QUEUED', executor_node_code: executor,
-      command_kind: commandKind, command_id: commandId});
+      `Audit ${node.audit_status.priority} Bottom-Up: actualiser ${node.node_code} sans requête superflue.`, commandId).run();
+    details.push({node_code: node.node_code, action: 'QUEUED', priority: node.audit_status.priority,
+      executor_node_code: executor, command_kind: commandKind, command_id: commandId});
   }
+
+  const identity = parseCamtelIdentity(auth.node_code);
   return success({
     scope_node_code: auth.node_code,
-    order: 'BOTTOM_UP_POS_DSM_DAE',
-    freshness_seconds: 600,
-    reused, queued, already_pending: alreadyPending, unavailable,
-    details: details.slice(0, 250)
+    region_code: identity.ok ? identity.region_code || '' : '',
+    dae_node_code: identity.ok ? identity.dae_node_code || '' : '',
+    order: 'PRIORITY_THEN_BOTTOM_UP_POS_DSM_DAE',
+    report_freshness_seconds: REPORT_BALANCE_EVIDENCE_TTL_SECONDS,
+    finance_freshness_seconds: BALANCE_EVIDENCE_TTL_SECONDS,
+    max_outstanding_per_scope: AUDIT_MAX_OUTSTANDING,
+    reused, queued, already_pending: alreadyPending, unavailable, deferred,
+    complete: deferred === 0,
+    details: details.slice(0, 500)
   }, 200, headers);
 }
 
-async function reportBalanceFresh(env, nodeCodeValue) {
-  return await env.DB.prepare(
-    'SELECT b.balance, b.evidence_kind, b.observed_at FROM account_balances b '
-    + 'LEFT JOIN node_activity_state a ON a.node_code = b.node_code WHERE b.node_code = ? '
-    + "AND b.balance_quality = 'EXACT' "
-    + "AND b.observed_at >= strftime('%Y-%m-%dT%H:%M:%fZ','now','-600 seconds') "
-    + 'AND (a.last_unbalanced_activity_at IS NULL OR a.last_unbalanced_activity_at <= b.observed_at)'
+async function reportBalanceStatus(env, nodeCodeValue) {
+  const row = await env.DB.prepare(
+    'SELECT b.balance, b.evidence_kind, b.balance_quality, b.observed_at, b.operator_event_at, '
+    + 'a.last_financial_activity_at, a.last_unbalanced_activity_at '
+    + 'FROM account_balances b LEFT JOIN node_activity_state a ON a.node_code=b.node_code '
+    + 'WHERE b.node_code=?'
   ).bind(nodeCodeValue).first();
+  if (!row) return {reusable: false, priority: 'P1_BLIND', priority_rank: 1,
+    evidence_kind: '', observed_at: '', evidence_at: ''};
+  const evidenceAt = row.operator_event_at || row.observed_at || '';
+  const unbalanced = Boolean(row.last_unbalanced_activity_at && evidenceAt
+    && Date.parse(row.last_unbalanced_activity_at) > Date.parse(evidenceAt));
+  if (unbalanced || row.balance_quality === 'NEEDS_RECHECK') {
+    return {...row, reusable: false, priority: 'P0_RECHECK', priority_rank: 0,
+      evidence_at: evidenceAt};
+  }
+  if (row.balance_quality !== 'EXACT') {
+    return {...row, reusable: false, priority: 'P1_BLIND', priority_rank: 1,
+      evidence_at: evidenceAt};
+  }
+  const ageMs = evidenceAt ? Date.now() - Date.parse(evidenceAt) : Number.POSITIVE_INFINITY;
+  if (ageMs <= REPORT_BALANCE_EVIDENCE_TTL_SECONDS * 1000) {
+    return {...row, reusable: true, priority: 'P2_RECENT', priority_rank: 2,
+      evidence_at: evidenceAt};
+  }
+  const activeRecently = row.last_financial_activity_at
+    && Date.now() - Date.parse(row.last_financial_activity_at) <= 48 * 3600 * 1000;
+  return {...row, reusable: false,
+    priority: activeRecently ? 'P2_ACTIVE_STALE' : 'P3_DORMANT_STALE',
+    priority_rank: activeRecently ? 2 : 3, evidence_at: evidenceAt};
 }
 
 async function resolveDescendant(env, ancestorNode, requestedNode, roles) {
@@ -877,7 +993,7 @@ async function resolveCommand(env, auth, input, requestType) {
       executor: parent.node_code, executorPhone: parent.phone_number,
       targetNode: requester, targetPhone: auth.phone_number,
       amount: value, operation: 'DISTRIBUTION_TRANSFER',
-      ussd: `*550*2*${auth.phone_number}*${value}#`, requiresPin: 1
+      ussd: CAMTEL_USSD.distributionTransfer(auth.phone_number, value), requiresPin: 1
     };
   }
   if (requestType === 'SUPPLY_CHILD') {
@@ -891,7 +1007,7 @@ async function resolveCommand(env, auth, input, requestType) {
     return {
       executor: requester, executorPhone: auth.phone_number,
       targetNode: child.node_code, targetPhone: child.phone_number, amount: value,
-      operation: 'DISTRIBUTION_TRANSFER', ussd: `*550*2*${child.phone_number}*${value}#`, requiresPin: 1
+      operation: 'DISTRIBUTION_TRANSFER', ussd: CAMTEL_USSD.distributionTransfer(child.phone_number, value), requiresPin: 1
     };
   }
   if (requestType === 'RETAIL_SALE') {
@@ -901,14 +1017,14 @@ async function resolveCommand(env, auth, input, requestType) {
     return {
       executor: requester, executorPhone: auth.phone_number,
       targetNode: null, targetPhone, amount: value,
-      operation: 'RETAIL_TRANSFER', ussd: `*550*1*${targetPhone}*${value}#`, requiresPin: 1
+      operation: 'RETAIL_TRANSFER', ussd: CAMTEL_USSD.retailTransfer(targetPhone, value), requiresPin: 1
     };
   }
   if (requestType === 'TEST_NUMBER') {
     return {
       executor: requester, executorPhone: auth.phone_number,
       targetNode: null, targetPhone: null, amount: null,
-      operation: 'TEST_NUMBER', ussd: '*825*3*3#', requiresPin: 0
+      operation: 'TEST_NUMBER', ussd: CAMTEL_USSD.testNumber(), requiresPin: 0
     };
   }
   if (requestType === 'CHECK_BALANCE' || requestType === 'LAST_TRANSACTIONS') {
@@ -946,11 +1062,20 @@ async function resolveCommand(env, auth, input, requestType) {
     if (!['DAE', 'DSM'].includes(auth.role)) {
       throw new ApiError('REQUEST_NOT_ALLOWED', 'Ce rôle ne supervise aucun solde enfant.', 403);
     }
+    const reference = nodeCode(input.target_node_code);
     let child;
     if (auth.role === 'DAE') {
-      child = await resolveDescendant(env, requester, input.target_node_code, ['DSM', 'POS']);
+      if (/^POS[1-9]\d{0,3}$/.test(reference)) {
+        throw new ApiError('POS_FULL_NAME_REQUIRED',
+          'Un DAE doit désigner directement un PoS par son nom complet, ex. POS16_DSM7_OU3.', 422);
+      }
+      if (/^DSM[1-9]\d{0,2}$/.test(reference)) {
+        child = await resolveDirectChild(env, requester, reference, 'DSM');
+      } else {
+        child = await resolveDescendant(env, requester, reference, ['DSM', 'POS']);
+      }
     } else {
-      child = await resolveDirectChild(env, requester, input.target_node_code, 'POS');
+      child = await resolveDirectChild(env, requester, reference, 'POS');
     }
     if (!child) throw new ApiError('CHILD_NOT_FOUND', 'Ce compte n’est pas dans la flotte supervisée active.', 422);
     return {
@@ -1407,6 +1532,29 @@ async function recordOperatorMessageApi(env, auth, input, headers) {
 async function recordParsedOperatorMessage(env, nodeCodeValue, message, publicId, command, commandState) {
   const parsed = parseBlueMessage(message);
   const tx = parsed.transaction_id || null;
+  let identityConflict = '';
+  if (parsed.source_phone) {
+    const owner = await env.DB.prepare('SELECT node_code FROM nodes WHERE phone_number=? LIMIT 1')
+      .bind(parsed.source_phone).first();
+    if (owner) {
+      if (parsed.source_node && parsed.source_node.toUpperCase() !== owner.node_code) {
+        identityConflict += `SOURCE_LABEL:${parsed.source_node}->${owner.node_code}`;
+      }
+      parsed.source_node = owner.node_code;
+    }
+  }
+  if (parsed.target_phone) {
+    const owner = await env.DB.prepare('SELECT node_code FROM nodes WHERE phone_number=? LIMIT 1')
+      .bind(parsed.target_phone).first();
+    if (owner) {
+      if (parsed.target_node && parsed.target_node.toUpperCase() !== owner.node_code) {
+        identityConflict += `${identityConflict ? ';' : ''}TARGET_LABEL:${parsed.target_node}->${owner.node_code}`;
+      }
+      parsed.target_node = owner.node_code;
+    }
+  }
+  parsed.identity_conflict = identityConflict;
+
   await env.DB.prepare(
     'INSERT OR IGNORE INTO operator_messages(command_public_id, node_code, message_kind, status, transaction_id, '
     + 'receipt_number, source_phone, source_node_code, target_phone, target_node_code, amount, current_balance, '
@@ -1419,43 +1567,65 @@ async function recordParsedOperatorMessage(env, nodeCodeValue, message, publicId
     parsed.tax_amount, cleanText(parsed.raw_message, 1800)).run();
 
   for (const entry of (parsed.mini_statement_entries || []).slice(0, 5)) {
+    let sourceNode = entry.source_node || '';
+    let targetNode = entry.target_node || '';
+    if (entry.source_phone) {
+      const owner = await env.DB.prepare('SELECT node_code FROM nodes WHERE phone_number=? LIMIT 1')
+        .bind(entry.source_phone).first();
+      if (owner) sourceNode = owner.node_code;
+    }
+    if (entry.target_phone) {
+      const owner = await env.DB.prepare('SELECT node_code FROM nodes WHERE phone_number=? LIMIT 1')
+        .bind(entry.target_phone).first();
+      if (owner) targetNode = owner.node_code;
+    }
     await env.DB.prepare(
       'INSERT OR IGNORE INTO operator_messages(command_public_id, node_code, message_kind, status, '
       + 'receipt_number, source_phone, source_node_code, target_phone, target_node_code, amount, '
       + 'current_balance, account_no, transaction_date, debit_credit, charge_amount, commission_amount, '
       + 'tax_amount, raw_message) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     ).bind(publicId, nodeCodeValue, 'MINI_STATEMENT_ENTRY', entry.status || 'INFO',
-      entry.receipt_number || null, entry.source_phone || '', entry.source_node || '',
-      entry.target_phone || '', entry.target_node || '', entry.debit_credit_amount,
+      entry.receipt_number || null, entry.source_phone || '', sourceNode,
+      entry.target_phone || '', targetNode, entry.debit_credit_amount,
       entry.current_balance, entry.account_no || '', entry.transaction_date || '',
       entry.debit_credit || '', entry.charge_amount, entry.commission_amount, entry.tax_amount,
       cleanText(entry.raw_message, 1800)).run();
   }
 
-  const passiveFinancial = !command && ['TRANSFER_RECEIVED','TRANSFER_SENT','RETAIL_TOPUP_RECEIVED','RETAIL_TOPUP_SENT'].includes(parsed.kind)
+  const passiveFinancial = !command
+    && ['TRANSFER_RECEIVED','TRANSFER_SENT','RETAIL_TOPUP_RECEIVED','RETAIL_TOPUP_SENT'].includes(parsed.kind)
     && parsed.status === 'SUCCEEDED';
   const financial = (command && ['DISTRIBUTION_TRANSFER', 'RETAIL_TRANSFER'].includes(command.operation)
     && ['SUCCEEDED', 'UNKNOWN'].includes(commandState)) || passiveFinancial;
   const unbalanced = financial && parsed.current_balance == null;
+  const eventAt = operatorEventAt(parsed) || new Date().toISOString();
+  const receivedAt = new Date().toISOString();
+  const current = await env.DB.prepare('SELECT * FROM node_activity_state WHERE node_code=?')
+    .bind(nodeCodeValue).first();
+  const maxIso = (left, right) => !left ? right : (!right ? left : (left >= right ? left : right));
+  const lastActivityAt = maxIso(current?.last_activity_at || '', eventAt);
+  const lastFinancialAt = financial
+    ? maxIso(current?.last_financial_activity_at || '', eventAt)
+    : (current?.last_financial_activity_at || null);
+  let lastUnbalancedAt = current?.last_unbalanced_activity_at || null;
+  if (financial && unbalanced) {
+    lastUnbalancedAt = maxIso(lastUnbalancedAt || '', eventAt) || null;
+  } else if (financial && parsed.current_balance != null && lastUnbalancedAt
+      && Date.parse(eventAt) >= Date.parse(lastUnbalancedAt)) {
+    lastUnbalancedAt = null;
+  }
+  const counter = Number(current?.transaction_counter || 0) + (financial ? 1 : 0);
   await env.DB.prepare(
-    'INSERT INTO node_activity_state(node_code, last_activity_at, last_financial_activity_at, '
-    + 'last_unbalanced_activity_at, last_operator_message_at, last_transaction_id, transaction_counter) '
-    + "VALUES(?, strftime('%Y-%m-%dT%H:%M:%fZ','now'), "
-    + "CASE WHEN ? THEN strftime('%Y-%m-%dT%H:%M:%fZ','now') ELSE NULL END, "
-    + "CASE WHEN ? THEN strftime('%Y-%m-%dT%H:%M:%fZ','now') ELSE NULL END, "
-    + "strftime('%Y-%m-%dT%H:%M:%fZ','now'), ?, CASE WHEN ? THEN 1 ELSE 0 END) "
-    + 'ON CONFLICT(node_code) DO UPDATE SET '
-    + "last_activity_at = strftime('%Y-%m-%dT%H:%M:%fZ','now'), "
-    + "last_financial_activity_at = CASE WHEN ? THEN strftime('%Y-%m-%dT%H:%M:%fZ','now') ELSE last_financial_activity_at END, "
-    + "last_unbalanced_activity_at = CASE WHEN ? THEN strftime('%Y-%m-%dT%H:%M:%fZ','now') "
-    + 'WHEN ? IS NOT NULL THEN NULL ELSE last_unbalanced_activity_at END, '
-    + "last_operator_message_at = strftime('%Y-%m-%dT%H:%M:%fZ','now'), "
-    + 'last_transaction_id = CASE WHEN length(?) > 0 THEN ? ELSE last_transaction_id END, '
-    + 'transaction_counter = transaction_counter + CASE WHEN ? THEN 1 ELSE 0 END, '
-    + "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')"
-  ).bind(nodeCodeValue, financial ? 1 : 0, unbalanced ? 1 : 0, tx || '', financial ? 1 : 0,
-    financial ? 1 : 0, unbalanced ? 1 : 0, parsed.current_balance,
-    tx || '', tx || '', financial ? 1 : 0).run();
+    'INSERT INTO node_activity_state(node_code,last_activity_at,last_financial_activity_at,'
+    + 'last_unbalanced_activity_at,last_operator_message_at,last_transaction_id,transaction_counter) '
+    + 'VALUES(?,?,?,?,?,?,?) ON CONFLICT(node_code) DO UPDATE SET '
+    + 'last_activity_at=excluded.last_activity_at, last_financial_activity_at=excluded.last_financial_activity_at, '
+    + 'last_unbalanced_activity_at=excluded.last_unbalanced_activity_at, '
+    + 'last_operator_message_at=excluded.last_operator_message_at, '
+    + 'last_transaction_id=excluded.last_transaction_id, transaction_counter=excluded.transaction_counter, '
+    + "updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now')"
+  ).bind(nodeCodeValue, lastActivityAt, lastFinancialAt, lastUnbalancedAt, receivedAt,
+    tx || current?.last_transaction_id || '', counter).run();
   return parsed;
 }
 
@@ -1468,7 +1638,8 @@ function publicOperatorMessage(parsed) {
     current_balance: parsed.current_balance, account_no: parsed.account_no || '',
     transaction_date: parsed.transaction_date || '', transaction_time: parsed.transaction_time || '',
     debit_credit: parsed.debit_credit || '', charge_amount: parsed.charge_amount,
-    commission_amount: parsed.commission_amount, tax_amount: parsed.tax_amount
+    commission_amount: parsed.commission_amount, tax_amount: parsed.tax_amount,
+    identity_conflict: parsed.identity_conflict || ''
   };
 }
 
@@ -1489,7 +1660,9 @@ async function platformSnapshot(env, auth, headers) {
     'WITH RECURSIVE network(node_code) AS (SELECT ? UNION ALL '
     + 'SELECT n.node_code FROM nodes n JOIN network p ON n.parent_node_code = p.node_code WHERE n.active = 1) '
     + 'SELECT n.node_code, n.role, n.phone_number, n.parent_node_code, b.balance, b.observed_at, '
-    + 's.terminal_type, s.display_name, s.zone, a.last_activity_at, a.last_financial_activity_at '
+    + 'b.operator_event_at, b.evidence_kind, b.balance_quality, b.valid_until, '
+    + 's.terminal_type, s.display_name, s.zone, a.last_activity_at, a.last_financial_activity_at, '
+    + 'a.last_unbalanced_activity_at '
     + 'FROM network x JOIN nodes n ON n.node_code=x.node_code '
     + 'LEFT JOIN account_balances b ON b.node_code=n.node_code '
     + 'LEFT JOIN shadow_accounts s ON s.node_code=n.node_code '
@@ -1508,21 +1681,55 @@ async function platformSnapshot(env, auth, headers) {
     ).bind(auth.node_code).first();
     if (row) mercenary = row;
   }
-  return success({nodes: nodes.results || [], debts: debts.results || [], mercenary}, 200, headers);
+  const now = Date.now();
+  const publicNodes = (nodes.results || []).map(row => {
+    const balance = row.balance == null ? null : Number(row.balance);
+    const evidenceAt = row.operator_event_at || row.observed_at || '';
+    const unbalancedAfterEvidence = Boolean(row.last_unbalanced_activity_at && evidenceAt
+      && Date.parse(row.last_unbalanced_activity_at) > Date.parse(evidenceAt));
+    let reportState = 'UNKNOWN';
+    if (balance != null) {
+      if (unbalancedAfterEvidence || row.balance_quality === 'NEEDS_RECHECK') reportState = 'RECHECK_REQUIRED';
+      else if (row.balance_quality === 'ESTIMATED') reportState = 'ESTIMATED';
+      else if (row.balance_quality === 'EXACT' && evidenceAt
+          && now - Date.parse(evidenceAt) <= REPORT_BALANCE_EVIDENCE_TTL_SECONDS * 1000) reportState = 'CERTIFIED';
+      else if (row.balance_quality === 'EXACT') reportState = 'KNOWN_IDLE_OLD';
+    }
+    return {...row, balance, evidence_at: evidenceAt, balance_report_state: reportState,
+      report_reusable: reportState === 'CERTIFIED'};
+  });
+  const reportSummary = publicNodes.reduce((acc, node) => {
+    acc[node.balance_report_state] = (acc[node.balance_report_state] || 0) + 1;
+    return acc;
+  }, {});
+  const identity = parseCamtelIdentity(auth.node_code);
+  return success({generated_at: new Date().toISOString(),
+    scope_node_code: auth.node_code,
+    region_code: identity.ok ? identity.region_code || '' : '',
+    dae_node_code: identity.ok ? identity.dae_node_code || '' : '',
+    report_freshness_seconds: REPORT_BALANCE_EVIDENCE_TTL_SECONDS,
+    nodes: publicNodes, report_summary: reportSummary,
+    debts: debts.results || [], mercenary}, 200, headers);
 }
 
 async function shadowEnroll(env, auth, input, headers) {
-  if (!['DAE','DSM'].includes(auth.role)) throw new ApiError('REQUEST_NOT_ALLOWED', 'Seul un DAE/DSM peut pré-enrôler un enfant.', 403);
+  if (!['DAE','DSM'].includes(auth.role)) {
+    throw new ApiError('REQUEST_NOT_ALLOWED', 'Seul un DAE/DSM peut valider un enfant direct.', 403);
+  }
   const childRole = auth.role === 'DAE' ? 'DSM' : 'POS';
-  const desired = nodeCode(input.node_code);
+  const identity = canonicalCamtelIdentity(input.node_code, childRole, auth.node_code);
+  if (!identity.ok) throw identityApiError(identity.error);
+  const desired = identity.node_code;
   const p = phone(input.phone_number);
   const displayName = cleanText(input.display_name, 120);
   const zone = cleanText(input.zone, 120);
-  const existing = await env.DB.prepare('SELECT node_code, role, phone_number, parent_node_code FROM nodes WHERE node_code=? OR phone_number=? LIMIT 1')
-    .bind(desired, p).first();
+  const existing = await env.DB.prepare(
+    'SELECT node_code, role, phone_number, parent_node_code FROM nodes WHERE node_code=? OR phone_number=? LIMIT 1'
+  ).bind(desired, p).first();
   if (existing && (existing.node_code !== desired || existing.phone_number !== p || existing.role !== childRole
       || String(existing.parent_node_code || '') !== auth.node_code)) {
-    throw new ApiError('IDENTITY_CONFLICT', 'Ce numéro ou identifiant appartient déjà à une autre identité.', 409);
+    throw new ApiError('IDENTITY_CONFLICT',
+      'Ce numéro ou identifiant appartient déjà à une autre identité Camtel.', 409);
   }
   if (!existing) {
     await env.DB.prepare('INSERT INTO nodes(node_code, role, phone_number, parent_node_code) VALUES(?,?,?,?)')
@@ -1531,9 +1738,14 @@ async function shadowEnroll(env, auth, input, headers) {
   await env.DB.prepare(
     "INSERT INTO shadow_accounts(node_code, created_by_node_code, terminal_type, display_name, zone) "
     + "VALUES(?, ?, 'TCHORONKO_SHADOW', ?, ?) ON CONFLICT(node_code) DO UPDATE SET "
-    + "display_name=excluded.display_name, zone=excluded.zone, updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now')"
+    + "created_by_node_code=excluded.created_by_node_code, display_name=excluded.display_name, "
+    + "zone=excluded.zone, created_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'), "
+    + "updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now')"
   ).bind(desired, auth.node_code, displayName, zone).run();
-  return success({shadow:{node_code:desired, role:childRole, phone_number:p, terminal_type:'TCHORONKO_SHADOW'}}, 201, headers);
+  return success({shadow:{node_code:desired, local_code:identity.local_code,
+    role:childRole, phone_number:p, parent_node_code:auth.node_code,
+    region_code:identity.region_code, approval_valid_hours:48,
+    terminal_type:'TCHORONKO_SHADOW'}}, 201, headers);
 }
 
 async function debtSave(env, auth, input, headers) {
@@ -1645,7 +1857,7 @@ async function mercenarySale(env, auth, input, headers) {
     env.DB.prepare(
       'INSERT INTO commands(public_id,client_request_id,requester_node_code,executor_node_code,target_node_code,operation,target_phone,amount,ussd_code,requires_pin) '
       + "SELECT ?,?,?,?,?, 'RETAIL_TRANSFER',?,?,?,1 WHERE EXISTS(SELECT 1 FROM mercenary_accounts WHERE id=? AND owner_dae_node_code=? AND active=1 AND virtual_balance>=?)"
-    ).bind(publicId,clientId,auth.node_code,pos.node_code,null,targetPhone,value,`*550*1*${targetPhone}*${value}#`,mercenaryId,auth.node_code,debit),
+    ).bind(publicId,clientId,auth.node_code,pos.node_code,null,targetPhone,value,CAMTEL_USSD.retailTransfer(targetPhone,value),mercenaryId,auth.node_code,debit),
     env.DB.prepare("INSERT INTO command_events(command_id,device_id,state,message) SELECT id,?,'PENDING','Vente Mercenaire confirmée.' FROM commands WHERE public_id=?").bind(auth.device_id,publicId),
     env.DB.prepare("UPDATE mercenary_accounts SET virtual_balance=virtual_balance-?, commission_balance=commission_balance+?, updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=? AND EXISTS(SELECT 1 FROM commands WHERE public_id=?)").bind(debit,commission,mercenaryId,publicId),
     env.DB.prepare("INSERT INTO mercenary_sales(mercenary_id,command_public_id,client_phone,amount,debit_amount,commission_amount) SELECT ?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM commands WHERE public_id=?)").bind(mercenaryId,publicId,targetPhone,value,debit,commission,publicId),
@@ -1712,8 +1924,9 @@ async function networkDashboard(env, auth, headers) {
     nodes: nodes.results.map(row => {
       const balance = row.balance == null ? null : Number(row.balance);
       const reserved = Number(row.reserved_amount || 0);
-      const unbalancedAfterEvidence = Boolean(row.last_unbalanced_activity_at && row.observed_at
-        && Date.parse(row.last_unbalanced_activity_at) > Date.parse(row.observed_at));
+      const evidenceAt = row.operator_event_at || row.observed_at || '';
+      const unbalancedAfterEvidence = Boolean(row.last_unbalanced_activity_at && evidenceAt
+        && Date.parse(row.last_unbalanced_activity_at) > Date.parse(evidenceAt));
       const reusable = balance != null && row.balance_quality === 'EXACT'
         && Date.parse(row.valid_until || '') > Date.now() && !unbalancedAfterEvidence;
       return {...row, balance, reserved_amount: reserved,
@@ -1753,17 +1966,22 @@ function nodeCode(value) {
 }
 
 function canonicalChildCode(localCode, parentCode, expectedRole = '') {
-  const local = nodeCode(localCode);
-  if (expectedRole && !local.startsWith(expectedRole)) {
-    throw new ApiError('INVALID_NODE_ROLE', `Le code doit commencer par ${expectedRole}.`, 422);
-  }
-  const suffix = `_${parentCode}`;
-  if (local.endsWith(suffix)) return local;
-  if (local.includes('_')) {
-    throw new ApiError('NODE_PARENT_MISMATCH',
-      'Le nom complet fourni appartient à une autre arborescence.', 422);
-  }
-  return nodeCode(`${local}${suffix}`);
+  const result = canonicalCamtelIdentity(localCode, expectedRole, parentCode);
+  if (!result.ok) throw identityApiError(result.error);
+  return result.node_code;
+}
+
+function identityApiError(code) {
+  const messages = {
+    INVALID_DAE_IDENTITY: 'Identifiant DAE invalide. Format attendu : XXY, ex. OU3, CE04 ou LT10.',
+    INVALID_DAE_PARENT: 'Le supérieur DSM doit être un DAE officiel, ex. OU3.',
+    INVALID_DSM_IDENTITY: 'Identifiant DSM invalide. Utilisez DSM7 dans son DAE ou DSM7_OU3 au format complet.',
+    INVALID_DSM_PARENT: 'Le supérieur PoS doit être un DSM complet, ex. DSM7_OU3.',
+    INVALID_POS_IDENTITY: 'Identifiant PoS invalide. Utilisez POS16 dans son DSM ou POS16_DSM7_OU3 au format complet.',
+    NODE_PARENT_MISMATCH: 'Le nom complet fourni appartient à une autre filiation Camtel.'
+  };
+  return new ApiError(code || 'INVALID_CAMTEL_IDENTITY',
+    messages[code] || 'Identité Camtel invalide.', 422);
 }
 
 async function resolveParentNode(env, reference, expectedRole) {

@@ -58,7 +58,7 @@ final class UssdCommandFactory {
                 if (!targetNode.isEmpty() && targetNode.equals(expectedExecutor)) {
                     throw new SecurityException("Un approvisionnement ne peut pas cibler le Robot lui-même.");
                 }
-                built = "*550*2*" + phone + "*" + amount + "#";
+                built = CamtelUssdCatalog.distributionTransfer(phone, amount);
                 break;
             case "RETAIL_TRANSFER":
                 if (!"POS".equals(role)) {
@@ -69,13 +69,13 @@ final class UssdCommandFactory {
                 if (!targetNode.isEmpty()) {
                     throw new SecurityException("Une vente client ne doit pas viser un nœud interne.");
                 }
-                built = "*550*1*" + phone + "*" + amount + "#";
+                built = CamtelUssdCatalog.retailTransfer(phone, amount);
                 break;
             case "TEST_NUMBER":
                 if (!phone.isEmpty() || !amount.isEmpty() || !targetNode.isEmpty()) {
                     throw new SecurityException("Le diagnostic contient des paramètres financiers inattendus.");
                 }
-                built = "*825*3*3#";
+                built = CamtelUssdCatalog.testNumber();
                 break;
             case "BALANCE_OWN": {
                 if (!phone.isEmpty() || !amount.isEmpty() || !targetNode.isEmpty()) {
@@ -85,15 +85,15 @@ final class UssdCommandFactory {
                 if (!localPin.matches("\\d{4}")) {
                     throw new SecurityException("PIN local absent pour consulter le solde.");
                 }
-                built = "*550*3*1*" + localPin + "#";
+                built = CamtelUssdCatalog.balanceOwn(localPin);
                 break;
             }
             case "HISTORY_LAST5":
                 requireNoTransferParameters(phone, amount, targetNode);
-                built = "*550*3*3*" + localPin(context, profileId) + "#";
+                built = CamtelUssdCatalog.historyLast5(localPin(context, profileId));
                 break;
             case "RESET_PIN_SELF":
-                built = "*550*5*1#";
+                built = CamtelUssdCatalog.resetPinSelf();
                 break;
             case "MODIFY_PIN_LOCAL": {
                 String oldPin = SecurePinStore.read(context, profileId);
@@ -101,7 +101,7 @@ final class UssdCommandFactory {
                 if (!oldPin.matches("\\d{4}") || !newPin.matches("\\d{4}")) {
                     throw new SecurityException("PIN ancien/nouveau local absent pour la modification Camtel.");
                 }
-                built = "*550*3*5*" + newPin + "*" + newPin + "*" + oldPin + "#";
+                built = CamtelUssdCatalog.modifyPin(newPin, oldPin);
                 break;
             }
             case "TRANSACTION_DETAIL":
@@ -109,7 +109,7 @@ final class UssdCommandFactory {
                 if (!argument.matches("[A-Za-z0-9_-]{6,64}")) {
                     throw new SecurityException("Identifiant de transaction invalide.");
                 }
-                built = "*550*3*2*" + argument + "*" + localPin(context, profileId) + "#";
+                built = CamtelUssdCatalog.transactionDetail(argument, localPin(context, profileId));
                 break;
             case "BALANCE_CHILD":
                 if (!"DAE".equals(role) && !"DSM".equals(role)) {
@@ -119,34 +119,34 @@ final class UssdCommandFactory {
                 if (!amount.isEmpty() || targetNode.isEmpty()) {
                     throw new SecurityException("Paramètres du solde enfant incohérents.");
                 }
-                built = "*550*5*2*" + phone + "*" + localPin(context, profileId) + "#";
+                built = CamtelUssdCatalog.balanceChild(phone, localPin(context, profileId));
                 break;
             case "FREEZE_SELF":
                 if (!expectedExecutor.equals(targetNode) || !phone.equals(configuredPhone)
                         || !amount.isEmpty()) {
                     throw new SecurityException("La commande de gel propre ne correspond pas à cette SIM.");
                 }
-                built = "*550*3*4*" + configuredPhone + "*" + localPin(context, profileId) + "#";
+                built = CamtelUssdCatalog.freezeSelf(configuredPhone, localPin(context, profileId));
                 break;
             case "INIT_CHILD_PIN_RESET":
                 requireManagedChild(role, targetNode, phone, amount);
-                built = "*550*4*1*" + phone + "*" + localPin(context, profileId) + "#";
+                built = CamtelUssdCatalog.initChildPinReset(phone, localPin(context, profileId));
                 break;
             case "SUSPEND_CHILD":
                 requireManagedChild(role, targetNode, phone, amount);
-                built = "*550*4*2*" + phone + "*" + localPin(context, profileId) + "#";
+                built = CamtelUssdCatalog.suspendChild(phone, localPin(context, profileId));
                 break;
             case "REACTIVATE_CHILD":
                 requireManagedChild(role, targetNode, phone, amount);
-                built = "*550*4*3*" + phone + "*" + localPin(context, profileId) + "#";
+                built = CamtelUssdCatalog.reactivateChild(phone, localPin(context, profileId));
                 break;
             case "FREEZE_CHILD":
                 requireManagedChild(role, targetNode, phone, amount);
-                built = "*550*5*3*" + phone + "*" + localPin(context, profileId) + "#";
+                built = CamtelUssdCatalog.freezeChild(phone, localPin(context, profileId));
                 break;
             case "REACTIVATE_FROZEN_CHILD":
                 requireManagedChild(role, targetNode, phone, amount);
-                built = "*550*5*4*" + phone + "*" + localPin(context, profileId) + "#";
+                built = CamtelUssdCatalog.reactivateFrozenChild(phone, localPin(context, profileId));
                 break;
             default:
                 throw new IllegalArgumentException("Opération USSD inconnue: " + operation);

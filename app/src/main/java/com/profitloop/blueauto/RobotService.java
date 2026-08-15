@@ -319,30 +319,66 @@ public class RobotService extends Service {
 
     private void maybeQueueNightlyNetworkAudit(String profileId, ApiClient api) {
         String role = AppConfig.role(this, profileId).toUpperCase(Locale.ROOT);
-        int startHour;
-        if ("POS".equals(role)) startHour = 2;
-        else if ("DSM".equals(role)) startHour = 3;
-        else if ("DAE".equals(role)) startHour = 4;
+        int startMinute;
+        int spanMinutes;
+        if ("POS".equals(role)) { startMinute = 2 * 60; spanMinutes = 60; }
+        else if ("DSM".equals(role)) { startMinute = 3 * 60; spanMinutes = 60; }
+        else if ("DAE".equals(role)) { startMinute = 4 * 60; spanMinutes = 60; }
         else return;
+
         Calendar now = Calendar.getInstance();
-        int hour = now.get(Calendar.HOUR_OF_DAY);
-        if (hour < startHour || hour >= 7) return;
+        int minuteOfDay = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE);
+        if (minuteOfDay >= 7 * 60) return;
         String dayKey = String.format(Locale.US, "%04d-%03d",
                 now.get(Calendar.YEAR), now.get(Calendar.DAY_OF_YEAR));
-        String prefKey = profileId + "_" + role;
-        String done = getSharedPreferences("blue_magic_night_audit", MODE_PRIVATE)
-                .getString(prefKey, "");
-        if (dayKey.equals(done)) return;
+        String node = AppConfig.nodeCode(this, profileId);
+        int slot = deterministicNightSlot(node + "|" + dayKey + "|PRIMARY", spanMinutes);
+        int dueMinute = startMinute + slot;
+        android.content.SharedPreferences prefs =
+                getSharedPreferences("blue_magic_night_audit", MODE_PRIVATE);
+        String primaryKey = profileId + "_" + role + "_primary";
+        String finalKey = profileId + "_" + role + "_final";
+        String retryKey = profileId + "_" + role + "_retry_at";
+        long retryAt = prefs.getLong(retryKey, 0L);
+        if (System.currentTimeMillis() < retryAt) return;
+
+        String phase = "";
+        if (minuteOfDay >= dueMinute && !dayKey.equals(prefs.getString(primaryKey, ""))) {
+            phase = "PRIMARY";
+        } else if ("DAE".equals(role)) {
+            // A small second DAE sweep before 06:00 catches post-audit activity without waking
+            // every PoS a second time. Reports themselves remain live and never freeze at this hour.
+            int finalDue = 5 * 60 + 15
+                    + deterministicNightSlot(node + "|" + dayKey + "|FINAL", 40);
+            if (minuteOfDay >= finalDue && !dayKey.equals(prefs.getString(finalKey, ""))) {
+                phase = "FINAL";
+            }
+        }
+        if (phase.isEmpty()) return;
+
         try {
             JSONObject result = api.networkBalanceAudit();
-            getSharedPreferences("blue_magic_night_audit", MODE_PRIVATE)
-                    .edit().putString(prefKey, dayKey).apply();
-            updateNotification(robotSummary("Audit nocturne " + role + " : "
+            boolean complete = result.optBoolean("complete", false);
+            android.content.SharedPreferences.Editor edit = prefs.edit();
+            if (complete) {
+                edit.putString("FINAL".equals(phase) ? finalKey : primaryKey, dayKey)
+                        .remove(retryKey).apply();
+            } else {
+                edit.putLong(retryKey, System.currentTimeMillis() + 5 * 60_000L).apply();
+            }
+            updateNotification(robotSummary("Audit " + phase.toLowerCase(Locale.ROOT) + " " + role + " : "
                     + result.optInt("queued", 0) + " requête(s), "
-                    + result.optInt("reused", 0) + " preuve(s) réutilisée(s)"));
+                    + result.optInt("reused", 0) + " preuve(s), "
+                    + result.optInt("deferred", 0) + " différée(s)"));
         } catch (Exception ignored) {
-            // Do not mark the day complete: the normal Robot loop will retry during the night window.
+            prefs.edit().putLong(retryKey, System.currentTimeMillis() + 5 * 60_000L).apply();
         }
+    }
+
+    private static int deterministicNightSlot(String key, int spanMinutes) {
+        int hash = key == null ? 0 : key.hashCode();
+        if (hash == Integer.MIN_VALUE) hash = 0;
+        return Math.abs(hash) % Math.max(1, spanMinutes);
     }
 
     private boolean retryOneDueFinalReport() {

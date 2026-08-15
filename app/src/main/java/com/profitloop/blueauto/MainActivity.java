@@ -98,9 +98,9 @@ public class MainActivity extends Activity {
         form.addView(diagnostic);
 
         EditText apiUrl = field("Adresse du serveur Blue Magic", AppConfig.pairingApiUrl(this), false);
-        EditText nodeCode = field("Code local (ex. SU2, DSM7 ou POS5)", "", false);
+        EditText nodeCode = field("Identifiant Camtel (ex. OU3, DSM7 ou POS16)", "", false);
         EditText phone = field("Numéro SIM du compte (9 chiffres)", "", false);
-        EditText parent = field("Code nœud supérieur (vide pour un DAE)", "", false);
+        EditText parent = field("Supérieur : OU3 pour DSM / DSM7_OU3 pour PoS", "", false);
         Spinner role = spinner(new String[]{"DAE", "DSM", "POS"});
         Spinner mode = spinner(new String[]{"REMOTE", "ROBOT"});
         Spinner simSlot = spinner(SimCallManager.slotLabels(this));
@@ -268,9 +268,10 @@ public class MainActivity extends Activity {
                     String token = data.optString("device_token", "");
                     String deviceId = data.optString("device_id", "");
                     String canonicalNode = data.optString("node_code", node);
+                    String canonicalParent = data.optString("parent_node_code", parentNode);
                     if (token.isEmpty()) throw new IllegalStateException("Jeton appareil absent.");
                     stage = "PAIR_LOCAL_PROFILE_SAVE";
-                    AppConfig.savePairing(this, deviceId, token, canonicalNode, sim, parentNode,
+                    AppConfig.savePairing(this, deviceId, token, canonicalNode, sim, canonicalParent,
                             selectedRole, selectedMode, selectedApiUrl, selectedSlot);
                     stage = "PAIR_LOCAL_SECRET_SAVE";
                     SecurePairingStore.save(this, secret);

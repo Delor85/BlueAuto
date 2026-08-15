@@ -57,7 +57,7 @@ export function parseMiniStatementEntries(raw) {
   return matches.map((match, index) => {
     const end = index + 1 < matches.length ? matches[index + 1].index : text.length;
     const segment = text.slice(match.index, end).trim();
-    const route = /Airtime\s+Transfer\s+(to|by)\s+(6\d{8})(?:\s*-\s*([A-Za-z0-9_.-]+))?/i.exec(segment);
+    const route = /Airtime\s+Transfer\s+(to|by)\s+(6\d{8})(?:\s*-\s*([A-Za-z0-9_-]+))?/i.exec(segment);
     const dc = /(?:^|\s)(Dr|Cr)\s*:?\s*([0-9][0-9 .,'’]*?(?:[.,]\d{1,2})?)\s*(?:F\s*CFA|FCFA|XAF)/i.exec(segment);
     const charge = /(?:CH|TransactionCharge|Charge(?:\s+Amount)?)\s*:?\s*([0-9][0-9 .,'’]*?(?:[.,]\d{1,2})?)\s*(?:F\s*CFA|FCFA|XAF)/i.exec(segment);
     const commission = /(?:CM|Commission(?:\s+Amount)?)\s*:?\s*([0-9][0-9 .,'’]*?(?:[.,]\d{1,2})?)\s*(?:F\s*CFA|FCFA|XAF)/i.exec(segment);
@@ -116,8 +116,8 @@ export function parseBlueMessage(raw) {
   else if (lower.includes('modified pin') || lower.includes('pin changed')) { kind = 'PIN_CHANGED'; status = failure ? 'FAILED' : 'SUCCEEDED'; success = !failure; }
   else if (containsAny(lower, ['suspend', 'reactivat', 'frozen', 'freeze'])) { kind = 'ORGANIZATION_STATUS'; status = failure ? 'FAILED' : (success ? 'SUCCEEDED' : 'INFO'); }
 
-  const source = /(?:from)\s+(6\d{8})(?:\s*-\s*([A-Za-z0-9_.-]+))?/i.exec(text);
-  const target = /(?:to|vers)\s+(6\d{8})(?:\s*-\s*([A-Za-z0-9_.-]+))?/i.exec(text);
+  const source = /(?:from)\s+(6\d{8})(?:\s*-\s*([A-Za-z0-9_-]+))?/i.exec(text);
+  const target = /(?:to|vers)\s+(6\d{8})(?:\s*-\s*([A-Za-z0-9_-]+))?/i.exec(text);
   const topupTarget = /top-?up\s+service\s+for\s+(6\d{8})/i.exec(text);
   const drcr = /(?:^|\s)(Dr|Cr)\s*:?\s*([0-9][0-9 .,'’]*?(?:[.,]\d{1,2})?)\s*(?:F\s*CFA|FCFA|XAF)/i.exec(text);
   const charge = /(?:TransactionCharge|Charge(?:\s+Amount)?|Fee|CH)\s*:?\s*([0-9][0-9 .,'’]*?(?:[.,]\d{1,2})?)\s*(?:F\s*CFA|FCFA|XAF)/i.exec(text);

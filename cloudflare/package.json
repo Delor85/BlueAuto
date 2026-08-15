@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node --check src/index.js && node --check src/blue-message.mjs && node test/blue-message-intelligence.mjs && node test/integration.mjs",
+    "check": "node --check src/index.js && node --check src/blue-message.mjs && node --check src/camtel-catalog.mjs && node test/camtel-catalog.mjs && node test/blue-message-intelligence.mjs && node test/integration.mjs",
     "dev": "wrangler dev",
     "db:local": "wrangler d1 migrations apply blue-magic --local",
     "db:remote": "wrangler d1 migrations apply blue-magic --remote",
