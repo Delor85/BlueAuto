@@ -159,8 +159,8 @@ async function pairDevice(env, input, headers) {
     }
     // Creation of a root DAE remains protected by the global super-admin pairing secret.
     await env.DB.prepare(
-      'INSERT INTO nodes(node_code, role, phone_number, parent_node_code) VALUES(?, ?, ?, NULL)'
-    ).bind(node, role, phoneNumber).run();
+      'INSERT INTO nodes(node_code, role, phone_number, parent_node_code, default_commission_bps) VALUES(?, ?, ?, NULL, ?)'
+    ).bind(node, role, phoneNumber, role === 'DAE' ? 1000 : role === 'DSM' ? 800 : 0).run();
   }
 
   // A first DSM/PoS activation must have been approved by its direct superior during the last 48 h.
@@ -619,9 +619,8 @@ async function checkPurchaseCapacity(env, auth, input, headers) {
   const values = await resolveCommand(env, auth, input, 'REQUEST_SUPPLY');
   const checkId = crypto.randomUUID();
 
-  // Reservation is decided in the same SQLite write statement that inserts the preflight.
-  // D1 serializes writes, therefore the first request received by the network consumes the
-  // available capacity before the next one is evaluated. No two callers can reserve the same FCFA.
+  // This step certifies/quotes capacity only. It must NOT reserve or visually deduct stock.
+  // The atomic reservation happens only when createCommand inserts the confirmed financial command.
   const reserved = await env.DB.prepare(
     "WITH request(amount) AS (VALUES (?)), snapshot AS ("
     + 'SELECT b.balance, b.observed_at, b.evidence_command_public_id, b.source_command_public_id, '
@@ -629,11 +628,7 @@ async function checkPurchaseCapacity(env, auth, input, headers) {
     + "COALESCE((SELECT SUM(c.amount) FROM commands c WHERE c.executor_node_code = b.node_code "
     + "AND c.operation IN ('DISTRIBUTION_TRANSFER','RETAIL_TRANSFER') "
     + 'AND ((source.id IS NOT NULL AND c.id > source.id) OR (source.id IS NULL AND c.created_at > b.observed_at)) '
-    + "AND c.state NOT IN ('FAILED','CANCELLED')),0) - "
-    + "COALESCE((SELECT SUM(p.requested_amount) FROM purchase_preflights p "
-    + "WHERE p.supplier_node_code = b.node_code AND p.state = 'AVAILABLE' "
-    + "AND p.purchase_command_public_id IS NULL "
-    + "AND p.expires_at > strftime('%Y-%m-%dT%H:%M:%fZ','now')),0)) AS available "
+    + "AND c.state NOT IN ('FAILED','CANCELLED')),0)) AS available "
     + 'FROM account_balances b LEFT JOIN commands source ON source.public_id = b.source_command_public_id '
     + 'LEFT JOIN node_activity_state a ON a.node_code = b.node_code '
     + 'WHERE b.node_code = ? '
@@ -648,9 +643,9 @@ async function checkPurchaseCapacity(env, auth, input, headers) {
     + 'COALESCE(snapshot.evidence_command_public_id, snapshot.source_command_public_id), 1, snapshot.observed_at, '
     + "CASE WHEN request.amount <= snapshot.available THEN 'AVAILABLE' ELSE 'INSUFFICIENT' END, "
     + "CASE WHEN request.amount <= snapshot.available THEN "
-    + "'Demande réservée selon l ordre d arrivée. Solde encore disponible après cette réservation : ' "
-    + "|| CAST((snapshot.available - request.amount) AS INTEGER) || ' FCFA.' ELSE "
-    + "'Les demandes arrivées avant sont prioritaires. Solde encore disponible du supérieur : ' "
+    + "'Montant disponible au contrôle. Aucune réservation avant confirmation. Disponible : ' "
+    + "|| CAST(snapshot.available AS INTEGER) || ' FCFA.' ELSE "
+    + "'Montant insuffisant au contrôle. Disponible du supérieur : ' "
     + "|| CAST(snapshot.available AS INTEGER) || ' FCFA.' END, "
     + "strftime('%Y-%m-%dT%H:%M:%fZ','now','+120 seconds') "
     + 'FROM snapshot CROSS JOIN request RETURNING *'
@@ -763,6 +758,7 @@ async function capacityView(env, row) {
     balance_command_id: row.balance_command_public_id || '',
     balance_reused: Boolean(row.balance_reused),
     balance_observed_at: row.balance_observed_at || '',
+    reservation_applied: false,
     message: state === 'EXPIRED' ? 'Le contrôle de solde a expiré; relancez la demande.'
       : row.result_message || '',
     expires_at: row.expires_at || ''
@@ -1434,18 +1430,13 @@ async function refreshWaitingPreflights(env, nodeCode) {
     if (!row) return;
     const effective = await effectiveAvailableBalance(env, nodeCode, true);
     if (!effective) return;
-    const held = await env.DB.prepare(
-      "SELECT COALESCE(SUM(requested_amount),0) AS total FROM purchase_preflights "
-      + "WHERE supplier_node_code = ? AND state = 'AVAILABLE' AND purchase_command_public_id IS NULL "
-      + "AND expires_at > strftime('%Y-%m-%dT%H:%M:%fZ','now')"
-    ).bind(nodeCode).first();
-    const available = Math.max(0, effective.available - Number(held?.total || 0));
+    const available = Math.max(0, effective.available);
     const requested = Number(row.requested_amount);
     const accepted = requested <= available;
     const remaining = accepted ? available - requested : available;
     const message = accepted
-      ? `Demande prioritaire réservée. Solde encore disponible après cette réservation : ${remaining} FCFA.`
-      : `Les demandes arrivées avant sont prioritaires. Solde encore disponible du supérieur : ${remaining} FCFA.`;
+      ? `Montant disponible au contrôle : ${available} FCFA. Aucune réservation avant confirmation.`
+      : `Montant insuffisant au contrôle. Solde disponible du supérieur : ${available} FCFA.`;
     await env.DB.prepare(
       "UPDATE purchase_preflights SET state = ?, available_balance = ?, balance_reused = 0, "
       + 'balance_command_public_id = ?, balance_observed_at = ?, result_message = ?, '
@@ -1761,8 +1752,8 @@ async function shadowEnroll(env, auth, input, headers) {
       'Ce numéro ou identifiant appartient déjà à une autre identité Camtel.', 409);
   }
   if (!existing) {
-    await env.DB.prepare('INSERT INTO nodes(node_code, role, phone_number, parent_node_code) VALUES(?,?,?,?)')
-      .bind(desired, childRole, p, auth.node_code).run();
+    await env.DB.prepare('INSERT INTO nodes(node_code, role, phone_number, parent_node_code, default_commission_bps) VALUES(?,?,?,?,?)')
+      .bind(desired, childRole, p, auth.node_code, childRole === 'DSM' ? 800 : 0).run();
   }
   await env.DB.prepare(
     "INSERT INTO shadow_accounts(node_code, created_by_node_code, terminal_type, display_name, zone) "

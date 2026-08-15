@@ -47,6 +47,8 @@ public class RobotService extends Service {
     private static final int WATCHDOG_REQUEST_CODE = 5503;
     private static final long STANDBY_WAKE_MS = 30 * 60_000L;
     private static final long WATCHDOG_INTERVAL_MS = 60_000L;
+    private static final long SIMPLE_UNLOCK_WAIT_MS = 3_500L;
+    private static final long SIMPLE_UNLOCK_COOLDOWN_MS = 30_000L;
 
     private ScheduledExecutorService executor;
     private final AtomicBoolean cycleRunning = new AtomicBoolean(false);
@@ -200,6 +202,33 @@ public class RobotService extends Service {
             JSONObject activeUssd = activeCommands.isEmpty() ? null : activeCommands.get(0);
             if (activeUssd != null) {
                 String owner = activeUssd.optString("local_profile_id", "");
+                String localState = activeUssd.optString("local_state", PendingCommandStore.LEASED);
+                if (PendingCommandStore.LEASED.equals(localState)) {
+                    ApiClient leasedApi = ApiClient.forProfile(this, owner);
+                    if (DeviceLockState.isSecurelyLocked(this)) {
+                        releaseLockedLease(owner, activeUssd, leasedApi);
+                        nextDelay = AppConfig.LOCKED_POLL_MS;
+                    } else if (!DeviceLockState.blocksUssd(this)) {
+                        executeCommand(owner, activeUssd, leasedApi);
+                        nextDelay = 2_000L;
+                    } else {
+                        long assistAt = activeUssd.optLong("simple_unlock_assist_at", 0L);
+                        if (assistAt <= 0L) {
+                            if (beginSimpleUnlockAssist(owner, activeUssd)) {
+                                nextDelay = 750L;
+                            } else {
+                                releaseLockedLease(owner, activeUssd, leasedApi);
+                                nextDelay = AppConfig.LOCKED_POLL_MS;
+                            }
+                        } else if (System.currentTimeMillis() - assistAt >= SIMPLE_UNLOCK_WAIT_MS) {
+                            releaseLockedLease(owner, activeUssd, leasedApi);
+                            nextDelay = AppConfig.LOCKED_POLL_MS;
+                        } else {
+                            nextDelay = 750L;
+                        }
+                    }
+                    return;
+                }
                 if (PendingCommandStore.isExpired(activeUssd)) {
                     finishCommand(owner, false, "RESULT_TIMEOUT",
                             "Aucune confirmation fiable reçue dans le délai. Vérification manuelle requise.", "");
@@ -259,8 +288,13 @@ public class RobotService extends Service {
                         PendingCommandStore.save(this, profileId, command);
                         roundRobinIndex = (index + 1) % count;
                         if (DeviceLockState.blocksUssd(this)) {
-                            releaseLockedLease(profileId, command, api);
-                            nextDelay = AppConfig.LOCKED_POLL_MS;
+                            if (DeviceLockState.isSecurelyLocked(this)
+                                    || !beginSimpleUnlockAssist(profileId, command)) {
+                                releaseLockedLease(profileId, command, api);
+                                nextDelay = AppConfig.LOCKED_POLL_MS;
+                            } else {
+                                nextDelay = 750L;
+                            }
                             return;
                         }
                         readiness = checkReadiness(profileId);
@@ -410,6 +444,12 @@ public class RobotService extends Service {
                     BlueAccessibilityService.isEnabled(this),
                     AppConfig.pinBlocked(this, profileId));
             if (!capability.ready) {
+                if ("ACCESSIBILITY_DISABLED".equals(capability.code)) {
+                    releaseUnexecutedLease(profileId, command, api,
+                            "Accessibilité Blue Magic désactivée; transaction financière conservée en file.");
+                    updateNotification(robotSummary("Robot actif — Accessibilité à réactiver; achats/ventes restent en file"));
+                    return;
+                }
                 finishCommand(profileId, false, capability.code, capability.message, "");
                 return;
             }
@@ -612,16 +652,41 @@ public class RobotService extends Service {
         }
     }
 
-    private void releaseLockedLease(String profileId, JSONObject command, ApiClient api) {
+    private boolean beginSimpleUnlockAssist(String profileId, JSONObject command) {
+        if (!DeviceLockState.canAssistSimpleUnlock(this) || DeviceLockState.isSecurelyLocked(this)) {
+            return false;
+        }
+        long now = System.currentTimeMillis();
+        String key = "simple_unlock_assist_at_" + profileId;
+        long last = AppConfig.prefs(this).getLong(key, 0L);
+        if (now - last < SIMPLE_UNLOCK_COOLDOWN_MS) return false;
+        if (!SimpleKeyguardAssistActivity.launch(this)) return false;
         try {
-            api.releaseCommand(command,
-                    "Écran verrouillé. Le titulaire doit déverrouiller normalement le téléphone; aucune tentative de déverrouillage automatique n’est effectuée.");
+            command.put("simple_unlock_assist_at", now);
+            PendingCommandStore.save(this, profileId, command);
+        } catch (Exception ignored) {
+            return false;
+        }
+        AppConfig.prefs(this).edit().putLong(key, now).apply();
+        updateNotification(robotSummary("Verrou simple — tentative unique de libération avant l’USSD"));
+        return true;
+    }
+
+    private void releaseLockedLease(String profileId, JSONObject command, ApiClient api) {
+        boolean secure = DeviceLockState.isSecurelyLocked(this);
+        String reason = secure
+                ? "Écran protégé par un verrou sécurisé. Déverrouillage humain obligatoire."
+                : "Le verrou simple n’a pas pu être libéré proprement lors de la tentative ponctuelle.";
+        try {
+            api.releaseCommand(command, reason + " La commande reste dans la file et pourra être reprise.");
         } catch (Exception ignored) {
             // Un ancien serveur relâchera lui-même le lease à son expiration.
         }
         PendingCommandStore.clear(this, profileId);
         releaseCommandWakeLock();
-        updateNotification(robotSummary("Écran verrouillé — déverrouillez le téléphone puis Blue Magic reprendra la file"));
+        updateNotification(robotSummary(secure
+                ? "Écran sécurisé — déverrouillez ou contactez le titulaire/supérieur; la file reprendra ensuite"
+                : "Écran verrouillé — déverrouillez ou contactez le titulaire/supérieur; Blue Magic reprendra la file"));
     }
 
     private Readiness checkReadiness(String profileId) {

@@ -59,7 +59,7 @@ public class MainActivity extends Activity {
 
     private TextView nativeStatus;
     private WebView webView;
-    private View managementPanel;
+    private AlertDialog managementDialog;
     private Button manageButton;
     private volatile boolean robotStartInProgress;
 
@@ -393,61 +393,6 @@ public class MainActivity extends Activity {
         compactBar.addView(manageButton, weighted());
         page.addView(compactBar);
 
-        ScrollView toolsScroll = new ScrollView(this);
-        toolsScroll.setFillViewport(false);
-        toolsScroll.setVerticalScrollBarEnabled(true);
-        toolsScroll.setScrollbarFadingEnabled(false);
-        toolsScroll.setScrollBarStyle(View.SCROLLBARS_INSIDE_INSET);
-        toolsScroll.setVerticalFadingEdgeEnabled(true);
-        toolsScroll.setFadingEdgeLength(dp(26));
-        LinearLayout tools = new LinearLayout(this);
-        tools.setOrientation(LinearLayout.VERTICAL);
-        tools.setPadding(dp(2), dp(3), dp(2), dp(5));
-        toolsScroll.addView(tools);
-        toolsScroll.setVisibility(View.GONE);
-        managementPanel = toolsScroll;
-        page.addView(toolsScroll, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(260)));
-
-        LinearLayout accountButtons = new LinearLayout(this);
-        accountButtons.setOrientation(LinearLayout.HORIZONTAL);
-        Button addAccount = actionButton("AJOUTER UN COMPTE", CYAN);
-        Button verifySim = actionButton("VÉRIFIER / LIER LA SIM", VIOLET);
-        accountButtons.addView(addAccount, weighted());
-        accountButtons.addView(verifySim, weighted());
-        tools.addView(accountButtons);
-
-        Button pinSettings = actionButton("🔐 ENREGISTRER / CORRIGER PIN LOCAL", GOLD);
-        Button networkPinChange = actionButton("🔁 CHANGER LE PIN CAMTEL RÉSEAU", CYAN);
-        Button networkPinReset = actionButton("🆘 DEMANDER RESET PIN", VIOLET);
-        if (AppConfig.isRobotMode(this)) {
-            tools.addView(pinSettings);
-            tools.addView(networkPinChange);
-            tools.addView(networkPinReset);
-        }
-
-        TextView scrollHint = help("Faites défiler ce panneau : la barre à droite indique les autres réglages.");
-        scrollHint.setTextColor(CYAN);
-        tools.addView(scrollHint);
-
-        LinearLayout buttons = new LinearLayout(this);
-        buttons.setOrientation(LinearLayout.HORIZONTAL);
-        Button prepare = actionButton("1. AUTORISATIONS", GOLD);
-        Button toggle = actionButton(AppConfig.robotEnabled(this) ? "ARRÊTER ROBOT" : "2. DÉMARRER ROBOT", CYAN);
-        buttons.addView(prepare, weighted());
-        buttons.addView(toggle, weighted());
-        if (AppConfig.isRobotMode(this)) tools.addView(buttons);
-
-        Button switchMode = actionButton(AppConfig.isRobotMode(this)
-                ? "PASSER CE COMPTE EN REMOTE" : "PASSER CE COMPTE EN ROBOT", GOLD);
-        tools.addView(switchMode);
-
-        Button repairPairing = actionButton("VÉRIFIER / RÉPARER L’APPAIRAGE", CYAN);
-        tools.addView(repairPairing);
-
-        Button pendingOperations = actionButton("FILES / ANNULER UNE OPÉRATION BLOQUÉE", GOLD);
-        tools.addView(pendingOperations);
-
         webView = new WebView(this);
         webView.setBackgroundColor(BACKGROUND);
         page.addView(webView, new LinearLayout.LayoutParams(
@@ -455,41 +400,7 @@ public class MainActivity extends Activity {
         setContentView(page);
 
         accounts.setOnClickListener(v -> showAccountManager());
-        manageButton.setOnClickListener(v -> {
-            boolean opening = managementPanel.getVisibility() != View.VISIBLE;
-            setManagementOpen(opening);
-        });
-        addAccount.setOnClickListener(v -> {
-            showPairingScreen(true);
-        });
-        verifySim.setOnClickListener(v -> confirmAndBindCurrentSim());
-        pinSettings.setOnClickListener(v -> showPinEditorDialog());
-        networkPinChange.setOnClickListener(v -> showOperatorPinChangeDialog());
-        networkPinReset.setOnClickListener(v -> confirmResetOperatorPin());
-
-        prepare.setOnClickListener(v -> prepareRobotPermissions());
-        switchMode.setOnClickListener(v -> showModeSwitcher());
-        repairPairing.setOnClickListener(v -> showPairingRepairDialog());
-        pendingOperations.setOnClickListener(v -> showPendingOperations());
-        toggle.setOnClickListener(v -> {
-            if (AppConfig.robotEnabled(this)) {
-                if (isActiveUssdForCurrentProfile()) {
-                    toast("Une transaction USSD est en cours. Attendez son résultat avant d’arrêter ce Robot.");
-                    return;
-                }
-                RobotService.stop(this);
-                toggle.setText("2. DÉMARRER ROBOT");
-            } else {
-                if (!AppConfig.isRobotMode(this)) {
-                    toast("Ce compte est en mode REMOTE. Activez un compte ROBOT pour exécuter l’USSD.");
-                    return;
-                }
-                if (!startRobotSafely()) return;
-                toggle.setText("ARRÊTER ROBOT");
-            }
-            applyRobotWindowPolicy();
-            refreshNativeStatus();
-        });
+        manageButton.setOnClickListener(v -> setManagementOpen(true));
 
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -545,12 +456,199 @@ public class MainActivity extends Activity {
     }
 
     private void setManagementOpen(boolean opening) {
-        if (managementPanel == null) return;
-        managementPanel.setVisibility(opening ? View.VISIBLE : View.GONE);
-        if (manageButton != null) manageButton.setText(opening ? "✕ FERMER" : "☰ GÉRER");
-        if (opening && managementPanel instanceof ScrollView) {
-            ScrollView scroll = (ScrollView) managementPanel;
-            scroll.post(() -> scroll.smoothScrollTo(0, 0));
+        if (opening) {
+            showManagementCenter();
+            return;
+        }
+        if (managementDialog != null && managementDialog.isShowing()) {
+            managementDialog.dismiss();
+        }
+        managementDialog = null;
+        if (manageButton != null) manageButton.setText("☰ GÉRER");
+    }
+
+    /**
+     * Responsive native management center.
+     *
+     * The previous implementation inserted a fixed 260dp ScrollView above the WebView. On short
+     * Android 6 terminals that consumed most of the usable height. This dialog keeps the dashboard
+     * intact, groups actions by intent and uses two compact columns whenever the screen is wide
+     * enough. Ultra-narrow screens automatically fall back to one column without hiding actions.
+     */
+    private void showManagementCenter() {
+        if (managementDialog != null && managementDialog.isShowing()) return;
+
+        final boolean robotMode = AppConfig.isRobotMode(this);
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
+        scroll.setVerticalScrollBarEnabled(true);
+        scroll.setScrollbarFadingEnabled(false);
+        LinearLayout tools = new LinearLayout(this);
+        tools.setOrientation(LinearLayout.VERTICAL);
+        tools.setPadding(dp(10), dp(6), dp(10), dp(12));
+        scroll.addView(tools);
+
+        TextView intro = help(AppConfig.nodeCode(this) + " • "
+                + AppConfig.displayMode(AppConfig.mode(this))
+                + " • SIM " + (AppConfig.simSlot(this) + 1)
+                + "
+Actions regroupées pour rester lisibles même sur les petits téléphones.");
+        intro.setTextColor(CYAN);
+        intro.setPadding(dp(2), 0, dp(2), dp(4));
+        tools.addView(intro);
+
+        tools.addView(managementSectionTitle("COMPTE & SIM"));
+        Button accounts = managementActionButton("👥 COMPTES (" + AppConfig.profileCount(this) + ")", GOLD);
+        Button addAccount = managementActionButton("＋ AJOUTER COMPTE", CYAN);
+        addManagementPair(tools, accounts, addAccount);
+        Button verifySim = managementActionButton("🔗 VÉRIFIER / LIER SIM", VIOLET);
+        Button repairPairing = managementActionButton("🛠 RÉPARER APPAIRAGE", CYAN);
+        addManagementPair(tools, verifySim, repairPairing);
+        Button switchMode = managementActionButton(AppConfig.isRobotMode(this)
+                ? "↔ PASSER EN REMOTE" : "↔ PASSER EN ROBOT", GOLD);
+        addManagementFull(tools, switchMode);
+
+        Button pinSettings = null;
+        Button networkPinChange = null;
+        Button networkPinReset = null;
+        Button prepare = null;
+        Button battery = null;
+        Button toggle = null;
+        if (robotMode) {
+            tools.addView(managementSectionTitle("PIN CAMTEL"));
+            pinSettings = managementActionButton("🔐 PIN LOCAL", GOLD);
+            networkPinChange = managementActionButton("🔁 MODIFIER LE PIN CAMTEL", CYAN);
+            addManagementPair(tools, pinSettings, networkPinChange);
+            networkPinReset = managementActionButton("🆘 DEMANDER RESET PIN", VIOLET);
+            addManagementFull(tools, networkPinReset);
+
+            tools.addView(managementSectionTitle("ROBOT & TÉLÉPHONE"));
+            prepare = managementActionButton("1. AUTORISATIONS", GOLD);
+            battery = managementActionButton("🔋 BATTERIE SANS RESTRICTION", CYAN);
+            addManagementPair(tools, prepare, battery);
+            toggle = managementActionButton(AppConfig.robotEnabled(this)
+                    ? "■ ARRÊTER ROBOT" : "▶ DÉMARRER ROBOT", VIOLET);
+            addManagementFull(tools, toggle);
+        }
+
+        tools.addView(managementSectionTitle("FILES & SÉCURITÉ"));
+        Button pendingOperations = managementActionButton("⏳ FILES / ANNULER OPÉRATION BLOQUÉE", GOLD);
+        addManagementFull(tools, pendingOperations);
+
+        managementDialog = new AlertDialog.Builder(this)
+                .setTitle("Blue Magic — Centre de gestion")
+                .setView(scroll)
+                .setNegativeButton("FERMER", null)
+                .create();
+        managementDialog.setOnDismissListener(dialog -> {
+            managementDialog = null;
+            if (manageButton != null) manageButton.setText("☰ GÉRER");
+        });
+        managementDialog.setOnShowListener(dialog -> {
+            if (manageButton != null) manageButton.setText("✕ FERMER");
+            android.view.Window window = managementDialog.getWindow();
+            if (window != null) {
+                float density = getResources().getDisplayMetrics().density;
+                int screenWidth = getResources().getDisplayMetrics().widthPixels;
+                int screenHeight = getResources().getDisplayMetrics().heightPixels;
+                int width = Math.min(screenWidth - Math.round(12 * density), dp(620));
+                int height = Math.min(Math.round(screenHeight * 0.88f), dp(650));
+                window.setLayout(Math.max(dp(260), width), Math.max(dp(300), height));
+            }
+        });
+
+        accounts.setOnClickListener(v -> { setManagementOpen(false); showAccountManager(); });
+        addAccount.setOnClickListener(v -> { setManagementOpen(false); showPairingScreen(true); });
+        verifySim.setOnClickListener(v -> { setManagementOpen(false); confirmAndBindCurrentSim(); });
+        repairPairing.setOnClickListener(v -> { setManagementOpen(false); showPairingRepairDialog(); });
+        switchMode.setOnClickListener(v -> { setManagementOpen(false); showModeSwitcher(); });
+        pendingOperations.setOnClickListener(v -> { setManagementOpen(false); showPendingOperations(); });
+        if (robotMode) {
+            final Button pinButton = pinSettings;
+            final Button changeButton = networkPinChange;
+            final Button resetButton = networkPinReset;
+            final Button permissionButton = prepare;
+            final Button batteryButton = battery;
+            final Button toggleButton = toggle;
+            pinButton.setOnClickListener(v -> { setManagementOpen(false); showPinEditorDialog(); });
+            changeButton.setOnClickListener(v -> { setManagementOpen(false); showOperatorPinChangeDialog(); });
+            resetButton.setOnClickListener(v -> { setManagementOpen(false); confirmResetOperatorPin(); });
+            permissionButton.setOnClickListener(v -> { setManagementOpen(false); prepareRobotPermissions(); });
+            batteryButton.setOnClickListener(v -> { setManagementOpen(false); openBatterySettings(); });
+            toggleButton.setOnClickListener(v -> toggleRobotFromManagement());
+        }
+
+        managementDialog.show();
+    }
+
+    private TextView managementSectionTitle(String text) {
+        TextView title = label(text);
+        title.setTextColor(CYAN);
+        title.setTextSize(10);
+        title.setPadding(dp(3), dp(10), dp(3), dp(3));
+        return title;
+    }
+
+    private Button managementActionButton(String text, int color) {
+        Button button = actionButton(text, color);
+        float widthDp = getResources().getDisplayMetrics().widthPixels
+                / getResources().getDisplayMetrics().density;
+        button.setTextSize(widthDp < 340f ? 9f : 10f);
+        button.setMinHeight(dp(widthDp < 340f ? 40 : 44));
+        button.setSingleLine(false);
+        button.setMaxLines(2);
+        button.setGravity(android.view.Gravity.CENTER);
+        button.setPadding(dp(4), dp(2), dp(4), dp(2));
+        return button;
+    }
+
+    private void addManagementPair(LinearLayout parent, Button left, Button right) {
+        float widthDp = getResources().getDisplayMetrics().widthPixels
+                / getResources().getDisplayMetrics().density;
+        if (widthDp < 290f) {
+            addManagementFull(parent, left);
+            addManagementFull(parent, right);
+            return;
+        }
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.addView(left, weighted());
+        row.addView(right, weighted());
+        parent.addView(row);
+    }
+
+    private void addManagementFull(LinearLayout parent, Button button) {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        params.setMargins(dp(2), dp(3), dp(2), dp(3));
+        parent.addView(button, params);
+    }
+
+    private void toggleRobotFromManagement() {
+        if (AppConfig.robotEnabled(this)) {
+            if (isActiveUssdForCurrentProfile()) {
+                toast("Une transaction USSD est en cours. Attendez son résultat avant d’arrêter ce Robot.");
+                return;
+            }
+            RobotService.stop(this);
+        } else {
+            if (!AppConfig.isRobotMode(this)) {
+                toast("Ce compte est en mode REMOTE. Passez-le d’abord en mode ROBOT.");
+                return;
+            }
+            if (!startRobotSafely()) return;
+        }
+        setManagementOpen(false);
+        applyRobotWindowPolicy();
+        refreshNativeStatus();
+    }
+
+    private void openBatterySettings() {
+        try {
+            startActivity(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
+            toast("Choisissez Blue Magic puis « Sans restriction » / « Ne pas optimiser » si disponible.");
+        } catch (Exception error) {
+            toast("Ouvrez Batterie > Blue Magic > Sans restriction / Ne pas optimiser.");
         }
     }
 
@@ -1190,9 +1288,9 @@ public class MainActivity extends Activity {
                 + "\nAccessibilité " + (BlueAccessibilityService.isEnabled(this) ? "OK" : "À ACTIVER")
                 + " • Robots actifs : " + AppConfig.enabledRobotCount(this)
                 + (DeviceLockState.isSecurelyLocked(this)
-                ? "\n🔒 VERROU SÉCURISÉ : la commande reprendra après déverrouillage"
+                ? "\n🔒 VERROU SÉCURISÉ : aucune tentative automatique; déverrouillage humain requis"
                 : DeviceLockState.isInsecurelyLocked(this)
-                ? "\n✨ VERROU SIMPLE : le dialogue Téléphone sera libéré temporairement" : "")
+                ? "\n✨ VERROU SIMPLE : assistance ponctuelle autorisée seulement au moment d’une commande" : "")
                 + (sim != null && !sim.valid ? "\n⛔ " + sim.message : "")
                 + (AppConfig.pinBlocked(this) ? "\n⛔ PIN BLOQUÉ : corriger avant toute nouvelle transaction" : ""));
     }
@@ -1419,6 +1517,21 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void openPinSettings() {
             runOnUiThread(() -> showPinEditorDialog());
+        }
+
+        @JavascriptInterface
+        public void changeOperatorPin() {
+            runOnUiThread(() -> showOperatorPinChangeDialog());
+        }
+
+        @JavascriptInterface
+        public void resetOperatorPin() {
+            runOnUiThread(() -> confirmResetOperatorPin());
+        }
+
+        @JavascriptInterface
+        public void openBatteryOptimizationSettings() {
+            runOnUiThread(MainActivity.this::openBatterySettings);
         }
 
         @JavascriptInterface

@@ -42,6 +42,18 @@ final class DeviceLockState {
         return !secure;
     }
 
+    static boolean hasSecureCredential(Context context) {
+        KeyguardManager manager = (KeyguardManager) context.getSystemService(Context.KEYGUARD_SERVICE);
+        if (manager == null) return false;
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                ? manager.isDeviceSecure() : manager.isKeyguardSecure();
+    }
+
+    static boolean canAssistSimpleUnlock(Context context) {
+        if (isSecurelyLocked(context)) return false;
+        return isInsecurelyLocked(context) || !isScreenInteractive(context);
+    }
+
     static boolean blocksUssd(Context context) {
         return isKeyguardLocked(context) || !isScreenInteractive(context);
     }

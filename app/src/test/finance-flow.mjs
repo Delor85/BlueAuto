@@ -267,9 +267,11 @@ assert.match(css, /\.module-tab-primary/);
 assert.ok(activity.indexOf('MODIFIER LE PIN CAMTEL') < activity.indexOf('1. AUTORISATIONS'));
 assert.match(activity, /setScrollbarFadingEnabled\(false\)/);
 const unlockActivity = await readFile(new URL(
-  '../main/java/com/profitloop/blueauto/InsecureKeyguardDismissActivity.java', import.meta.url), 'utf8');
+  '../main/java/com/profitloop/blueauto/SimpleKeyguardAssistActivity.java', import.meta.url), 'utf8');
 assert.match(unlockActivity, /requestDismissKeyguard/);
-assert.match(unlockActivity, /finishAndRemoveTask/);
+assert.match(unlockActivity, /DeviceLockState\.isSecurelyLocked/);
+assert.match(unlockActivity, /finishQuietly/);
+assert.doesNotMatch(unlockActivity, /disableKeyguard/);
 assert.match(activity, /openPinSettings/);
 
 console.log('Android UI/runtime: verrou/PIN, dock actif, précontrôle de solde, confirmation finance, administration sensible et TEST_NUMBER OK');

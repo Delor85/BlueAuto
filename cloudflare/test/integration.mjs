@@ -124,7 +124,7 @@ try {
 
   const firstDaeLease = await request('lease_command', {}, dae.data.device_token);
   assert.equal(firstDaeLease.data.available, true);
-  assert.equal(firstDaeLease.data.command.ussd_code, '*550*2*699000002*200#');
+  assert.equal(firstDaeLease.data.command.ussd_code, '*550*2*699000002*220#');
   assert.equal(firstDaeLease.data.command.executor_node_code, 'CE04');
   assert.equal(firstDaeLease.data.command.executor_phone, '699000001');
   assert.equal(firstDaeLease.data.command.integrity_version, 3);
@@ -155,13 +155,18 @@ try {
   }, dsm.data.device_token);
   assert.equal(capacityReady.data.capacity.state, 'AVAILABLE');
   assert.equal(capacityReady.data.capacity.available_balance, 1000);
+  assert.equal(capacityReady.data.capacity.base_amount, 500);
+  assert.equal(capacityReady.data.capacity.commission_rate_bps, 1000);
+  assert.equal(capacityReady.data.capacity.commission_amount, 50);
+  assert.equal(capacityReady.data.capacity.requested_amount, 550);
+  assert.equal(capacityReady.data.capacity.reservation_applied, false);
 
   const insufficient = await request('check_purchase_capacity', {
     request_type: 'REQUEST_SUPPLY', amount: '1500',
     client_request_id: 'integration-capacity-insufficient-01'
   }, dsm.data.device_token);
   assert.equal(insufficient.data.capacity.state, 'INSUFFICIENT');
-  assert.equal(insufficient.data.capacity.available_balance, 500);
+  assert.equal(insufficient.data.capacity.available_balance, 1000);
   assert.equal(insufficient.data.capacity.balance_reused, true);
 
   const supplyPreview = await request('preview_command', {
@@ -172,6 +177,10 @@ try {
   assert.equal(supplyPreview.data.preview.executor_phone, '699000001');
   assert.equal(supplyPreview.data.preview.target_node_code, 'DSM12_CE04');
   assert.equal(supplyPreview.data.preview.target_phone, '699000002');
+  assert.equal(supplyPreview.data.preview.requested_base_amount, 500);
+  assert.equal(supplyPreview.data.preview.commission_rate_bps, 1000);
+  assert.equal(supplyPreview.data.preview.commission_amount, 50);
+  assert.equal(supplyPreview.data.preview.amount, 550);
   assert.match(supplyPreview.data.preview.confirmation_fingerprint, /^[a-f0-9]{64}$/);
 
   const unconfirmed = await requestFailure('create_command', {
@@ -195,7 +204,7 @@ try {
 
   const leased = await request('lease_command', {}, dae.data.device_token);
   assert.equal(leased.data.available, true);
-  assert.equal(leased.data.command.ussd_code, '*550*2*699000002*500#');
+  assert.equal(leased.data.command.ussd_code, '*550*2*699000002*550#');
   assert.equal(leased.data.command.requires_pin, true);
 
   for (const state of ['DIALING', 'AWAITING_PIN']) {
@@ -230,7 +239,7 @@ try {
     command_id: created.data.command.public_id
   }, dsm.data.device_token);
   assert.equal(status.data.command.state, 'SUCCEEDED');
-  assert.equal(status.data.command.amount, 500);
+  assert.equal(status.data.command.amount, 550);
 
   await db.prepare("DELETE FROM account_balances WHERE node_code = 'CE04'").run();
   const waitingCapacity = await request('check_purchase_capacity', {
@@ -257,6 +266,7 @@ try {
   }, dsmTwo.data.device_token);
   assert.equal(checkedCapacity.data.capacity.state, 'INSUFFICIENT');
   assert.equal(checkedCapacity.data.capacity.available_balance, 650);
+  assert.equal(checkedCapacity.data.capacity.reservation_applied, false);
 
   const dashboard = await request('network_dashboard', {}, dae.data.device_token);
   assert.equal(dashboard.data.nodes.some(node => node.node_code === 'CE04'
@@ -344,7 +354,8 @@ try {
   await db.prepare("UPDATE purchase_preflights SET state='EXPIRED' WHERE public_id = ?")
     .bind(sharedBalance.data.capacity.capacity_check_id).run();
 
-  // FIFO network reservation: first request gets the stock, second immediately receives the remainder.
+  // Quote-only concurrency: preflights never reserve or visually reduce stock. Both callers may
+  // receive a valid quote; only the first CONFIRMED command reserves capacity atomically.
   const raceOne = await request('check_purchase_capacity', {
     request_type: 'REQUEST_SUPPLY', amount: '700',
     client_request_id: 'integration-capacity-race-dsm1-01'
@@ -355,25 +366,36 @@ try {
   }, dsmTwo.data.device_token);
   assert.equal(raceOne.data.capacity.state, 'AVAILABLE');
   assert.equal(raceOne.data.capacity.available_balance, 880);
-  assert.match(raceOne.data.capacity.message, /180 FCFA/);
-  assert.equal(raceTwo.data.capacity.state, 'INSUFFICIENT');
-  assert.equal(raceTwo.data.capacity.available_balance, 180);
-  assert.match(raceTwo.data.capacity.message, /180 FCFA/);
-  const raceTwoPreview = await requestFailure('preview_command', {
-    request_type: 'REQUEST_SUPPLY', amount: '500',
-    capacity_check_id: raceTwo.data.capacity.capacity_check_id
-  }, dsmTwo.data.device_token, 409);
-  assert.equal(raceTwoPreview.error.code, 'BALANCE_INSUFFICIENT');
+  assert.equal(raceOne.data.capacity.reservation_applied, false);
+  assert.match(raceOne.data.capacity.message, /880 FCFA/);
+  assert.equal(raceTwo.data.capacity.state, 'AVAILABLE');
+  assert.equal(raceTwo.data.capacity.available_balance, 880);
+  assert.equal(raceTwo.data.capacity.reservation_applied, false);
+  assert.match(raceTwo.data.capacity.message, /880 FCFA/);
   const raceOnePreview = await request('preview_command', {
     request_type: 'REQUEST_SUPPLY', amount: '700',
     capacity_check_id: raceOne.data.capacity.capacity_check_id
   }, dsm.data.device_token);
+  const raceTwoPreview = await request('preview_command', {
+    request_type: 'REQUEST_SUPPLY', amount: '500',
+    capacity_check_id: raceTwo.data.capacity.capacity_check_id
+  }, dsmTwo.data.device_token);
+  assert.equal(raceOnePreview.data.preview.amount, 770);
+  assert.equal(raceTwoPreview.data.preview.amount, 550);
   const raceWinner = await request('create_command', {
     request_type: 'REQUEST_SUPPLY', amount: '700',
     client_request_id: 'integration-capacity-race-create1',
     capacity_check_id: raceOne.data.capacity.capacity_check_id,
     confirmation_fingerprint: raceOnePreview.data.preview.confirmation_fingerprint
   }, dsm.data.device_token);
+  assert.equal(raceWinner.data.command.amount, 770);
+  const raceLoser = await requestFailure('create_command', {
+    request_type: 'REQUEST_SUPPLY', amount: '500',
+    client_request_id: 'integration-capacity-race-create2',
+    capacity_check_id: raceTwo.data.capacity.capacity_check_id,
+    confirmation_fingerprint: raceTwoPreview.data.preview.confirmation_fingerprint
+  }, dsmTwo.data.device_token, 409);
+  assert.equal(raceLoser.error.code, 'BALANCE_CHANGED');
   const raceCancelled = await request('cancel_command', {
     command_id: raceWinner.data.command.public_id
   }, dsm.data.device_token);
@@ -423,7 +445,7 @@ try {
 
   const dsmLease = await request('lease_command', {}, dsm.data.device_token);
   assert.equal(dsmLease.data.available, true);
-  assert.equal(dsmLease.data.command.ussd_code, '*550*2*699000003*100#');
+  assert.equal(dsmLease.data.command.ussd_code, '*550*2*699000003*108#');
   await complete(dsmLease.data.command, dsm.data.device_token);
 
   const queuedOne = await request('create_command', {

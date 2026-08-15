@@ -68,6 +68,9 @@
             else if(action==='verify-sim'){window.AndroidBridge.verifySim();}
             else if(action==='permissions'){window.AndroidBridge.prepareRobotPermissions();}
             else if(action==='pin'){window.AndroidBridge.openPinSettings();}
+            else if(action==='change-pin'){window.AndroidBridge.changeOperatorPin();}
+            else if(action==='reset-pin'){window.AndroidBridge.resetOperatorPin();}
+            else if(action==='battery-settings'){window.AndroidBridge.openBatteryOptimizationSettings();}
             else if(action==='manage'){window.AndroidBridge.openManagement();}
             else if(action==='start-robot'){window.AndroidBridge.startRobot();showToast('Contrôle du Robot lancé. Suivez le message Android.');}
             else if(action==='server-health'){byId('serverHealthStatus').textContent='Vérification HTTPS et D1 en cours…';window.AndroidBridge.checkServerHealth();}
@@ -135,7 +138,10 @@
         }
         if(state==='INSUFFICIENT'){
             setBusy(false);pendingPreview=null;
-            showActionError({code:'SOLDE_SUPÉRIEUR_INSUFFISANT',message:'Vous ne pouvez pas commander ce montant. Le solde actuellement disponible du supérieur est de '+formatMoney(capacity.available_balance||0)+' FCFA. Cliquez sur OK puis recommencez avec un montant inférieur ou égal. Faites vite : un autre DSM/PoS peut utiliser ce solde avant vous.'});
+            var rate=Number(capacity.commission_rate_bps||0), maxBase=Number(capacity.maximum_base_amount||0), available=Number(capacity.available_balance||0);
+            if(maxBase<=0&&available>0){maxBase=Math.floor(available*10000/(10000+rate));while(maxBase>0&&(maxBase+Math.floor(maxBase*rate/10000))>available){maxBase-=1;}}
+            var maxCommission=Math.floor(maxBase*rate/10000), maxTotal=maxBase+maxCommission;
+            showActionError({code:'SOLDE_SUPÉRIEUR_INSUFFISANT',message:'Vous ne pouvez pas commander ce montant. Solde actuellement disponible : '+formatMoney(available)+' FCFA. Avec votre taux '+String(rate/100).replace('.',',')+' %, le montant commandable maximum est '+formatMoney(maxBase)+' FCFA + '+formatMoney(maxCommission)+' FCFA de commission = '+formatMoney(maxTotal)+' FCFA à recevoir. Aucune somme n’est réservée tant que vous n’avez pas confirmé : un autre DSM/PoS peut confirmer avant vous et modifier le disponible.'});
             return;
         }
         if(state!=='AVAILABLE'){
@@ -217,27 +223,36 @@
         else if(pending){support=String(pending)+' commande(s) non terminale(s) à suivre dans le registre Flux.';}
         byId('supportStatus').textContent=support;
     }
-    function renderDashboard(){
-        var nodes=dashboard&&dashboard.nodes||[],html='',fleet='',i,n,own=null,known=0;
-        for(i=0;i<nodes.length;i+=1){
-            n=nodes[i];if(n.node_code===configuration.node_code){own=n;}
-            if(n.balance!==null&&typeof n.balance!=='undefined'){known+=1;}
-            var balanceText=n.balance===null||typeof n.balance==='undefined'?'Non lu':formatMoney(n.balance)+' FCFA';
-            var reserved=Number(n.reserved_amount||0), available=n.available_balance===null||typeof n.available_balance==='undefined'?null:Number(n.available_balance);
-            var evidenceText=n.balance===null||typeof n.balance==='undefined'?'':(' • '+(n.balance_quality==='EXACT'?'confirmé':'estimé')+' / '+(n.evidence_kind||n.balance_source||'source inconnue'));
-            var split='';
-            if((n.role==='DAE'||n.role==='DSM')&&n.balance!==null&&typeof n.balance!=='undefined'){split='<br><small>Stock hors commission : '+escapeHtml(formatMoney(n.commission_base_balance||0))+' • part taux par défaut : '+escapeHtml(formatMoney(n.commission_component_balance||0))+' • taux '+escapeHtml(String(Number(n.default_commission_bps||0)/100).replace('.',','))+' %</small>';}
-            html+='<article class="network-item"><div><strong>'+escapeHtml(n.node_code||'—')+'</strong><span>'+escapeHtml((n.role||'—')+' • '+(n.device_kind||'—')+evidenceText)+'</span></div><div class="network-balance"><b>Solde Camtel : '+escapeHtml(balanceText)+'</b><br><small>Réservé : '+escapeHtml(formatMoney(reserved))+' FCFA • Disponible : '+escapeHtml(available===null?'—':formatMoney(available)+' FCFA')+'</small>'+split+'</div></article>';
-            fleet+='<article class="network-item"><div><strong>'+escapeHtml(n.node_code||'—')+'</strong><span>'+escapeHtml(n.phone_number||'—')+'</span></div><div class="network-balance">'+escapeHtml(n.device_kind||'—')+'</div></article>';
+    function nodeCard(n){
+        var balanceText=n.balance===null||typeof n.balance==='undefined'?'Non lu':formatMoney(n.balance)+' FCFA';
+        var reserved=Number(n.reserved_amount||0), available=n.available_balance===null||typeof n.available_balance==='undefined'?null:Number(n.available_balance);
+        var evidenceText=n.balance===null||typeof n.balance==='undefined'?'':(' • '+(n.balance_quality==='EXACT'?'confirmé':'estimé')+' / '+(n.evidence_kind||n.balance_source||'source inconnue'));
+        var activity=n.last_activity_at?(' • activité '+formatTime(n.last_activity_at)):'';
+        var split='';
+        if((n.role==='DAE'||n.role==='DSM')&&n.balance!==null&&typeof n.balance!=='undefined'){
+            split='<br><small>Stock hors commission : '+escapeHtml(formatMoney(n.commission_base_balance||0))+' • part taux par défaut : '+escapeHtml(formatMoney(n.commission_component_balance||0))+' • total réel : '+escapeHtml(formatMoney(n.balance))+' • taux '+escapeHtml(String(Number(n.default_commission_bps||0)/100).replace('.',','))+' %</small>';
         }
-        byId('networkList').innerHTML=html||'<p class="muted">Aucun nœud visible dans cette arborescence.</p>';
+        return '<article class="network-item"><div><strong>'+escapeHtml(n.node_code||'—')+'</strong><span>'+escapeHtml((n.role||'—')+' • '+(n.device_kind||'—')+evidenceText+activity)+'</span></div><div class="network-balance"><b>Solde Camtel : '+escapeHtml(balanceText)+'</b><br><small>Réservé après confirmation : '+escapeHtml(formatMoney(reserved))+' FCFA • Disponible : '+escapeHtml(available===null?'—':formatMoney(available)+' FCFA')+'</small>'+split+'</div></article>';
+    }
+    function fleetCard(n){return '<article class="network-item"><div><strong>'+escapeHtml(n.node_code||'—')+'</strong><span>'+escapeHtml(n.phone_number||'—')+'</span></div><div class="network-balance">'+escapeHtml(n.device_kind||'—')+'</div></article>';}
+    function renderDashboard(){
+        var nodes=dashboard&&dashboard.nodes||[],html='',fleet='',i,n,own=null,known=0,byParent={},direct=[],children=[];
+        for(i=0;i<nodes.length;i+=1){n=nodes[i];if(n.node_code===configuration.node_code){own=n;}if(n.balance!==null&&typeof n.balance!=='undefined'){known+=1;}if(!byParent[n.parent_node_code||'']){byParent[n.parent_node_code||'']=[];}byParent[n.parent_node_code||''].push(n);}
+        if(own){html+=nodeCard(own);fleet+=fleetCard(own);}
+        direct=byParent[configuration.node_code]||[];
+        if(configuration.role==='DAE'){
+            for(i=0;i<direct.length;i+=1){n=direct[i];if(n.role!=='DSM'){continue;}children=byParent[n.node_code]||[];html+='<details class="panel" open><summary><strong>'+escapeHtml(n.node_code)+'</strong> — DSM direct • '+String(children.length)+' PoS</summary>'+nodeCard(n)+(children.length?'<details><summary>Afficher / masquer les PoS de '+escapeHtml(n.node_code)+'</summary>'+children.map(nodeCard).join('')+'</details>':'')+'</details>';fleet+='<details><summary>'+escapeHtml(n.node_code)+' • DSM</summary>'+fleetCard(n)+children.map(fleetCard).join('')+'</details>';}
+        }else if(configuration.role==='DSM'){
+            for(i=0;i<direct.length;i+=1){if(direct[i].role==='POS'){html+=nodeCard(direct[i]);fleet+=fleetCard(direct[i]);}}
+        }
+        byId('networkList').innerHTML=html||'<p class="muted">Aucun nœud visible dans votre périmètre.</p>';
         byId('fleetNetworkList').innerHTML=fleet||'<p class="muted">Aucun terminal rattaché.</p>';
-        byId('fleetNetworkTitle').textContent=String(nodes.length)+' nœud(s) • '+String(known)+' solde(s) connu(s)';
+        byId('fleetNetworkTitle').textContent=configuration.role==='DAE'?'Mes DSM et leurs PoS — '+String(nodes.length)+' nœud(s)':configuration.role==='DSM'?'Mes PoS — '+String(nodes.length)+' nœud(s)':'Mon terminal';
         byId('ownBalance').textContent=own&&own.balance!==null?formatMoney(own.balance)+' FCFA':'À actualiser';
         byId('balanceFreshness').textContent=own&&own.observed_at
-            ? ('Dernière observation : '+formatTime(own.observed_at)+' • '+(own.balance_quality==='EXACT'?'confirmé Camtel':'estimé')+' • '+(own.evidence_kind||own.balance_source||'source inconnue')
+            ? ('Dernière observation : '+formatTime(own.operator_event_at||own.observed_at)+' • '+(own.balance_quality==='EXACT'?'confirmé Camtel':'estimé')+' • '+(own.evidence_kind||own.balance_source||'source inconnue')
                 +(own.available_balance!==null&&typeof own.available_balance!=='undefined'?' • disponible '+formatMoney(own.available_balance)+' FCFA':'')
-                +(own.balance_reusable?' • partageable sans nouvel USSD':' • à recertifier avant finance'))
+                +(own.balance_reusable?' • réutilisable / partageable sans nouvel USSD':' • à recertifier avant finance'))
             :'Aucune lecture Camtel horodatée.';
     }
     function cancelRemote(commandId){if(!bridge()||!window.confirm('Annuler cette commande encore en attente ?')){return;}window.AndroidBridge.cancelCommand(commandId);}

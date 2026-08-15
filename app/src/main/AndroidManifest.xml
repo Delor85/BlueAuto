@@ -38,6 +38,13 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".SimpleKeyguardAssistActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:theme="@style/BlueMagicTransparentUnlock" />
+
         <service
             android:name=".RobotService"
             android:enabled="true"
