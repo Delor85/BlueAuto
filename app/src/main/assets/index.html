@@ -24,9 +24,9 @@
 
     <section class="module-screen hidden" data-tab-panel="reports">
         <article class="panel module-intro">
-            <p class="eyebrow">ONGLET 1 — GRAPHES & RAPPORTS</p>
-            <h3>Centre pilote local</h3>
-            <p class="muted">Première brique du cahier des charges : synthèse vérifiable des opérations conservées sur ce téléphone. Les consolidations DAE/DSM/PoS seront ajoutées sans modifier le moteur USSD.</p>
+            <p class="eyebrow">PILOTAGE & RAPPORTS</p>
+            <h3 id="reportsIntroTitle">Vue utile du compte</h3>
+            <p id="reportsIntroText" class="muted">Soldes, activité et opérations sont affichés selon le périmètre réel de votre rôle, sans exposer le PIN Camtel.</p>
         </article>
         <div class="metric-grid">
             <article class="panel metric"><strong id="metricCommandCount">0</strong><span>commandes locales</span></article>
@@ -57,21 +57,21 @@
         <article id="requestSupplyCard" class="panel command-card hidden">
             <p class="eyebrow">ACHAT DE CRÉDIT</p><h3>Demander à mon supérieur</h3>
             <p class="muted">Le Robot du supérieur approvisionnera votre SIM après deux contrôles.</p>
-            <label>Montant (FCFA)</label><input id="requestSupplyAmount" type="text" inputmode="numeric" placeholder="Ex. 50000">
+            <label for="requestSupplyAmount">Montant (FCFA)</label><input id="requestSupplyAmount" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="9" autocomplete="off" data-digits-only="9" placeholder="Ex. 50000">
             <button type="button" class="transaction-action" data-action="request-supply">Envoyer la demande</button>
         </article>
         <article id="supplyChildCard" class="panel command-card hidden">
             <p class="eyebrow">APPROVISIONNEMENT</p><h3>Recharger un enfant direct</h3>
             <p class="muted">Le serveur résout exclusivement le numéro Camtel officiel de ce nœud.</p>
-            <label>Code du DSM/PoS</label><input id="childNode" type="text" autocomplete="off" placeholder="Ex. DSM7 ou POS5">
-            <label>Montant (FCFA)</label><input id="childAmount" type="text" inputmode="numeric" placeholder="Ex. 25000">
+            <label for="childNode">Code du DSM/PoS</label><input id="childNode" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" data-uppercase="true" maxlength="64" placeholder="Ex. DSM7 ou POS5">
+            <label for="childAmount">Montant (FCFA)</label><input id="childAmount" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="9" autocomplete="off" data-digits-only="9" placeholder="Ex. 25000">
             <button type="button" class="transaction-action" data-action="supply-child">Programmer la recharge</button>
         </article>
         <article id="retailCard" class="panel command-card hidden">
             <p class="eyebrow">VENTE CLIENT</p><h3>Recharger un client final</h3>
             <p class="muted">Réservé aux PoS. Le Robot vérifiera le numéro et le montant avant le PIN.</p>
-            <label>Numéro client (9 chiffres)</label><input id="retailPhone" type="text" inputmode="numeric" placeholder="6XXXXXXXX">
-            <label>Montant (FCFA)</label><input id="retailAmount" type="text" inputmode="numeric" placeholder="Ex. 1000">
+            <label for="retailPhone">Numéro client (9 chiffres)</label><input id="retailPhone" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="9" autocomplete="tel" data-digits-only="9" placeholder="6XXXXXXXX">
+            <label for="retailAmount">Montant (FCFA)</label><input id="retailAmount" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="9" autocomplete="off" data-digits-only="9" placeholder="Ex. 1000">
             <button type="button" class="transaction-action" data-action="retail-sale">Exécuter la vente</button>
         </article>
         <article class="panel command-card">
@@ -86,12 +86,12 @@
         </article>
         <article class="panel command-card">
             <p class="eyebrow">PREUVE CAMTEL</p><h3>Détails d’une transaction</h3>
-            <label>Identifiant Camtel</label><input id="transactionId" type="text" autocomplete="off" placeholder="Ex. 123456789">
+            <label for="transactionId">Identifiant Camtel</label><input id="transactionId" type="text" inputmode="numeric" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="64" placeholder="Ex. 123456789">
             <button type="button" class="transaction-action" data-action="transaction-details">Consulter les détails</button>
         </article>
         <article id="childBalanceCard" class="panel command-card hidden">
             <p class="eyebrow">SUPERVISION ENFANT DIRECT</p><h3>Consulter le solde d’un DSM / PoS</h3>
-            <label>Code du nœud enfant</label><input id="balanceChildNode" type="text" autocomplete="off" placeholder="Ex. DSM7 ou POS5">
+            <label for="balanceChildNode">Code du nœud enfant</label><input id="balanceChildNode" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" data-uppercase="true" maxlength="64" placeholder="Ex. DSM7 ou POS5">
             <button type="button" class="transaction-action" data-action="child-balance">Lire le solde enfant</button>
         </article>
     </section>
@@ -104,7 +104,7 @@
 
     <section class="module-screen hidden" data-tab-panel="fleet">
         <article class="panel module-intro">
-            <p class="eyebrow">ONGLET 3 — FLOTTE & CYCLE DE VIE</p>
+            <p class="eyebrow">FLOTTE & RÉSEAU</p>
             <h3>État du nœud actif</h3>
             <p id="fleetNodeStatus" class="muted">Chargement du compte…</p>
         </article>
@@ -129,7 +129,7 @@
         <article id="childAdminCard" class="panel module-card hidden">
             <p class="eyebrow">MAINTENANCE CAMTEL ENFANT DIRECT</p>
             <h3>PIN, suspension et gel</h3>
-            <label>Code du DSM / PoS enfant</label><input id="adminChildNode" type="text" autocomplete="off" placeholder="Ex. DSM7 ou POS5">
+            <label for="adminChildNode">Code du DSM / PoS enfant</label><input id="adminChildNode" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" data-uppercase="true" maxlength="64" placeholder="Ex. DSM7 ou POS5">
             <div class="module-actions admin-actions">
                 <button type="button" class="secondary" data-action="init-child-pin-reset">Initier reset PIN</button>
                 <button type="button" class="secondary" data-action="suspend-child">Suspendre</button>
@@ -143,7 +143,7 @@
 
     <section class="module-screen hidden" data-tab-panel="config">
         <article class="panel module-intro">
-            <p class="eyebrow">ONGLET 4 — CONFIGURATION & ROBOTIQUE</p>
+            <p class="eyebrow">ROBOT & CONFIGURATION</p>
             <h3>Hall Remote / Robot</h3>
             <p id="configRobotStatus" class="muted">Chargement de la configuration…</p>
         </article>
@@ -176,7 +176,7 @@
 
     <section class="module-screen hidden" data-tab-panel="support">
         <article class="panel module-intro">
-            <p class="eyebrow">ONGLET 5 — SAV & DIAGNOSTIC</p>
+            <p class="eyebrow">SAV & DIAGNOSTIC</p>
             <h3>Contrôle sans fonds</h3>
             <p class="muted">Le test numéro reste dans l’onglet Flux et compose uniquement <code>*825*3*3#</code>. Commencez toujours par lui après une installation ou un changement de Robot.</p>
         </article>

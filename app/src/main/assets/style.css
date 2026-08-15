@@ -39,3 +39,7 @@ main{position:relative;z-index:1}.topbar{box-shadow:0 7px 24px rgba(29,18,0,.25)
 .module-tab-attention{position:absolute;right:8px;top:4px;display:flex!important;align-items:center;justify-content:center;min-width:18px;height:18px;margin:0!important;padding:0 4px;border-radius:999px;background:#ffd56a;color:#07152d;font-size:.58rem!important;font-weight:900;line-height:1;box-shadow:0 2px 8px rgba(0,0,0,.35)}
 .module-tab-warning{background:#ff8b98;color:#27040a}
 @media(max-width:360px),(max-height:600px){body::before{animation:none;opacity:.42}.topbar{backdrop-filter:none}.panel{box-shadow:0 5px 14px rgba(0,0,0,.18)}.module-tabs{box-shadow:0 8px 22px rgba(0,0,0,.42)}.module-tab-primary{box-shadow:0 5px 14px rgba(38,112,255,.36)}}
+
+/* v2.6.8 — saisie transactionnelle claire sur petit écran. */
+input[aria-invalid="true"]{border-color:#ff8b98!important;box-shadow:0 0 0 3px rgba(255,107,122,.16)!important}
+button[aria-busy="true"]{cursor:wait}

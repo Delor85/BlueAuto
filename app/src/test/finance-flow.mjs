@@ -125,6 +125,8 @@ window.BlueMagicNative.onCommandCreated({command: {public_id: 'command-123456789
 assert.equal(actions.every(item => !item.disabled), true);
 
 confirmResult = false;
+elements.get('retailPhone').value = '620550255';
+elements.get('retailAmount').value = '1';
 const callsBeforeCancel = bridgeCalls.length;
 actions.find(item => item.action === 'retail-sale').onclick();
 window.BlueMagicNative.onCommandPreview({preview: {
@@ -142,6 +144,8 @@ assert.equal(bridgeCalls.at(-1)[0], 'create');
 assert.equal(bridgeCalls.at(-1)[1], 'TEST_NUMBER');
 assert.equal(bridgeCalls.at(-1)[6], '');
 assert.equal(bridgeCalls.filter(call => call[0] === 'preview').length, previewsBeforeTest);
+window.BlueMagicNative.onCommandCreated({command: {public_id: 'test-number-command-01', state: 'PENDING', operation: 'TEST_NUMBER'}});
+assert.equal(actions.every(item => !item.disabled), true);
 
 elements.get('requestSupplyAmount').value = '700';
 actions.find(item => item.action === 'request-supply').onclick();
@@ -260,8 +264,8 @@ for (const moduleName of moduleNames) {
   assert.match(html, new RegExp('data-tab="' + moduleName + '"'));
   assert.match(html, new RegExp('data-tab-panel="' + moduleName + '"'));
 }
-assert.match(html, /ONGLET 1 — GRAPHES & RAPPORTS/);
-assert.match(html, /ONGLET 5 — SAV & DIAGNOSTIC/);
+assert.match(html, /PILOTAGE & RAPPORTS/);
+assert.match(html, /SAV & DIAGNOSTIC/);
 assert.match(css, /\.module-tabs\{position:fixed/);
 assert.match(css, /\.module-tab-primary/);
 assert.ok(activity.indexOf('MODIFIER LE PIN CAMTEL') < activity.indexOf('1. AUTORISATIONS'));
