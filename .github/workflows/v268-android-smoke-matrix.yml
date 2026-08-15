@@ -101,7 +101,7 @@ jobs:
           disable-animations: true
           emulator-boot-timeout: 1200
           script: |
-            set -euo pipefail
+            set -eu
             adb install -r /tmp/blue-magic-v268/app-release.apk | tee /tmp/install.txt
             grep -q "Success" /tmp/install.txt
             adb logcat -c
