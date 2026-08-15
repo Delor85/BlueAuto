@@ -6,6 +6,7 @@ on:
       - fix/blue-magic-v2-6-recovery
     paths:
       - scripts/v267-camtel-scale-patch.py
+      - scripts/v267-camtel-scale-fix.py
       - .github/workflows/v267-camtel-scale-validation.yml
       - .github/v267-camtel-scale-validation.trigger
 
@@ -27,7 +28,9 @@ jobs:
         run: sha256sum cloudflare/migrations/0004_blue_message_intelligence_and_modules.sql > /tmp/0004.before
 
       - name: Apply bounded Camtel hierarchy and scale patch
-        run: python3 scripts/v267-camtel-scale-patch.py
+        run: |
+          python3 scripts/v267-camtel-scale-patch.py
+          python3 scripts/v267-camtel-scale-fix.py
 
       - name: Verify production and migration scope untouched
         run: |
@@ -56,7 +59,7 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add cloudflare/src/index.js cloudflare/src/camtel-catalog.mjs cloudflare/package.json \
+          git add cloudflare/src/index.js cloudflare/src/blue-message.mjs cloudflare/src/camtel-catalog.mjs cloudflare/package.json \
             cloudflare/test/integration.mjs cloudflare/test/blue-message-intelligence.mjs cloudflare/test/camtel-catalog.mjs \
             app/src/main/java/com/profitloop/blueauto/RobotService.java \
             app/src/main/java/com/profitloop/blueauto/UssdCommandFactory.java \
