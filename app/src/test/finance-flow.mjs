@@ -288,7 +288,11 @@ assert.match(messageParser, /Request is processed/);
 assert.match(messageParser, /Current/);
 
 const uiRuntime = readFileSync(new URL('../main/assets/app.js', import.meta.url), 'utf8');
-assert.match(uiRuntime, /30000/);
+assert.match(uiRuntime, /scheduleCommandPoll/);
+assert.match(uiRuntime, /scheduleDashboardPoll/);
+assert.match(uiRuntime, /60000/);
+assert.match(uiRuntime, /visibilityState/);
+assert.doesNotMatch(uiRuntime, /setInterval\(refresh,15000\)/);
 assert.match(uiRuntime, /balance_reusable/);
 assert.match(uiRuntime, /partageable sans nouvel USSD/);
 assert.match(messageParser, /top-up service/);
