@@ -43,4 +43,4 @@ jobs:
           git commit -m "fix: preserve queued finance and quote stock before confirmation"
           git push origin HEAD:fix/blue-magic-v2-6-recovery
 
-# Development/test only. No Cloudflare deployment and no production migration.
+# Development/test only. No Cloudflare deployment and no production migration. Rerun after wording compatibility fix.
