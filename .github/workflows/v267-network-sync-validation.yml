@@ -31,10 +31,10 @@ jobs:
 
       - name: Run Worker and D1 tests
         working-directory: cloudflare
-        run: npm test
+        run: npm run check
 
       - name: Run Android/Web contract tests
-        run: npm --prefix app test
+        run: node app/src/test/finance-flow.mjs
 
       - name: Verify migration scope remains 0004 only
         run: |
