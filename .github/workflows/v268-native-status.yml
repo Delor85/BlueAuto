@@ -1,0 +1,62 @@
+name: Blue Magic v2.6.8 compact status
+
+on:
+  push:
+    branches: [fix/blue-magic-v2-6-recovery]
+    paths: [.github/workflows/v268-native-status.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fix/blue-magic-v2-6-recovery
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+      - name: Apply compact native status lot
+        run: python3 .github/scripts/v268_compact_native_status_patch.py
+      - name: Validate historical and v2.6.8 contracts
+        run: |
+          set -euo pipefail
+          cd cloudflare
+          npm ci
+          npm run check
+          cd ..
+          node app/src/test/finance-flow.mjs
+          node app/src/test/v268-field-contract.mjs
+          node app/src/test/v268-responsive-management.mjs
+          node app/src/test/v268-ux-performance.mjs
+          node app/src/test/v268-platform-compat.mjs
+          node app/src/test/v268-transaction-ux.mjs
+          node app/src/test/v268-control-plane.mjs
+          node app/src/test/v268-native-status.mjs
+          node --check app/src/main/assets/app.js
+          node --check app/src/main/assets/platform-v267.js
+          mkdir -p .pilot-signing
+          openssl rand -hex 32 > .pilot-signing/keystore.password
+          pilot_password="$(tr -d '\r\n' < .pilot-signing/keystore.password)"
+          keytool -genkeypair -keystore .pilot-signing/debug.keystore -storepass "$pilot_password" -alias androiddebugkey -keypass "$pilot_password" -dname "CN=Blue Magic Status CI,O=ProfitLoop,C=CM" -keyalg RSA -keysize 2048 -validity 10000 -noprompt
+          export BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD="$pilot_password"
+          gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
+      - name: Commit validated compact status lot
+        run: |
+          set -euo pipefail
+          git config user.name "Delor85"
+          git config user.email "mbolodelorpro@gmail.com"
+          git add app/src/main/java/com/profitloop/blueauto/MainActivity.java app/src/test/v268-native-status.mjs
+          git diff --cached --check
+          git commit -m "perf: compact native status for small phones in v2.6.8"
+          git push origin HEAD:fix/blue-magic-v2-6-recovery
+
+# Development/test only. No production Worker, D1 migration or permanent APK publication.
