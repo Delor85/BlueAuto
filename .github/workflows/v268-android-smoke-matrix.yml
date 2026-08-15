@@ -71,9 +71,6 @@ jobs:
       max-parallel: 3
       matrix:
         include:
-          - api: 23
-            arch: x86
-            profile: Nexus 5
           - api: 26
             arch: x86_64
             profile: Nexus 5
@@ -104,11 +101,12 @@ jobs:
             set -eu
             adb install -r /tmp/blue-magic-v268/app-release.apk | tee /tmp/install.txt
             grep -q "Success" /tmp/install.txt
-            adb logcat -c
+            adb logcat -c || true
             adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/start.txt
             grep -q "Status: ok" /tmp/start.txt
             sleep 3
             adb shell pidof com.profitloop.blueauto | grep -q '[0-9]'
             test -z "$(adb logcat -d -b crash 2>/dev/null | grep com.profitloop.blueauto || true)"
 
+# API 23 / Android 6 already passed run 31913804892. This follow-up finishes Android 8/11/14/16.
 # Ephemeral compatibility matrix only. No production deploy, no permanent signing, no financial execution.
