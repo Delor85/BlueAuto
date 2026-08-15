@@ -22,6 +22,7 @@ jobs:
           python3 .github/scripts/v268_followup_patch.py
           python3 .github/scripts/v268_followup_testfix.py
           python3 .github/scripts/v268_ui_testfix.py
+          python3 .github/scripts/v268_responsive_manage_lock_patch.py
       - name: Validate complete historical and v2.6.8 contracts
         run: |
           set -euo pipefail
@@ -31,6 +32,7 @@ jobs:
           cd ..
           node app/src/test/finance-flow.mjs
           node app/src/test/v268-field-contract.mjs
+          node app/src/test/v268-responsive-management.mjs
           node --check app/src/main/assets/app.js
           node --check app/src/main/assets/platform-v267.js
       - name: Commit validated follow-up
@@ -40,7 +42,7 @@ jobs:
           git config user.email "mbolodelorpro@gmail.com"
           git add app cloudflare/src/index.js cloudflare/test/integration.mjs
           git diff --cached --check
-          git commit -m "fix: preserve queued finance and quote stock before confirmation"
+          git commit -m "fix: stabilize v2.6.8 finance robot and responsive management"
           git push origin HEAD:fix/blue-magic-v2-6-recovery
 
-# Development/test only. No Cloudflare deployment and no production migration. Rerun after wording compatibility fix.
+# Development/test only. No Cloudflare deployment and no production migration.
