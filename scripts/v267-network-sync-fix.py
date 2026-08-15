@@ -27,6 +27,15 @@ old_test = "  assert.equal(insufficient.data.capacity.available_balance, 1000);\
 new_test = "  assert.equal(insufficient.data.capacity.available_balance, 500);\n"
 if old_test not in t:
     raise SystemExit('legacy capacity assertion anchor missing')
-test.write_text(t.replace(old_test, new_test, 1))
+t = t.replace(old_test, new_test, 1)
 
-print('FIFO and Bottom-Up SQL predicates, formatting and legacy assertion corrected')
+# The Bottom-Up audit intentionally queues real balance commands. Once that behavior is asserted,
+# cancel only those test audit commands so they cannot perturb unrelated queue-order tests below.
+audit_anchor = "  assert.ok(posAuditItem);\n  // DAE can route a PoS balance directly when the PoS/DSM Robot is unavailable; this is covered by\n"
+audit_cleanup = "  assert.ok(posAuditItem);\n  await db.prepare(\"UPDATE commands SET state='CANCELLED' WHERE client_request_id LIKE 'audit_%' AND state='PENDING'\").run();\n  // DAE can route a PoS balance directly when the PoS/DSM Robot is unavailable; this is covered by\n"
+if audit_anchor not in t:
+    raise SystemExit('Bottom-Up integration cleanup anchor missing')
+t = t.replace(audit_anchor, audit_cleanup, 1)
+test.write_text(t)
+
+print('FIFO/Bottom-Up SQL fixes and isolated audit integration test applied')
