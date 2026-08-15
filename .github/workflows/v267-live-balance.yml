@@ -28,7 +28,16 @@ jobs:
           cache-dependency-path: cloudflare/package-lock.json
 
       - name: Apply audited live-balance patch
-        run: python3 scripts/v267-live-balance-patch.py
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/v267-live-balance-patch.py')
+          s = p.read_text()
+          s = s.replace(r'replaceAll("\\D"', r'replaceAll("\\\\D"')
+          p.write_text(s)
+          PY
+          python3 scripts/v267-live-balance-patch.py
 
       - name: Test Worker and D1
         working-directory: cloudflare
