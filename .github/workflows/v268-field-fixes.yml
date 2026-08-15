@@ -42,4 +42,4 @@ jobs:
           git commit -m "fix: preserve queued finance and quote stock before confirmation"
           git push origin HEAD:fix/blue-magic-v2-6-recovery
 
-# Test-only workflow. Production remains v2.6.7; migration 0005 is not applied remotely.
+# Rerun after updating DSM→PoS commission expectations. Production remains v2.6.7; migration 0005 is not applied remotely.
