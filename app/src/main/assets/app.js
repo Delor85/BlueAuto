@@ -43,6 +43,8 @@
         document.addEventListener('focusin',function(event){if(event.target&&event.target.tagName==='INPUT'){document.body.className='form-editing';try{window.AndroidBridge.setFormEditing(true);}catch(ignored){}}});
         document.addEventListener('focusout',function(){window.setTimeout(function(){if(!document.activeElement||document.activeElement.tagName!=='INPUT'){document.body.className='';try{window.AndroidBridge.setFormEditing(false);}catch(ignored){}}},180);});
         render();refresh();window.AndroidBridge.loadDashboard();window.setInterval(refresh,15000);
+        window.setInterval(function(){if(document.visibilityState!=='hidden'){try{window.AndroidBridge.loadDashboard();}catch(ignored){}}},30000);
+        document.addEventListener('visibilitychange',function(){if(document.visibilityState!=='hidden'){try{window.AndroidBridge.loadDashboard();}catch(ignored){}}});
     }
     function initializeTabs(){
         var saved=localStorage.getItem('blue_magic_active_module')||'flux';
@@ -216,14 +218,21 @@
         for(i=0;i<nodes.length;i+=1){
             n=nodes[i];if(n.node_code===configuration.node_code){own=n;}
             if(n.balance!==null&&typeof n.balance!=='undefined'){total+=Number(n.balance)||0;known+=1;}
-            html+='<article class="network-item"><div><strong>'+escapeHtml(n.node_code||'—')+'</strong><span>'+escapeHtml((n.role||'—')+' • '+(n.device_kind||'—'))+'</span></div><div class="network-balance">'+(n.balance===null||typeof n.balance==='undefined'?'Non lu':formatMoney(n.balance)+' FCFA')+'</div></article>';
+            var balanceText=n.balance===null||typeof n.balance==='undefined'?'Non lu':formatMoney(n.balance)+' FCFA';
+            var availableText=n.available_balance===null||typeof n.available_balance==='undefined'?'':(' • dispo '+formatMoney(n.available_balance)+' FCFA');
+            var evidenceText=n.balance===null||typeof n.balance==='undefined'?'':(' • '+(n.balance_quality==='EXACT'?'confirmé':'estimé')+' / '+(n.evidence_kind||n.balance_source||'source inconnue'));
+            html+='<article class="network-item"><div><strong>'+escapeHtml(n.node_code||'—')+'</strong><span>'+escapeHtml((n.role||'—')+' • '+(n.device_kind||'—')+evidenceText)+'</span></div><div class="network-balance">'+escapeHtml(balanceText+availableText)+'</div></article>';
             fleet+='<article class="network-item"><div><strong>'+escapeHtml(n.node_code||'—')+'</strong><span>'+escapeHtml(n.phone_number||'—')+'</span></div><div class="network-balance">'+escapeHtml(n.device_kind||'—')+'</div></article>';
         }
         byId('networkList').innerHTML=html||'<p class="muted">Aucun nœud visible dans cette arborescence.</p>';
         byId('fleetNetworkList').innerHTML=fleet||'<p class="muted">Aucun terminal rattaché.</p>';
         byId('fleetNetworkTitle').textContent=String(nodes.length)+' nœud(s) • '+String(known)+' solde(s) connu(s)';
         byId('ownBalance').textContent=own&&own.balance!==null?formatMoney(own.balance)+' FCFA':'À actualiser';
-        byId('balanceFreshness').textContent=own&&own.observed_at?'Dernière observation : '+formatTime(own.observed_at)+' • '+(own.balance_source||'USSD'):'Aucune lecture Camtel horodatée.';
+        byId('balanceFreshness').textContent=own&&own.observed_at
+            ? ('Dernière observation : '+formatTime(own.observed_at)+' • '+(own.balance_quality==='EXACT'?'confirmé Camtel':'estimé')+' • '+(own.evidence_kind||own.balance_source||'source inconnue')
+                +(own.available_balance!==null&&typeof own.available_balance!=='undefined'?' • disponible '+formatMoney(own.available_balance)+' FCFA':'')
+                +(own.balance_reusable?' • partageable sans nouvel USSD':' • à recertifier avant finance'))
+            :'Aucune lecture Camtel horodatée.';
         if(nodes.length){byId('reportActivityTitle').textContent='Solde cumulé connu : '+formatMoney(total)+' FCFA';}
     }
     function cancelRemote(commandId){if(!bridge()||!window.confirm('Annuler cette commande encore en attente ?')){return;}window.AndroidBridge.cancelCommand(commandId);}

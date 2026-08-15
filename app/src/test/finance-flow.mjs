@@ -283,4 +283,14 @@ assert.match(platformJs, /mercenary_save/);
 const messageParser = readFileSync(new URL('../main/java/com/profitloop/blueauto/BlueMessageParser.java', import.meta.url), 'utf8');
 assert.match(messageParser, /Request is processed/);
 assert.match(messageParser, /Current/);
+
+const uiRuntime = readFileSync(new URL('../main/assets/app.js', import.meta.url), 'utf8');
+assert.match(uiRuntime, /30000/);
+assert.match(uiRuntime, /balance_reusable/);
+assert.match(uiRuntime, /partageable sans nouvel USSD/);
+assert.match(messageParser, /top-up service/);
+const smsReceiver = readFileSync(new URL('../main/java/com/profitloop/blueauto/SmsReceiver.java', import.meta.url), 'utf8');
+assert.match(smsReceiver, /targetOptional/);
+assert.doesNotMatch(smsReceiver, /RobotService\.requestAudit\(context, profileId\)/);
+
 console.log('Blue Magic v2.6.7 platform extension: UI/modules/message parser wired');

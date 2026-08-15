@@ -3,6 +3,14 @@ import {parseBlueMessage} from './blue-message.mjs';
 const API_VERSION = '2.6.7-cloudflare';
 const ROBOT_LIVE_WINDOW_MINUTES = 15;
 const BALANCE_EVIDENCE_TTL_SECONDS = 3600;
+const BALANCE_EVIDENCE_PRIORITY = Object.freeze({
+  BALANCE_QUERY: 500,
+  CHILD_BALANCE_QUERY: 500,
+  HISTORY_RESULT: 450,
+  FINANCIAL_RESULT: 400,
+  TRANSACTION_DETAIL_RESULT: 300,
+  ESTIMATED_TRANSFER: 100
+});
 const TERMINAL_STATES = new Set(['SUCCEEDED', 'FAILED', 'UNKNOWN', 'BLOCKED', 'CANCELLED']);
 const EVENT_STATES = new Set([
   'DIALING', 'AWAITING_PIN', 'PIN_SUBMITTED', 'AWAITING_RESULT',
@@ -441,7 +449,8 @@ async function createCommand(env, auth, input, headers) {
       + 'AND ? <= b.balance - COALESCE((SELECT SUM(reserved.amount) FROM commands reserved '
       + "WHERE reserved.executor_node_code = p.supplier_node_code "
       + "AND reserved.operation IN ('DISTRIBUTION_TRANSFER','RETAIL_TRANSFER') "
-      + "AND reserved.id > COALESCE(source.id, 0) "
+      + "AND ((source.id IS NOT NULL AND reserved.id > source.id) "
+      + "OR (source.id IS NULL AND reserved.created_at > b.observed_at)) "
       + "AND reserved.state NOT IN ('FAILED','CANCELLED')), 0))"
     ).bind(
       publicId, clientId, auth.node_code, values.executor, values.targetNode,
@@ -674,13 +683,14 @@ async function capacityView(env, row) {
 
 async function effectiveAvailableBalance(env, node, requireReusable = false) {
   const snapshot = await env.DB.prepare(
-    'SELECT b.balance, b.observed_at, b.valid_until, b.confidence, '
+    'SELECT b.balance, b.observed_at, b.valid_until, b.confidence, b.balance_quality, b.evidence_kind, b.evidence_priority, '
     + 'b.source_command_public_id, b.evidence_command_public_id, c.id AS source_command_id '
     + 'FROM account_balances b '
     + 'LEFT JOIN commands c ON c.public_id = b.source_command_public_id WHERE b.node_code = ?'
   ).bind(node).first();
   if (!snapshot) return null;
   if (requireReusable && (Date.parse(snapshot.valid_until || '') <= Date.now()
+      || snapshot.balance_quality !== 'EXACT'
       || !['OPERATOR_EXPLICIT', 'DERIVED_FROM_EXPLICIT'].includes(snapshot.confidence))) return null;
   if (requireReusable) {
     const activity = await env.DB.prepare(
@@ -692,9 +702,10 @@ async function effectiveAvailableBalance(env, node, requireReusable = false) {
   const reserved = await env.DB.prepare(
     "SELECT COALESCE(SUM(amount), 0) AS total FROM commands WHERE executor_node_code = ? "
     + "AND operation IN ('DISTRIBUTION_TRANSFER','RETAIL_TRANSFER') "
-    + 'AND id > COALESCE(?, 0) '
+    + 'AND ((? IS NOT NULL AND id > ?) OR (? IS NULL AND created_at > ?)) '
     + "AND state NOT IN ('FAILED','CANCELLED')"
-  ).bind(node, snapshot.source_command_id).first();
+  ).bind(node, snapshot.source_command_id, snapshot.source_command_id,
+    snapshot.source_command_id, snapshot.observed_at).first();
   return {available: Math.max(0, Number(snapshot.balance) - Number(reserved?.total || 0)),
     observed_at: snapshot.observed_at, valid_until: snapshot.valid_until,
     confidence: snapshot.confidence,
@@ -1061,7 +1072,11 @@ async function applyTerminalEffects(env, command, state, message, publicId) {
   const explicitEvidence = state === 'SUCCEEDED' ? explicitBalanceEvidence(command, message) : null;
   if (explicitEvidence) {
     await saveObservedBalance(env, explicitEvidence.nodeCode, explicitEvidence.value, publicId,
-      explicitEvidence.kind);
+      explicitEvidence.kind, {
+        operatorEventAt: operatorEventAt(explicitEvidence.parsed) || new Date().toISOString(),
+        transactionId: explicitEvidence.parsed.transaction_id || explicitEvidence.parsed.receipt_number || '',
+        passive: false
+      });
     await refreshWaitingPreflights(env, explicitEvidence.nodeCode);
     return;
   }
@@ -1082,6 +1097,7 @@ async function applyTerminalEffects(env, command, state, message, publicId) {
     const statements = [env.DB.prepare(
       "UPDATE account_balances SET balance = MAX(0, balance - ?), source = 'ESTIMATED_TRANSFER', "
       + "evidence_kind = 'ESTIMATED_TRANSFER', confidence = 'DERIVED_FROM_EXPLICIT', "
+      + "evidence_priority = 100, balance_quality = 'ESTIMATED', operator_event_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), "
       + 'source_command_public_id = ?, '
       + "valid_until = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), "
       + "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE node_code = ?"
@@ -1100,10 +1116,11 @@ async function applyTerminalEffects(env, command, state, message, publicId) {
 }
 
 function explicitBalanceEvidence(command, message) {
-  const value = parseBalanceFcfa(message);
+  const parsed = parseBlueMessage(message);
+  const value = parsed.current_balance;
   if (value == null) return null;
   if (command.command_kind === 'BALANCE_CHILD' && command.target_node_code) {
-    return {nodeCode: command.target_node_code, value, kind: 'CHILD_BALANCE_QUERY'};
+    return {nodeCode: command.target_node_code, value, kind: 'CHILD_BALANCE_QUERY', parsed};
   }
   const kinds = {
     BALANCE_OWN: 'BALANCE_QUERY',
@@ -1111,10 +1128,10 @@ function explicitBalanceEvidence(command, message) {
     TRANSACTION_DETAIL: 'TRANSACTION_DETAIL_RESULT'
   };
   if (kinds[command.command_kind]) {
-    return {nodeCode: command.executor_node_code, value, kind: kinds[command.command_kind]};
+    return {nodeCode: command.executor_node_code, value, kind: kinds[command.command_kind], parsed};
   }
   if (['DISTRIBUTION_TRANSFER', 'RETAIL_TRANSFER'].includes(command.operation)) {
-    return {nodeCode: command.executor_node_code, value, kind: 'FINANCIAL_RESULT'};
+    return {nodeCode: command.executor_node_code, value, kind: 'FINANCIAL_RESULT', parsed};
   }
   return null;
 }
@@ -1136,20 +1153,81 @@ async function refreshWaitingPreflights(env, nodeCode) {
     effective.observed_at, effective.available, nodeCode).run();
 }
 
-async function saveObservedBalance(env, nodeCode, value, publicId, evidenceKind) {
+function balanceEvidencePriority(kind) {
+  return Number(BALANCE_EVIDENCE_PRIORITY[kind] || 0);
+}
+
+function operatorEventAt(parsed) {
+  const date = String(parsed?.transaction_date || '').trim();
+  const time = String(parsed?.transaction_time || '').trim();
+  if (!date || !time) return '';
+  const dm = /^(\d{2})[-/](\d{2})[-/](\d{2,4})$/.exec(date);
+  const tm = /^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?$/i.exec(time);
+  if (!dm || !tm) return '';
+  let year = Number(dm[3]);
+  if (year < 100) year += 2000;
+  let hour = Number(tm[1]);
+  const ampm = String(tm[4] || '').toUpperCase();
+  if (ampm === 'PM' && hour < 12) hour += 12;
+  if (ampm === 'AM' && hour === 12) hour = 0;
+  // CAMTEL/Blue timestamps are Cameroon local time (UTC+1, no DST).
+  const value = new Date(Date.UTC(year, Number(dm[2]) - 1, Number(dm[1]), hour - 1,
+    Number(tm[2]), Number(tm[3] || 0)));
+  return Number.isNaN(value.getTime()) ? '' : value.toISOString();
+}
+
+async function saveObservedBalance(env, nodeCode, value, publicId, evidenceKind, metadata = {}) {
+  const priority = balanceEvidencePriority(evidenceKind);
+  const incomingEventAt = cleanText(metadata.operatorEventAt, 64)
+    || (metadata.passive ? '' : new Date().toISOString());
+  const transactionId = cleanText(metadata.transactionId, 80);
+  const current = await env.DB.prepare(
+    'SELECT balance, evidence_kind, evidence_priority, operator_event_at, observed_at, balance_quality '
+    + 'FROM account_balances WHERE node_code = ?'
+  ).bind(nodeCode).first();
+  let accepted = true;
+  let reason = current ? 'NEWER_OR_STRONGER_EVIDENCE' : 'FIRST_EXPLICIT_EVIDENCE';
+  if (current) {
+    const currentAt = String(current.operator_event_at || current.observed_at || '');
+    const incomingMs = incomingEventAt ? Date.parse(incomingEventAt) : NaN;
+    const currentMs = currentAt ? Date.parse(currentAt) : NaN;
+    if (Number.isFinite(incomingMs) && Number.isFinite(currentMs) && incomingMs < currentMs) {
+      accepted = false;
+      reason = 'STALE_OPERATOR_EVENT';
+    } else if (Number.isFinite(incomingMs) && Number.isFinite(currentMs)
+        && incomingMs === currentMs && priority < Number(current.evidence_priority || 0)) {
+      accepted = false;
+      reason = 'LOWER_PRIORITY_SAME_EVENT';
+    } else if (!incomingEventAt && metadata.passive && current.balance_quality === 'EXACT') {
+      accepted = false;
+      reason = 'PASSIVE_EVENT_WITHOUT_SAFE_CHRONOLOGY';
+    }
+  }
+  await env.DB.prepare(
+    'INSERT INTO balance_evidence_log(node_code, command_public_id, balance, evidence_kind, '
+    + 'evidence_priority, balance_quality, operator_event_at, transaction_id, accepted, decision_reason) '
+    + 'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  ).bind(nodeCode, publicId || null, value, evidenceKind, priority, 'EXACT',
+    incomingEventAt || null, transactionId, accepted ? 1 : 0, reason).run();
+  if (!accepted) return {accepted: false, reason};
   await env.DB.prepare(
     'INSERT INTO account_balances(node_code, balance, source, evidence_kind, confidence, '
-    + 'source_command_public_id, evidence_command_public_id, observed_at, valid_until) '
+    + 'source_command_public_id, evidence_command_public_id, observed_at, valid_until, '
+    + 'evidence_priority, operator_event_at, balance_quality, last_transaction_id) '
     + "VALUES(?, ?, 'USSD', ?, 'OPERATOR_EXPLICIT', ?, ?, "
     + "strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), "
-    + "strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '+' || ? || ' seconds')) "
+    + "strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '+' || ? || ' seconds'), ?, ?, 'EXACT', ?) "
     + 'ON CONFLICT(node_code) DO UPDATE SET balance = excluded.balance, source = excluded.source, '
     + 'evidence_kind = excluded.evidence_kind, confidence = excluded.confidence, '
     + 'source_command_public_id = excluded.source_command_public_id, '
     + 'evidence_command_public_id = excluded.evidence_command_public_id, '
     + 'observed_at = excluded.observed_at, valid_until = excluded.valid_until, '
+    + 'evidence_priority = excluded.evidence_priority, operator_event_at = excluded.operator_event_at, '
+    + "balance_quality = 'EXACT', last_transaction_id = excluded.last_transaction_id, "
     + "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')"
-  ).bind(nodeCode, value, evidenceKind, publicId, publicId, BALANCE_EVIDENCE_TTL_SECONDS).run();
+  ).bind(nodeCode, value, evidenceKind, publicId || null, publicId || null,
+    BALANCE_EVIDENCE_TTL_SECONDS, priority, incomingEventAt || null, transactionId).run();
+  return {accepted: true, reason};
 }
 
 function parseBalanceFcfa(message) {
@@ -1160,10 +1238,18 @@ async function recordOperatorMessageApi(env, auth, input, headers) {
   const message = cleanText(input.message, 2000);
   if (!message) throw new ApiError('MESSAGE_REQUIRED', 'Message Blue/Camtel requis.', 422);
   const parsed = await recordParsedOperatorMessage(env, auth.node_code, message, null, null, 'PASSIVE');
-  if (parsed.current_balance != null) {
+  // Generic balance messages are deliberately not promoted passively: Camtel uses the same wording
+  // for a child balance. Command context is mandatory to distinguish own vs child balance safely.
+  const passiveFinancialKinds = new Set(['TRANSFER_RECEIVED','TRANSFER_SENT','RETAIL_TOPUP_RECEIVED','RETAIL_TOPUP_SENT']);
+  const promotable = parsed.kind === 'MINI_STATEMENT' || passiveFinancialKinds.has(parsed.kind);
+  if (promotable && parsed.current_balance != null) {
     const kind = parsed.kind === 'MINI_STATEMENT' ? 'HISTORY_RESULT' : 'FINANCIAL_RESULT';
-    await saveObservedBalance(env, auth.node_code, parsed.current_balance, null, kind);
-    await refreshWaitingPreflights(env, auth.node_code);
+    const result = await saveObservedBalance(env, auth.node_code, parsed.current_balance, null, kind, {
+      operatorEventAt: operatorEventAt(parsed),
+      transactionId: parsed.transaction_id || parsed.receipt_number || '',
+      passive: true
+    });
+    if (result.accepted) await refreshWaitingPreflights(env, auth.node_code);
   }
   return success({operator_message: publicOperatorMessage(parsed)}, 201, headers);
 }
@@ -1182,8 +1268,24 @@ async function recordParsedOperatorMessage(env, nodeCodeValue, message, publicId
     parsed.transaction_time, parsed.debit_credit, parsed.charge_amount, parsed.commission_amount,
     parsed.tax_amount, cleanText(parsed.raw_message, 1800)).run();
 
-  const financial = command && ['DISTRIBUTION_TRANSFER', 'RETAIL_TRANSFER'].includes(command.operation)
-    && ['SUCCEEDED', 'UNKNOWN'].includes(commandState);
+  for (const entry of (parsed.mini_statement_entries || []).slice(0, 5)) {
+    await env.DB.prepare(
+      'INSERT OR IGNORE INTO operator_messages(command_public_id, node_code, message_kind, status, '
+      + 'receipt_number, source_phone, source_node_code, target_phone, target_node_code, amount, '
+      + 'current_balance, account_no, transaction_date, debit_credit, charge_amount, commission_amount, '
+      + 'tax_amount, raw_message) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    ).bind(publicId, nodeCodeValue, 'MINI_STATEMENT_ENTRY', entry.status || 'INFO',
+      entry.receipt_number || null, entry.source_phone || '', entry.source_node || '',
+      entry.target_phone || '', entry.target_node || '', entry.debit_credit_amount,
+      entry.current_balance, entry.account_no || '', entry.transaction_date || '',
+      entry.debit_credit || '', entry.charge_amount, entry.commission_amount, entry.tax_amount,
+      cleanText(entry.raw_message, 1800)).run();
+  }
+
+  const passiveFinancial = !command && ['TRANSFER_RECEIVED','TRANSFER_SENT','RETAIL_TOPUP_RECEIVED','RETAIL_TOPUP_SENT'].includes(parsed.kind)
+    && parsed.status === 'SUCCEEDED';
+  const financial = (command && ['DISTRIBUTION_TRANSFER', 'RETAIL_TRANSFER'].includes(command.operation)
+    && ['SUCCEEDED', 'UNKNOWN'].includes(commandState)) || passiveFinancial;
   const unbalanced = financial && parsed.current_balance == null;
   await env.DB.prepare(
     'INSERT INTO node_activity_state(node_code, last_activity_at, last_financial_activity_at, '
@@ -1430,12 +1532,19 @@ async function networkDashboard(env, auth, headers) {
     + 'SELECT n.node_code FROM nodes n JOIN network p ON n.parent_node_code = p.node_code '
     + 'WHERE n.active = 1) '
     + 'SELECT n.node_code, n.role, n.phone_number, n.parent_node_code, '
-    + 'b.balance, b.source AS balance_source, b.observed_at, '
+    + 'b.balance, b.source AS balance_source, b.evidence_kind, b.confidence, b.observed_at, b.valid_until, '
+    + 'b.evidence_priority, b.operator_event_at, b.balance_quality, b.last_transaction_id, '
+    + 'a.last_financial_activity_at, a.last_unbalanced_activity_at, '
+    + "COALESCE((SELECT SUM(r.amount) FROM commands r LEFT JOIN commands src ON src.public_id = b.source_command_public_id "
+    + "WHERE r.executor_node_code = n.node_code AND r.operation IN ('DISTRIBUTION_TRANSFER','RETAIL_TRANSFER') "
+    + "AND ((src.id IS NOT NULL AND r.id > src.id) OR (src.id IS NULL AND r.created_at > b.observed_at)) "
+    + "AND r.state NOT IN ('FAILED','CANCELLED')),0) AS reserved_amount, "
     + '(SELECT MAX(c.updated_at) FROM commands c WHERE c.requester_node_code = n.node_code '
     + 'OR c.executor_node_code = n.node_code OR c.target_node_code = n.node_code) AS last_activity_at, '
     + '(SELECT COUNT(*) FROM devices d WHERE d.node_code = n.node_code AND d.active = 1) AS android_devices '
     + 'FROM network x JOIN nodes n ON n.node_code = x.node_code '
-    + 'LEFT JOIN account_balances b ON b.node_code = n.node_code ORDER BY n.role, n.node_code'
+    + 'LEFT JOIN account_balances b ON b.node_code = n.node_code '
+    + 'LEFT JOIN node_activity_state a ON a.node_code = n.node_code ORDER BY n.role, n.node_code'
   ).bind(auth.node_code).all();
   const summary = await env.DB.prepare(
     'WITH RECURSIVE network(node_code) AS (SELECT ? UNION ALL '
@@ -1450,11 +1559,21 @@ async function networkDashboard(env, auth, headers) {
   ).bind(auth.node_code).first();
   return success({
     generated_at: new Date().toISOString(), root_node_code: auth.node_code,
-    nodes: nodes.results.map(row => ({...row,
-      balance: row.balance == null ? null : Number(row.balance),
-      android_devices: Number(row.android_devices || 0),
-      device_kind: Number(row.android_devices || 0) > 0 ? 'ANDROID' : 'NON_ENREGISTRE'
-    })),
+    nodes: nodes.results.map(row => {
+      const balance = row.balance == null ? null : Number(row.balance);
+      const reserved = Number(row.reserved_amount || 0);
+      const unbalancedAfterEvidence = Boolean(row.last_unbalanced_activity_at && row.observed_at
+        && Date.parse(row.last_unbalanced_activity_at) > Date.parse(row.observed_at));
+      const reusable = balance != null && row.balance_quality === 'EXACT'
+        && Date.parse(row.valid_until || '') > Date.now() && !unbalancedAfterEvidence;
+      return {...row, balance, reserved_amount: reserved,
+        available_balance: balance == null ? null : Math.max(0, balance - reserved),
+        balance_reusable: reusable,
+        balance_age_seconds: row.observed_at
+          ? Math.max(0, Math.floor((Date.now() - Date.parse(row.observed_at)) / 1000)) : null,
+        android_devices: Number(row.android_devices || 0),
+        device_kind: Number(row.android_devices || 0) > 0 ? 'ANDROID' : 'NON_ENREGISTRE'};
+    }),
     summary: {
       command_count: Number(summary?.command_count || 0),
       success_count: Number(summary?.success_count || 0),

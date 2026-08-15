@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {parseBlueMessage, parseFcfaAmount} from '../src/blue-message.mjs';
+import {parseBlueMessage, parseFcfaAmount, parseMiniStatementEntries} from '../src/blue-message.mjs';
 
 assert.equal(parseFcfaAmount('10.00'), 10);
 assert.equal(parseFcfaAmount('1 250.00'), 1250);
@@ -23,6 +23,28 @@ assert.equal(parsed.kind, 'MINI_STATEMENT');
 assert.equal(parsed.current_balance, 15);
 assert.equal(parsed.debit_credit, 'Dr');
 assert.equal(parsed.debit_credit_amount, 5);
+
+
+parsed = parseBlueMessage('Your top-up service for 620550255 on 07/07/26 02:43 PM is successful. TransactionID is 000039376500, amount is 5.00 FCFA. Now your balance is 9.00 FCFA.');
+assert.equal(parsed.kind, 'RETAIL_TOPUP_SENT');
+assert.equal(parsed.target_phone, '620550255');
+assert.equal(parsed.amount_fcfa, 5);
+assert.equal(parsed.current_balance, 9);
+assert.equal(parsed.transaction_time, '02:43 PM');
+
+const five = 'Your mini statement is: '
+  + 'ReceiptNumber:000039375378 CurrentBalance:6.00 FCFA AccountNo:500000000110902045 Details: Airtime Transfer to 621081275 - POS16_DSM7_OU3 Company Airtime Account 07/07/26 Airtime Transfer Dr 3.00 FCFA CH0.00 FCFA CM0.00 FCFA Status:Completed '
+  + 'ReceiptNumber:000039376351 CurrentBalance:9.00 FCFA AccountNo:500000000110902045 Details: Airtime Transfer to 621081275 - POS16_DSM7_OU3 Company Airtime Account 07/07/26 Airtime Transfer Dr 1.00 FCFA CH0.00 FCFA CM0.00 FCFA Status:Completed '
+  + 'ReceiptNumber:000039376331 CurrentBalance:10.00 FCFA AccountNo:500000000110902045 Details: Airtime Transfer to 621081275 - POS16_DSM7_OU3 Company Airtime Account 07/07/26 Airtime Transfer Dr 1.00 FCFA CH0.00 FCFA CM0.00 FCFA Status:Completed '
+  + 'ReceiptNumber:000039375343 CurrentBalance:11.00 FCFA AccountNo:500000000110902045 Details: Airtime Transfer to 621081275 - POS16_DSM7_OU3 Company Airtime Account 07/07/26 Airtime Transfer Dr 2.00 FCFA CH0.00 FCFA CM0.00 FCFA Status:Completed '
+  + 'ReceiptNumber:000039376308 CurrentBalance:13.00 FCFA AccountNo:500000000110902045 Details: Airtime Transfer to 621081275 - POS16_DSM7_OU3 Company Airtime Account 07/07/26 Airtime Transfer Dr 1.00 FCFA CH0.00 FCFA CM0.00 FCFA Status:Completed';
+const entries = parseMiniStatementEntries(five);
+assert.equal(entries.length, 5);
+assert.equal(entries[0].receipt_number, '000039375378');
+assert.equal(entries[0].current_balance, 6);
+assert.equal(entries[0].debit_credit, 'Dr');
+assert.equal(entries[0].debit_credit_amount, 3);
+assert.equal(parseBlueMessage(five).current_balance, 6);
 
 parsed = parseBlueMessage('Request is processed successfully.');
 assert.equal(parsed.kind, 'REQUEST_ACK');

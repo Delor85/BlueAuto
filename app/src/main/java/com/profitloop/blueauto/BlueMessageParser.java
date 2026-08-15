@@ -58,7 +58,7 @@ final class BlueMessageParser {
                 "insufficient", "unable to", "cannot", "error", "erreur", "frozen", "suspended");
         r.success = !r.processing && !r.wrongPin && containsAny(lower,
                 "successfully processed", "has been successful", "completed", "you received airtime",
-                "your transfer airtime", "top up of", "topup of", "successfully modified pin",
+                "your transfer airtime", "top up of", "topup of", "top-up service", "topup service", " is successful", "successfully modified pin",
                 "successfully suspended", "successfully reactivated", "successfully frozen");
 
         if (r.wrongPin) {
@@ -73,7 +73,7 @@ final class BlueMessageParser {
         } else if (containsAny(lower, "your transfer airtime to", "transfer airtime to")) {
             r.kind = "TRANSFER_SENT";
             r.status = r.failure ? "FAILED" : "SUCCEEDED";
-        } else if (containsAny(lower, "top up of", "topup of", "top-up")) {
+        } else if (containsAny(lower, "top up of", "topup of", "top-up", "top-up service", "topup service")) {
             r.kind = lower.contains("received") ? "RETAIL_TOPUP_RECEIVED" : "RETAIL_TOPUP_SENT";
             r.status = r.failure ? "FAILED" : "SUCCEEDED";
         } else if (lower.contains("receiptnumber") && lower.contains("currentbalance")) {

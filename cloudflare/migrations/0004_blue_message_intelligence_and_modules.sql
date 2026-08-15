@@ -1,3 +1,26 @@
+ALTER TABLE account_balances ADD COLUMN evidence_priority INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE account_balances ADD COLUMN operator_event_at TEXT;
+ALTER TABLE account_balances ADD COLUMN balance_quality TEXT NOT NULL DEFAULT 'EXACT'
+    CHECK (balance_quality IN ('EXACT','ESTIMATED','NEEDS_RECHECK'));
+ALTER TABLE account_balances ADD COLUMN last_transaction_id TEXT NOT NULL DEFAULT '';
+
+CREATE TABLE IF NOT EXISTS balance_evidence_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    node_code TEXT NOT NULL REFERENCES nodes(node_code) ON UPDATE CASCADE ON DELETE CASCADE,
+    command_public_id TEXT REFERENCES commands(public_id) ON DELETE SET NULL,
+    balance INTEGER NOT NULL CHECK (balance >= 0),
+    evidence_kind TEXT NOT NULL,
+    evidence_priority INTEGER NOT NULL DEFAULT 0,
+    balance_quality TEXT NOT NULL DEFAULT 'EXACT',
+    operator_event_at TEXT,
+    transaction_id TEXT NOT NULL DEFAULT '',
+    accepted INTEGER NOT NULL DEFAULT 0 CHECK (accepted IN (0,1)),
+    decision_reason TEXT NOT NULL DEFAULT '',
+    observed_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+CREATE INDEX IF NOT EXISTS idx_balance_evidence_node_time
+    ON balance_evidence_log(node_code, observed_at DESC);
+
 CREATE TABLE IF NOT EXISTS operator_messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     command_public_id TEXT REFERENCES commands(public_id) ON DELETE SET NULL,
@@ -27,6 +50,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_operator_messages_tx_unique
     WHERE transaction_id IS NOT NULL AND length(transaction_id) > 0;
 CREATE INDEX IF NOT EXISTS idx_operator_messages_node_time
     ON operator_messages(node_code, created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_operator_messages_receipt_unique
+    ON operator_messages(node_code, receipt_number, message_kind)
+    WHERE receipt_number IS NOT NULL AND length(receipt_number) > 0;
 
 CREATE TABLE IF NOT EXISTS node_activity_state (
     node_code TEXT PRIMARY KEY NOT NULL REFERENCES nodes(node_code) ON UPDATE CASCADE ON DELETE CASCADE,

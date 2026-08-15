@@ -266,6 +266,55 @@ try {
   await complete(explicitHistoryLease.data.command, dae.data.device_token,
     '5 last transactions. Current balance is 1000 FCFA, fee 0 FCFA.');
 
+  const exactHistoryMessage = 'Your mini statement is: '
+    + 'ReceiptNumber:900001 CurrentBalance:880.00 FCFA AccountNo:500001 Details: Airtime Transfer to 699000002 - DSM-TEST Company Airtime Account 15/08/26 Airtime Transfer Dr 20.00 FCFA CH0.00 FCFA CM0.00 FCFA Status:Completed '
+    + 'ReceiptNumber:900000 CurrentBalance:900.00 FCFA AccountNo:500001 Details: Airtime Transfer to 699000002 - DSM-TEST Company Airtime Account 15/08/26 Airtime Transfer Dr 10.00 FCFA CH0.00 FCFA CM0.00 FCFA Status:Completed';
+  const liveHistory = await request('create_command', {
+    request_type: 'LAST_TRANSACTIONS', client_request_id: 'integration-live-history-priority-01'
+  }, dae.data.device_token);
+  const liveHistoryLease = await request('lease_command', {}, dae.data.device_token);
+  assert.equal(liveHistoryLease.data.command.public_id, liveHistory.data.command.public_id);
+  await complete(liveHistoryLease.data.command, dae.data.device_token, exactHistoryMessage);
+  let liveDashboard = await request('network_dashboard', {}, dae.data.device_token);
+  let liveDae = liveDashboard.data.nodes.find(node => node.node_code === 'DAE-TEST');
+  assert.equal(liveDae.balance, 880);
+  assert.equal(liveDae.evidence_kind, 'HISTORY_RESULT');
+  assert.equal(liveDae.balance_quality, 'EXACT');
+  assert.equal(liveDae.balance_reusable, true);
+
+  await request('record_operator_message', {
+    message: 'Your Transfer Airtime to 699000002 - DSM-TEST has been successfully processed.Amount is 5.00 FCFA. Now your balance is 100.00 FCFA. TransactionID 000039365092, 07-07-2026 at 12:14:09.'
+  }, dae.data.device_token);
+  liveDashboard = await request('network_dashboard', {}, dae.data.device_token);
+  liveDae = liveDashboard.data.nodes.find(node => node.node_code === 'DAE-TEST');
+  assert.equal(liveDae.balance, 880);
+
+  await request('record_operator_message', {
+    message: 'Your available voucher stock is: 15.00 FCFA; Uncleared balance: 0.00 FCFA; Reserved balance: 0.00 FCFA; Current balance: 15.00 FCFA.'
+  }, dae.data.device_token);
+  liveDashboard = await request('network_dashboard', {}, dae.data.device_token);
+  assert.equal(liveDashboard.data.nodes.find(node => node.node_code === 'DAE-TEST').balance, 880);
+
+  const childBalance = await request('create_command', {
+    request_type: 'CHILD_BALANCE', target_node_code: 'DSM-TEST_DAE-TEST',
+    client_request_id: 'integration-child-balance-attribution-01'
+  }, dae.data.device_token);
+  const childBalanceLease = await request('lease_command', {}, dae.data.device_token);
+  assert.equal(childBalanceLease.data.command.public_id, childBalance.data.command.public_id);
+  await complete(childBalanceLease.data.command, dae.data.device_token,
+    'Your available voucher stock is: 123.00 FCFA; Uncleared balance: 0.00 FCFA; Reserved balance: 0.00 FCFA; Current balance: 123.00 FCFA.');
+  liveDashboard = await request('network_dashboard', {}, dae.data.device_token);
+  assert.equal(liveDashboard.data.nodes.find(node => node.node_code === 'DAE-TEST').balance, 880);
+  assert.equal(liveDashboard.data.nodes.find(node => node.node_code === 'DSM-TEST_DAE-TEST').balance, 123);
+
+  const sharedBalance = await request('check_purchase_capacity', {
+    request_type: 'REQUEST_SUPPLY', amount: '100',
+    client_request_id: 'integration-shared-live-balance-01'
+  }, dsm.data.device_token);
+  assert.equal(sharedBalance.data.capacity.state, 'AVAILABLE');
+  assert.equal(sharedBalance.data.capacity.balance_reused, true);
+  assert.equal(sharedBalance.data.capacity.available_balance, 880);
+
   const raceOne = await request('check_purchase_capacity', {
     request_type: 'REQUEST_SUPPLY', amount: '600',
     client_request_id: 'integration-capacity-race-dsm1-01'

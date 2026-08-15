@@ -39,7 +39,14 @@ public class SmsReceiver extends BroadcastReceiver {
         if (active != null) {
             String expectedPhone = active.optString("target_phone", "").replaceAll("\\D", "");
             long expectedAmount = active.optLong("amount", 0L);
-            boolean correlated = expectedPhone.isEmpty() || parsed.primaryPhone.endsWith(expectedPhone)
+            String activeOperation = UssdCommandFactory.operation(active);
+            boolean targetOptional = "BALANCE_CHILD".equals(activeOperation)
+                    || "INIT_CHILD_PIN_RESET".equals(activeOperation)
+                    || "SUSPEND_CHILD".equals(activeOperation)
+                    || "REACTIVATE_CHILD".equals(activeOperation)
+                    || "FREEZE_CHILD".equals(activeOperation)
+                    || "REACTIVATE_FROZEN_CHILD".equals(activeOperation);
+            boolean correlated = targetOptional || expectedPhone.isEmpty() || parsed.primaryPhone.endsWith(expectedPhone)
                     || message.replaceAll("\\D", "").contains(expectedPhone);
             if (expectedAmount > 0L && parsed.amountFcfa != null && parsed.amountFcfa != expectedAmount) correlated = false;
             if (parsed.wrongPin) {
@@ -76,9 +83,6 @@ public class SmsReceiver extends BroadcastReceiver {
         new Thread(() -> {
             try {
                 ApiClient.forProfile(context, profileId).recordOperatorMessage(redacted);
-                if (parsed.kind.equals("TRANSFER_RECEIVED") || parsed.kind.equals("MINI_STATEMENT")) {
-                    RobotService.requestAudit(context, profileId);
-                }
             } catch (Exception ignored) {
             } finally {
                 pendingResult.finish();
