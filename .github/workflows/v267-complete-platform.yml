@@ -1,0 +1,67 @@
+name: Blue Magic v2.6.7 Complete Platform Patch
+
+on:
+  push:
+    branches: [fix/blue-magic-v2-6-recovery]
+    paths:
+      - scripts/v267_complete_platform.py.gz.b64.part*
+      - .github/workflows/v267-complete-platform.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: blue-magic-v267-complete-platform-patch
+  cancel-in-progress: false
+
+jobs:
+  apply-test-publish:
+    if: "${{ github.event.head_commit.message == 'chore: stage Blue Magic v2.6.7 complete platform patch' }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: cloudflare/package-lock.json
+
+      - name: Apply deterministic v2.6.7 patch
+        run: |
+          cat scripts/v267_complete_platform.py.gz.b64.part* | base64 -d | gzip -dc > /tmp/v267_complete_platform.py
+          python3 /tmp/v267_complete_platform.py
+
+      - name: Verify Cloudflare worker and message intelligence
+        working-directory: cloudflare
+        run: |
+          npm ci
+          npm run check
+
+      - name: Verify Android/Web flow contract
+        run: |
+          node app/src/test/finance-flow.mjs
+          git diff --check
+          test -f cloudflare/migrations/0004_blue_message_intelligence_and_modules.sql
+          test -f app/src/main/java/com/profitloop/blueauto/BlueMessageParser.java
+          test -f app/src/main/assets/platform-v267.js
+          grep -q "BALANCE_EVIDENCE_TTL_SECONDS = 3600" cloudflare/src/index.js
+          grep -q "mercenary_sale" cloudflare/src/index.js
+          grep -q "CurrentBalance" cloudflare/test/blue-message-intelligence.mjs
+
+      - name: Commit tested platform and remove staging machinery
+        run: |
+          set -euo pipefail
+          rm -f scripts/v267_complete_platform.py.gz.b64.part* .github/workflows/v267-complete-platform.yml
+          git config user.name "Blue Magic Release Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git status --short
+          git diff --cached --check
+          git commit -m "feat: complete Blue Magic v2.6.7 operator intelligence and modules"
+          git push origin HEAD:fix/blue-magic-v2-6-recovery
