@@ -1272,26 +1272,51 @@ public class MainActivity extends Activity {
 
     private void refreshNativeStatus() {
         if (nativeStatus == null) return;
-        boolean simRequired = AppConfig.isRobotMode(this);
-        SimIdentityManager.Verification sim = simRequired
-                ? SimIdentityManager.verify(this, AppConfig.profileId(this)) : null;
-        if (AppConfig.robotEnabled(this) && sim != null && !sim.valid) {
+        boolean robotMode = AppConfig.isRobotMode(this);
+        if (!robotMode) {
+            // A Remote is a control terminal. SIM verification and Accessibility are Robot-only
+            // requirements and showing them here was both confusing and wasteful on short screens.
+            nativeStatus.setText(AppConfig.nodeCode(this)
+                    + " • REMOTE • Télécommande prête"
+                    + (AppConfig.profileCount(this) > 1
+                    ? " • " + AppConfig.profileCount(this) + " comptes sur ce téléphone" : ""));
+            nativeStatus.setTextColor(CYAN);
+            return;
+        }
+
+        String profileId = AppConfig.profileId(this);
+        SimIdentityManager.Verification sim = SimIdentityManager.verify(this, profileId);
+        boolean robotEnabled = AppConfig.robotEnabled(this);
+        boolean accessibility = BlueAccessibilityService.isEnabled(this);
+        if (robotEnabled && !sim.valid) {
             AppConfig.setRobotEnabled(this, false);
             RobotService.stop(this);
+            robotEnabled = false;
         }
-        nativeStatus.setText(AppConfig.nodeCode(this)
-                + " • " + AppConfig.displayMode(AppConfig.mode(this))
-                + " • SIM " + (AppConfig.simSlot(this) + 1)
-                + (!simRequired ? " NON REQUISE" : sim.valid ? " VÉRIFIÉE" : " BLOQUÉE")
-                + " • Robot " + (AppConfig.robotEnabled(this) ? "ACTIF" : "ARRÊTÉ")
-                + "\nAccessibilité " + (BlueAccessibilityService.isEnabled(this) ? "OK" : "À ACTIVER")
-                + " • Robots actifs : " + AppConfig.enabledRobotCount(this)
-                + (DeviceLockState.isSecurelyLocked(this)
-                ? "\n🔒 VERROU SÉCURISÉ : aucune tentative automatique; déverrouillage humain requis"
-                : DeviceLockState.isInsecurelyLocked(this)
-                ? "\n✨ VERROU SIMPLE : assistance ponctuelle autorisée seulement au moment d’une commande" : "")
-                + (sim != null && !sim.valid ? "\n⛔ " + sim.message : "")
-                + (AppConfig.pinBlocked(this) ? "\n⛔ PIN BLOQUÉ : corriger avant toute nouvelle transaction" : ""));
+
+        StringBuilder status = new StringBuilder();
+        status.append(AppConfig.nodeCode(this))
+                .append(" • ROBOT • SIM ").append(AppConfig.simSlot(this) + 1)
+                .append(sim.valid ? " VÉRIFIÉE" : " BLOQUÉE")
+                .append(" • ").append(robotEnabled ? "ACTIF" : "ARRÊTÉ");
+        int activeCount = AppConfig.enabledRobotCount(this);
+        if (activeCount > 1) status.append(" • ").append(activeCount).append(" Robots locaux");
+
+        if (sim != null && !sim.valid) {
+            status.append("\n⛔ ").append(sim.message);
+        } else if (AppConfig.pinBlocked(this)) {
+            status.append("\n⛔ PIN BLOQUÉ : corriger avant toute nouvelle transaction");
+        } else if (robotEnabled && !accessibility) {
+            status.append("\n⚠ Accessibilité à activer avant achat/vente • TEST_NUMBER reste direct");
+        } else if (robotEnabled && DeviceLockState.isSecurelyLocked(this)) {
+            status.append("\n🔒 Écran sécurisé : déverrouillage humain requis avant USSD");
+        } else if (robotEnabled && DeviceLockState.isInsecurelyLocked(this)) {
+            status.append("\n✨ Verrou simple : assistance ponctuelle uniquement si une commande arrive");
+        }
+
+        nativeStatus.setText(status.toString());
+        nativeStatus.setTextColor((!sim.valid || AppConfig.pinBlocked(this)
+                || (robotEnabled && !accessibility)) ? GOLD : CYAN);
     }
 
     @Override
