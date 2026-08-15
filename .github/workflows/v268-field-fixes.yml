@@ -39,3 +39,5 @@ jobs:
           git diff --cached --check
           git commit -m "feat: stabilize Robot balances and commissions for v2.6.8"
           git push origin HEAD:fix/blue-magic-v2-6-recovery
+
+# Rerun marker: D1 test fixture includes 0005; production remains untouched.
