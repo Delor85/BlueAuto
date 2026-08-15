@@ -18,7 +18,9 @@ jobs:
           ref: fix/blue-magic-v2-6-recovery
           fetch-depth: 0
       - name: Apply v2.6.8 field follow-up
-        run: python3 .github/scripts/v268_followup_patch.py
+        run: |
+          python3 .github/scripts/v268_followup_patch.py
+          python3 .github/scripts/v268_followup_testfix.py
       - name: Test Worker and Android web contracts
         run: |
           set -euo pipefail
