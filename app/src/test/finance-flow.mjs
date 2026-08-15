@@ -297,9 +297,13 @@ assert.doesNotMatch(smsReceiver, /RobotService\.requestAudit\(context, profileId
 const robotServiceV267 = readFileSync(new URL('../main/java/com/profitloop/blueauto/RobotService.java', import.meta.url), 'utf8');
 const apiClientV267 = readFileSync(new URL('../main/java/com/profitloop/blueauto/ApiClient.java', import.meta.url), 'utf8');
 assert.match(robotServiceV267, /maybeQueueNightlyNetworkAudit/);
-assert.match(robotServiceV267, /startHour = 2/);
-assert.match(robotServiceV267, /startHour = 3/);
-assert.match(robotServiceV267, /startHour = 4/);
+assert.match(robotServiceV267, /startMinute = 2 \* 60/);
+assert.match(robotServiceV267, /startMinute = 3 \* 60/);
+assert.match(robotServiceV267, /startMinute = 4 \* 60/);
+assert.match(robotServiceV267, /deterministicNightSlot/);
+assert.match(robotServiceV267, /5 \* 60 \+ 15/);
+assert.match(robotServiceV267, /result\.optBoolean\("complete", false\)/);
+assert.match(robotServiceV267, /5 \* 60_000L/);
 assert.match(apiClientV267, /network_balance_audit/);
 assert.match(platformJs, /v267-audit/);
 assert.match(platformJs, /network_balance_audit/);
