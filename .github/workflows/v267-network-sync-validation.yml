@@ -1,0 +1,57 @@
+name: Blue Magic v2.6.7 network sync validation
+
+on:
+  push:
+    branches:
+      - fix/blue-magic-v2-6-recovery
+    paths:
+      - scripts/v267-network-sync-patch.py
+      - .github/workflows/v267-network-sync-validation.yml
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/blue-magic-v2-6-recovery
+          fetch-depth: 0
+
+      - name: Apply bounded source patch
+        run: python3 scripts/v267-network-sync-patch.py
+
+      - name: Install Worker packages
+        working-directory: cloudflare
+        run: npm ci
+
+      - name: Run Worker and D1 tests
+        working-directory: cloudflare
+        run: npm test
+
+      - name: Run Android/Web contract tests
+        run: npm --prefix app test
+
+      - name: Verify migration scope remains 0004 only
+        run: |
+          test -f cloudflare/migrations/0004_blue_message_intelligence_and_modules.sql
+          test ! -f cloudflare/migrations/0005_blue_message_intelligence_and_modules.sql
+          git diff --exit-code -- cloudflare/migrations/0004_blue_message_intelligence_and_modules.sql || {
+            echo '0004 was unexpectedly modified by this patch'; exit 1;
+          }
+
+      - name: Commit validated business sources
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add cloudflare/src/index.js cloudflare/test/integration.mjs \
+            app/src/main/java/com/profitloop/blueauto/ApiClient.java \
+            app/src/main/java/com/profitloop/blueauto/RobotService.java \
+            app/src/main/assets/platform-v267.js app/src/test/finance-flow.mjs
+          git diff --cached --quiet && { echo 'No business changes produced'; exit 1; }
+          git commit -m 'feat: share v2.6.7 balance evidence across network audits'
+          git push origin HEAD:fix/blue-magic-v2-6-recovery
