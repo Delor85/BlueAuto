@@ -1,0 +1,127 @@
+name: Blue Magic v2.6.7 Android 6-16 authorized matrix
+
+on:
+  push:
+    branches: [fix/blue-magic-v2-6-recovery]
+    paths: [.github/workflows/v267-android-6-16-matrix.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  build-exact-matrix-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact authorized source
+        uses: actions/checkout@v5
+        with:
+          ref: 2dc2f435c078cf1b8612261f8c9210bc48e54645
+      - name: Install Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Gradle 8.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+      - name: Build exact Release code for emulator matrix
+        run: |
+          set -euo pipefail
+          mkdir -p .pilot-signing
+          openssl rand -hex 32 > .pilot-signing/keystore.password
+          p="$(tr -d '\r\n' < .pilot-signing/keystore.password)"
+          echo "::add-mask::$p"
+          export BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD="$p"
+          keytool -genkeypair -keystore .pilot-signing/debug.keystore -storepass "$p" \
+            -alias androiddebugkey -keypass "$p" -dname "CN=Matrix Only,O=Blue Magic,C=CM" \
+            -keyalg RSA -keysize 2048 -validity 2 -noprompt
+          node app/src/test/finance-flow.mjs
+          gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
+          build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          "$build_tools/aapt" dump badging app/build/outputs/apk/release/app-release.apk | grep -q "package: name='com.profitloop.blueauto' versionCode='47' versionName='2.6.7'"
+          if "$build_tools/aapt" dump badging app/build/outputs/apk/release/app-release.apk | grep -q application-debuggable; then exit 1; fi
+      - name: Upload exact-code Release for matrix only
+        uses: actions/upload-artifact@v4
+        with:
+          name: Blue-Magic-v267-exact-source-matrix
+          path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 2
+
+  android-6-16:
+    name: android-${{ matrix.api }}
+    needs: build-exact-matrix-apk
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - api: 23
+            arch: x86
+            profile: Nexus 5
+          - api: 24
+            arch: x86
+            profile: Nexus 5
+          - api: 26
+            arch: x86_64
+            profile: Nexus 5
+          - api: 28
+            arch: x86_64
+            profile: Nexus 6
+          - api: 29
+            arch: x86_64
+            profile: Nexus 6
+          - api: 30
+            arch: x86_64
+            profile: Nexus 6
+          - api: 31
+            arch: x86_64
+            profile: Nexus 6
+          - api: 33
+            arch: x86_64
+            profile: Nexus 6
+          - api: 34
+            arch: x86_64
+            profile: Nexus 6
+          - api: 35
+            arch: x86_64
+            profile: Nexus 6
+          - api: 36
+            arch: x86_64
+            profile: Nexus 6
+    steps:
+      - name: Checkout exact source fixtures
+        uses: actions/checkout@v5
+        with:
+          ref: 2dc2f435c078cf1b8612261f8c9210bc48e54645
+      - name: Download exact-code Release
+        uses: actions/download-artifact@v4
+        with:
+          name: Blue-Magic-v267-exact-source-matrix
+          path: /tmp/blue-magic-v267-matrix
+      - name: Install and launch on Android API ${{ matrix.api }}
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: ${{ matrix.arch }}
+          profile: ${{ matrix.profile }}
+          disable-animations: true
+          emulator-boot-timeout: 1200
+          script: |
+            set -euo pipefail
+            apk=/tmp/blue-magic-v267-matrix/app-release.apk
+            adb install -r "$apk" | tee /tmp/blue-magic-install.txt
+            grep -q "Success" /tmp/blue-magic-install.txt
+            adb logcat -c
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/blue-magic-start.txt
+            grep -q "Status: ok" /tmp/blue-magic-start.txt
+            sleep 2
+            adb shell pidof com.profitloop.blueauto
+            if adb logcat -d -b crash | grep -q com.profitloop.blueauto; then
+              adb logcat -d -b crash
+              exit 1
+            fi
