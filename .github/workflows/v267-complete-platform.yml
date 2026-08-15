@@ -83,25 +83,28 @@ jobs:
           if old not in s: raise SystemExit('integration migration list changed unexpectedly')
           p.write_text(s.replace(old,new,1))
 
-          # Keep compatibility with the operator wording already covered by v2.6.7 tests:
-          # "Votre solde actuel est de 900 FCFA".
+          # Accept the observed operator wording "Votre solde actuel est de N FCFA".
           p=Path('cloudflare/src/blue-message.mjs')
           s=p.read_text()
-          old=r'/(?:votre\s+)?solde(?:\s+(?:actuel|disponible|restant))?\s*(?:est|:|=)\s*([0-9][0-9 .,\'’]*?(?:[.,]\d{1,2})?)\s*(?:F\s*CFA|FCFA|XAF)/i'
-          new=r'/(?:votre\s+)?solde(?:\s+(?:actuel|disponible|restant))?\s*(?:est(?:\s+de)?|:|=)\s*([0-9][0-9 .,\'’]*?(?:[.,]\d{1,2})?)\s*(?:F\s*CFA|FCFA|XAF)/i'
-          if old not in s: raise SystemExit('French balance parser anchor changed unexpectedly')
-          p.write_text(s.replace(old,new,1))
+          i=s.index('/(?:votre\\s+)?solde')
+          j=s.index('/i', i)
+          piece=s[i:j]
+          old='(?:est|:|=)'
+          if old not in piece: raise SystemExit('French balance clause changed unexpectedly')
+          piece=piece.replace(old, r'(?:est(?:\s+de)?|:|=)', 1)
+          p.write_text(s[:i]+piece+s[j:])
 
           p=Path('app/src/main/java/com/profitloop/blueauto/BlueMessageParser.java')
           s=p.read_text()
-          old='Solde(?:\\s+(?:actuel|disponible|restant))?)\\s*[:=]?\\s*([0-9]'
-          new='Solde(?:\\s+(?:actuel|disponible|restant))?)\\s*(?:(?:est)(?:\\s+de)?|[:=])?\\s*([0-9]'
-          if old not in s: raise SystemExit('Android French balance parser anchor changed unexpectedly')
+          old=r')?)\\s*[:=]?\\s*([0-9]'
+          new=r')?)\\s*(?:(?:est)(?:\\s+de)?|[:=])?\\s*([0-9]'
+          if old not in s: raise SystemExit('Android French balance clause changed unexpectedly')
           p.write_text(s.replace(old,new,1))
 
           p=Path('cloudflare/test/blue-message-intelligence.mjs')
           s=p.read_text()
           anchor="assert.equal(parseFcfaAmount('35,000'), 35000);\n"
+          if anchor not in s: raise SystemExit('message parser test anchor changed unexpectedly')
           p.write_text(s.replace(anchor, anchor + "assert.equal(parseBlueMessage('Votre solde actuel est de 900 FCFA').current_balance, 900);\n",1))
           PY
 
