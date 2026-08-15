@@ -52,14 +52,15 @@ jobs:
           export BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD="$p"
           keytool -genkeypair -keystore .pilot-signing/debug.keystore -storepass "$p" -alias androiddebugkey -keypass "$p" -dname "CN=Blue Magic Hygiene CI,O=ProfitLoop,C=CM" -keyalg RSA -keysize 2048 -validity 30 -noprompt
           gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
-      - name: Commit validated hygiene lot
+      - name: Commit validated non-workflow hygiene files
         run: |
           set -euo pipefail
           git config user.name "Delor85"
           git config user.email "mbolodelorpro@gmail.com"
-          git add README.md docs/PROJECT_STATE.md cloudflare/package.json cloudflare/package-lock.json .github/workflows/build.yml app/src/test/v268-release-hygiene.mjs
+          git add README.md docs/PROJECT_STATE.md cloudflare/package.json cloudflare/package-lock.json app/src/test/v268-release-hygiene.mjs
           git diff --cached --check
-          git commit -m "chore: align v2.6.8 docs metadata and release gates"
+          git commit -m "chore: align v2.6.8 docs and metadata"
           git push origin HEAD:fix/blue-magic-v2-6-recovery
 
-# Development/test only. This workflow cannot deploy Worker/D1 or publish a permanent APK.
+# Development/test only. build.yml is validated here but persisted separately through the authorized GitHub file API.
+# This workflow cannot deploy Worker/D1 or publish a permanent APK.
