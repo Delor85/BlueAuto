@@ -17,8 +17,16 @@ jobs:
         with:
           ref: fix/blue-magic-v2-6-recovery
           fetch-depth: 0
-      - name: Apply bounded v2.6.8 field fixes
-        run: python3 .github/scripts/v268_field_patch.py
+      - name: Repair integration fixture and apply bounded v2.6.8 field fixes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('cloudflare/test/integration.mjs')
+          s=p.read_text()
+          s=s.replace("if (token) headers.authorization = `Bearer ${token}`;", "if (token) headers['X-Device-Token'] = token;")
+          p.write_text(s)
+          PY
+          python3 .github/scripts/v268_field_patch.py
       - name: Test Worker and Android web contracts
         run: |
           set -euo pipefail
@@ -35,9 +43,9 @@ jobs:
           set -euo pipefail
           git config user.name "Delor85"
           git config user.email "mbolodelorpro@gmail.com"
-          git add app cloudflare/src/index.js
+          git add app cloudflare/src/index.js cloudflare/test/integration.mjs
           git diff --cached --check
           git commit -m "feat: stabilize Robot balances and commissions for v2.6.8"
           git push origin HEAD:fix/blue-magic-v2-6-recovery
 
-# Rerun marker: D1 test fixture includes 0005; production remains untouched.
+# Test-only workflow. Migration 0005 is used only by Miniflare; production remains v2.6.7.
