@@ -35,6 +35,7 @@ jobs:
           p = Path('scripts/v267-live-balance-patch.py')
           s = p.read_text()
           s = s.replace(r'replaceAll("\\D"', r'replaceAll("\\\\D"')
+          s = s.replace("request_type: 'CHILD_BALANCE', target_node_code: 'DSM-TEST',\n    client_request_id: 'integration-child-balance-attribution-01'", "request_type: 'CHILD_BALANCE', target_node_code: 'DSM-TEST_DAE-TEST',\n    client_request_id: 'integration-child-balance-attribution-01'")
           p.write_text(s)
           PY
           python3 scripts/v267-live-balance-patch.py
