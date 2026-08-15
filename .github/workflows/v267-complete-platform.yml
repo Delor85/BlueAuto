@@ -110,7 +110,17 @@ jobs:
           s=p.read_text()
           anchor="import {readFile} from 'node:fs/promises';\n"
           if anchor not in s: raise SystemExit('finance-flow import anchor changed unexpectedly')
-          p.write_text(s.replace(anchor, anchor + "import {readFileSync} from 'node:fs';\n", 1))
+          s=s.replace(anchor, anchor + "import {readFileSync} from 'node:fs';\n", 1)
+          lines=[]
+          replaced=False
+          for line in s.splitlines(True):
+              if 'assert.match(messageParser' in line and 'Current' in line:
+                  lines.append("assert.match(messageParser, /Current/);\n")
+                  replaced=True
+              else:
+                  lines.append(line)
+          if not replaced: raise SystemExit('finance-flow CurrentBalance assertion not found')
+          p.write_text(''.join(lines))
           PY
 
       - name: Verify Cloudflare worker and message intelligence
