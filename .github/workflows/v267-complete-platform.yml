@@ -39,8 +39,6 @@ jobs:
           from pathlib import Path
           p = Path('/tmp/v267_complete_platform.py')
           s = p.read_text()
-
-          # Adapt UssdCommandFactory to the exact current v2.6.7 implementation.
           marker = '# Ussd factory: local-only marker operations and reset PIN.'
           start = s.index(marker)
           a = s.index("replace_once('app/src/main/java/com/profitloop/blueauto/UssdCommandFactory.java',", start)
@@ -49,8 +47,6 @@ jobs:
                        "    static String operation(JSONObject command) {\\n        String kind = command == null ? \\\"\\\" : command.optString(\\\"command_kind\\\", \\\"\\\");\\n        return kind.isEmpty() ? (command == null ? \\\"\\\" : command.optString(\\\"operation\\\", \\\"\\\")) : kind;\\n    }",
                        "    static String operation(JSONObject command) {\\n        String kind = command == null ? \\\"\\\" : command.optString(\\\"command_kind\\\", \\\"\\\");\\n        String argument = command == null ? \\\"\\\" : command.optString(\\\"command_argument\\\", \\\"\\\").trim().toUpperCase(Locale.ROOT);\\n        if (\\\"TRANSACTION_DETAIL\\\".equals(kind) && \\\"BM_RESET_PIN_SELF\\\".equals(argument)) return \\\"RESET_PIN_SELF\\\";\\n        if (\\\"TRANSACTION_DETAIL\\\".equals(kind) && \\\"BM_MODIFY_PIN_LOCAL\\\".equals(argument)) return \\\"MODIFY_PIN_LOCAL\\\";\\n        return kind.isEmpty() ? (command == null ? \\\"\\\" : command.optString(\\\"operation\\\", \\\"\\\")) : kind;\\n    }")'''
           s = s[:a] + replacement + s[b:]
-
-          # Adapt BlueAccessibilityService to its current resultNormalized-based flow.
           marker = '# Accessibility: canonical parser decides terminal success/failure; processing ack is never final.'
           start = s.index(marker)
           a = s.index("replace_once('app/src/main/java/com/profitloop/blueauto/BlueAccessibilityService.java',", start)
@@ -74,6 +70,20 @@ jobs:
           PY
           python3 -m py_compile /tmp/v267_complete_platform.py
           python3 /tmp/v267_complete_platform.py
+          # Miniflare's module walker treats imported .mjs deterministically as ES modules.
+          mv cloudflare/src/blue-message.js cloudflare/src/blue-message.mjs
+          sed -i "s#'./blue-message.js'#'./blue-message.mjs'#" cloudflare/src/index.js
+          sed -i "s#'../src/blue-message.js'#'../src/blue-message.mjs'#" cloudflare/test/blue-message-intelligence.mjs
+          sed -i 's#node --check src/blue-message.js#node --check src/blue-message.mjs#' cloudflare/package.json
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('cloudflare/test/integration.mjs')
+          s=p.read_text()
+          old="    '0003_balance_preflight_and_modules.sql']) {"
+          new="    '0003_balance_preflight_and_modules.sql', '0004_blue_message_intelligence_and_modules.sql']) {"
+          if old not in s: raise SystemExit('integration migration list changed unexpectedly')
+          p.write_text(s.replace(old,new,1))
+          PY
 
       - name: Verify Cloudflare worker and message intelligence
         working-directory: cloudflare
