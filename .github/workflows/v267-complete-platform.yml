@@ -83,7 +83,6 @@ jobs:
           if old not in s: raise SystemExit('integration migration list changed unexpectedly')
           p.write_text(s.replace(old,new,1))
 
-          # Accept the observed operator wording "Votre solde actuel est de N FCFA".
           p=Path('cloudflare/src/blue-message.mjs')
           s=p.read_text()
           i=s.index('/(?:votre\\s+)?solde')
@@ -106,6 +105,12 @@ jobs:
           anchor="assert.equal(parseFcfaAmount('35,000'), 35000);\n"
           if anchor not in s: raise SystemExit('message parser test anchor changed unexpectedly')
           p.write_text(s.replace(anchor, anchor + "assert.equal(parseBlueMessage('Votre solde actuel est de 900 FCFA').current_balance, 900);\n",1))
+
+          p=Path('app/src/test/finance-flow.mjs')
+          s=p.read_text()
+          anchor="import {readFile} from 'node:fs/promises';\n"
+          if anchor not in s: raise SystemExit('finance-flow import anchor changed unexpectedly')
+          p.write_text(s.replace(anchor, anchor + "import {readFileSync} from 'node:fs';\n", 1))
           PY
 
       - name: Verify Cloudflare worker and message intelligence
