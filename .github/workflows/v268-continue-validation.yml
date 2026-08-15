@@ -23,6 +23,7 @@ jobs:
           python3 .github/scripts/v268_followup_testfix.py
           python3 .github/scripts/v268_ui_testfix.py
           python3 .github/scripts/v268_responsive_manage_lock_patch.py
+          python3 .github/scripts/v268_compat_test_patch.py
       - name: Validate complete historical and v2.6.8 contracts
         run: |
           set -euo pipefail
