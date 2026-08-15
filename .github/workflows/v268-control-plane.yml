@@ -25,7 +25,9 @@ jobs:
         with:
           gradle-version: '8.2'
       - name: Apply reviewed control-plane lot
-        run: python3 .github/scripts/v268_control_plane_patch.py
+        run: |
+          python3 .github/scripts/v268_control_plane_patch.py
+          python3 .github/scripts/v268_control_plane_compile_fix.py
       - name: Validate historical and v2.6.8 contracts
         run: |
           set -euo pipefail
