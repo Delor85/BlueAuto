@@ -39,6 +39,8 @@ jobs:
           from pathlib import Path
           p = Path('/tmp/v267_complete_platform.py')
           s = p.read_text()
+
+          # Adapt UssdCommandFactory to the exact current v2.6.7 implementation.
           marker = '# Ussd factory: local-only marker operations and reset PIN.'
           start = s.index(marker)
           a = s.index("replace_once('app/src/main/java/com/profitloop/blueauto/UssdCommandFactory.java',", start)
@@ -46,7 +48,29 @@ jobs:
           replacement = '''replace_once('app/src/main/java/com/profitloop/blueauto/UssdCommandFactory.java',
                        "    static String operation(JSONObject command) {\\n        String kind = command == null ? \\\"\\\" : command.optString(\\\"command_kind\\\", \\\"\\\");\\n        return kind.isEmpty() ? (command == null ? \\\"\\\" : command.optString(\\\"operation\\\", \\\"\\\")) : kind;\\n    }",
                        "    static String operation(JSONObject command) {\\n        String kind = command == null ? \\\"\\\" : command.optString(\\\"command_kind\\\", \\\"\\\");\\n        String argument = command == null ? \\\"\\\" : command.optString(\\\"command_argument\\\", \\\"\\\").trim().toUpperCase(Locale.ROOT);\\n        if (\\\"TRANSACTION_DETAIL\\\".equals(kind) && \\\"BM_RESET_PIN_SELF\\\".equals(argument)) return \\\"RESET_PIN_SELF\\\";\\n        if (\\\"TRANSACTION_DETAIL\\\".equals(kind) && \\\"BM_MODIFY_PIN_LOCAL\\\".equals(argument)) return \\\"MODIFY_PIN_LOCAL\\\";\\n        return kind.isEmpty() ? (command == null ? \\\"\\\" : command.optString(\\\"operation\\\", \\\"\\\")) : kind;\\n    }")'''
-          p.write_text(s[:a] + replacement + s[b:])
+          s = s[:a] + replacement + s[b:]
+
+          # Adapt BlueAccessibilityService to its current resultNormalized-based flow.
+          marker = '# Accessibility: canonical parser decides terminal success/failure; processing ack is never final.'
+          start = s.index(marker)
+          a = s.index("replace_once('app/src/main/java/com/profitloop/blueauto/BlueAccessibilityService.java',", start)
+          b = s.index('\n\n# MainActivity native security + generic platform bridge.', a)
+          replacement = '''replace_once('app/src/main/java/com/profitloop/blueauto/BlueAccessibilityService.java',
+                       '        String resultNormalized = normalize(trustedResult);\\n',
+                       '        String resultNormalized = normalize(trustedResult);\\n        BlueMessageParser.Result parsedBlue = BlueMessageParser.parse(trustedResult);\\n')
+          replace_once('app/src/main/java/com/profitloop/blueauto/BlueAccessibilityService.java',
+                       '            if (containsAny(resultNormalized,\\n                    "wrong pin code", "pin incorrect", "code pin incorrect", "code errone")) {',
+                       '            if (parsedBlue.wrongPin || containsAny(resultNormalized,\\n                    "wrong pin code", "pin incorrect", "code pin incorrect", "code errone")) {')
+          text = read('app/src/main/java/com/profitloop/blueauto/BlueAccessibilityService.java')
+          text = text.replace('if (containsAny(resultNormalized, "processed successfully", "request is processed successfully",\\n                    "successfully transferred", "transfer successfully", "you transfer")',
+                              'if ((parsedBlue.terminalSuccess() || (!parsedBlue.processing && containsAny(resultNormalized, "processed successfully",\\n                    "successfully transferred", "transfer successfully", "you transfer")))')
+          text = text.replace('if (containsAny(resultNormalized, "insufficient", "not enough", "transaction failed", "request failed",',
+                              'if ((parsedBlue.terminalFailure() || containsAny(resultNormalized, "insufficient", "not enough", "transaction failed", "request failed",')
+          text = text.replace('                    "operator is frozen", "operator is suspended", "invalid amount", "echec")\\n                    && resultBelongsToVerifiedSession(command)) {',
+                              '                    "operator is frozen", "operator is suspended", "invalid amount", "echec"))\\n                    && resultBelongsToVerifiedSession(command)) {', 1)
+          write('app/src/main/java/com/profitloop/blueauto/BlueAccessibilityService.java', text)'''
+          s = s[:a] + replacement + s[b:]
+          p.write_text(s)
           PY
           python3 -m py_compile /tmp/v267_complete_platform.py
           python3 /tmp/v267_complete_platform.py
