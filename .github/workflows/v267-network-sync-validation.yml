@@ -6,6 +6,7 @@ on:
       - fix/blue-magic-v2-6-recovery
     paths:
       - scripts/v267-network-sync-patch.py
+      - scripts/v267-network-sync-fix.py
       - .github/workflows/v267-network-sync-validation.yml
       - .github/v267-network-sync-validation.trigger
 
@@ -24,7 +25,9 @@ jobs:
           fetch-depth: 0
 
       - name: Apply bounded source patch
-        run: python3 scripts/v267-network-sync-patch.py
+        run: |
+          python3 scripts/v267-network-sync-patch.py
+          python3 scripts/v267-network-sync-fix.py
 
       - name: Install Worker packages
         working-directory: cloudflare
