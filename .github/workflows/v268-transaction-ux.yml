@@ -25,7 +25,9 @@ jobs:
         with:
           gradle-version: '8.2'
       - name: Apply reviewed transaction UX lot
-        run: python3 .github/scripts/v268_transaction_ux_patch.py
+        run: |
+          python3 .github/scripts/v268_transaction_ux_patch.py
+          python3 .github/scripts/v268_transaction_ux_compat.py
       - name: Validate all historical and v2.6.8 contracts
         run: |
           set -euo pipefail
