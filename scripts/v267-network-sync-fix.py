@@ -4,9 +4,9 @@ path = Path('cloudflare/src/index.js')
 s = path.read_text()
 old = "    + '(a.last_unbalanced_activity_at IS NULL OR a.last_unbalanced_activity_at <= b.observed_at)) '\n"
 new = "    + 'AND (a.last_unbalanced_activity_at IS NULL OR a.last_unbalanced_activity_at <= b.observed_at)) '\n"
-if old not in s:
-    raise SystemExit('FIFO activity predicate anchor missing')
-s = s.replace(old, new, 1)
+if s.count(old) < 2:
+    raise SystemExit(f'expected FIFO and audit activity predicates, found {s.count(old)}')
+s = s.replace(old, new, 2)
 
 old_msg = "    + \"|| (snapshot.available - request.amount) || ' FCFA.' ELSE \"\n    + \"'Les demandes arrivées avant sont prioritaires. Solde encore disponible du supérieur : ' \"\n    + \"|| snapshot.available || ' FCFA.' END, \"\n"
 new_msg = "    + \"|| CAST((snapshot.available - request.amount) AS INTEGER) || ' FCFA.' ELSE \"\n    + \"'Les demandes arrivées avant sont prioritaires. Solde encore disponible du supérieur : ' \"\n    + \"|| CAST(snapshot.available AS INTEGER) || ' FCFA.' END, \"\n"
@@ -25,4 +25,4 @@ if old_test not in t:
     raise SystemExit('legacy capacity assertion anchor missing')
 test.write_text(t.replace(old_test, new_test, 1))
 
-print('FIFO SQL predicate, remaining-balance formatting and legacy assertion corrected')
+print('FIFO and Bottom-Up SQL predicates, formatting and legacy assertion corrected')
