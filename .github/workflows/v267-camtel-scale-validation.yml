@@ -1,0 +1,69 @@
+name: Blue Magic v2.6.7 Camtel scale validation
+
+on:
+  push:
+    branches:
+      - fix/blue-magic-v2-6-recovery
+    paths:
+      - scripts/v267-camtel-scale-patch.py
+      - .github/workflows/v267-camtel-scale-validation.yml
+      - .github/v267-camtel-scale-validation.trigger
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/blue-magic-v2-6-recovery
+          fetch-depth: 0
+
+      - name: Capture migration checksum
+        run: sha256sum cloudflare/migrations/0004_blue_message_intelligence_and_modules.sql > /tmp/0004.before
+
+      - name: Apply bounded Camtel hierarchy and scale patch
+        run: python3 scripts/v267-camtel-scale-patch.py
+
+      - name: Verify production and migration scope untouched
+        run: |
+          sha256sum -c /tmp/0004.before
+          test ! -e cloudflare/migrations/0005_blue_message_intelligence_and_modules.sql
+          git diff --exit-code -- .github/workflows/deploy-cloudflare.yml
+
+      - name: Install Worker packages
+        working-directory: cloudflare
+        run: npm ci
+
+      - name: Run Worker and D1 tests
+        working-directory: cloudflare
+        run: npm run check
+
+      - name: Run Android Web contract tests
+        run: node app/src/test/finance-flow.mjs
+
+      - name: Verify Android Java sources compile contractually
+        run: |
+          grep -q 'CamtelUssdCatalog' app/src/main/java/com/profitloop/blueauto/UssdCommandFactory.java
+          grep -q 'deterministicNightSlot' app/src/main/java/com/profitloop/blueauto/RobotService.java
+          grep -q 'canonicalParent' app/src/main/java/com/profitloop/blueauto/MainActivity.java
+
+      - name: Commit validated business sources
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add cloudflare/src/index.js cloudflare/src/camtel-catalog.mjs cloudflare/package.json \
+            cloudflare/test/integration.mjs cloudflare/test/blue-message-intelligence.mjs cloudflare/test/camtel-catalog.mjs \
+            app/src/main/java/com/profitloop/blueauto/RobotService.java \
+            app/src/main/java/com/profitloop/blueauto/UssdCommandFactory.java \
+            app/src/main/java/com/profitloop/blueauto/CamtelUssdCatalog.java \
+            app/src/main/java/com/profitloop/blueauto/MainActivity.java \
+            app/src/main/java/com/profitloop/blueauto/ApiClient.java \
+            app/src/main/assets/platform-v267.js docs/CAMTEL_OPERATOR_CATALOG.md
+          git diff --cached --quiet && { echo 'No business changes produced'; exit 1; }
+          git commit -m 'feat: scale v2.6.7 around canonical Camtel hierarchy'
+          git push origin HEAD:fix/blue-magic-v2-6-recovery
