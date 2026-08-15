@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
+import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const elements = new Map();
@@ -271,3 +272,15 @@ assert.match(unlockActivity, /finishAndRemoveTask/);
 assert.match(activity, /openPinSettings/);
 
 console.log('Android UI/runtime: verrou/PIN, dock actif, précontrôle de solde, confirmation finance, administration sensible et TEST_NUMBER OK');
+
+
+// v2.6.7 complete-platform guards
+const platformJs = readFileSync(new URL('../main/assets/platform-v267.js', import.meta.url), 'utf8');
+assert.match(platformJs, /platform_snapshot/);
+assert.match(platformJs, /operator_insights/);
+assert.match(platformJs, /shadow_enroll/);
+assert.match(platformJs, /mercenary_save/);
+const messageParser = readFileSync(new URL('../main/java/com/profitloop/blueauto/BlueMessageParser.java', import.meta.url), 'utf8');
+assert.match(messageParser, /Request is processed/);
+assert.match(messageParser, /Current/);
+console.log('Blue Magic v2.6.7 platform extension: UI/modules/message parser wired');

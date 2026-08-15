@@ -416,8 +416,14 @@ public class MainActivity extends Activity {
         accountButtons.addView(verifySim, weighted());
         tools.addView(accountButtons);
 
-        Button pinSettings = actionButton("🔐 MODIFIER LE PIN CAMTEL", GOLD);
-        if (AppConfig.isRobotMode(this)) tools.addView(pinSettings);
+        Button pinSettings = actionButton("🔐 ENREGISTRER / CORRIGER PIN LOCAL", GOLD);
+        Button networkPinChange = actionButton("🔁 CHANGER LE PIN CAMTEL RÉSEAU", CYAN);
+        Button networkPinReset = actionButton("🆘 DEMANDER RESET PIN", VIOLET);
+        if (AppConfig.isRobotMode(this)) {
+            tools.addView(pinSettings);
+            tools.addView(networkPinChange);
+            tools.addView(networkPinReset);
+        }
 
         TextView scrollHint = help("Faites défiler ce panneau : la barre à droite indique les autres réglages.");
         scrollHint.setTextColor(CYAN);
@@ -457,6 +463,8 @@ public class MainActivity extends Activity {
         });
         verifySim.setOnClickListener(v -> confirmAndBindCurrentSim());
         pinSettings.setOnClickListener(v -> showPinEditorDialog());
+        networkPinChange.setOnClickListener(v -> showOperatorPinChangeDialog());
+        networkPinReset.setOnClickListener(v -> confirmResetOperatorPin());
 
         prepare.setOnClickListener(v -> prepareRobotPermissions());
         switchMode.setOnClickListener(v -> showModeSwitcher());
@@ -600,6 +608,64 @@ public class MainActivity extends Activity {
                     }
                 }));
         dialog.show();
+    }
+
+    private void showOperatorPinChangeDialog() {
+        if (!AppConfig.isRobotMode(this) || !canModifyActiveProfile()) {
+            toast("La modification du PIN réseau s’effectue uniquement sur le téléphone Robot de cette SIM.");
+            return;
+        }
+        if (!SecurePinStore.hasPin(this, AppConfig.profileId(this))) {
+            toast("Enregistrez d’abord le PIN Camtel actuel dans le stockage local sécurisé.");
+            return;
+        }
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(20), dp(8), dp(20), 0);
+        content.addView(help("Le nouveau PIN reste chiffré sur ce Robot et n’est jamais envoyé au Worker, à D1 ni au JavaScript."));
+        EditText first = field("Nouveau PIN Camtel (4 chiffres)", "", true);
+        EditText second = field("Confirmer le nouveau PIN", "", true);
+        first.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+        second.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+        content.addView(first); content.addView(second);
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Changer le PIN réseau — " + AppConfig.nodeCode(this))
+                .setView(content).setPositiveButton("LANCER LA MODIFICATION", null)
+                .setNegativeButton("Annuler", null).create();
+        dialog.setOnShowListener(x -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String a = first.getText().toString().trim();
+            String b = second.getText().toString().trim();
+            if (!a.matches("\\d{4}") || !a.equals(b)) { second.setError("Les deux PIN de 4 chiffres doivent être identiques."); return; }
+            try { PendingPinChangeStore.save(this, AppConfig.profileId(this), a); }
+            catch (Exception error) { second.setError(readable(error)); return; }
+            first.setText(""); second.setText(""); dialog.dismiss();
+            queueLocalMaintenance("MODIFY_PIN_LOCAL", "Modification PIN Camtel mise en file.");
+        }));
+        dialog.show();
+    }
+
+    private void confirmResetOperatorPin() {
+        if (!AppConfig.isRobotMode(this) || !canModifyActiveProfile()) return;
+        new AlertDialog.Builder(this).setTitle("Demander un reset PIN ?")
+                .setMessage("Blue Magic exécutera *550*5*1# sur la SIM active. Le PIN provisoire reçu par SMS restera local au téléphone et ne sera pas envoyé au serveur.")
+                .setPositiveButton("CONFIRMER", (d,w) -> queueLocalMaintenance("RESET_PIN_SELF", "Reset PIN mis en file."))
+                .setNegativeButton("Annuler", null).show();
+    }
+
+    private void queueLocalMaintenance(String requestType, String confirmation) {
+        new Thread(() -> {
+            try {
+                JSONObject payload = new JSONObject();
+                payload.put("request_type", requestType);
+                payload.put("client_request_id", "local_" + UUID.randomUUID().toString().replace("-", ""));
+                new ApiClient(this).createCommand(payload);
+                RobotService.startEnabled(this);
+                runOnUiThread(() -> toast(confirmation));
+            } catch (Exception error) {
+                if ("MODIFY_PIN_LOCAL".equals(requestType)) PendingPinChangeStore.clear(this, AppConfig.profileId(this));
+                runOnUiThread(() -> toast("Commande refusée : " + readable(error)));
+            }
+        }).start();
     }
 
     private void showAccountManager() {
@@ -1345,6 +1411,36 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void prepareRobotPermissions() {
             runOnUiThread(() -> MainActivity.this.prepareRobotPermissions());
+        }
+
+        @JavascriptInterface
+        public void platformAction(String action, String payloadJson) {
+            new Thread(() -> {
+                try {
+                    JSONObject payload = payloadJson == null || payloadJson.trim().isEmpty()
+                            ? new JSONObject() : new JSONObject(payloadJson);
+                    JSONObject data = new ApiClient(MainActivity.this).platformAction(action, payload);
+                    data.put("_action", action == null ? "" : action);
+                    callback("onPlatformAction", data);
+                } catch (Exception error) {
+                    callbackError("onPlatformAction", error);
+                }
+            }).start();
+        }
+
+        @JavascriptInterface
+        public void executeRawUSSD(String raw) {
+            runOnUiThread(() -> {
+                try {
+                    if (!AppConfig.isRobotMode(MainActivity.this)) throw new IllegalStateException("Mode Robot requis.");
+                    String ussd = raw == null ? "" : raw.trim();
+                    if (!ussd.matches("\\*[0-9*]{1,80}#")) throw new IllegalArgumentException("Code USSD brut invalide.");
+                    String pin = SecurePinStore.read(MainActivity.this, AppConfig.profileId(MainActivity.this));
+                    if (!pin.isEmpty() && ussd.contains(pin)) throw new SecurityException("Le Sandbox refuse d’exposer le PIN enregistré au JavaScript.");
+                    SimCallManager.placeUssdCall(MainActivity.this, ussd, AppConfig.profileId(MainActivity.this));
+                    toast("Commande Sandbox lancée sur la SIM sélectionnée. Lisez le retour Blue dans la fenêtre Téléphone.");
+                } catch (Exception error) { toast("Sandbox refusée : " + readable(error)); }
+            });
         }
 
         @JavascriptInterface

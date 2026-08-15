@@ -131,6 +131,20 @@ final class ApiClient {
         return post("purchase_capacity_status", payload, true);
     }
 
+    JSONObject recordOperatorMessage(String message) throws Exception {
+        JSONObject payload = new JSONObject();
+        payload.put("message", message == null ? "" : trim(message, 1800));
+        return post("record_operator_message", payload, true);
+    }
+
+    JSONObject platformAction(String action, JSONObject payload) throws Exception {
+        String safe = action == null ? "" : action.trim();
+        if (!safe.matches("(?:operator_insights|platform_snapshot|shadow_enroll|debt_save|debt_list|kyc_save|mercenary_save|mercenary_list|mercenary_sale)")) {
+            throw new ApiException("ACTION_NOT_ALLOWED", "Action plateforme non autorisée par le pont natif.");
+        }
+        return post(safe, payload == null ? new JSONObject() : payload, true);
+    }
+
     JSONObject dashboard() throws Exception {
         return post("network_dashboard", new JSONObject(), true);
     }

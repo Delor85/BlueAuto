@@ -5,85 +5,110 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.telephony.SmsMessage;
+import android.telephony.SubscriptionManager;
 
 import org.json.JSONObject;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class SmsReceiver extends BroadcastReceiver {
-    private static final Pattern TX_ID = Pattern.compile("(?i)(?:transaction\\s*id|transactionid)(?:\\s+is)?\\s*[:#-]?\\s*(\\d{6,})");
-
     @Override
     public void onReceive(Context context, Intent intent) {
         if (!"android.provider.Telephony.SMS_RECEIVED".equals(intent.getAction())) return;
-        JSONObject command = PendingCommandStore.getActiveUssd(context);
-        if (command == null) return;
-
         Bundle extras = intent.getExtras();
         if (extras == null) return;
         Object[] pdus = (Object[]) extras.get("pdus");
+        if (pdus == null || pdus.length == 0) return;
         String format = extras.getString("format");
-        if (pdus == null) return;
-
         StringBuilder body = new StringBuilder();
         for (Object pdu : pdus) {
-            SmsMessage sms = SmsMessage.createFromPdu((byte[]) pdu, format);
+            SmsMessage sms = android.os.Build.VERSION.SDK_INT >= 23
+                    ? SmsMessage.createFromPdu((byte[]) pdu, format)
+                    : SmsMessage.createFromPdu((byte[]) pdu);
             if (sms != null && sms.getMessageBody() != null) body.append(sms.getMessageBody());
         }
-        evaluate(context, command, body.toString());
-    }
+        String message = body.toString().trim();
+        if (message.isEmpty()) return;
+        BlueMessageParser.Result parsed = BlueMessageParser.parse(message);
+        String profileId = profileForSms(context, intent);
+        if (profileId.isEmpty()) return;
 
-    private void evaluate(Context context, JSONObject command, String message) {
-        String profileId = command.optString("local_profile_id", "");
-        String lower = message.toLowerCase(Locale.ROOT);
-        if (containsAny(lower, "wrong pin code", "pin incorrect", "code pin incorrect", "code erroné")) {
-            AppConfig.setPinBlocked(context, profileId, true);
-            RobotService.operatorResult(context, profileId, false, "WRONG_PIN",
-                    redact(context, profileId, message), transactionId(message));
-            return;
+        JSONObject active = PendingCommandStore.get(context, profileId);
+        if (active != null) {
+            String expectedPhone = active.optString("target_phone", "").replaceAll("\\D", "");
+            long expectedAmount = active.optLong("amount", 0L);
+            boolean correlated = expectedPhone.isEmpty() || parsed.primaryPhone.endsWith(expectedPhone)
+                    || message.replaceAll("\\D", "").contains(expectedPhone);
+            if (expectedAmount > 0L && parsed.amountFcfa != null && parsed.amountFcfa != expectedAmount) correlated = false;
+            if (parsed.wrongPin) {
+                AppConfig.setPinBlocked(context, profileId, true);
+                RobotService.operatorResult(context, profileId, false, "WRONG_PIN",
+                        BlueMessageParser.redactSensitive(message, safePin(context, profileId)), parsed.transactionId);
+                return;
+            }
+            if (correlated && parsed.terminalSuccess()) {
+                if ("MODIFY_PIN_LOCAL".equals(UssdCommandFactory.operation(active))) {
+                    try { PendingPinChangeStore.commit(context, profileId); } catch (Exception ignored) {}
+                }
+                RobotService.operatorResult(context, profileId, true, "",
+                        BlueMessageParser.redactSensitive(message, safePin(context, profileId)), parsed.transactionId);
+                return;
+            }
+            if (correlated && parsed.terminalFailure()) {
+                RobotService.operatorResult(context, profileId, false, "OPERATOR_REJECTED",
+                        BlueMessageParser.redactSensitive(message, safePin(context, profileId)), parsed.transactionId);
+                return;
+            }
         }
 
-        String expectedPhone = command.optString("target_phone", "").replaceAll("\\D", "");
-        String expectedAmount = command.optString("amount", "").replaceFirst("\\.0+$", "").replaceAll("\\D", "");
-        String compact = lower.replaceAll("[\\s,._-]", "");
-        boolean correlated = !expectedPhone.isEmpty() && compact.contains(expectedPhone);
-        if (!correlated) return;
-        if (!expectedAmount.isEmpty() && !containsAmount(lower, expectedAmount)) return;
-
-        if (containsAny(lower, "successfully", "processed successfully", "received", "you transfer")) {
-            RobotService.operatorResult(context, profileId, true, "",
-                    redact(context, profileId, message), transactionId(message));
-        } else if (containsAny(lower, "failed", "insufficient", "not enough", "frozen", "suspended", "invalid")) {
-            RobotService.operatorResult(context, profileId, false, "OPERATOR_REJECTED",
-                    redact(context, profileId, message), transactionId(message));
+        // Passive messages remain valuable even when no Blue Magic command is pending: bank
+        // injections, manual USSD, Tchoronko transfers and PIN-reset messages update the model.
+        if (parsed.provisionalPin.matches("\\d{4}")) {
+            try {
+                SecurePinStore.save(context, profileId, parsed.provisionalPin);
+                AppConfig.setPinBlocked(context, profileId, false);
+            } catch (Exception ignored) {}
         }
+        final PendingResult pendingResult = goAsync();
+        final String redacted = BlueMessageParser.redactSensitive(message, safePin(context, profileId));
+        new Thread(() -> {
+            try {
+                ApiClient.forProfile(context, profileId).recordOperatorMessage(redacted);
+                if (parsed.kind.equals("TRANSFER_RECEIVED") || parsed.kind.equals("MINI_STATEMENT")) {
+                    RobotService.requestAudit(context, profileId);
+                }
+            } catch (Exception ignored) {
+            } finally {
+                pendingResult.finish();
+            }
+        }).start();
     }
 
-    private static String redact(Context context, String profileId, String value) {
-        try {
-            String pin = SecurePinStore.read(context, profileId);
-            if (!pin.isEmpty()) value = value.replace(pin, "****");
-        } catch (Exception ignored) {
+    private static String profileForSms(Context context, Intent intent) {
+        int subscriptionId = intent.getIntExtra(SubscriptionManager.EXTRA_SUBSCRIPTION_INDEX, -1);
+        if (subscriptionId < 0) subscriptionId = intent.getIntExtra("subscription", -1);
+        int slot = -1;
+        if (subscriptionId >= 0) {
+            try {
+                SubscriptionManager manager = (SubscriptionManager) context.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
+                if (manager != null && manager.getActiveSubscriptionInfo(subscriptionId) != null) {
+                    slot = manager.getActiveSubscriptionInfo(subscriptionId).getSimSlotIndex();
+                }
+            } catch (Exception ignored) {}
         }
-        return value.length() <= 1800 ? value : value.substring(0, 1800);
+        List<String> candidates = new ArrayList<>();
+        for (String id : AppConfig.profileIds(context)) {
+            if (!AppConfig.isRobotMode(context, id)) continue;
+            if (slot < 0 || AppConfig.simSlot(context, id) == slot) candidates.add(id);
+        }
+        if (candidates.size() == 1) return candidates.get(0);
+        if (slot < 0 && AppConfig.profileIds(context).length == 1) return AppConfig.profileIds(context)[0];
+        return "";
     }
 
-    private static String transactionId(String text) {
-        Matcher matcher = TX_ID.matcher(text);
-        return matcher.find() ? matcher.group(1) : "";
-    }
-
-    private static boolean containsAmount(String message, String expectedAmount) {
-        String normalized = message.replace(",", "");
-        Pattern pattern = Pattern.compile("(?i)(?<!\\d)" + Pattern.quote(expectedAmount)
-                + "(?:\\.00)?\\s*FCFA(?!\\w)");
-        return pattern.matcher(normalized).find();
-    }
-
-    private static boolean containsAny(String value, String... needles) {
-        for (String needle : needles) if (value.contains(needle)) return true;
-        return false;
+    private static String safePin(Context context, String profileId) {
+        try { return SecurePinStore.read(context, profileId); } catch (Exception ignored) { return ""; }
     }
 }

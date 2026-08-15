@@ -33,6 +33,7 @@ public class RobotService extends Service {
     static final String ACTION_CANCEL = "com.profitloop.blueauto.CANCEL_PENDING";
     static final String ACTION_PIN_SUBMITTED = "com.profitloop.blueauto.PIN_SUBMITTED";
     static final String ACTION_OPERATOR_RESULT = "com.profitloop.blueauto.OPERATOR_RESULT";
+    static final String ACTION_AUDIT = "com.profitloop.blueauto.REQUEST_AUDIT";
     static final String EXTRA_PROFILE_ID = "profile_id";
     static final String EXTRA_SUCCESS = "success";
     static final String EXTRA_MESSAGE = "message";
@@ -122,6 +123,12 @@ public class RobotService extends Service {
             String transactionId = intent.getStringExtra(EXTRA_TRANSACTION_ID);
             final String targetProfile = profileId;
             executor.execute(() -> finishCommand(targetProfile, success, code, message, transactionId));
+            return START_STICKY;
+        }
+
+        if (ACTION_AUDIT.equals(action)) {
+            final String targetProfile = profileId;
+            executor.schedule(() -> queueOverlapAudit(targetProfile, true), 1_000L, TimeUnit.MILLISECONDS);
             return START_STICKY;
         }
 
@@ -490,6 +497,12 @@ public class RobotService extends Service {
             } catch (Exception ignoredAgain) {
             }
         }
+        if (reported && success && "MODIFY_PIN_LOCAL".equals(UssdCommandFactory.operation(command))) {
+            try { PendingPinChangeStore.commit(this, profileId); } catch (Exception ignored) {}
+        }
+        if (reported && success && CommandExecutionPolicy.isFinancial(UssdCommandFactory.operation(command))) {
+            scheduleOverlapAuditAfterFinancial(profileId);
+        }
         if (reported) PendingCommandStore.clear(this, profileId);
         lastCommandFinishedAt = System.currentTimeMillis();
         releaseCommandWakeLock();
@@ -500,6 +513,35 @@ public class RobotService extends Service {
                 : "Dernière commande à vérifier — " + AppConfig.nodeCode(this, profileId)))
                 : "Résultat obtenu — synchronisation en attente");
         scheduleCycle(reported ? 1_000L : 15_000L);
+    }
+
+    private void scheduleOverlapAuditAfterFinancial(String profileId) {
+        String key = "overlap_tx_count_" + profileId;
+        int count = AppConfig.prefs(this).getInt(key, 0) + 1;
+        if (count < 4) {
+            AppConfig.prefs(this).edit().putInt(key, count).apply();
+            return;
+        }
+        AppConfig.prefs(this).edit().putInt(key, 0).apply();
+        executor.schedule(() -> queueOverlapAudit(profileId, false), 15_000L, TimeUnit.MILLISECONDS);
+    }
+
+    private void queueOverlapAudit(String profileId, boolean forced) {
+        if (profileId == null || profileId.isEmpty() || !AppConfig.robotEnabled(this, profileId)) return;
+        if (PendingCommandStore.get(this, profileId) != null) {
+            if (forced) executor.schedule(() -> queueOverlapAudit(profileId, true), 5_000L, TimeUnit.MILLISECONDS);
+            return;
+        }
+        try {
+            JSONObject payload = new JSONObject();
+            payload.put("request_type", "LAST_TRANSACTIONS");
+            payload.put("client_request_id", "audit_" + java.util.UUID.randomUUID().toString().replace("-", ""));
+            ApiClient.forProfile(this, profileId).createCommand(payload);
+            updateNotification(robotSummary("Audit Blue des 5 dernières transactions programmé"));
+            scheduleCycle(0L);
+        } catch (Exception ignored) {
+            if (forced) executor.schedule(() -> queueOverlapAudit(profileId, true), 30_000L, TimeUnit.MILLISECONDS);
+        }
     }
 
     private void retryFinalReport(String profileId, JSONObject command) {
@@ -810,6 +852,11 @@ public class RobotService extends Service {
                 .putExtra(EXTRA_MESSAGE, message)
                 .putExtra(EXTRA_TRANSACTION_ID, transactionId);
         sendServiceAction(context, intent);
+    }
+
+    static void requestAudit(Context context, String profileId) {
+        sendServiceAction(context, new Intent(context, RobotService.class)
+                .setAction(ACTION_AUDIT).putExtra(EXTRA_PROFILE_ID, profileId));
     }
 
     private static void sendServiceAction(Context context, Intent intent) {

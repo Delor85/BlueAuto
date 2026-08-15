@@ -1,6 +1,8 @@
+import {parseBlueMessage} from './blue-message.mjs';
+
 const API_VERSION = '2.6.7-cloudflare';
 const ROBOT_LIVE_WINDOW_MINUTES = 15;
-const BALANCE_EVIDENCE_TTL_SECONDS = 180;
+const BALANCE_EVIDENCE_TTL_SECONDS = 3600;
 const TERMINAL_STATES = new Set(['SUCCEEDED', 'FAILED', 'UNKNOWN', 'BLOCKED', 'CANCELLED']);
 const EVENT_STATES = new Set([
   'DIALING', 'AWAITING_PIN', 'PIN_SUBMITTED', 'AWAITING_RESULT',
@@ -46,6 +48,16 @@ export default {
         case 'check_purchase_capacity': return await checkPurchaseCapacity(env, auth, input, headers);
         case 'purchase_capacity_status': return await purchaseCapacityStatus(env, auth, input, headers);
         case 'network_dashboard': return await networkDashboard(env, auth, headers);
+        case 'operator_insights': return await operatorInsights(env, auth, headers);
+        case 'record_operator_message': return await recordOperatorMessageApi(env, auth, input, headers);
+        case 'platform_snapshot': return await platformSnapshot(env, auth, headers);
+        case 'shadow_enroll': return await shadowEnroll(env, auth, input, headers);
+        case 'debt_save': return await debtSave(env, auth, input, headers);
+        case 'debt_list': return await debtList(env, auth, headers);
+        case 'kyc_save': return await kycSave(env, auth, input, headers);
+        case 'mercenary_save': return await mercenarySave(env, auth, input, headers);
+        case 'mercenary_list': return await mercenaryList(env, auth, headers);
+        case 'mercenary_sale': return await mercenarySale(env, auth, input, headers);
         case 'lease_command': return await leaseCommand(env, auth, headers);
         case 'release_command': return await releaseCommand(env, auth, input, headers);
         case 'cancel_command': return await cancelCommand(env, auth, input, headers);
@@ -536,12 +548,12 @@ async function checkPurchaseCapacity(env, auth, input, headers) {
   const values = await resolveCommand(env, auth, input, 'REQUEST_SUPPLY');
   const checkId = crypto.randomUUID();
   // Le cahier impose de mutualiser les ressources fiables. Une preuve Camtel explicite reste
-  // réutilisable trois minutes; les débits/réservations connus sont déduits avant toute décision.
+  // réutilisable une heure tant qu’aucune activité non rapprochée n’est observée; les débits/réservations connus sont déduits avant toute décision.
   const reusable = await effectiveAvailableBalance(env, values.executor, true);
   if (reusable) {
     const state = values.amount <= reusable.available ? 'AVAILABLE' : 'INSUFFICIENT';
     const message = state === 'AVAILABLE'
-      ? 'Une preuve récente du solde Camtel couvre le montant demandé; aucun USSD supplémentaire.'
+      ? 'Une preuve Camtel de moins d’une heure, sans activité non rapprochée, couvre le montant; aucun USSD supplémentaire.'
       : 'Le montant demandé dépasse la preuve récente du solde disponible du supérieur.';
     await env.DB.prepare(
       'INSERT INTO purchase_preflights(public_id, client_request_id, requester_node_code, '
@@ -670,6 +682,13 @@ async function effectiveAvailableBalance(env, node, requireReusable = false) {
   if (!snapshot) return null;
   if (requireReusable && (Date.parse(snapshot.valid_until || '') <= Date.now()
       || !['OPERATOR_EXPLICIT', 'DERIVED_FROM_EXPLICIT'].includes(snapshot.confidence))) return null;
+  if (requireReusable) {
+    const activity = await env.DB.prepare(
+      'SELECT last_unbalanced_activity_at FROM node_activity_state WHERE node_code = ?'
+    ).bind(node).first();
+    if (activity?.last_unbalanced_activity_at
+        && Date.parse(activity.last_unbalanced_activity_at) > Date.parse(snapshot.observed_at || '')) return null;
+  }
   const reserved = await env.DB.prepare(
     "SELECT COALESCE(SUM(amount), 0) AS total FROM commands WHERE executor_node_code = ? "
     + "AND operation IN ('DISTRIBUTION_TRANSFER','RETAIL_TRANSFER') "
@@ -681,6 +700,18 @@ async function effectiveAvailableBalance(env, node, requireReusable = false) {
     confidence: snapshot.confidence,
     source_command_public_id: snapshot.source_command_public_id,
     evidence_command_public_id: snapshot.evidence_command_public_id};
+}
+
+async function resolveDescendant(env, ancestorNode, requestedNode, roles) {
+  const target = String(requestedNode || '').trim().toUpperCase();
+  if (!target) return null;
+  const row = await env.DB.prepare(
+    'WITH RECURSIVE subtree(node_code) AS (SELECT ? UNION ALL '
+    + 'SELECT n.node_code FROM nodes n JOIN subtree s ON n.parent_node_code = s.node_code WHERE n.active = 1) '
+    + 'SELECT n.node_code, n.role, n.phone_number, n.parent_node_code FROM subtree s '
+    + 'JOIN nodes n ON n.node_code = s.node_code WHERE n.node_code = ? AND n.node_code <> ? LIMIT 1'
+  ).bind(ancestorNode, target, ancestorNode).first();
+  return row && roles.includes(row.role) ? row : null;
 }
 
 async function resolveCommand(env, auth, input, requestType) {
@@ -743,6 +774,16 @@ async function resolveCommand(env, auth, input, requestType) {
       commandArgument: '', ussd: '', requiresPin: 0
     };
   }
+  if (requestType === 'RESET_PIN_SELF' || requestType === 'MODIFY_PIN_LOCAL') {
+    return {
+      executor: requester, executorPhone: auth.phone_number,
+      targetNode: requester, targetPhone: auth.phone_number, amount: null,
+      operation: 'TEST_NUMBER', commandKind: 'TRANSACTION_DETAIL',
+      commandArgument: requestType === 'RESET_PIN_SELF' ? 'BM_RESET_PIN_SELF' : 'BM_MODIFY_PIN_LOCAL',
+      ussd: '', requiresPin: 0, requiresConfirmation: 0,
+      operationLabel: requestType === 'RESET_PIN_SELF' ? 'Demander le reset PIN' : 'Modifier le PIN Camtel localement'
+    };
+  }
   if (requestType === 'TRANSACTION_DETAILS') {
     const transactionId = String(input.transaction_id || '').trim();
     if (!/^[A-Za-z0-9_-]{6,64}$/.test(transactionId)) {
@@ -759,9 +800,13 @@ async function resolveCommand(env, auth, input, requestType) {
     if (!['DAE', 'DSM'].includes(auth.role)) {
       throw new ApiError('REQUEST_NOT_ALLOWED', 'Ce rôle ne supervise aucun solde enfant.', 403);
     }
-    const childRole = auth.role === 'DAE' ? 'DSM' : 'POS';
-    const child = await resolveDirectChild(env, requester, input.target_node_code, childRole);
-    if (!child) throw new ApiError('CHILD_NOT_FOUND', 'Ce compte n’est pas un enfant direct actif.', 422);
+    let child;
+    if (auth.role === 'DAE') {
+      child = await resolveDescendant(env, requester, input.target_node_code, ['DSM', 'POS']);
+    } else {
+      child = await resolveDirectChild(env, requester, input.target_node_code, 'POS');
+    }
+    if (!child) throw new ApiError('CHILD_NOT_FOUND', 'Ce compte n’est pas dans la flotte supervisée active.', 422);
     return {
       executor: requester, executorPhone: auth.phone_number,
       targetNode: child.node_code, targetPhone: child.phone_number, amount: null,
@@ -985,6 +1030,7 @@ async function commandEvent(env, auth, input, headers) {
   ]);
   if (!results[0].meta?.changes) throw new ApiError('COMMAND_RACE', 'La commande a changé; relisez son état.', 409);
   if (terminal) await applyTerminalEffects(env, command, nextState, message, publicId);
+  if (message) await recordParsedOperatorMessage(env, auth.node_code, message, publicId, command, nextState);
   return success({command: {public_id: publicId, state: nextState}, already_terminal: false}, 200, headers);
 }
 
@@ -1011,6 +1057,7 @@ function commandView(command) {
 }
 
 async function applyTerminalEffects(env, command, state, message, publicId) {
+  await applyMercenaryTerminal(env, publicId, state);
   const explicitEvidence = state === 'SUCCEEDED' ? explicitBalanceEvidence(command, message) : null;
   if (explicitEvidence) {
     await saveObservedBalance(env, explicitEvidence.nodeCode, explicitEvidence.value, publicId,
@@ -1036,6 +1083,7 @@ async function applyTerminalEffects(env, command, state, message, publicId) {
       "UPDATE account_balances SET balance = MAX(0, balance - ?), source = 'ESTIMATED_TRANSFER', "
       + "evidence_kind = 'ESTIMATED_TRANSFER', confidence = 'DERIVED_FROM_EXPLICIT', "
       + 'source_command_public_id = ?, '
+      + "valid_until = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), "
       + "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE node_code = ?"
     ).bind(value, publicId, command.executor_node_code)];
     if (command.target_node_code) {
@@ -1043,6 +1091,7 @@ async function applyTerminalEffects(env, command, state, message, publicId) {
         "UPDATE account_balances SET balance = balance + ?, source = 'ESTIMATED_TRANSFER', "
         + "evidence_kind = 'ESTIMATED_TRANSFER', confidence = 'DERIVED_FROM_EXPLICIT', "
         + 'source_command_public_id = ?, '
+        + "valid_until = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), "
         + "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE node_code = ?"
       ).bind(value, publicId, command.target_node_code));
     }
@@ -1104,27 +1153,276 @@ async function saveObservedBalance(env, nodeCode, value, publicId, evidenceKind)
 }
 
 function parseBalanceFcfa(message) {
-  const plain = String(message || '').replace(/[\u00a0\u202f]/g, ' ');
-  const amountPattern = "(\\d[\\d .,'’]{0,20})\\s*(?:F\\s*CFA|FCFA|XAF)";
-  const patterns = [
-    new RegExp('(?:available|current|remaining)\\s+balance\\s*(?:(?:is|est)(?:\\s+de)?|[:=])?\\s*'
-      + amountPattern, 'i'),
-    new RegExp('balance\\s+(?:available|disponible)\\s*(?:(?:is|est)(?:\\s+de)?|[:=])?\\s*'
-      + amountPattern, 'i'),
-    new RegExp('(?:votre\\s+)?solde\\s+(?:disponible|actuel|restant)\\s*'
-      + '(?:(?:is|est)(?:\\s+de)?|[:=])?\\s*' + amountPattern, 'i'),
-    new RegExp('(?:votre\\s+)?solde\\s*(?:(?:is|est)(?:\\s+de)?|[:=])\\s*'
-      + amountPattern, 'i'),
-    new RegExp('balance\\s+of\\s+\\d{9}\\s*(?:(?:is|est)(?:\\s+de)?|[:=])\\s*'
-      + amountPattern, 'i')
-  ];
-  const match = patterns.map(pattern => pattern.exec(plain)).find(Boolean);
-  if (!match) return null;
-  const digits = match[1].replace(/\D/g, '');
-  if (!/^\d{1,9}$/.test(digits)) return null;
-  const value = Number(digits);
-  return Number.isSafeInteger(value) && value >= 0 ? value : null;
+  return parseBlueMessage(message).current_balance;
 }
+
+async function recordOperatorMessageApi(env, auth, input, headers) {
+  const message = cleanText(input.message, 2000);
+  if (!message) throw new ApiError('MESSAGE_REQUIRED', 'Message Blue/Camtel requis.', 422);
+  const parsed = await recordParsedOperatorMessage(env, auth.node_code, message, null, null, 'PASSIVE');
+  if (parsed.current_balance != null) {
+    const kind = parsed.kind === 'MINI_STATEMENT' ? 'HISTORY_RESULT' : 'FINANCIAL_RESULT';
+    await saveObservedBalance(env, auth.node_code, parsed.current_balance, null, kind);
+    await refreshWaitingPreflights(env, auth.node_code);
+  }
+  return success({operator_message: publicOperatorMessage(parsed)}, 201, headers);
+}
+
+async function recordParsedOperatorMessage(env, nodeCodeValue, message, publicId, command, commandState) {
+  const parsed = parseBlueMessage(message);
+  const tx = parsed.transaction_id || null;
+  await env.DB.prepare(
+    'INSERT OR IGNORE INTO operator_messages(command_public_id, node_code, message_kind, status, transaction_id, '
+    + 'receipt_number, source_phone, source_node_code, target_phone, target_node_code, amount, current_balance, '
+    + 'account_no, transaction_date, transaction_time, debit_credit, charge_amount, commission_amount, tax_amount, raw_message) '
+    + 'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  ).bind(publicId, nodeCodeValue, parsed.kind, parsed.status, tx, parsed.receipt_number,
+    parsed.source_phone, parsed.source_node, parsed.target_phone, parsed.target_node,
+    parsed.amount_fcfa, parsed.current_balance, parsed.account_no, parsed.transaction_date,
+    parsed.transaction_time, parsed.debit_credit, parsed.charge_amount, parsed.commission_amount,
+    parsed.tax_amount, cleanText(parsed.raw_message, 1800)).run();
+
+  const financial = command && ['DISTRIBUTION_TRANSFER', 'RETAIL_TRANSFER'].includes(command.operation)
+    && ['SUCCEEDED', 'UNKNOWN'].includes(commandState);
+  const unbalanced = financial && parsed.current_balance == null;
+  await env.DB.prepare(
+    'INSERT INTO node_activity_state(node_code, last_activity_at, last_financial_activity_at, '
+    + 'last_unbalanced_activity_at, last_operator_message_at, last_transaction_id, transaction_counter) '
+    + "VALUES(?, strftime('%Y-%m-%dT%H:%M:%fZ','now'), "
+    + "CASE WHEN ? THEN strftime('%Y-%m-%dT%H:%M:%fZ','now') ELSE NULL END, "
+    + "CASE WHEN ? THEN strftime('%Y-%m-%dT%H:%M:%fZ','now') ELSE NULL END, "
+    + "strftime('%Y-%m-%dT%H:%M:%fZ','now'), ?, CASE WHEN ? THEN 1 ELSE 0 END) "
+    + 'ON CONFLICT(node_code) DO UPDATE SET '
+    + "last_activity_at = strftime('%Y-%m-%dT%H:%M:%fZ','now'), "
+    + "last_financial_activity_at = CASE WHEN ? THEN strftime('%Y-%m-%dT%H:%M:%fZ','now') ELSE last_financial_activity_at END, "
+    + "last_unbalanced_activity_at = CASE WHEN ? THEN strftime('%Y-%m-%dT%H:%M:%fZ','now') "
+    + 'WHEN ? IS NOT NULL THEN NULL ELSE last_unbalanced_activity_at END, '
+    + "last_operator_message_at = strftime('%Y-%m-%dT%H:%M:%fZ','now'), "
+    + 'last_transaction_id = CASE WHEN length(?) > 0 THEN ? ELSE last_transaction_id END, '
+    + 'transaction_counter = transaction_counter + CASE WHEN ? THEN 1 ELSE 0 END, '
+    + "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')"
+  ).bind(nodeCodeValue, financial ? 1 : 0, unbalanced ? 1 : 0, tx || '', financial ? 1 : 0,
+    financial ? 1 : 0, unbalanced ? 1 : 0, parsed.current_balance,
+    tx || '', tx || '', financial ? 1 : 0).run();
+  return parsed;
+}
+
+function publicOperatorMessage(parsed) {
+  return {
+    kind: parsed.kind, status: parsed.status, transaction_id: parsed.transaction_id || '',
+    receipt_number: parsed.receipt_number || '', source_phone: parsed.source_phone || '',
+    source_node: parsed.source_node || '', target_phone: parsed.target_phone || '',
+    target_node: parsed.target_node || '', amount_fcfa: parsed.amount_fcfa,
+    current_balance: parsed.current_balance, account_no: parsed.account_no || '',
+    transaction_date: parsed.transaction_date || '', transaction_time: parsed.transaction_time || '',
+    debit_credit: parsed.debit_credit || '', charge_amount: parsed.charge_amount,
+    commission_amount: parsed.commission_amount, tax_amount: parsed.tax_amount
+  };
+}
+
+async function operatorInsights(env, auth, headers) {
+  const rows = await env.DB.prepare(
+    'WITH RECURSIVE network(node_code) AS (SELECT ? UNION ALL '
+    + 'SELECT n.node_code FROM nodes n JOIN network p ON n.parent_node_code = p.node_code WHERE n.active = 1) '
+    + 'SELECT m.node_code, m.message_kind, m.status, m.transaction_id, m.receipt_number, '
+    + 'm.source_phone, m.source_node_code, m.target_phone, m.target_node_code, m.amount, m.current_balance, '
+    + 'm.account_no, m.transaction_date, m.transaction_time, m.debit_credit, m.created_at '
+    + 'FROM operator_messages m JOIN network n ON n.node_code = m.node_code ORDER BY m.id DESC LIMIT 100'
+  ).bind(auth.node_code).all();
+  return success({messages: rows.results || []}, 200, headers);
+}
+
+async function platformSnapshot(env, auth, headers) {
+  const nodes = await env.DB.prepare(
+    'WITH RECURSIVE network(node_code) AS (SELECT ? UNION ALL '
+    + 'SELECT n.node_code FROM nodes n JOIN network p ON n.parent_node_code = p.node_code WHERE n.active = 1) '
+    + 'SELECT n.node_code, n.role, n.phone_number, n.parent_node_code, b.balance, b.observed_at, '
+    + 's.terminal_type, s.display_name, s.zone, a.last_activity_at, a.last_financial_activity_at '
+    + 'FROM network x JOIN nodes n ON n.node_code=x.node_code '
+    + 'LEFT JOIN account_balances b ON b.node_code=n.node_code '
+    + 'LEFT JOIN shadow_accounts s ON s.node_code=n.node_code '
+    + 'LEFT JOIN node_activity_state a ON a.node_code=n.node_code ORDER BY n.role,n.node_code'
+  ).bind(auth.node_code).all();
+  const debts = await env.DB.prepare(
+    "SELECT id, debtor_node_code, amount_advanced, amount_repaid, due_date, note, state, updated_at "
+    + "FROM debts WHERE owner_node_code = ? AND state <> 'CANCELLED' ORDER BY id DESC LIMIT 100"
+  ).bind(auth.node_code).all();
+  let mercenary = {count: 0, virtual_balance: 0, commission_balance: 0};
+  if (auth.role === 'DAE') {
+    const row = await env.DB.prepare(
+      'SELECT COUNT(*) AS count, COALESCE(SUM(virtual_balance),0) AS virtual_balance, '
+      + 'COALESCE(SUM(commission_balance),0) AS commission_balance FROM mercenary_accounts '
+      + 'WHERE owner_dae_node_code = ? AND active=1'
+    ).bind(auth.node_code).first();
+    if (row) mercenary = row;
+  }
+  return success({nodes: nodes.results || [], debts: debts.results || [], mercenary}, 200, headers);
+}
+
+async function shadowEnroll(env, auth, input, headers) {
+  if (!['DAE','DSM'].includes(auth.role)) throw new ApiError('REQUEST_NOT_ALLOWED', 'Seul un DAE/DSM peut pré-enrôler un enfant.', 403);
+  const childRole = auth.role === 'DAE' ? 'DSM' : 'POS';
+  const desired = nodeCode(input.node_code);
+  const p = phone(input.phone_number);
+  const displayName = cleanText(input.display_name, 120);
+  const zone = cleanText(input.zone, 120);
+  const existing = await env.DB.prepare('SELECT node_code, role, phone_number, parent_node_code FROM nodes WHERE node_code=? OR phone_number=? LIMIT 1')
+    .bind(desired, p).first();
+  if (existing && (existing.node_code !== desired || existing.phone_number !== p || existing.role !== childRole
+      || String(existing.parent_node_code || '') !== auth.node_code)) {
+    throw new ApiError('IDENTITY_CONFLICT', 'Ce numéro ou identifiant appartient déjà à une autre identité.', 409);
+  }
+  if (!existing) {
+    await env.DB.prepare('INSERT INTO nodes(node_code, role, phone_number, parent_node_code) VALUES(?,?,?,?)')
+      .bind(desired, childRole, p, auth.node_code).run();
+  }
+  await env.DB.prepare(
+    "INSERT INTO shadow_accounts(node_code, created_by_node_code, terminal_type, display_name, zone) "
+    + "VALUES(?, ?, 'TCHORONKO_SHADOW', ?, ?) ON CONFLICT(node_code) DO UPDATE SET "
+    + "display_name=excluded.display_name, zone=excluded.zone, updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now')"
+  ).bind(desired, auth.node_code, displayName, zone).run();
+  return success({shadow:{node_code:desired, role:childRole, phone_number:p, terminal_type:'TCHORONKO_SHADOW'}}, 201, headers);
+}
+
+async function debtSave(env, auth, input, headers) {
+  if (!['DAE','DSM'].includes(auth.role)) throw new ApiError('REQUEST_NOT_ALLOWED', 'Ce rôle ne gère pas de créances enfant.', 403);
+  const debtor = await resolveDescendant(env, auth.node_code, input.debtor_node_code, auth.role === 'DAE' ? ['DSM','POS'] : ['POS']);
+  if (!debtor) throw new ApiError('DEBTOR_NOT_FOUND', 'Débiteur absent de votre flotte.', 422);
+  const advanced = amount(input.amount_advanced);
+  const repaid = input.amount_repaid == null || input.amount_repaid === '' ? 0 : Math.max(0, Number(input.amount_repaid));
+  if (!Number.isInteger(repaid) || repaid > advanced) throw new ApiError('INVALID_REPAID', 'Remboursement invalide.', 422);
+  const id = Number(input.id || 0);
+  if (id > 0) {
+    await env.DB.prepare(
+      "UPDATE debts SET amount_advanced=?, amount_repaid=?, due_date=?, note=?, state=?, "
+      + "updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=? AND owner_node_code=? AND debtor_node_code=?"
+    ).bind(advanced, repaid, cleanText(input.due_date, 40) || null, cleanText(input.note, 300),
+      repaid >= advanced ? 'PAID' : 'OPEN', id, auth.node_code, debtor.node_code).run();
+  } else {
+    await env.DB.prepare('INSERT INTO debts(owner_node_code, debtor_node_code, amount_advanced, amount_repaid, due_date, note, state) VALUES(?,?,?,?,?,?,?)')
+      .bind(auth.node_code, debtor.node_code, advanced, repaid, cleanText(input.due_date, 40) || null,
+        cleanText(input.note, 300), repaid >= advanced ? 'PAID' : 'OPEN').run();
+  }
+  return await debtList(env, auth, headers);
+}
+
+async function debtList(env, auth, headers) {
+  const rows = await env.DB.prepare(
+    "SELECT id, debtor_node_code, amount_advanced, amount_repaid, "
+    + '(amount_advanced-amount_repaid) AS remaining, due_date, note, state, updated_at '
+    + "FROM debts WHERE owner_node_code=? AND state<>'CANCELLED' ORDER BY id DESC LIMIT 200"
+  ).bind(auth.node_code).all();
+  return success({debts: rows.results || []}, 200, headers);
+}
+
+async function kycSave(env, auth, input, headers) {
+  const lat = input.latitude === '' || input.latitude == null ? null : Number(input.latitude);
+  const lon = input.longitude === '' || input.longitude == null ? null : Number(input.longitude);
+  if (lat != null && (!Number.isFinite(lat) || lat < -90 || lat > 90)) throw new ApiError('INVALID_LATITUDE','Latitude invalide.',422);
+  if (lon != null && (!Number.isFinite(lon) || lon < -180 || lon > 180)) throw new ApiError('INVALID_LONGITUDE','Longitude invalide.',422);
+  await env.DB.prepare(
+    'INSERT INTO kyc_profiles(node_code,legal_name,id_document_number,document_reference,latitude,longitude,zone) '
+    + 'VALUES(?,?,?,?,?,?,?) ON CONFLICT(node_code) DO UPDATE SET legal_name=excluded.legal_name, '
+    + 'id_document_number=excluded.id_document_number, document_reference=excluded.document_reference, '
+    + 'latitude=excluded.latitude, longitude=excluded.longitude, zone=excluded.zone, '
+    + "updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now')"
+  ).bind(auth.node_code, cleanText(input.legal_name,160), cleanText(input.id_document_number,100),
+    cleanText(input.document_reference,200), lat, lon, cleanText(input.zone,120)).run();
+  const row = await env.DB.prepare('SELECT * FROM kyc_profiles WHERE node_code=?').bind(auth.node_code).first();
+  return success({kyc:row},200,headers);
+}
+
+async function mercenarySave(env, auth, input, headers) {
+  if (auth.role !== 'DAE') throw new ApiError('REQUEST_NOT_ALLOWED','Hub Mercenaires réservé au DAE.',403);
+  const p = phone(input.phone_number);
+  const name = cleanText(input.display_name,120);
+  if (!name) throw new ApiError('NAME_REQUIRED','Nom du mercenaire requis.',422);
+  const posCode = String(input.dedicated_pos_node_code || '').trim().toUpperCase();
+  let pos = null;
+  if (posCode) {
+    pos = await resolveDescendant(env, auth.node_code, posCode, ['POS']);
+    if (!pos) throw new ApiError('POS_NOT_FOUND','La SIM PoS centrale doit appartenir à votre flotte.',422);
+  }
+  const deposit = input.deposit_amount == null || input.deposit_amount === '' ? 0 : Number(input.deposit_amount);
+  if (!Number.isInteger(deposit) || deposit < 0) throw new ApiError('INVALID_DEPOSIT','Dépôt virtuel invalide.',422);
+  let row = await env.DB.prepare('SELECT * FROM mercenary_accounts WHERE owner_dae_node_code=? AND phone_number=?').bind(auth.node_code,p).first();
+  if (!row) {
+    const result = await env.DB.prepare('INSERT INTO mercenary_accounts(owner_dae_node_code,display_name,phone_number,dedicated_pos_node_code,virtual_balance) VALUES(?,?,?,?,?)')
+      .bind(auth.node_code,name,p,pos?.node_code || null,deposit).run();
+    row = await env.DB.prepare('SELECT * FROM mercenary_accounts WHERE id=?').bind(result.meta.last_row_id).first();
+    if (deposit > 0) await env.DB.prepare("INSERT INTO mercenary_ledger(mercenary_id,kind,amount,note) VALUES(?,'DEPOSIT',?,'Dépôt initial')").bind(row.id,deposit).run();
+  } else {
+    await env.DB.prepare(
+      "UPDATE mercenary_accounts SET display_name=?, dedicated_pos_node_code=?, virtual_balance=virtual_balance+?, "
+      + "updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=? AND owner_dae_node_code=?"
+    ).bind(name,pos?.node_code || row.dedicated_pos_node_code || null,deposit,row.id,auth.node_code).run();
+    if (deposit > 0) await env.DB.prepare("INSERT INTO mercenary_ledger(mercenary_id,kind,amount,note) VALUES(?,'DEPOSIT',?,'Dépôt complémentaire')").bind(row.id,deposit).run();
+    row = await env.DB.prepare('SELECT * FROM mercenary_accounts WHERE id=?').bind(row.id).first();
+  }
+  return success({mercenary:row},201,headers);
+}
+
+async function mercenaryList(env, auth, headers) {
+  if (auth.role !== 'DAE') throw new ApiError('REQUEST_NOT_ALLOWED','Hub Mercenaires réservé au DAE.',403);
+  const rows = await env.DB.prepare('SELECT * FROM mercenary_accounts WHERE owner_dae_node_code=? ORDER BY id DESC').bind(auth.node_code).all();
+  return success({mercenaries:rows.results || []},200,headers);
+}
+
+async function mercenarySale(env, auth, input, headers) {
+  if (auth.role !== 'DAE') throw new ApiError('REQUEST_NOT_ALLOWED','Hub Mercenaires réservé au DAE.',403);
+  const mercenaryId = Number(input.mercenary_id || 0);
+  const targetPhone = phone(input.client_phone);
+  const value = amount(input.amount);
+  const clientId = String(input.client_request_id || '').trim();
+  if (!/^[A-Za-z0-9_-]{16,80}$/.test(clientId)) throw new ApiError('INVALID_REQUEST_ID','Clé anti-doublon invalide.',422);
+  if (input.confirmed !== true) throw new ApiError('CONFIRMATION_REQUIRED','Confirmez le mercenaire, le client et le montant.',409);
+  const account = await env.DB.prepare('SELECT * FROM mercenary_accounts WHERE id=? AND owner_dae_node_code=? AND active=1').bind(mercenaryId,auth.node_code).first();
+  if (!account || !account.dedicated_pos_node_code) throw new ApiError('MERCENARY_NOT_READY','Compte ou SIM PoS centrale non configuré.',409);
+  const pos = await resolveDescendant(env, auth.node_code, account.dedicated_pos_node_code, ['POS']);
+  if (!pos) throw new ApiError('POS_NOT_FOUND','SIM PoS centrale absente de votre flotte.',409);
+  const commission = Math.floor(value * 75 / 1000);
+  const debit = value - commission;
+  if (Number(account.virtual_balance) < debit) throw new ApiError('VIRTUAL_BALANCE_INSUFFICIENT',`Solde virtuel disponible : ${account.virtual_balance} FCFA.`,409);
+  const physical = await effectiveAvailableBalance(env, pos.node_code, true);
+  if (!physical) throw new ApiError('PHYSICAL_BALANCE_REQUIRED','Le solde de la SIM PoS centrale doit être rafraîchi avant cette vente.',409);
+  if (physical.available < value) throw new ApiError('PHYSICAL_BALANCE_INSUFFICIENT',`Stock PoS disponible : ${physical.available} FCFA.`,409);
+  const duplicate = await env.DB.prepare('SELECT public_id,state FROM commands WHERE requester_node_code=? AND client_request_id=?').bind(auth.node_code,clientId).first();
+  if (duplicate) return success({command:duplicate,duplicate:true},200,headers);
+  const publicId = crypto.randomUUID();
+  const statements = [
+    env.DB.prepare(
+      'INSERT INTO commands(public_id,client_request_id,requester_node_code,executor_node_code,target_node_code,operation,target_phone,amount,ussd_code,requires_pin) '
+      + "SELECT ?,?,?,?,?, 'RETAIL_TRANSFER',?,?,?,1 WHERE EXISTS(SELECT 1 FROM mercenary_accounts WHERE id=? AND owner_dae_node_code=? AND active=1 AND virtual_balance>=?)"
+    ).bind(publicId,clientId,auth.node_code,pos.node_code,null,targetPhone,value,`*550*1*${targetPhone}*${value}#`,mercenaryId,auth.node_code,debit),
+    env.DB.prepare("INSERT INTO command_events(command_id,device_id,state,message) SELECT id,?,'PENDING','Vente Mercenaire confirmée.' FROM commands WHERE public_id=?").bind(auth.device_id,publicId),
+    env.DB.prepare("UPDATE mercenary_accounts SET virtual_balance=virtual_balance-?, commission_balance=commission_balance+?, updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=? AND EXISTS(SELECT 1 FROM commands WHERE public_id=?)").bind(debit,commission,mercenaryId,publicId),
+    env.DB.prepare("INSERT INTO mercenary_sales(mercenary_id,command_public_id,client_phone,amount,debit_amount,commission_amount) SELECT ?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM commands WHERE public_id=?)").bind(mercenaryId,publicId,targetPhone,value,debit,commission,publicId),
+    env.DB.prepare("INSERT INTO mercenary_ledger(mercenary_id,kind,amount,command_public_id,note) SELECT ?,'SALE_DEBIT',?,?,? WHERE EXISTS(SELECT 1 FROM commands WHERE public_id=?)").bind(mercenaryId,debit,publicId,'Débit net après commission 7,5 %',publicId),
+    env.DB.prepare("INSERT INTO mercenary_ledger(mercenary_id,kind,amount,command_public_id,note) SELECT ?,'COMMISSION',?,?,? WHERE EXISTS(SELECT 1 FROM commands WHERE public_id=?)").bind(mercenaryId,commission,publicId,'Commission 7,5 %',publicId)
+  ];
+  const results = await env.DB.batch(statements);
+  if (!results[0].meta?.changes) throw new ApiError('MERCENARY_RACE','Le solde virtuel a changé; recommencez.',409);
+  return success({command:{public_id:publicId,state:'PENDING',executor_node_code:pos.node_code,target_phone:targetPhone,amount:value},commission_fcfa:commission,debit_fcfa:debit,duplicate:false},201,headers);
+}
+
+async function applyMercenaryTerminal(env, publicId, state) {
+  const sale = await env.DB.prepare('SELECT * FROM mercenary_sales WHERE command_public_id=?').bind(publicId).first();
+  if (!sale) return;
+  if (state === 'SUCCEEDED') {
+    await env.DB.prepare("UPDATE mercenary_sales SET state='SUCCEEDED',updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?").bind(sale.id).run();
+    return;
+  }
+  if (['FAILED','CANCELLED','BLOCKED'].includes(state) && !['REFUNDED','SUCCEEDED'].includes(sale.state)) {
+    await env.DB.batch([
+      env.DB.prepare("UPDATE mercenary_accounts SET virtual_balance=virtual_balance+?, commission_balance=MAX(0,commission_balance-?),updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?").bind(sale.debit_amount,sale.commission_amount,sale.mercenary_id),
+      env.DB.prepare("UPDATE mercenary_sales SET state='REFUNDED',updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?").bind(sale.id),
+      env.DB.prepare("INSERT INTO mercenary_ledger(mercenary_id,kind,amount,command_public_id,note) VALUES(?,'REFUND',?,?,'Commande non exécutée; solde virtuel restauré')").bind(sale.mercenary_id,sale.debit_amount,publicId)
+    ]);
+  } else if (state === 'UNKNOWN') {
+    await env.DB.prepare("UPDATE mercenary_sales SET state='VERIFY',updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?").bind(sale.id).run();
+  }
+}
+
 
 async function networkDashboard(env, auth, headers) {
   const nodes = await env.DB.prepare(

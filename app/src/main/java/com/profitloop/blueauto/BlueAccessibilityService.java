@@ -85,9 +85,10 @@ public class BlueAccessibilityService extends AccessibilityService {
                 ? trustedUssdResult(roots, operation) : "";
         String resultVisible = trustedResult;
         String resultNormalized = normalize(trustedResult);
+        BlueMessageParser.Result parsedBlue = BlueMessageParser.parse(trustedResult);
 
         if (System.currentTimeMillis() - lastResultAt >= 800L) {
-            if (containsAny(resultNormalized,
+            if (parsedBlue.wrongPin || containsAny(resultNormalized,
                     "wrong pin code", "pin incorrect", "code pin incorrect", "code errone")) {
                 lastResultAt = System.currentTimeMillis();
                 AppConfig.setPinBlocked(this, profileId, true);
@@ -98,8 +99,8 @@ public class BlueAccessibilityService extends AccessibilityService {
                 return;
             }
 
-            if (containsAny(resultNormalized, "processed successfully", "request is processed successfully",
-                    "successfully transferred", "transfer successfully", "you transfer")
+            if ((parsedBlue.terminalSuccess() || (!parsedBlue.processing && containsAny(resultNormalized, "processed successfully",
+                    "successfully transferred", "transfer successfully", "you transfer")))
                     && resultBelongsToVerifiedSession(command)) {
                 lastResultAt = System.currentTimeMillis();
                 RobotService.operatorResult(this, profileId, true, "",
@@ -109,8 +110,8 @@ public class BlueAccessibilityService extends AccessibilityService {
                 return;
             }
 
-            if (containsAny(resultNormalized, "insufficient", "not enough", "transaction failed", "request failed",
-                    "operator is frozen", "operator is suspended", "invalid amount", "echec")
+            if ((parsedBlue.terminalFailure() || containsAny(resultNormalized, "insufficient", "not enough", "transaction failed", "request failed",
+                    "operator is frozen", "operator is suspended", "invalid amount", "echec"))
                     && resultBelongsToVerifiedSession(command)) {
                 lastResultAt = System.currentTimeMillis();
                 RobotService.operatorResult(this, profileId, false, "OPERATOR_REJECTED",

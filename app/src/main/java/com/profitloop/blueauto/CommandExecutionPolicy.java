@@ -26,7 +26,9 @@ final class CommandExecutionPolicy {
                 || "SUSPEND_CHILD".equals(operation)
                 || "REACTIVATE_CHILD".equals(operation)
                 || "FREEZE_CHILD".equals(operation)
-                || "REACTIVATE_FROZEN_CHILD".equals(operation);
+                || "REACTIVATE_FROZEN_CHILD".equals(operation)
+                || "RESET_PIN_SELF".equals(operation)
+                || "MODIFY_PIN_LOCAL".equals(operation);
     }
 
     static Capability capability(String operation, boolean hasEncryptedPin,

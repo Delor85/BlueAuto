@@ -92,6 +92,18 @@ final class UssdCommandFactory {
                 requireNoTransferParameters(phone, amount, targetNode);
                 built = "*550*3*3*" + localPin(context, profileId) + "#";
                 break;
+            case "RESET_PIN_SELF":
+                built = "*550*5*1#";
+                break;
+            case "MODIFY_PIN_LOCAL": {
+                String oldPin = SecurePinStore.read(context, profileId);
+                String newPin = PendingPinChangeStore.read(context, profileId);
+                if (!oldPin.matches("\\d{4}") || !newPin.matches("\\d{4}")) {
+                    throw new SecurityException("PIN ancien/nouveau local absent pour la modification Camtel.");
+                }
+                built = "*550*3*5*" + newPin + "*" + newPin + "*" + oldPin + "#";
+                break;
+            }
             case "TRANSACTION_DETAIL":
                 requireNoTransferParameters(phone, amount, targetNode);
                 if (!argument.matches("[A-Za-z0-9_-]{6,64}")) {
@@ -174,6 +186,9 @@ final class UssdCommandFactory {
 
     static String operation(JSONObject command) {
         String kind = command == null ? "" : command.optString("command_kind", "");
+        String argument = command == null ? "" : command.optString("command_argument", "").trim().toUpperCase(Locale.ROOT);
+        if ("TRANSACTION_DETAIL".equals(kind) && "BM_RESET_PIN_SELF".equals(argument)) return "RESET_PIN_SELF";
+        if ("TRANSACTION_DETAIL".equals(kind) && "BM_MODIFY_PIN_LOCAL".equals(argument)) return "MODIFY_PIN_LOCAL";
         return kind.isEmpty() ? (command == null ? "" : command.optString("operation", "")) : kind;
     }
 
