@@ -491,8 +491,7 @@ public class MainActivity extends Activity {
         TextView intro = help(AppConfig.nodeCode(this) + " • "
                 + AppConfig.displayMode(AppConfig.mode(this))
                 + " • SIM " + (AppConfig.simSlot(this) + 1)
-                + "
-Actions regroupées pour rester lisibles même sur les petits téléphones.");
+                + "\nActions regroupées pour rester lisibles même sur les petits téléphones.");
         intro.setTextColor(CYAN);
         intro.setPadding(dp(2), 0, dp(2), dp(4));
         tools.addView(intro);
