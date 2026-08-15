@@ -59,4 +59,4 @@ jobs:
           git commit -m "perf: streamline transaction forms for v2.6.8"
           git push origin HEAD:fix/blue-magic-v2-6-recovery
 
-# Development/test only. No production Worker, D1 migration or permanent APK publication. Repeat-sale test now re-enters cleared fields explicitly.
+# Development/test only. No production Worker, D1 migration or permanent APK publication. Direct commands must complete their creation callback before the next action.
