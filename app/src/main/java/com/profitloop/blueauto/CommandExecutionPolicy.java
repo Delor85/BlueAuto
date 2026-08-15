@@ -1,12 +1,12 @@
 package com.profitloop.blueauto;
 
 /**
- * Keeps routing safety separate from financial confirmation requirements.
- *
- * A TEST_NUMBER command must be allowed as soon as the selected physical SIM and its exact call
- * route are ready. A financial command or a Camtel consultation that embeds the local PIN also
- * requires the encrypted PIN, accessibility and an unblocked state. Mixing those levels was the
- * v2.5 regression that disabled every command when only a protected prerequisite was missing.
+ * Separates three independent requirements:
+ *  - TEST_NUMBER needs only a verified SIM route;
+ *  - Camtel consultations/maintenance whose full dial string already embeds the locally encrypted
+ *    PIN need that PIN, but do not need Accessibility merely to compose the call;
+ *  - financial transfers keep the stricter Accessibility requirement because their PIN is injected
+ *    only after the Camtel confirmation dialog has been verified.
  */
 final class CommandExecutionPolicy {
     private CommandExecutionPolicy() {}
@@ -16,8 +16,9 @@ final class CommandExecutionPolicy {
                 || "RETAIL_TRANSFER".equals(operation);
     }
 
-    static boolean needsProtectedRobot(String operation) {
-        return isFinancial(operation) || "BALANCE_OWN".equals(operation)
+    static boolean needsStoredPin(String operation) {
+        return isFinancial(operation)
+                || "BALANCE_OWN".equals(operation)
                 || "HISTORY_LAST5".equals(operation)
                 || "TRANSACTION_DETAIL".equals(operation)
                 || "BALANCE_CHILD".equals(operation)
@@ -27,24 +28,31 @@ final class CommandExecutionPolicy {
                 || "REACTIVATE_CHILD".equals(operation)
                 || "FREEZE_CHILD".equals(operation)
                 || "REACTIVATE_FROZEN_CHILD".equals(operation)
-                || "RESET_PIN_SELF".equals(operation)
                 || "MODIFY_PIN_LOCAL".equals(operation);
+    }
+
+    static boolean needsAccessibility(String operation) {
+        return isFinancial(operation);
+    }
+
+    static boolean needsProtectedRobot(String operation) {
+        return needsStoredPin(operation);
     }
 
     static Capability capability(String operation, boolean hasEncryptedPin,
                                  boolean accessibilityEnabled, boolean pinBlocked) {
-        if (!needsProtectedRobot(operation)) return Capability.ready();
+        if (!needsStoredPin(operation)) return Capability.ready();
         if (pinBlocked) {
             return Capability.failure("PIN_BLOCKED",
-                    "Le PIN est bloqué après un refus opérateur. Corrigez-le avant une opération protégée.");
+                    "Le PIN Camtel est bloqué. Corrigez-le avant cette commande protégée.");
         }
         if (!hasEncryptedPin) {
             return Capability.failure("PIN_NOT_CONFIGURED",
-                    "Aucun PIN Camtel chiffré n’est enregistré pour cette commande protégée.");
+                    "Aucun PIN Camtel chiffré n’est enregistré pour cette commande.");
         }
-        if (!accessibilityEnabled) {
+        if (needsAccessibility(operation) && !accessibilityEnabled) {
             return Capability.failure("ACCESSIBILITY_DISABLED",
-                    "Activez l’Accessibilité Blue Magic avant une opération financière.");
+                    "Activez l’Accessibilité Blue Magic avant un achat ou une vente.");
         }
         return Capability.ready();
     }
