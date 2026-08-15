@@ -2,11 +2,15 @@ from pathlib import Path
 
 path = Path('cloudflare/src/index.js')
 s = path.read_text()
-old = "    + '(a.last_unbalanced_activity_at IS NULL OR a.last_unbalanced_activity_at <= b.observed_at)) '\n"
-new = "    + 'AND (a.last_unbalanced_activity_at IS NULL OR a.last_unbalanced_activity_at <= b.observed_at)) '\n"
-if s.count(old) < 2:
-    raise SystemExit(f'expected FIFO and audit activity predicates, found {s.count(old)}')
-s = s.replace(old, new, 2)
+fifo_old = "    + '(a.last_unbalanced_activity_at IS NULL OR a.last_unbalanced_activity_at <= b.observed_at)) '\n"
+fifo_new = "    + 'AND (a.last_unbalanced_activity_at IS NULL OR a.last_unbalanced_activity_at <= b.observed_at)) '\n"
+audit_old = "    + '(a.last_unbalanced_activity_at IS NULL OR a.last_unbalanced_activity_at <= b.observed_at)'\n"
+audit_new = "    + 'AND (a.last_unbalanced_activity_at IS NULL OR a.last_unbalanced_activity_at <= b.observed_at)'\n"
+if fifo_old not in s:
+    raise SystemExit('FIFO activity predicate anchor missing')
+if audit_old not in s:
+    raise SystemExit('Bottom-Up freshness predicate anchor missing')
+s = s.replace(fifo_old, fifo_new, 1).replace(audit_old, audit_new, 1)
 
 old_msg = "    + \"|| (snapshot.available - request.amount) || ' FCFA.' ELSE \"\n    + \"'Les demandes arrivées avant sont prioritaires. Solde encore disponible du supérieur : ' \"\n    + \"|| snapshot.available || ' FCFA.' END, \"\n"
 new_msg = "    + \"|| CAST((snapshot.available - request.amount) AS INTEGER) || ' FCFA.' ELSE \"\n    + \"'Les demandes arrivées avant sont prioritaires. Solde encore disponible du supérieur : ' \"\n    + \"|| CAST(snapshot.available AS INTEGER) || ' FCFA.' END, \"\n"
