@@ -140,10 +140,11 @@ jobs:
           grep -q "mercenary_sale" cloudflare/src/index.js
           grep -q "CurrentBalance" cloudflare/test/blue-message-intelligence.mjs
 
-      - name: Commit tested platform and remove staging machinery
+      - name: Commit tested platform without workflow mutations
         run: |
           set -euo pipefail
-          rm -f scripts/v267_complete_platform.py.gz.b64.part* .github/workflows/v267-complete-platform.yml
+          git checkout -- .github/authorized-v267-production.trigger .github/workflows/deploy-cloudflare.yml .github/workflows/v267-complete-platform.yml
+          rm -f scripts/v267_complete_platform.py.gz.b64.part*
           git config user.name "Blue Magic Release Bot"
           git config user.email "actions@users.noreply.github.com"
           git add -A
