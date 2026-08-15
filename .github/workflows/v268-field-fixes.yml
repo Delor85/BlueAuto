@@ -17,14 +17,18 @@ jobs:
         with:
           ref: fix/blue-magic-v2-6-recovery
           fetch-depth: 0
-      - name: Repair integration fixture and apply bounded v2.6.8 field fixes
+      - name: Restore full v2.6.7 integration suite and add 0005 only to Miniflare
         run: |
+          git show 2dc2f435c078cf1b8612261f8c9210bc48e54645:cloudflare/test/integration.mjs > cloudflare/test/integration.mjs
           python3 - <<'PY'
           from pathlib import Path
           p=Path('cloudflare/test/integration.mjs')
           s=p.read_text()
-          s=s.replace("if (token) headers.authorization = `Bearer ${token}`;", "if (token) headers['X-Device-Token'] = token;")
-          p.write_text(s)
+          old="'0003_balance_preflight_and_modules.sql', '0004_blue_message_intelligence_and_modules.sql']"
+          new="'0003_balance_preflight_and_modules.sql', '0004_blue_message_intelligence_and_modules.sql',\n    '0005_commission_policies_and_financial_quotes.sql']"
+          if old not in s:
+              raise SystemExit('migration fixture anchor missing')
+          p.write_text(s.replace(old,new,1))
           PY
           python3 .github/scripts/v268_field_patch.py
       - name: Test Worker and Android web contracts
