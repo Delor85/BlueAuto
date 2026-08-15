@@ -28,4 +28,18 @@ const callsBeforeCancel = bridgeCalls.length;
 actions.find(item => item.action === 'retail-sale').onclick();"""
 if old not in t:
     raise SystemExit('repeat sale test anchor missing')
+t = t.replace(old, new, 1)
+
+# Direct commands also have an asynchronous native/server creation callback. The old test called
+# the next disabled action without acknowledging TEST_NUMBER, which is impossible through the real UI.
+old = """assert.equal(bridgeCalls.filter(call => call[0] === 'preview').length, previewsBeforeTest);
+
+elements.get('requestSupplyAmount').value = '700';"""
+new = """assert.equal(bridgeCalls.filter(call => call[0] === 'preview').length, previewsBeforeTest);
+window.BlueMagicNative.onCommandCreated({command: {public_id: 'test-number-command-01', state: 'PENDING', operation: 'TEST_NUMBER'}});
+assert.equal(actions.every(item => !item.disabled), true);
+
+elements.get('requestSupplyAmount').value = '700';"""
+if old not in t:
+    raise SystemExit('direct command callback test anchor missing')
 p.write_text(t.replace(old, new, 1))
