@@ -47,7 +47,7 @@ jobs:
           set -euo pipefail
           git config user.name "Delor85"
           git config user.email "mbolodelorpro@gmail.com"
-          git add app/src/main/java/com/profitloop/blueauto/MainActivity.java
+          git add -A app/src/main/java/com/profitloop/blueauto
           git diff --cached --check
           git commit -m "fix: compile responsive management in v2.6.8"
           git push origin HEAD:fix/blue-magic-v2-6-recovery
