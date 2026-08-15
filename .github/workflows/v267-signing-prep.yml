@@ -1,0 +1,69 @@
+name: Blue Magic v2.6.7 offline signing preparation
+
+on:
+  push:
+    branches: [fix/blue-magic-v2-6-recovery]
+    paths: [.github/workflows/v267-signing-prep.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  prepare-unsigned-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact authorized source
+        uses: actions/checkout@v5
+        with:
+          ref: 2dc2f435c078cf1b8612261f8c9210bc48e54645
+
+      - name: Install Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Gradle 8.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+
+      - name: Build validated Release with disposable signing only
+        run: |
+          set -euo pipefail
+          mkdir -p .pilot-signing
+          openssl rand -hex 32 > .pilot-signing/keystore.password
+          p="$(tr -d '\r\n' < .pilot-signing/keystore.password)"
+          echo "::add-mask::$p"
+          export BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD="$p"
+          keytool -genkeypair -keystore .pilot-signing/debug.keystore -storepass "$p" \
+            -alias androiddebugkey -keypass "$p" -dname "CN=Disposable Build,O=Blue Magic,C=CM" \
+            -keyalg RSA -keysize 2048 -validity 2 -noprompt
+          node app/src/test/finance-flow.mjs
+          gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
+
+      - name: Remove disposable APK signatures and bundle official Android tools
+        run: |
+          set -euo pipefail
+          apk=app/build/outputs/apk/release/app-release.apk
+          work=/tmp/v267-signing-prep
+          mkdir -p "$work/tools/lib"
+          cp "$apk" "$work/Blue-Magic-v2.6.7-unsigned-source.apk"
+          zip -qd "$work/Blue-Magic-v2.6.7-unsigned-source.apk" 'META-INF/*' || true
+          build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          cp "$build_tools/zipalign" "$work/tools/zipalign"
+          cp "$build_tools/apksigner" "$work/tools/apksigner"
+          cp "$build_tools/aapt" "$work/tools/aapt"
+          cp "$build_tools/lib/apksigner.jar" "$work/tools/lib/apksigner.jar"
+          "$work/tools/zipalign" -f 4 "$work/Blue-Magic-v2.6.7-unsigned-source.apk" "$work/Blue-Magic-v2.6.7-unsigned-aligned.apk"
+          rm "$work/Blue-Magic-v2.6.7-unsigned-source.apk"
+          sha256sum "$work/Blue-Magic-v2.6.7-unsigned-aligned.apk"
+
+      - name: Upload unsigned exact APK and official signing tools
+        uses: actions/upload-artifact@v4
+        with:
+          name: Blue-Magic-v267-offline-signing-prep
+          path: /tmp/v267-signing-prep
+          if-no-files-found: error
+          retention-days: 2
