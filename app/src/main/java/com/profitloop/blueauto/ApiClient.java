@@ -68,11 +68,11 @@ final class ApiClient {
         payload.put("sim_verified", sim.valid);
         payload.put("sim_fingerprint", sim.attestation());
         payload.put("sim_slot", Math.max(0, AppConfig.simSlot(context, targetProfile)));
-        return post("heartbeat", payload, true);
+        return postControl("heartbeat", payload, true);
     }
 
     JSONObject leaseCommand() throws Exception {
-        return post("lease_command", new JSONObject(), true);
+        return postControl("lease_command", new JSONObject(), true);
     }
 
     JSONObject releaseCommand(JSONObject command, String reason) throws Exception {
@@ -150,13 +150,13 @@ final class ApiClient {
     }
 
     JSONObject dashboard() throws Exception {
-        return post("network_dashboard", new JSONObject(), true);
+        return postControl("network_dashboard", new JSONObject(), true);
     }
 
     JSONObject commandStatus(String publicId) throws Exception {
         JSONObject payload = new JSONObject();
         payload.put("command_id", publicId);
-        return post("command_status", payload, true);
+        return postControl("command_status", payload, true);
     }
 
     JSONObject cancelCommand(String publicId) throws Exception {
@@ -176,17 +176,30 @@ final class ApiClient {
     }
 
     private JSONObject post(String action, JSONObject payload, boolean authenticated) throws Exception {
-        return post(action, payload, authenticated, true);
+        return post(action, payload, authenticated, true, 12_000, 18_000);
+    }
+
+    private JSONObject postControl(String action, JSONObject payload, boolean authenticated) throws Exception {
+        // Retry-safe control-plane calls never dial USSD or mutate financial stock. Shorter timeouts
+        // prevent one weak profile/network route from starving the other SIM queues on this phone.
+        return post(action, payload, authenticated, true, 7_000, 10_000);
     }
 
     private JSONObject post(String action, JSONObject payload, boolean authenticated,
                             boolean allowAuthenticationRepair) throws Exception {
+        return post(action, payload, authenticated, allowAuthenticationRepair, 12_000, 18_000);
+    }
+
+    private JSONObject post(String action, JSONObject payload, boolean authenticated,
+                            boolean allowAuthenticationRepair, int connectTimeoutMs,
+                            int readTimeoutMs) throws Exception {
         String baseUrl = endpointOverride.isEmpty() ? AppConfig.apiUrl(context) : endpointOverride;
         String endpoint = baseUrl + "?action="
                 + URLEncoder.encode(action, "UTF-8");
         HttpURLConnection connection = (HttpURLConnection) new URL(endpoint).openConnection();
-        connection.setConnectTimeout(12_000);
-        connection.setReadTimeout(18_000);
+        connection.setConnectTimeout(connectTimeoutMs);
+        connection.setReadTimeout(readTimeoutMs);
+        connection.setUseCaches(false);
         connection.setRequestMethod("POST");
         connection.setRequestProperty("Accept", "application/json");
         connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
@@ -207,43 +220,47 @@ final class ApiClient {
             connection.setRequestProperty("X-Device-Token", requestToken);
         }
 
-        connection.setDoOutput(true);
-        byte[] body = payload.toString().getBytes(StandardCharsets.UTF_8);
-        connection.setFixedLengthStreamingMode(body.length);
-        try (OutputStream output = connection.getOutputStream()) {
-            output.write(body);
-        }
-
-        int status = connection.getResponseCode();
-        InputStream stream = status >= 200 && status < 400
-                ? connection.getInputStream()
-                : connection.getErrorStream();
-        String response = read(stream);
-        connection.disconnect();
-
-        if (response.trim().isEmpty()) {
-            throw new ApiException("EMPTY_RESPONSE", "Réponse vide du serveur (HTTP " + status + ").");
-        }
-
-        JSONObject root;
         try {
-            root = new JSONObject(response);
-        } catch (Exception parseError) {
-            throw new ApiException("INVALID_RESPONSE", "Réponse non JSON du serveur (HTTP " + status + ").");
-        }
-
-        if (!root.optBoolean("ok", false)) {
-            JSONObject error = root.optJSONObject("error");
-            String code = error == null ? "API_ERROR" : error.optString("code", "API_ERROR");
-            String message = error == null ? "Erreur API." : error.optString("message", "Erreur API.");
-            if (authenticated && allowAuthenticationRepair && "AUTH_INVALID".equals(code)) {
-                repairAuthentication(baseUrl, requestToken);
-                return post(action, payload, true, false);
+            connection.setDoOutput(true);
+            byte[] body = payload.toString().getBytes(StandardCharsets.UTF_8);
+            connection.setFixedLengthStreamingMode(body.length);
+            try (OutputStream output = connection.getOutputStream()) {
+                output.write(body);
             }
-            throw new ApiException(code, message);
+
+            int status = connection.getResponseCode();
+            InputStream stream = status >= 200 && status < 400
+                    ? connection.getInputStream()
+                    : connection.getErrorStream();
+            String response = read(stream);
+
+            if (response.trim().isEmpty()) {
+                throw new ApiException("EMPTY_RESPONSE", "Réponse vide du serveur (HTTP " + status + ").");
+            }
+
+            JSONObject root;
+            try {
+                root = new JSONObject(response);
+            } catch (Exception parseError) {
+                throw new ApiException("INVALID_RESPONSE", "Réponse non JSON du serveur (HTTP " + status + ").");
+            }
+
+            if (!root.optBoolean("ok", false)) {
+                JSONObject error = root.optJSONObject("error");
+                String code = error == null ? "API_ERROR" : error.optString("code", "API_ERROR");
+                String message = error == null ? "Erreur API." : error.optString("message", "Erreur API.");
+                if (authenticated && allowAuthenticationRepair && "AUTH_INVALID".equals(code)) {
+                    repairAuthentication(baseUrl, requestToken);
+                    return post(action, payload, true, false,
+                            connectTimeoutMs, readTimeoutMs);
+                }
+                throw new ApiException(code, message);
+            }
+            JSONObject data = root.optJSONObject("data");
+            return data == null ? new JSONObject() : data;
+        } finally {
+            connection.disconnect();
         }
-        JSONObject data = root.optJSONObject("data");
-        return data == null ? new JSONObject() : data;
     }
 
     private void repairAuthentication(String baseUrl, String rejectedToken) throws Exception {

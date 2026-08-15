@@ -53,6 +53,8 @@ public class RobotService extends Service {
     private ScheduledExecutorService executor;
     private final AtomicBoolean cycleRunning = new AtomicBoolean(false);
     private final Map<String, Long> lastHeartbeatByProfile = new HashMap<>();
+    private final Map<String, Long> apiRetryAtByProfile = new HashMap<>();
+    private final Map<String, Integer> apiFailureCountByProfile = new HashMap<>();
     private long backoffMs = AppConfig.IDLE_POLL_MS;
     private int roundRobinIndex = 0;
     private PowerManager.WakeLock commandWakeLock;
@@ -83,6 +85,7 @@ public class RobotService extends Service {
             if (!profileId.isEmpty()) {
                 AppConfig.setRobotEnabled(this, profileId, false);
                 lastHeartbeatByProfile.remove(profileId);
+                clearProfileApiFailure(profileId);
             }
             if (!AppConfig.anyRobotEnabled(this)) releaseStandbyWakeLock();
             final String stoppedProfile = profileId;
@@ -136,6 +139,7 @@ public class RobotService extends Service {
         if (ACTION_START.equals(action) && !profileId.isEmpty()) {
             AppConfig.setRobotEnabled(this, profileId, true);
             lastHeartbeatByProfile.remove(profileId);
+            clearProfileApiFailure(profileId);
         }
         if (!hasServiceWork()) {
             stopSelf();
@@ -253,6 +257,13 @@ public class RobotService extends Service {
                 String profileId = profiles.get(index);
                 if (!AppConfig.isPaired(this, profileId) || !AppConfig.isRobotMode(this, profileId)) continue;
                 if (PendingCommandStore.get(this, profileId) != null) continue;
+                long retryAt = apiRetryAtByProfile.containsKey(profileId)
+                        ? apiRetryAtByProfile.get(profileId) : 0L;
+                if (retryAt > System.currentTimeMillis()) {
+                    lastProfileProblem = AppConfig.nodeCode(this, profileId)
+                            + " : réseau en reprise; autres SIM prioritaires";
+                    continue;
+                }
 
                 ApiClient api = ApiClient.forProfile(this, profileId);
                 try {
@@ -278,6 +289,7 @@ public class RobotService extends Service {
 
                     maybeQueueNightlyNetworkAudit(profileId, api);
                     JSONObject lease = api.leaseCommand();
+                    clearProfileApiFailure(profileId);
                     if (lease.optBoolean("available", false)) {
                         JSONObject command = lease.optJSONObject("command");
                         if (command == null) throw new IllegalStateException("Commande louée absente.");
@@ -311,11 +323,16 @@ public class RobotService extends Service {
                     }
 
                 } catch (ApiClient.ApiException apiError) {
+                    // API business/auth errors are explicit server answers, not transport stalls.
+                    clearProfileApiFailure(profileId);
                     lastProfileProblem = AppConfig.nodeCode(this, profileId)
                             + " : " + apiError.code + " — " + safeMessage(apiError);
                 } catch (Exception profileError) {
+                    long failureRetryAt = markProfileApiFailure(profileId);
+                    long seconds = Math.max(1L, (failureRetryAt - System.currentTimeMillis() + 999L) / 1000L);
                     lastProfileProblem = AppConfig.nodeCode(this, profileId)
-                            + " : réseau — " + safeMessage(profileError);
+                            + " : réseau lent; nouvelle tentative dans ~" + seconds
+                            + " s, autres SIM non bloquées";
                 }
             }
 
@@ -934,6 +951,23 @@ public class RobotService extends Service {
         if (intent == null) return "";
         String profileId = intent.getStringExtra(EXTRA_PROFILE_ID);
         return profileId == null ? "" : profileId;
+    }
+
+    private long markProfileApiFailure(String profileId) {
+        int count = apiFailureCountByProfile.containsKey(profileId)
+                ? apiFailureCountByProfile.get(profileId) + 1 : 1;
+        count = Math.min(4, count);
+        apiFailureCountByProfile.put(profileId, count);
+        long delay = Math.min(30_000L, 5_000L * (1L << (count - 1)));
+        long retryAt = System.currentTimeMillis() + delay;
+        apiRetryAtByProfile.put(profileId, retryAt);
+        return retryAt;
+    }
+
+    private void clearProfileApiFailure(String profileId) {
+        if (profileId == null || profileId.isEmpty()) return;
+        apiFailureCountByProfile.remove(profileId);
+        apiRetryAtByProfile.remove(profileId);
     }
 
     private static String safeMessage(Exception error) {
