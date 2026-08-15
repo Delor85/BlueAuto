@@ -8,4 +8,6 @@ new="""            var rate=Number(capacity.commission_rate_bps||0), maxBase=Num
             var maxCommission=Math.floor(maxBase*rate/10000), maxTotal=maxBase+maxCommission;
             showActionError({code:'SOLDE_SUPÉRIEUR_INSUFFISANT',message:'Vous ne pouvez pas commander ce montant. Solde actuellement disponible : '+formatMoney(available)+' FCFA. Avec votre taux '+String(rate/100).replace('.',',')+' %, le montant commandable maximum est '+formatMoney(maxBase)+' FCFA + '+formatMoney(maxCommission)+' FCFA de commission = '+formatMoney(maxTotal)+' FCFA à recevoir. Aucune somme n’est réservée tant que vous n’avez pas confirmé : un autre DSM/PoS peut confirmer avant vous et modifier le disponible.'});"""
 if old not in s: raise SystemExit('max order UI anchor missing')
-p.write_text(s.replace(old,new,1))
+s=s.replace(old,new,1)
+s=s.replace("' • réutilisable sans nouvel USSD'", "' • réutilisable / partageable sans nouvel USSD'")
+p.write_text(s)
