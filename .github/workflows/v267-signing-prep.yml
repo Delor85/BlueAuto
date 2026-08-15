@@ -48,15 +48,17 @@ jobs:
           set -euo pipefail
           apk=app/build/outputs/apk/release/app-release.apk
           work=/tmp/v267-signing-prep
-          mkdir -p "$work/tools/lib"
+          mkdir -p "$work/tools/lib" "$work/tools/lib64"
           cp "$apk" "$work/Blue-Magic-v2.6.7-unsigned-source.apk"
           zip -qd "$work/Blue-Magic-v2.6.7-unsigned-source.apk" 'META-INF/*' || true
           build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          "$build_tools/zipalign" -f 4 "$work/Blue-Magic-v2.6.7-unsigned-source.apk" "$work/Blue-Magic-v2.6.7-unsigned-aligned.apk"
           cp "$build_tools/zipalign" "$work/tools/zipalign"
           cp "$build_tools/apksigner" "$work/tools/apksigner"
           cp "$build_tools/aapt" "$work/tools/aapt"
           cp "$build_tools/lib/apksigner.jar" "$work/tools/lib/apksigner.jar"
-          "$work/tools/zipalign" -f 4 "$work/Blue-Magic-v2.6.7-unsigned-source.apk" "$work/Blue-Magic-v2.6.7-unsigned-aligned.apk"
+          if [ -f "$build_tools/lib64/libc++.so" ]; then cp "$build_tools/lib64/libc++.so" "$work/tools/lib64/libc++.so"; fi
+          if [ -f "$ANDROID_HOME/emulator/lib64/libc++.so" ]; then cp "$ANDROID_HOME/emulator/lib64/libc++.so" "$work/tools/lib64/libc++.so"; fi
           rm "$work/Blue-Magic-v2.6.7-unsigned-source.apk"
           sha256sum "$work/Blue-Magic-v2.6.7-unsigned-aligned.apk"
 
