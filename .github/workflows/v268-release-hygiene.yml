@@ -25,7 +25,9 @@ jobs:
         with:
           gradle-version: '8.2'
       - name: Apply source/documentation/release hygiene
-        run: python3 .github/scripts/v268_release_hygiene_patch.py
+        run: |
+          python3 .github/scripts/v268_release_hygiene_patch.py
+          python3 .github/scripts/v268_release_hygiene_compat.py
       - name: Validate full source and release guard
         run: |
           set -euo pipefail
