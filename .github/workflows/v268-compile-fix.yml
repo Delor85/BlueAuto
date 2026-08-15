@@ -40,7 +40,7 @@ jobs:
           openssl rand -hex 32 > .pilot-signing/keystore.password
           pilot_password="$(tr -d '\r\n' < .pilot-signing/keystore.password)"
           keytool -genkeypair -keystore .pilot-signing/debug.keystore -storepass "$pilot_password" -alias androiddebugkey -keypass "$pilot_password" -dname "CN=Blue Magic CI,O=ProfitLoop,C=CM" -keyalg RSA -keysize 2048 -validity 10000 -noprompt
-          echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$pilot_password" >> "$GITHUB_ENV"
+          export BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD="$pilot_password"
           gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
       - name: Commit validated compile fix
         run: |
