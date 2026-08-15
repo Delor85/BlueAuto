@@ -18,7 +18,9 @@ import android.os.SystemClock;
 
 import org.json.JSONObject;
 
+import java.util.Calendar;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -248,6 +250,7 @@ public class RobotService extends Service {
                         lastHeartbeatByProfile.put(profileId, System.currentTimeMillis());
                     }
 
+                    maybeQueueNightlyNetworkAudit(profileId, api);
                     JSONObject lease = api.leaseCommand();
                     if (lease.optBoolean("available", false)) {
                         JSONObject command = lease.optJSONObject("command");
@@ -311,6 +314,34 @@ public class RobotService extends Service {
         } finally {
             cycleRunning.set(false);
             scheduleCycle(nextDelay);
+        }
+    }
+
+    private void maybeQueueNightlyNetworkAudit(String profileId, ApiClient api) {
+        String role = AppConfig.role(this, profileId).toUpperCase(Locale.ROOT);
+        int startHour;
+        if ("POS".equals(role)) startHour = 2;
+        else if ("DSM".equals(role)) startHour = 3;
+        else if ("DAE".equals(role)) startHour = 4;
+        else return;
+        Calendar now = Calendar.getInstance();
+        int hour = now.get(Calendar.HOUR_OF_DAY);
+        if (hour < startHour || hour >= 7) return;
+        String dayKey = String.format(Locale.US, "%04d-%03d",
+                now.get(Calendar.YEAR), now.get(Calendar.DAY_OF_YEAR));
+        String prefKey = profileId + "_" + role;
+        String done = getSharedPreferences("blue_magic_night_audit", MODE_PRIVATE)
+                .getString(prefKey, "");
+        if (dayKey.equals(done)) return;
+        try {
+            JSONObject result = api.networkBalanceAudit();
+            getSharedPreferences("blue_magic_night_audit", MODE_PRIVATE)
+                    .edit().putString(prefKey, dayKey).apply();
+            updateNotification(robotSummary("Audit nocturne " + role + " : "
+                    + result.optInt("queued", 0) + " requête(s), "
+                    + result.optInt("reused", 0) + " preuve(s) réutilisée(s)"));
+        } catch (Exception ignored) {
+            // Do not mark the day complete: the normal Robot loop will retry during the night window.
         }
     }
 

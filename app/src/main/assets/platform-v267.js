@@ -13,7 +13,7 @@
   const reports = document.querySelector('[data-tab-panel="reports"], #panel-reports .panel-body, #panel-reports, [data-panel="reports"]');
   add(reports, `<section class="card v267-extra"><h3>🧠 Intelligence Blue & Bottom-Up</h3>
     <p>Solde certifié réutilisable jusqu’à 1 heure si aucune activité non rapprochée n’est apparue. Les débits connus et réservations restent déduits.</p>
-    <div class="actions"><button id="v267-snapshot">Rafraîchir réseau intelligent</button><button id="v267-messages">Preuves Blue récentes</button></div>
+    <div class="actions"><button id="v267-audit">Rafraîchir réseau intelligent</button><button id="v267-snapshot">Rapport réseau</button><button id="v267-messages">Preuves Blue récentes</button></div>
     <div id="v267-report-output" class="mono small"></div></section>`);
 
   const flux = document.querySelector('[data-tab-panel="flux"], #panel-flux .panel-body, #panel-flux, [data-panel="flux"]');
@@ -53,6 +53,7 @@
     <details><summary>Guide rapide</summary><p>TEST : *825*3*3#. Solde, historique, détail et maintenance disposent aussi de boutons dédiés dans Flux/Flotte. Les transactions financières continuent d’utiliser la file sécurisée Remote→Worker→Robot.</p></details></section>`);
 
   const bind = (id, fn) => { const el=$(id); if(el) el.addEventListener('click', fn); };
+  bind('v267-audit', () => request('network_balance_audit'));
   bind('v267-snapshot', () => request('platform_snapshot'));
   bind('v267-messages', () => request('operator_insights'));
   bind('shadow-save', () => request('shadow_enroll', {node_code:$('shadow-id').value, phone_number:$('shadow-phone').value, display_name:$('shadow-name').value, zone:$('shadow-zone').value}));
@@ -74,6 +75,11 @@
     if (typeof previous === 'function') { try { previous(data); } catch (_) {} }
     if (data?.error) return alert(data.message || 'Erreur Blue Magic');
     const action = data?._action || '';
+    if (action === 'network_balance_audit') {
+      const out=$('v267-report-output');
+      if(out) out.innerHTML=`Audit Bottom-Up lancé : <b>${Number(data.queued||0)}</b> requête(s) sélective(s), <b>${Number(data.reused||0)}</b> preuve(s) réutilisée(s), <b>${Number(data.already_pending||0)}</b> déjà en file, <b>${Number(data.unavailable||0)}</b> indisponible(s).`;
+      return;
+    }
     if (action === 'platform_snapshot') {
       const nodes=data.nodes||[]; const dry=nodes.filter(n => n.balance != null && Number(n.balance)<7500);
       const dormant=nodes.filter(n => n.last_activity_at && Date.now()-Date.parse(n.last_activity_at)>48*3600e3);

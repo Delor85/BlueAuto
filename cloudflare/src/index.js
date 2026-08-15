@@ -56,6 +56,7 @@ export default {
         case 'check_purchase_capacity': return await checkPurchaseCapacity(env, auth, input, headers);
         case 'purchase_capacity_status': return await purchaseCapacityStatus(env, auth, input, headers);
         case 'network_dashboard': return await networkDashboard(env, auth, headers);
+        case 'network_balance_audit': return await networkBalanceAudit(env, auth, headers);
         case 'operator_insights': return await operatorInsights(env, auth, headers);
         case 'record_operator_message': return await recordOperatorMessageApi(env, auth, input, headers);
         case 'platform_snapshot': return await platformSnapshot(env, auth, headers);
@@ -556,35 +557,52 @@ async function checkPurchaseCapacity(env, auth, input, headers) {
 
   const values = await resolveCommand(env, auth, input, 'REQUEST_SUPPLY');
   const checkId = crypto.randomUUID();
-  // Le cahier impose de mutualiser les ressources fiables. Une preuve Camtel explicite reste
-  // réutilisable une heure tant qu’aucune activité non rapprochée n’est observée; les débits/réservations connus sont déduits avant toute décision.
-  const reusable = await effectiveAvailableBalance(env, values.executor, true);
-  if (reusable) {
-    const state = values.amount <= reusable.available ? 'AVAILABLE' : 'INSUFFICIENT';
-    const message = state === 'AVAILABLE'
-      ? 'Une preuve Camtel de moins d’une heure, sans activité non rapprochée, couvre le montant; aucun USSD supplémentaire.'
-      : 'Le montant demandé dépasse la preuve récente du solde disponible du supérieur.';
-    await env.DB.prepare(
-      'INSERT INTO purchase_preflights(public_id, client_request_id, requester_node_code, '
-      + 'supplier_node_code, requested_amount, available_balance, balance_command_public_id, '
-      + 'balance_reused, balance_observed_at, state, result_message, expires_at) '
-      + "VALUES(?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, "
-      + "strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '+120 seconds'))"
-    ).bind(checkId, clientId, auth.node_code, values.executor, values.amount,
-      reusable.available, reusable.evidence_command_public_id || reusable.source_command_public_id,
-      reusable.observed_at, state, message).run();
+
+  // Reservation is decided in the same SQLite write statement that inserts the preflight.
+  // D1 serializes writes, therefore the first request received by the network consumes the
+  // available capacity before the next one is evaluated. No two callers can reserve the same FCFA.
+  const reserved = await env.DB.prepare(
+    "WITH request(amount) AS (VALUES (?)), snapshot AS ("
+    + 'SELECT b.balance, b.observed_at, b.evidence_command_public_id, b.source_command_public_id, '
+    + 'MAX(0, b.balance - '
+    + "COALESCE((SELECT SUM(c.amount) FROM commands c WHERE c.executor_node_code = b.node_code "
+    + "AND c.operation IN ('DISTRIBUTION_TRANSFER','RETAIL_TRANSFER') "
+    + 'AND ((source.id IS NOT NULL AND c.id > source.id) OR (source.id IS NULL AND c.created_at > b.observed_at)) '
+    + "AND c.state NOT IN ('FAILED','CANCELLED')),0) - "
+    + "COALESCE((SELECT SUM(p.requested_amount) FROM purchase_preflights p "
+    + "WHERE p.supplier_node_code = b.node_code AND p.state = 'AVAILABLE' "
+    + "AND p.purchase_command_public_id IS NULL "
+    + "AND p.expires_at > strftime('%Y-%m-%dT%H:%M:%fZ','now')),0)) AS available "
+    + 'FROM account_balances b LEFT JOIN commands source ON source.public_id = b.source_command_public_id '
+    + 'LEFT JOIN node_activity_state a ON a.node_code = b.node_code '
+    + 'WHERE b.node_code = ? '
+    + "AND b.valid_until > strftime('%Y-%m-%dT%H:%M:%fZ','now') "
+    + "AND b.balance_quality = 'EXACT' "
+    + "AND b.confidence IN ('OPERATOR_EXPLICIT','DERIVED_FROM_EXPLICIT') "
+    + 'AND (a.last_unbalanced_activity_at IS NULL OR a.last_unbalanced_activity_at <= b.observed_at)) '
+    + 'INSERT INTO purchase_preflights(public_id, client_request_id, requester_node_code, supplier_node_code, '
+    + 'requested_amount, available_balance, balance_command_public_id, balance_reused, balance_observed_at, '
+    + 'state, result_message, expires_at) '
+    + 'SELECT ?, ?, ?, ?, request.amount, snapshot.available, '
+    + 'COALESCE(snapshot.evidence_command_public_id, snapshot.source_command_public_id), 1, snapshot.observed_at, '
+    + "CASE WHEN request.amount <= snapshot.available THEN 'AVAILABLE' ELSE 'INSUFFICIENT' END, "
+    + "CASE WHEN request.amount <= snapshot.available THEN "
+    + "'Demande réservée selon l ordre d arrivée. Solde encore disponible après cette réservation : ' "
+    + "|| CAST((snapshot.available - request.amount) AS INTEGER) || ' FCFA.' ELSE "
+    + "'Les demandes arrivées avant sont prioritaires. Solde encore disponible du supérieur : ' "
+    + "|| CAST(snapshot.available AS INTEGER) || ' FCFA.' END, "
+    + "strftime('%Y-%m-%dT%H:%M:%fZ','now','+120 seconds') "
+    + 'FROM snapshot CROSS JOIN request RETURNING *'
+  ).bind(values.amount, values.executor, checkId, clientId, auth.node_code, values.executor).first();
+
+  if (reserved) {
     const availability = await robotAvailability(env, values.executor);
-    return success({capacity: {
-      capacity_check_id: checkId, state, requested_amount: values.amount,
-      supplier_node_code: values.executor, available_balance: reusable.available,
-      balance_command_id: reusable.evidence_command_public_id || reusable.source_command_public_id || '',
-      balance_reused: true, balance_observed_at: reusable.observed_at, message,
-      ...availability
-    }}, 201, headers);
+    const view = await capacityView(env, reserved);
+    return success({capacity: {...view, ...availability}}, 201, headers);
   }
 
-  // Sans preuve encore valide, une seule consultation BALANCE_OWN est partagée entre toutes les
-  // demandes concurrentes du même fournisseur.
+  // No reusable exact proof: all simultaneous requests share one BALANCE_OWN command.
+  // Once the result arrives, refreshWaitingPreflights allocates the certified balance in rowid/FIFO order.
   let balanceCommand = await env.DB.prepare(
     "SELECT public_id FROM commands WHERE executor_node_code = ? AND command_kind = 'BALANCE_OWN' "
     + "AND state IN ('PENDING','LEASED','DIALING','AWAITING_RESULT') ORDER BY id LIMIT 1"
@@ -600,7 +618,7 @@ async function checkPurchaseCapacity(env, auth, input, headers) {
       ).bind(commandId, balanceClientId, auth.node_code, values.executor),
       env.DB.prepare(
         "INSERT INTO command_events(command_id, device_id, state, message) "
-        + "SELECT id, ?, 'PENDING', 'Actualisation du solde demandée avant un approvisionnement.' "
+        + "SELECT id, ?, 'PENDING', 'Actualisation mutualisée du solde avant approvisionnements concurrents.' "
         + 'FROM commands WHERE public_id = ?'
       ).bind(auth.device_id, commandId)
     ]);
@@ -612,13 +630,14 @@ async function checkPurchaseCapacity(env, auth, input, headers) {
     + "VALUES(?, ?, ?, ?, ?, ?, 'WAITING', ?, "
     + "strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '+120 seconds'))"
   ).bind(checkId, clientId, auth.node_code, values.executor, values.amount,
-    balanceCommand.public_id, 'Lecture USSD du solde du supérieur en cours.').run();
+    balanceCommand.public_id, 'Lecture mutualisée du solde du supérieur en cours; priorité conservée par ordre d arrivée.').run();
   const availability = await robotAvailability(env, values.executor);
   return success({capacity: {
     capacity_check_id: checkId, state: 'WAITING', requested_amount: values.amount,
     supplier_node_code: values.executor, available_balance: null,
     balance_command_id: balanceCommand.public_id, balance_reused: false,
-    balance_observed_at: '', ...availability
+    balance_observed_at: '', message: 'Lecture mutualisée en cours; votre rang de priorité est conservé.',
+    ...availability
   }}, 202, headers);
 }
 
@@ -711,6 +730,122 @@ async function effectiveAvailableBalance(env, node, requireReusable = false) {
     confidence: snapshot.confidence,
     source_command_public_id: snapshot.source_command_public_id,
     evidence_command_public_id: snapshot.evidence_command_public_id};
+}
+
+async function networkBalanceAudit(env, auth, headers) {
+  const network = await env.DB.prepare(
+    'WITH RECURSIVE network(node_code, parent_node_code, role, phone_number, depth) AS ('
+    + 'SELECT node_code, parent_node_code, role, phone_number, 0 FROM nodes WHERE node_code = ? AND active = 1 '
+    + 'UNION ALL SELECT n.node_code, n.parent_node_code, n.role, n.phone_number, p.depth + 1 '
+    + 'FROM nodes n JOIN network p ON n.parent_node_code = p.node_code WHERE n.active = 1) '
+    + 'SELECT * FROM network ORDER BY depth DESC, node_code'
+  ).bind(auth.node_code).all();
+  const nodes = network.results || [];
+  const liveRows = await env.DB.prepare(
+    "SELECT DISTINCT node_code FROM devices WHERE active = 1 AND robot_enabled = 1 AND sim_verified = 1 "
+    + "AND mode IN ('ROBOT','HYBRID') "
+    + "AND last_seen_at >= strftime('%Y-%m-%dT%H:%M:%fZ','now','-15 minutes')"
+  ).all();
+  const live = new Set((liveRows.results || []).map(row => row.node_code));
+  let reused = 0;
+  let queued = 0;
+  let alreadyPending = 0;
+  let unavailable = 0;
+  const details = [];
+
+  for (const node of nodes) {
+    const fresh = await reportBalanceFresh(env, node.node_code);
+    if (fresh) {
+      reused += 1;
+      details.push({node_code: node.node_code, action: 'REUSED', evidence_kind: fresh.evidence_kind,
+        observed_at: fresh.observed_at});
+      continue;
+    }
+    const existing = await env.DB.prepare(
+      "SELECT public_id FROM commands WHERE state IN ('PENDING','LEASED','DIALING','AWAITING_PIN','PIN_SUBMITTED','AWAITING_RESULT') "
+      + "AND ((command_kind = 'BALANCE_OWN' AND executor_node_code = ?) "
+      + "OR (command_kind = 'BALANCE_CHILD' AND target_node_code = ?)) ORDER BY id LIMIT 1"
+    ).bind(node.node_code, node.node_code).first();
+    if (existing) {
+      alreadyPending += 1;
+      details.push({node_code: node.node_code, action: 'PENDING', command_id: existing.public_id});
+      continue;
+    }
+
+    let executor = '';
+    let commandKind = '';
+    let targetNode = null;
+    let targetPhone = null;
+    if (live.has(node.node_code)) {
+      executor = node.node_code;
+      commandKind = 'BALANCE_OWN';
+    } else if (node.role === 'POS') {
+      if (node.parent_node_code && live.has(node.parent_node_code)) {
+        executor = node.parent_node_code;
+      } else if (auth.role === 'DAE' && live.has(auth.node_code)) {
+        // Camtel permits a DAE to query any PoS in its descendant network directly.
+        executor = auth.node_code;
+      }
+      if (executor) {
+        commandKind = 'BALANCE_CHILD';
+        targetNode = node.node_code;
+        targetPhone = node.phone_number;
+      }
+    } else if (node.role === 'DSM' && auth.role === 'DAE' && live.has(auth.node_code)) {
+      executor = auth.node_code;
+      commandKind = 'BALANCE_CHILD';
+      targetNode = node.node_code;
+      targetPhone = node.phone_number;
+    }
+
+    if (!executor) {
+      unavailable += 1;
+      details.push({node_code: node.node_code, action: 'UNAVAILABLE'});
+      continue;
+    }
+    const commandId = crypto.randomUUID();
+    const clientId = `audit_${randomHex(16)}`;
+    const result = await env.DB.prepare(
+      'INSERT INTO commands(public_id, client_request_id, requester_node_code, executor_node_code, '
+      + 'target_node_code, operation, command_kind, command_argument, target_phone, amount, ussd_code, requires_pin) '
+      + "SELECT ?, ?, ?, ?, ?, 'TEST_NUMBER', ?, '', ?, NULL, '', 0 "
+      + 'WHERE NOT EXISTS (SELECT 1 FROM commands WHERE '
+      + "state IN ('PENDING','LEASED','DIALING','AWAITING_PIN','PIN_SUBMITTED','AWAITING_RESULT') "
+      + "AND ((? = 'BALANCE_OWN' AND command_kind = 'BALANCE_OWN' AND executor_node_code = ?) "
+      + "OR (? = 'BALANCE_CHILD' AND command_kind = 'BALANCE_CHILD' AND target_node_code = ?)))"
+    ).bind(commandId, clientId, auth.node_code, executor, targetNode, commandKind, targetPhone,
+      commandKind, node.node_code, commandKind, node.node_code).run();
+    if (!result.meta?.changes) {
+      alreadyPending += 1;
+      details.push({node_code: node.node_code, action: 'PENDING'});
+      continue;
+    }
+    queued += 1;
+    await env.DB.prepare(
+      "INSERT INTO command_events(command_id, device_id, state, message) "
+      + "SELECT id, ?, 'PENDING', ? FROM commands WHERE public_id = ?"
+    ).bind(auth.device_id,
+      `Audit réseau Bottom-Up: actualiser ${node.node_code} sans requête superflue.`, commandId).run();
+    details.push({node_code: node.node_code, action: 'QUEUED', executor_node_code: executor,
+      command_kind: commandKind, command_id: commandId});
+  }
+  return success({
+    scope_node_code: auth.node_code,
+    order: 'BOTTOM_UP_POS_DSM_DAE',
+    freshness_seconds: 600,
+    reused, queued, already_pending: alreadyPending, unavailable,
+    details: details.slice(0, 250)
+  }, 200, headers);
+}
+
+async function reportBalanceFresh(env, nodeCodeValue) {
+  return await env.DB.prepare(
+    'SELECT b.balance, b.evidence_kind, b.observed_at FROM account_balances b '
+    + 'LEFT JOIN node_activity_state a ON a.node_code = b.node_code WHERE b.node_code = ? '
+    + "AND b.balance_quality = 'EXACT' "
+    + "AND b.observed_at >= strftime('%Y-%m-%dT%H:%M:%fZ','now','-600 seconds') "
+    + 'AND (a.last_unbalanced_activity_at IS NULL OR a.last_unbalanced_activity_at <= b.observed_at)'
+  ).bind(nodeCodeValue).first();
 }
 
 async function resolveDescendant(env, ancestorNode, requestedNode, roles) {
@@ -1137,20 +1272,35 @@ function explicitBalanceEvidence(command, message) {
 }
 
 async function refreshWaitingPreflights(env, nodeCode) {
-  const effective = await effectiveAvailableBalance(env, nodeCode, true);
-  if (!effective) return;
-  await env.DB.prepare(
-    "UPDATE purchase_preflights SET state = CASE WHEN requested_amount <= ? "
-    + "THEN 'AVAILABLE' ELSE 'INSUFFICIENT' END, available_balance = ?, balance_reused = 0, "
-    + 'balance_command_public_id = ?, balance_observed_at = ?, '
-    + "result_message = CASE WHEN requested_amount <= ? "
-    + "THEN 'Le solde Camtel certifié couvre le montant demandé.' "
-    + "ELSE 'Le montant demandé dépasse le solde disponible du supérieur.' END, "
-    + "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') "
-    + "WHERE supplier_node_code = ? AND state = 'WAITING'"
-  ).bind(effective.available, effective.available,
-    effective.evidence_command_public_id || effective.source_command_public_id,
-    effective.observed_at, effective.available, nodeCode).run();
+  for (let guard = 0; guard < 500; guard += 1) {
+    const row = await env.DB.prepare(
+      "SELECT rowid AS queue_order, * FROM purchase_preflights WHERE supplier_node_code = ? "
+      + "AND state = 'WAITING' ORDER BY rowid LIMIT 1"
+    ).bind(nodeCode).first();
+    if (!row) return;
+    const effective = await effectiveAvailableBalance(env, nodeCode, true);
+    if (!effective) return;
+    const held = await env.DB.prepare(
+      "SELECT COALESCE(SUM(requested_amount),0) AS total FROM purchase_preflights "
+      + "WHERE supplier_node_code = ? AND state = 'AVAILABLE' AND purchase_command_public_id IS NULL "
+      + "AND expires_at > strftime('%Y-%m-%dT%H:%M:%fZ','now')"
+    ).bind(nodeCode).first();
+    const available = Math.max(0, effective.available - Number(held?.total || 0));
+    const requested = Number(row.requested_amount);
+    const accepted = requested <= available;
+    const remaining = accepted ? available - requested : available;
+    const message = accepted
+      ? `Demande prioritaire réservée. Solde encore disponible après cette réservation : ${remaining} FCFA.`
+      : `Les demandes arrivées avant sont prioritaires. Solde encore disponible du supérieur : ${remaining} FCFA.`;
+    await env.DB.prepare(
+      "UPDATE purchase_preflights SET state = ?, available_balance = ?, balance_reused = 0, "
+      + 'balance_command_public_id = ?, balance_observed_at = ?, result_message = ?, '
+      + "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE public_id = ? AND state = 'WAITING'"
+    ).bind(accepted ? 'AVAILABLE' : 'INSUFFICIENT', available,
+      effective.evidence_command_public_id || effective.source_command_public_id,
+      effective.observed_at, message, row.public_id).run();
+  }
+  throw new ApiError('PREFLIGHT_QUEUE_LIMIT', 'Trop de demandes simultanées; reprise au prochain cycle.', 503);
 }
 
 function balanceEvidencePriority(kind) {

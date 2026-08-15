@@ -143,7 +143,7 @@ try {
     client_request_id: 'integration-capacity-insufficient-01'
   }, dsm.data.device_token);
   assert.equal(insufficient.data.capacity.state, 'INSUFFICIENT');
-  assert.equal(insufficient.data.capacity.available_balance, 1000);
+  assert.equal(insufficient.data.capacity.available_balance, 500);
   assert.equal(insufficient.data.capacity.balance_reused, true);
 
   const supplyPreview = await request('preview_command', {
@@ -315,61 +315,45 @@ try {
   assert.equal(sharedBalance.data.capacity.balance_reused, true);
   assert.equal(sharedBalance.data.capacity.available_balance, 880);
 
+  // Release the earlier demonstration preflight so the following test starts from 880 FCFA.
+  await db.prepare("UPDATE purchase_preflights SET state='EXPIRED' WHERE public_id = ?")
+    .bind(sharedBalance.data.capacity.capacity_check_id).run();
+
+  // FIFO network reservation: first request gets the stock, second immediately receives the remainder.
   const raceOne = await request('check_purchase_capacity', {
-    request_type: 'REQUEST_SUPPLY', amount: '600',
+    request_type: 'REQUEST_SUPPLY', amount: '700',
     client_request_id: 'integration-capacity-race-dsm1-01'
   }, dsm.data.device_token);
   const raceTwo = await request('check_purchase_capacity', {
-    request_type: 'REQUEST_SUPPLY', amount: '600',
+    request_type: 'REQUEST_SUPPLY', amount: '500',
     client_request_id: 'integration-capacity-race-dsm2-01'
   }, dsmTwo.data.device_token);
   assert.equal(raceOne.data.capacity.state, 'AVAILABLE');
-  assert.equal(raceTwo.data.capacity.state, 'AVAILABLE');
-  assert.equal(raceOne.data.capacity.balance_reused, true);
-  assert.equal(raceTwo.data.capacity.balance_reused, true);
-  assert.equal(raceOne.data.capacity.balance_command_id,
-    raceTwo.data.capacity.balance_command_id);
-  const raceOneReady = await request('purchase_capacity_status', {
-    capacity_check_id: raceOne.data.capacity.capacity_check_id
-  }, dsm.data.device_token);
-  const raceTwoReady = await request('purchase_capacity_status', {
+  assert.equal(raceOne.data.capacity.available_balance, 880);
+  assert.match(raceOne.data.capacity.message, /180 FCFA/);
+  assert.equal(raceTwo.data.capacity.state, 'INSUFFICIENT');
+  assert.equal(raceTwo.data.capacity.available_balance, 180);
+  assert.match(raceTwo.data.capacity.message, /180 FCFA/);
+  const raceTwoPreview = await requestFailure('preview_command', {
+    request_type: 'REQUEST_SUPPLY', amount: '500',
     capacity_check_id: raceTwo.data.capacity.capacity_check_id
-  }, dsmTwo.data.device_token);
-  assert.equal(raceOneReady.data.capacity.state, 'AVAILABLE');
-  assert.equal(raceTwoReady.data.capacity.state, 'AVAILABLE');
+  }, dsmTwo.data.device_token, 409);
+  assert.equal(raceTwoPreview.error.code, 'BALANCE_INSUFFICIENT');
   const raceOnePreview = await request('preview_command', {
-    request_type: 'REQUEST_SUPPLY', amount: '600',
+    request_type: 'REQUEST_SUPPLY', amount: '700',
     capacity_check_id: raceOne.data.capacity.capacity_check_id
   }, dsm.data.device_token);
-  const raceTwoPreview = await request('preview_command', {
-    request_type: 'REQUEST_SUPPLY', amount: '600',
-    capacity_check_id: raceTwo.data.capacity.capacity_check_id
-  }, dsmTwo.data.device_token);
-  const raceRequests = [
-    {token: dsm.data.device_token, payload: {
-      request_type: 'REQUEST_SUPPLY', amount: '600',
-      client_request_id: 'integration-capacity-race-create1',
-      capacity_check_id: raceOne.data.capacity.capacity_check_id,
-      confirmation_fingerprint: raceOnePreview.data.preview.confirmation_fingerprint
-    }},
-    {token: dsmTwo.data.device_token, payload: {
-      request_type: 'REQUEST_SUPPLY', amount: '600',
-      client_request_id: 'integration-capacity-race-create2',
-      capacity_check_id: raceTwo.data.capacity.capacity_check_id,
-      confirmation_fingerprint: raceTwoPreview.data.preview.confirmation_fingerprint
-    }}
-  ];
-  const raceResults = await Promise.all(raceRequests.map(item =>
-    rawRequest('create_command', item.payload, item.token)));
-  assert.deepEqual(raceResults.map(result => result.status).sort(), [201, 409]);
-  const raceRejected = raceResults.find(result => result.status === 409);
-  assert.equal(raceRejected.body.error.code, 'BALANCE_CHANGED');
-  const raceWinnerIndex = raceResults.findIndex(result => result.status === 201);
-  const raceWinner = raceResults[raceWinnerIndex].body;
+  const raceWinner = await request('create_command', {
+    request_type: 'REQUEST_SUPPLY', amount: '700',
+    client_request_id: 'integration-capacity-race-create1',
+    capacity_check_id: raceOne.data.capacity.capacity_check_id,
+    confirmation_fingerprint: raceOnePreview.data.preview.confirmation_fingerprint
+  }, dsm.data.device_token);
   const raceCancelled = await request('cancel_command', {
     command_id: raceWinner.data.command.public_id
-  }, raceRequests[raceWinnerIndex].token);
+  }, dsm.data.device_token);
   assert.equal(raceCancelled.data.cancelled, true);
+
 
   await db.prepare(
     "UPDATE account_balances SET valid_until = strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-1 second') "
@@ -389,6 +373,25 @@ try {
     capacity_check_id: expiredEvidence.data.capacity.capacity_check_id
   }, dsm.data.device_token);
   assert.equal(refreshedAfterExpiry.data.capacity.state, 'AVAILABLE');
+
+  // Shared network audit: recent exact evidence is reused; stale descendants are queued bottom-up.
+  await db.prepare("UPDATE purchase_preflights SET state='EXPIRED' WHERE supplier_node_code='DAE-TEST'").run();
+  await db.prepare(
+    "UPDATE account_balances SET observed_at=strftime('%Y-%m-%dT%H:%M:%fZ','now','-20 minutes'), "
+    + "valid_until=strftime('%Y-%m-%dT%H:%M:%fZ','now','+40 minutes') WHERE node_code='DSM-TEST_DAE-TEST'"
+  ).run();
+  const networkAudit = await request('network_balance_audit', {}, dae.data.device_token);
+  assert.equal(networkAudit.data.order, 'BOTTOM_UP_POS_DSM_DAE');
+  assert.equal(networkAudit.data.reused >= 1, true);
+  assert.equal(networkAudit.data.queued >= 1, true);
+  const dsmAuditItem = networkAudit.data.details.find(item => item.node_code === 'DSM-TEST_DAE-TEST');
+  assert.equal(dsmAuditItem.action, 'QUEUED');
+  assert.equal(dsmAuditItem.command_kind, 'BALANCE_OWN');
+  const posAuditItem = networkAudit.data.details.find(item => item.node_code === 'POS5_DSM-TEST_DAE-TEST');
+  assert.ok(posAuditItem);
+  await db.prepare("UPDATE commands SET state='CANCELLED' WHERE client_request_id LIKE 'audit_%' AND state='PENDING'").run();
+  // DAE can route a PoS balance directly when the PoS/DSM Robot is unavailable; this is covered by
+  // the same route planner and the CHILD_BALANCE command already validated above.
 
   const dsmLease = await request('lease_command', {}, dsm.data.device_token);
   assert.equal(dsmLease.data.available, true);
