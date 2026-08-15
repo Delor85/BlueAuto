@@ -97,4 +97,6 @@ new = '''  // Quote-only concurrency: preflights never reserve or visually reduc
 if old not in s:
     raise SystemExit('legacy FIFO reservation block missing')
 s = s.replace(old, new, 1)
+# Existing DSM→PoS fixture now exercises the role default 8% commission.
+s = s.replace("'*550*2*699000003*100#'", "'*550*2*699000003*108#'")
 p.write_text(s)
