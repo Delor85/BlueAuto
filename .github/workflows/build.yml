@@ -222,7 +222,8 @@ jobs:
 
       - name: Confirmer l'absence de publication permanente
         if: steps.signing-availability.outputs.available == 'false'
-        run: echo "Publication permanente ignorée : secrets de signature absents de l'environnement production."
+        run: |
+          echo "Publication permanente ignorée : secrets de signature absents de l'environnement production."
 
   android-11-launch:
     needs: android-permanent-apk
