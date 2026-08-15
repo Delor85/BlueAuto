@@ -7,6 +7,7 @@ on:
     paths:
       - scripts/v267-network-sync-patch.py
       - .github/workflows/v267-network-sync-validation.yml
+      - .github/v267-network-sync-validation.trigger
 
 permissions:
   contents: write
