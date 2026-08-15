@@ -51,15 +51,15 @@ jobs:
           npx wrangler --version
           npx wrangler deploy --dry-run --config wrangler.production.jsonc
 
-      - name: Exiger uniquement la migration D1 0003
+      - name: Exiger uniquement la migration D1 0004
         run: |
           set -euo pipefail
           migration_status="$(npx wrangler d1 migrations list blue-magic --remote --config wrangler.production.jsonc 2>&1)"
           printf '%s\n' "$migration_status"
           pending="$(printf '%s\n' "$migration_status" \
             | grep -oE '000[0-9][A-Za-z0-9_.-]*\.sql' | sort -u || true)"
-          if [ "$pending" != '0003_balance_preflight_and_modules.sql' ]; then
-            echo "::error::Périmètre refusé. Migration attendue: 0003 seulement. Reçu: ${pending:-aucune/inconnue}."
+          if [ "$pending" != '0004_blue_message_intelligence_and_modules.sql' ]; then
+            echo "::error::Périmètre refusé. Migration attendue: 0004_blue_message_intelligence_and_modules.sql seulement. Reçu: ${pending:-aucune/inconnue}."
             exit 1
           fi
 
