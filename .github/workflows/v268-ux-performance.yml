@@ -25,7 +25,9 @@ jobs:
         with:
           gradle-version: '8.2'
       - name: Apply reviewed UX/performance lot
-        run: python3 .github/scripts/v268_ux_performance_patch.py
+        run: |
+          python3 .github/scripts/v268_ux_performance_patch.py
+          python3 .github/scripts/v268_ux_test_compat.py
       - name: Validate historical, v2.6.8 and Android contracts
         run: |
           set -euo pipefail
@@ -50,7 +52,7 @@ jobs:
           set -euo pipefail
           git config user.name "Delor85"
           git config user.email "mbolodelorpro@gmail.com"
-          git add app/src/main/assets/app.js app/src/main/assets/style.css app/src/test/v268-ux-performance.mjs
+          git add app/src/main/assets/app.js app/src/main/assets/style.css app/src/test/finance-flow.mjs app/src/test/v268-ux-performance.mjs
           git diff --cached --check
           git commit -m "perf: adapt navigation and polling for v2.6.8"
           git push origin HEAD:fix/blue-magic-v2-6-recovery
