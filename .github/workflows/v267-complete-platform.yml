@@ -70,7 +70,6 @@ jobs:
           PY
           python3 -m py_compile /tmp/v267_complete_platform.py
           python3 /tmp/v267_complete_platform.py
-          # Miniflare's module walker treats imported .mjs deterministically as ES modules.
           mv cloudflare/src/blue-message.js cloudflare/src/blue-message.mjs
           sed -i "s#'./blue-message.js'#'./blue-message.mjs'#" cloudflare/src/index.js
           sed -i "s#'../src/blue-message.js'#'../src/blue-message.mjs'#" cloudflare/test/blue-message-intelligence.mjs
@@ -83,6 +82,27 @@ jobs:
           new="    '0003_balance_preflight_and_modules.sql', '0004_blue_message_intelligence_and_modules.sql']) {"
           if old not in s: raise SystemExit('integration migration list changed unexpectedly')
           p.write_text(s.replace(old,new,1))
+
+          # Keep compatibility with the operator wording already covered by v2.6.7 tests:
+          # "Votre solde actuel est de 900 FCFA".
+          p=Path('cloudflare/src/blue-message.mjs')
+          s=p.read_text()
+          old=r'/(?:votre\s+)?solde(?:\s+(?:actuel|disponible|restant))?\s*(?:est|:|=)\s*([0-9][0-9 .,\'’]*?(?:[.,]\d{1,2})?)\s*(?:F\s*CFA|FCFA|XAF)/i'
+          new=r'/(?:votre\s+)?solde(?:\s+(?:actuel|disponible|restant))?\s*(?:est(?:\s+de)?|:|=)\s*([0-9][0-9 .,\'’]*?(?:[.,]\d{1,2})?)\s*(?:F\s*CFA|FCFA|XAF)/i'
+          if old not in s: raise SystemExit('French balance parser anchor changed unexpectedly')
+          p.write_text(s.replace(old,new,1))
+
+          p=Path('app/src/main/java/com/profitloop/blueauto/BlueMessageParser.java')
+          s=p.read_text()
+          old='Solde(?:\\s+(?:actuel|disponible|restant))?)\\s*[:=]?\\s*([0-9]'
+          new='Solde(?:\\s+(?:actuel|disponible|restant))?)\\s*(?:(?:est)(?:\\s+de)?|[:=])?\\s*([0-9]'
+          if old not in s: raise SystemExit('Android French balance parser anchor changed unexpectedly')
+          p.write_text(s.replace(old,new,1))
+
+          p=Path('cloudflare/test/blue-message-intelligence.mjs')
+          s=p.read_text()
+          anchor="assert.equal(parseFcfaAmount('35,000'), 35000);\n"
+          p.write_text(s.replace(anchor, anchor + "assert.equal(parseBlueMessage('Votre solde actuel est de 900 FCFA').current_balance, 900);\n",1))
           PY
 
       - name: Verify Cloudflare worker and message intelligence
