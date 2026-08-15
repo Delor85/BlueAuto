@@ -32,9 +32,23 @@ jobs:
           cache: npm
           cache-dependency-path: cloudflare/package-lock.json
 
-      - name: Apply deterministic v2.6.7 patch
+      - name: Reconstruct and adapt deterministic v2.6.7 patch
         run: |
           cat scripts/v267_complete_platform.py.gz.b64.part* | base64 -d | gzip -dc > /tmp/v267_complete_platform.py
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('/tmp/v267_complete_platform.py')
+          s = p.read_text()
+          marker = '# Ussd factory: local-only marker operations and reset PIN.'
+          start = s.index(marker)
+          a = s.index("replace_once('app/src/main/java/com/profitloop/blueauto/UssdCommandFactory.java',", start)
+          b = s.index('\n\n# Insert switch cases before TRANSACTION_DETAIL case.', a)
+          replacement = '''replace_once('app/src/main/java/com/profitloop/blueauto/UssdCommandFactory.java',
+                       "    static String operation(JSONObject command) {\\n        String kind = command == null ? \\\"\\\" : command.optString(\\\"command_kind\\\", \\\"\\\");\\n        return kind.isEmpty() ? (command == null ? \\\"\\\" : command.optString(\\\"operation\\\", \\\"\\\")) : kind;\\n    }",
+                       "    static String operation(JSONObject command) {\\n        String kind = command == null ? \\\"\\\" : command.optString(\\\"command_kind\\\", \\\"\\\");\\n        String argument = command == null ? \\\"\\\" : command.optString(\\\"command_argument\\\", \\\"\\\").trim().toUpperCase(Locale.ROOT);\\n        if (\\\"TRANSACTION_DETAIL\\\".equals(kind) && \\\"BM_RESET_PIN_SELF\\\".equals(argument)) return \\\"RESET_PIN_SELF\\\";\\n        if (\\\"TRANSACTION_DETAIL\\\".equals(kind) && \\\"BM_MODIFY_PIN_LOCAL\\\".equals(argument)) return \\\"MODIFY_PIN_LOCAL\\\";\\n        return kind.isEmpty() ? (command == null ? \\\"\\\" : command.optString(\\\"operation\\\", \\\"\\\")) : kind;\\n    }")'''
+          p.write_text(s[:a] + replacement + s[b:])
+          PY
+          python3 -m py_compile /tmp/v267_complete_platform.py
           python3 /tmp/v267_complete_platform.py
 
       - name: Verify Cloudflare worker and message intelligence
@@ -65,4 +79,3 @@ jobs:
           git diff --cached --check
           git commit -m "feat: complete Blue Magic v2.6.7 operator intelligence and modules"
           git push origin HEAD:fix/blue-magic-v2-6-recovery
-# retry after completing multipart payload
