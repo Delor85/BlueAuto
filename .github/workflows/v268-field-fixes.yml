@@ -17,12 +17,8 @@ jobs:
         with:
           ref: fix/blue-magic-v2-6-recovery
           fetch-depth: 0
-      - name: Restore full v2.6.7 integration baseline
-        run: git show 2dc2f435c078cf1b8612261f8c9210bc48e54645:cloudflare/test/integration.mjs > cloudflare/test/integration.mjs
-      - name: Adapt test contracts for v2.6.8
-        run: python3 .github/scripts/v268_test_patch.py
-      - name: Apply bounded v2.6.8 field fixes
-        run: python3 .github/scripts/v268_field_patch.py
+      - name: Apply v2.6.8 field follow-up
+        run: python3 .github/scripts/v268_followup_patch.py
       - name: Test Worker and Android web contracts
         run: |
           set -euo pipefail
@@ -34,14 +30,14 @@ jobs:
           node app/src/test/v268-field-contract.mjs
           node --check app/src/main/assets/app.js
           node --check app/src/main/assets/platform-v267.js
-      - name: Commit field fixes only
+      - name: Commit field follow-up only
         run: |
           set -euo pipefail
           git config user.name "Delor85"
           git config user.email "mbolodelorpro@gmail.com"
           git add app cloudflare/src/index.js cloudflare/test/integration.mjs
           git diff --cached --check
-          git commit -m "feat: stabilize Robot balances and commissions for v2.6.8"
+          git commit -m "fix: preserve queued finance and quote stock before confirmation"
           git push origin HEAD:fix/blue-magic-v2-6-recovery
 
-# Test-only workflow. Production remains v2.6.7; 0005 exists only in source/Miniflare.
+# Test-only workflow. Production remains v2.6.7; migration 0005 is not applied remotely.
