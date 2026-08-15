@@ -5,7 +5,7 @@
   const money = value => value == null ? '—' : new Intl.NumberFormat('fr-FR').format(Number(value)) + ' FCFA';
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const request = (action, payload={}) => {
-    if (!bridge() || !bridge().platformAction) return alert('Cette fonction exige l’APK Blue Magic v2.6.7.');
+    if (!bridge() || !bridge().platformAction) return alert('Cette fonction exige l’APK Blue Magic v2.6.8.');
     bridge().platformAction(action, JSON.stringify(payload));
   };
   const add = (parent, html) => { if (parent) parent.insertAdjacentHTML('beforeend', html); };
@@ -34,6 +34,10 @@
     <input id="shadow-id" placeholder="ID enfant"><input id="shadow-phone" placeholder="SIM 9 chiffres">
     <input id="shadow-name" placeholder="Nom / alias"><input id="shadow-zone" placeholder="Zone">
     <button id="shadow-save">Activer la liaison</button><hr>
+    <h4>💹 Commissions d’approvisionnement</h4><p class="small">DAE : taux par défaut pour les DSM. DSM : taux par défaut pour les PoS. Une exception enfant remplace seulement ce taux.</p>
+    <input id="commission-default" type="number" step="0.01" placeholder="Taux par défaut %"><button id="commission-default-save">Enregistrer le taux par défaut</button>
+    <input id="commission-child" placeholder="Enfant direct"><input id="commission-child-rate" type="number" step="0.01" placeholder="Taux personnalisé %">
+    <button id="commission-child-save">Personnaliser</button><button id="commission-child-default">Revenir au défaut</button><button id="commission-refresh">Afficher les taux</button><div id="commission-list" class="small"></div><hr>
     <h4>Créances</h4><input id="debt-node" placeholder="ID débiteur"><input id="debt-amount" type="number" placeholder="Montant avancé">
     <input id="debt-repaid" type="number" placeholder="Montant remboursé"><input id="debt-due" placeholder="Échéance AAAA-MM-JJ">
     <button id="debt-save">Enregistrer la créance</button><div id="debt-list" class="small"></div></section>`);
@@ -58,6 +62,10 @@
   bind('v267-messages', () => request('operator_insights'));
   bind('v267-catalog', () => request('operator_catalog'));
   bind('shadow-save', () => request('shadow_enroll', {node_code:$('shadow-id').value, phone_number:$('shadow-phone').value, display_name:$('shadow-name').value, zone:$('shadow-zone').value}));
+  bind('commission-refresh', () => request('commission_policy'));
+  bind('commission-default-save', () => request('commission_set_default', {rate_bps:Math.round(Number($('commission-default').value||0)*100)}));
+  bind('commission-child-save', () => request('commission_set_child', {child_node_code:$('commission-child').value,rate_bps:Math.round(Number($('commission-child-rate').value||0)*100)}));
+  bind('commission-child-default', () => request('commission_set_child', {child_node_code:$('commission-child').value,use_default:true}));
   bind('debt-save', () => request('debt_save', {debtor_node_code:$('debt-node').value, amount_advanced:$('debt-amount').value, amount_repaid:$('debt-repaid').value, due_date:$('debt-due').value}));
   bind('kyc-save', () => request('kyc_save', {legal_name:$('kyc-name').value,id_document_number:$('kyc-doc').value,document_reference:$('kyc-ref').value,zone:$('kyc-zone').value,latitude:$('kyc-lat').value,longitude:$('kyc-lon').value}));
   bind('merc-save', () => request('mercenary_save', {display_name:$('merc-name').value,phone_number:$('merc-phone').value,dedicated_pos_node_code:$('merc-pos').value,deposit_amount:$('merc-deposit').value}));
@@ -98,6 +106,9 @@
         regions.map(r=>`${esc(r.code)}=${esc(r.name)}`).join(' · ')+`<br>${esc(c.identity?.dae||'')}<br>${esc(c.identity?.dsm||'')}<br>${esc(c.identity?.pos||'')}<br>${esc(c.identity?.short_alias_rule||'')}`;
     } else if (action === 'operator_insights') {
       const list=data.messages||[]; $('v267-report-output').innerHTML=list.slice(0,20).map(m=>`${esc(m.created_at)} · ${esc(m.node_code)} · ${esc(m.message_kind)} · ${money(m.amount)} · solde ${money(m.current_balance)} · ${esc(m.transaction_id||m.receipt_number)}`).join('<br>');
+    } else if (action === 'commission_policy' || action === 'commission_set_default' || action === 'commission_set_child') {
+      if($('commission-default')) $('commission-default').value=String(Number(data.default_rate_bps||0)/100);
+      if($('commission-list')) $('commission-list').innerHTML=(data.children||[]).map(c=>`${esc(c.node_code)} : ${String(Number(c.effective_rate_bps||0)/100).replace('.',',')} % · ${esc(c.source==='CHILD_OVERRIDE'?'personnalisé':'défaut')}`).join('<br>') || 'Aucun enfant direct.';
     } else if (action === 'debt_save' || action === 'debt_list') {
       $('debt-list').innerHTML=(data.debts||[]).map(d=>`${esc(d.debtor_node_code)} : reste ${money(d.remaining)} — ${esc(d.state)}`).join('<br>');
     } else if (action === 'mercenary_save' || action === 'mercenary_list') {

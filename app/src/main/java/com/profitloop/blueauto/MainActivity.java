@@ -1355,6 +1355,23 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void refreshDashboardLive() {
+            new Thread(() -> {
+                try {
+                    JSONObject audit = new ApiClient(MainActivity.this).networkBalanceAudit();
+                    audit.put("_action", "network_balance_audit");
+                    callback("onPlatformAction", audit);
+                    callback("onDashboard", new ApiClient(MainActivity.this).dashboard());
+                    if (AppConfig.anyRobotEnabled(MainActivity.this)) {
+                        RobotService.startEnabled(MainActivity.this);
+                    }
+                } catch (Exception error) {
+                    callbackError("onPlatformAction", error);
+                }
+            }).start();
+        }
+
+        @JavascriptInterface
         public void getCommandStatus(String commandId) {
             new Thread(() -> {
                 try {

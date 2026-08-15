@@ -46,8 +46,7 @@ public class RobotService extends Service {
     private static final int NOTIFICATION_ID = 5502;
     private static final int WATCHDOG_REQUEST_CODE = 5503;
     private static final long STANDBY_WAKE_MS = 30 * 60_000L;
-    private static final long WATCHDOG_INTERVAL_MS = 15 * 60_000L;
-    private static final long SYSTEM_USSD_SCREEN_WAKE_MS = 45_000L;
+    private static final long WATCHDOG_INTERVAL_MS = 60_000L;
 
     private ScheduledExecutorService executor;
     private final AtomicBoolean cycleRunning = new AtomicBoolean(false);
@@ -55,9 +54,7 @@ public class RobotService extends Service {
     private long backoffMs = AppConfig.IDLE_POLL_MS;
     private int roundRobinIndex = 0;
     private PowerManager.WakeLock commandWakeLock;
-    private PowerManager.WakeLock commandScreenWakeLock;
     private PowerManager.WakeLock standbyWakeLock;
-    private boolean insecureKeyguardDismissed;
     private long standbyWakeRenewAt = 0L;
     private long lastCommandFinishedAt = 0L;
 
@@ -261,8 +258,7 @@ public class RobotService extends Service {
                         command.put("state_changed_at", System.currentTimeMillis());
                         PendingCommandStore.save(this, profileId, command);
                         roundRobinIndex = (index + 1) % count;
-                        if (UssdCommandFactory.requiresPin(command)
-                                && DeviceLockState.isSecurelyLocked(this)) {
+                        if (DeviceLockState.blocksUssd(this)) {
                             releaseLockedLease(profileId, command, api);
                             nextDelay = AppConfig.LOCKED_POLL_MS;
                             return;
@@ -430,20 +426,14 @@ public class RobotService extends Service {
                         "Autorisation État du téléphone requise pour sélectionner la SIM.", "");
                 return;
             }
+            if (DeviceLockState.blocksUssd(this)) {
+                releaseLockedLease(profileId, command, api);
+                return;
+            }
             acquireCommandWakeLock();
             try {
-                boolean needsWakeSettle = !DeviceLockState.isScreenInteractive(this)
-                        || DeviceLockState.isInsecurelyLocked(this);
-                acquireCommandScreenWakeLock();
-                if (!prepareSystemUssdSurface(needsWakeSettle)) {
-                    releaseUnexecutedLease(profileId, command, api,
-                            "Le verrou Android est encore visible; aucune composition n’a été lancée.");
-                    updateNotification(robotSummary(
-                            "Commande différée — retirez le verrou ou réveillez l’écran"));
-                    return;
-                }
                 PendingCommandStore.updateState(this, profileId, PendingCommandStore.DIALING);
-                api.sendEvent(command, "DIALING", "Composition USSD déclenchée sur le Robot.", "");
+                api.sendEvent(command, "DIALING", "Composition USSD déclenchée sur le Robot déverrouillé.", "");
                 updateNotification("Commande " + AppConfig.nodeCode(this, profileId) + " en cours");
 
                 String next = requiresPin ? PendingCommandStore.AWAITING_PIN
@@ -451,7 +441,7 @@ public class RobotService extends Service {
                 PendingCommandStore.updateState(this, profileId, next);
                 api.sendEvent(command, next, requiresPin
                         ? "En attente de la fenêtre de confirmation PIN."
-                        : "En attente du résultat opérateur.", "");
+                        : "Commande directe avec PIN local déjà composé; attente du résultat opérateur.", "");
                 SimCallManager.placeUssdCall(this, ussd, profileId);
                 if (requiresPin) BlueAccessibilityService.kick(this);
             } catch (SecurityException permissionError) {
@@ -466,48 +456,6 @@ public class RobotService extends Service {
         }
     }
 
-    private boolean prepareSystemUssdSurface(boolean needsWakeSettle) {
-        if (DeviceLockState.isSecurelyLocked(this)) return false;
-        if (!needsWakeSettle && !DeviceLockState.isKeyguardLocked(this)) return true;
-        long deadline = System.currentTimeMillis() + 4_000L;
-        boolean activityRequested = false;
-        do {
-            if (DeviceLockState.isSecurelyLocked(this)) return false;
-            if (DeviceLockState.isInsecurelyLocked(this)) {
-                insecureKeyguardDismissed = DeviceLockState.dismissInsecureKeyguard(this)
-                        || insecureKeyguardDismissed;
-                if (!activityRequested) {
-                    activityRequested = true;
-                    try {
-                        Intent unlock = new Intent(this, InsecureKeyguardDismissActivity.class);
-                        unlock.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                                | Intent.FLAG_ACTIVITY_NO_ANIMATION
-                                | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
-                        startActivity(unlock);
-                    } catch (Exception ignored) {
-                        // The legacy keyguard release above remains the Android 6/7 fallback.
-                    }
-                }
-            }
-            if (DeviceLockState.isScreenInteractive(this)
-                    && !DeviceLockState.isKeyguardLocked(this)) break;
-            try {
-                Thread.sleep(140L);
-            } catch (InterruptedException interrupted) {
-                Thread.currentThread().interrupt();
-                break;
-            }
-        } while (System.currentTimeMillis() < deadline);
-
-        // Give the Phone app a stable, visible window. No Blue Magic overlay is created.
-        try {
-            Thread.sleep(420L);
-        } catch (InterruptedException interrupted) {
-            Thread.currentThread().interrupt();
-        }
-        return DeviceLockState.isScreenInteractive(this)
-                && !DeviceLockState.isKeyguardLocked(this);
-    }
 
     private void reportProgress(String profileId, String state, String message) {
         if (profileId == null || profileId.isEmpty()) return;
@@ -667,13 +615,13 @@ public class RobotService extends Service {
     private void releaseLockedLease(String profileId, JSONObject command, ApiClient api) {
         try {
             api.releaseCommand(command,
-                    "Téléphone verrouillé par un mot de passe ou schéma; exécution différée.");
+                    "Écran verrouillé. Le titulaire doit déverrouiller normalement le téléphone; aucune tentative de déverrouillage automatique n’est effectuée.");
         } catch (Exception ignored) {
             // Un ancien serveur relâchera lui-même le lease à son expiration.
         }
         PendingCommandStore.clear(this, profileId);
         releaseCommandWakeLock();
-        updateNotification(robotSummary("Commande différée — déverrouillez le téléphone"));
+        updateNotification(robotSummary("Écran verrouillé — déverrouillez le téléphone puis Blue Magic reprendra la file"));
     }
 
     private Readiness checkReadiness(String profileId) {
@@ -756,30 +704,10 @@ public class RobotService extends Service {
         }
     }
 
-    @SuppressWarnings("deprecation")
-    private void acquireCommandScreenWakeLock() {
-        releaseCommandScreenWakeLock();
-        PowerManager manager = (PowerManager) getSystemService(POWER_SERVICE);
-        if (manager == null) return;
-        commandScreenWakeLock = manager.newWakeLock(
-                PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP,
-                "BlueMagic:SystemUssdPrompt");
-        commandScreenWakeLock.acquire(SYSTEM_USSD_SCREEN_WAKE_MS);
-    }
 
     private void releaseCommandWakeLock() {
         if (commandWakeLock != null && commandWakeLock.isHeld()) commandWakeLock.release();
         commandWakeLock = null;
-        releaseCommandScreenWakeLock();
-        if (insecureKeyguardDismissed) DeviceLockState.restoreInsecureKeyguard();
-        insecureKeyguardDismissed = false;
-    }
-
-    private void releaseCommandScreenWakeLock() {
-        if (commandScreenWakeLock != null && commandScreenWakeLock.isHeld()) {
-            commandScreenWakeLock.release();
-        }
-        commandScreenWakeLock = null;
     }
 
     private void acquireStandbyWakeLock() {

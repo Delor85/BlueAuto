@@ -71,7 +71,7 @@
             else if(action==='manage'){window.AndroidBridge.openManagement();}
             else if(action==='start-robot'){window.AndroidBridge.startRobot();showToast('Contrôle du Robot lancé. Suivez le message Android.');}
             else if(action==='server-health'){byId('serverHealthStatus').textContent='Vérification HTTPS et D1 en cours…';window.AndroidBridge.checkServerHealth();}
-            else if(action==='refresh-dashboard'){window.AndroidBridge.loadDashboard();showToast('Actualisation du réseau lancée.');}
+            else if(action==='refresh-dashboard'){if(window.AndroidBridge.refreshDashboardLive){window.AndroidBridge.refreshDashboardLive();showToast('Actualisation intelligente : preuves récentes réutilisées, USSD seulement si nécessaire.');}else{window.AndroidBridge.loadDashboard();}}
             else if(action==='go-test'){showTab('flux');var test=document.querySelector('button[data-action="test-number"]');if(test&&test.parentNode&&test.parentNode.scrollIntoView){test.parentNode.scrollIntoView(true);}}
         }catch(error){showToast('Action Android indisponible : '+error.message);}
     }
@@ -169,7 +169,11 @@
         var title=preview.operation==='RETAIL_TRANSFER'?'VENTE À UN CLIENT':'TRANSFERT DE CRÉDIT';
         var supplier=(preview.executor_node_code||'FOURNISSEUR')+' — '+(preview.executor_phone||'numéro absent');
         var beneficiary=(preview.target_node_code||'CLIENT')+' — '+(preview.target_phone||'numéro absent');
-        return window.confirm('CONFIRMATION 1 SUR 2\n\n'+title+'\n\nFOURNISSEUR : '+supplier+'\nBÉNÉFICIAIRE : '+beneficiary+'\nMONTANT : '+formatMoney(preview.amount)+' FCFA\n\nConfirmez uniquement si les deux numéros et le montant sont exacts. Après confirmation, le Robot composera la commande. Blue Magic contrôlera ensuite les mêmes données dans le pop-up Camtel avant d’insérer le PIN.\n\nCONFIRMER CETTE TRANSACTION ?');
+        var base=Number(preview.requested_base_amount||preview.amount||0), commission=Number(preview.commission_amount||0), rate=Number(preview.commission_rate_bps||0)/100;
+        var quote=preview.operation==='DISTRIBUTION_TRANSFER'
+            ? ('\nMONTANT COMMANDÉ : '+formatMoney(base)+' FCFA\nCOMMISSION ('+String(rate).replace('.',',')+' %) : '+formatMoney(commission)+' FCFA\nTOTAL À RECEVOIR : '+formatMoney(preview.amount)+' FCFA')
+            : ('\nMONTANT : '+formatMoney(preview.amount)+' FCFA');
+        return window.confirm('CONFIRMATION 1 SUR 2\n\n'+title+'\n\nFOURNISSEUR : '+supplier+'\nBÉNÉFICIAIRE : '+beneficiary+quote+'\n\nSi le taux de commission ne vous convient pas, annulez maintenant et contactez votre supérieur. Après confirmation, le Robot composera le montant total certifié. Blue Magic contrôlera ensuite les mêmes données dans le pop-up Camtel avant d’insérer le PIN.\n\nCONFIRMER CETTE TRANSACTION ?');
     }
     function formatMoney(value){return String(value).replace(/\B(?=(\d{3})+(?!\d))/g,' ');}
     function refresh(){var i;if(!bridge()){return;}for(i=0;i<commands.length;i+=1){if(!TERMINAL[commands[i].state]){window.AndroidBridge.getCommandStatus(commands[i].public_id);}}}
@@ -214,14 +218,16 @@
         byId('supportStatus').textContent=support;
     }
     function renderDashboard(){
-        var nodes=dashboard&&dashboard.nodes||[],html='',fleet='',i,n,own=null,total=0,known=0;
+        var nodes=dashboard&&dashboard.nodes||[],html='',fleet='',i,n,own=null,known=0;
         for(i=0;i<nodes.length;i+=1){
             n=nodes[i];if(n.node_code===configuration.node_code){own=n;}
-            if(n.balance!==null&&typeof n.balance!=='undefined'){total+=Number(n.balance)||0;known+=1;}
+            if(n.balance!==null&&typeof n.balance!=='undefined'){known+=1;}
             var balanceText=n.balance===null||typeof n.balance==='undefined'?'Non lu':formatMoney(n.balance)+' FCFA';
-            var availableText=n.available_balance===null||typeof n.available_balance==='undefined'?'':(' • dispo '+formatMoney(n.available_balance)+' FCFA');
+            var reserved=Number(n.reserved_amount||0), available=n.available_balance===null||typeof n.available_balance==='undefined'?null:Number(n.available_balance);
             var evidenceText=n.balance===null||typeof n.balance==='undefined'?'':(' • '+(n.balance_quality==='EXACT'?'confirmé':'estimé')+' / '+(n.evidence_kind||n.balance_source||'source inconnue'));
-            html+='<article class="network-item"><div><strong>'+escapeHtml(n.node_code||'—')+'</strong><span>'+escapeHtml((n.role||'—')+' • '+(n.device_kind||'—')+evidenceText)+'</span></div><div class="network-balance">'+escapeHtml(balanceText+availableText)+'</div></article>';
+            var split='';
+            if((n.role==='DAE'||n.role==='DSM')&&n.balance!==null&&typeof n.balance!=='undefined'){split='<br><small>Stock hors commission : '+escapeHtml(formatMoney(n.commission_base_balance||0))+' • part taux par défaut : '+escapeHtml(formatMoney(n.commission_component_balance||0))+' • taux '+escapeHtml(String(Number(n.default_commission_bps||0)/100).replace('.',','))+' %</small>';}
+            html+='<article class="network-item"><div><strong>'+escapeHtml(n.node_code||'—')+'</strong><span>'+escapeHtml((n.role||'—')+' • '+(n.device_kind||'—')+evidenceText)+'</span></div><div class="network-balance"><b>Solde Camtel : '+escapeHtml(balanceText)+'</b><br><small>Réservé : '+escapeHtml(formatMoney(reserved))+' FCFA • Disponible : '+escapeHtml(available===null?'—':formatMoney(available)+' FCFA')+'</small>'+split+'</div></article>';
             fleet+='<article class="network-item"><div><strong>'+escapeHtml(n.node_code||'—')+'</strong><span>'+escapeHtml(n.phone_number||'—')+'</span></div><div class="network-balance">'+escapeHtml(n.device_kind||'—')+'</div></article>';
         }
         byId('networkList').innerHTML=html||'<p class="muted">Aucun nœud visible dans cette arborescence.</p>';
@@ -233,7 +239,6 @@
                 +(own.available_balance!==null&&typeof own.available_balance!=='undefined'?' • disponible '+formatMoney(own.available_balance)+' FCFA':'')
                 +(own.balance_reusable?' • partageable sans nouvel USSD':' • à recertifier avant finance'))
             :'Aucune lecture Camtel horodatée.';
-        if(nodes.length){byId('reportActivityTitle').textContent='Solde cumulé connu : '+formatMoney(total)+' FCFA';}
     }
     function cancelRemote(commandId){if(!bridge()||!window.confirm('Annuler cette commande encore en attente ?')){return;}window.AndroidBridge.cancelCommand(commandId);}
     function formatTime(value){var d=new Date(value);if(isNaN(d.getTime())){return String(value);}return two(d.getDate())+'/'+two(d.getMonth()+1)+'/'+d.getFullYear()+' à '+two(d.getHours())+':'+two(d.getMinutes())+':'+two(d.getSeconds());}

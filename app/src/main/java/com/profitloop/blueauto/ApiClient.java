@@ -60,7 +60,7 @@ final class ApiClient {
         SimIdentityManager.Verification sim = SimIdentityManager.verify(context, targetProfile);
         boolean locallyEnabled = AppConfig.robotEnabled(context, targetProfile);
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.6.7");
+        payload.put("app_version", "2.6.8");
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
         payload.put("robot_enabled", locallyEnabled && sim.valid);
@@ -103,7 +103,7 @@ final class ApiClient {
     JSONObject activateRobot(SimIdentityManager.Verification sim, int simSlot,
                              boolean replaceVerifiedSameSimRobot) throws Exception {
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.6.7");
+        payload.put("app_version", "2.6.8");
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
         payload.put("sim_verified", sim.valid);
@@ -139,7 +139,7 @@ final class ApiClient {
 
     JSONObject platformAction(String action, JSONObject payload) throws Exception {
         String safe = action == null ? "" : action.trim();
-        if (!safe.matches("(?:operator_insights|operator_catalog|platform_snapshot|network_balance_audit|shadow_enroll|debt_save|debt_list|kyc_save|mercenary_save|mercenary_list|mercenary_sale)")) {
+        if (!safe.matches("(?:operator_insights|operator_catalog|platform_snapshot|network_balance_audit|shadow_enroll|debt_save|debt_list|kyc_save|mercenary_save|mercenary_list|mercenary_sale|commission_policy|commission_set_default|commission_set_child)")) {
             throw new ApiException("ACTION_NOT_ALLOWED", "Action plateforme non autorisée par le pont natif.");
         }
         return post(safe, payload == null ? new JSONObject() : payload, true);

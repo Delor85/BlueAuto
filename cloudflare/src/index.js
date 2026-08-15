@@ -1,7 +1,7 @@
 import {parseBlueMessage} from './blue-message.mjs';
 import {CAMTEL_USSD, canonicalCamtelIdentity, parseCamtelIdentity, publicCamtelCatalog} from './camtel-catalog.mjs';
 
-const API_VERSION = '2.6.7-cloudflare';
+const API_VERSION = '2.6.8-cloudflare';
 const ROBOT_LIVE_WINDOW_MINUTES = 15;
 const BALANCE_EVIDENCE_TTL_SECONDS = 3600;
 const REPORT_BALANCE_EVIDENCE_TTL_SECONDS = 14 * 3600;
@@ -64,6 +64,9 @@ export default {
         case 'operator_insights': return await operatorInsights(env, auth, headers);
         case 'record_operator_message': return await recordOperatorMessageApi(env, auth, input, headers);
         case 'platform_snapshot': return await platformSnapshot(env, auth, headers);
+        case 'commission_policy': return await commissionPolicy(env, auth, headers);
+        case 'commission_set_default': return await commissionSetDefault(env, auth, input, headers);
+        case 'commission_set_child': return await commissionSetChild(env, auth, input, headers);
         case 'shadow_enroll': return await shadowEnroll(env, auth, input, headers);
         case 'debt_save': return await debtSave(env, auth, input, headers);
         case 'debt_list': return await debtList(env, auth, headers);
@@ -486,8 +489,8 @@ async function createCommand(env, auth, input, headers) {
     ? env.DB.prepare(
       'INSERT INTO commands(public_id, client_request_id, requester_node_code, executor_node_code, '
       + 'target_node_code, operation, command_kind, command_argument, target_phone, amount, ussd_code, '
-      + 'requires_pin, capacity_check_id) '
-      + 'SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? '
+      + 'requires_pin, capacity_check_id, requested_base_amount, commission_rate_bps, commission_amount) '
+      + 'SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? '
       + 'WHERE EXISTS (SELECT 1 FROM purchase_preflights p '
       + 'JOIN account_balances b ON b.node_code = p.supplier_node_code '
       + 'LEFT JOIN commands source ON source.public_id = b.source_command_public_id '
@@ -506,16 +509,18 @@ async function createCommand(env, auth, input, headers) {
       publicId, clientId, auth.node_code, values.executor, values.targetNode,
       values.operation, values.commandKind || '', values.commandArgument || '', values.targetPhone,
       values.amount, values.ussd, values.requiresPin, values.capacityCheckId,
+      values.requestedBaseAmount || values.amount, Number(values.commissionRateBps || 0), Number(values.commissionAmount || 0),
       values.capacityCheckId, auth.node_code, values.executor, values.amount, values.amount
     )
     : env.DB.prepare(
       'INSERT INTO commands(public_id, client_request_id, requester_node_code, executor_node_code, '
       + 'target_node_code, operation, command_kind, command_argument, target_phone, amount, ussd_code, '
-      + 'requires_pin, capacity_check_id) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      + 'requires_pin, capacity_check_id, requested_base_amount, commission_rate_bps, commission_amount) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     ).bind(
       publicId, clientId, auth.node_code, values.executor, values.targetNode,
       values.operation, values.commandKind || '', values.commandArgument || '', values.targetPhone,
-      values.amount, values.ussd, values.requiresPin, null
+      values.amount, values.ussd, values.requiresPin, null,
+      values.requestedBaseAmount || values.amount, Number(values.commissionRateBps || 0), Number(values.commissionAmount || 0)
     );
   let batchResults;
   try {
@@ -563,6 +568,9 @@ async function createCommand(env, auth, input, headers) {
       executor_phone: values.executorPhone, target_node_code: values.targetNode,
       target_phone: values.targetPhone,
       operation: values.commandKind || values.operation, amount: values.amount,
+      requested_base_amount: values.requestedBaseAmount || values.amount,
+      commission_rate_bps: Number(values.commissionRateBps || 0),
+      commission_amount: Number(values.commissionAmount || 0),
       created_at: createdAt, updated_at: createdAt,
       ...availability
     },
@@ -584,6 +592,10 @@ async function previewCommand(env, auth, input, headers) {
     target_node_code: values.targetNode,
     target_phone: values.targetPhone,
     amount: values.amount,
+    requested_base_amount: values.requestedBaseAmount || values.amount,
+    commission_rate_bps: Number(values.commissionRateBps || 0),
+    commission_amount: Number(values.commissionAmount || 0),
+    commission_source: values.commissionSource || '',
     operation: values.commandKind || values.operation,
     requires_pin: Boolean(values.requiresPin),
     dangerous: Boolean(values.requiresConfirmation),
@@ -630,9 +642,9 @@ async function checkPurchaseCapacity(env, auth, input, headers) {
     + "AND b.confidence IN ('OPERATOR_EXPLICIT','DERIVED_FROM_EXPLICIT') "
     + 'AND (a.last_unbalanced_activity_at IS NULL OR a.last_unbalanced_activity_at <= b.observed_at)) '
     + 'INSERT INTO purchase_preflights(public_id, client_request_id, requester_node_code, supplier_node_code, '
-    + 'requested_amount, available_balance, balance_command_public_id, balance_reused, balance_observed_at, '
+    + 'requested_amount, base_amount, commission_rate_bps, commission_amount, available_balance, balance_command_public_id, balance_reused, balance_observed_at, '
     + 'state, result_message, expires_at) '
-    + 'SELECT ?, ?, ?, ?, request.amount, snapshot.available, '
+    + 'SELECT ?, ?, ?, ?, request.amount, ?, ?, ?, snapshot.available, '
     + 'COALESCE(snapshot.evidence_command_public_id, snapshot.source_command_public_id), 1, snapshot.observed_at, '
     + "CASE WHEN request.amount <= snapshot.available THEN 'AVAILABLE' ELSE 'INSUFFICIENT' END, "
     + "CASE WHEN request.amount <= snapshot.available THEN "
@@ -642,7 +654,8 @@ async function checkPurchaseCapacity(env, auth, input, headers) {
     + "|| CAST(snapshot.available AS INTEGER) || ' FCFA.' END, "
     + "strftime('%Y-%m-%dT%H:%M:%fZ','now','+120 seconds') "
     + 'FROM snapshot CROSS JOIN request RETURNING *'
-  ).bind(values.amount, values.executor, checkId, clientId, auth.node_code, values.executor).first();
+  ).bind(values.amount, values.executor, checkId, clientId, auth.node_code, values.executor,
+    values.requestedBaseAmount || values.amount, Number(values.commissionRateBps || 0), Number(values.commissionAmount || 0)).first();
 
   if (reserved) {
     const availability = await robotAvailability(env, values.executor);
@@ -675,14 +688,17 @@ async function checkPurchaseCapacity(env, auth, input, headers) {
   }
   await env.DB.prepare(
     'INSERT INTO purchase_preflights(public_id, client_request_id, requester_node_code, '
-    + 'supplier_node_code, requested_amount, balance_command_public_id, state, result_message, expires_at) '
-    + "VALUES(?, ?, ?, ?, ?, ?, 'WAITING', ?, "
+    + 'supplier_node_code, requested_amount, base_amount, commission_rate_bps, commission_amount, balance_command_public_id, state, result_message, expires_at) '
+    + "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, 'WAITING', ?, "
     + "strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '+120 seconds'))"
   ).bind(checkId, clientId, auth.node_code, values.executor, values.amount,
+    values.requestedBaseAmount || values.amount, Number(values.commissionRateBps || 0), Number(values.commissionAmount || 0),
     balanceCommand.public_id, 'Lecture mutualisée du solde du supérieur en cours; priorité conservée par ordre d arrivée.').run();
   const availability = await robotAvailability(env, values.executor);
   return success({capacity: {
     capacity_check_id: checkId, state: 'WAITING', requested_amount: values.amount,
+    base_amount: values.requestedBaseAmount || values.amount, commission_rate_bps: Number(values.commissionRateBps || 0),
+    commission_amount: Number(values.commissionAmount || 0),
     supplier_node_code: values.executor, available_balance: null,
     balance_command_id: balanceCommand.public_id, balance_reused: false,
     balance_observed_at: '', message: 'Lecture mutualisée en cours; votre rang de priorité est conservé.',
@@ -738,6 +754,10 @@ async function capacityView(env, row) {
     capacity_check_id: row.public_id,
     state,
     requested_amount: Number(row.requested_amount),
+    base_amount: Number(row.base_amount || row.requested_amount),
+    commission_rate_bps: Number(row.commission_rate_bps || 0),
+    commission_amount: Number(row.commission_amount || 0),
+    maximum_base_amount: maxBaseForTotal(Number(row.available_balance || 0), Number(row.commission_rate_bps || 0)),
     available_balance: row.available_balance == null ? null : Number(row.available_balance),
     supplier_node_code: row.supplier_node_code,
     balance_command_id: row.balance_command_public_id || '',
@@ -989,11 +1009,15 @@ async function resolveCommand(env, auth, input, requestType) {
     if (!parent) {
       throw new ApiError('PARENT_NOT_FOUND', 'Le fournisseur supérieur actif est introuvable.', 422);
     }
+    const policy = await commissionRateFor(env, parent.node_code, requester);
+    const quote = commissionQuote(value, policy.rate_bps);
     return {
       executor: parent.node_code, executorPhone: parent.phone_number,
       targetNode: requester, targetPhone: auth.phone_number,
-      amount: value, operation: 'DISTRIBUTION_TRANSFER',
-      ussd: CAMTEL_USSD.distributionTransfer(auth.phone_number, value), requiresPin: 1
+      amount: quote.total_amount, requestedBaseAmount: value,
+      commissionRateBps: policy.rate_bps, commissionAmount: quote.commission_amount,
+      commissionSource: policy.source, operation: 'DISTRIBUTION_TRANSFER',
+      ussd: CAMTEL_USSD.distributionTransfer(auth.phone_number, quote.total_amount), requiresPin: 1
     };
   }
   if (requestType === 'SUPPLY_CHILD') {
@@ -1004,10 +1028,15 @@ async function resolveCommand(env, auth, input, requestType) {
     const child = await resolveDirectChild(env, requester, input.target_node_code, childRole);
     if (!child) throw new ApiError('CHILD_NOT_FOUND', 'Ce compte n’est pas un enfant direct actif.', 422);
     const value = amount(input.amount);
+    const policy = await commissionRateFor(env, requester, child.node_code);
+    const quote = commissionQuote(value, policy.rate_bps);
     return {
       executor: requester, executorPhone: auth.phone_number,
-      targetNode: child.node_code, targetPhone: child.phone_number, amount: value,
-      operation: 'DISTRIBUTION_TRANSFER', ussd: CAMTEL_USSD.distributionTransfer(child.phone_number, value), requiresPin: 1
+      targetNode: child.node_code, targetPhone: child.phone_number, amount: quote.total_amount,
+      requestedBaseAmount: value, commissionRateBps: policy.rate_bps,
+      commissionAmount: quote.commission_amount, commissionSource: policy.source,
+      operation: 'DISTRIBUTION_TRANSFER',
+      ussd: CAMTEL_USSD.distributionTransfer(child.phone_number, quote.total_amount), requiresPin: 1
     };
   }
   if (requestType === 'RETAIL_SALE') {
@@ -1796,6 +1825,80 @@ async function kycSave(env, auth, input, headers) {
   return success({kyc:row},200,headers);
 }
 
+async function commissionRateFor(env, parentNodeCode, childNodeCode) {
+  const override = await env.DB.prepare(
+    'SELECT rate_bps FROM commission_overrides WHERE parent_node_code=? AND child_node_code=?'
+  ).bind(parentNodeCode, childNodeCode).first();
+  if (override) return {rate_bps: Number(override.rate_bps), source: 'CHILD_OVERRIDE'};
+  const parent = await env.DB.prepare('SELECT default_commission_bps FROM nodes WHERE node_code=?')
+    .bind(parentNodeCode).first();
+  return {rate_bps: Number(parent?.default_commission_bps || 0), source: 'PARENT_DEFAULT'};
+}
+
+function commissionQuote(baseAmount, rateBps) {
+  const base = Number(baseAmount || 0);
+  const rate = Number(rateBps || 0);
+  const commission = Math.floor(base * rate / 10000);
+  return {base_amount: base, rate_bps: rate, commission_amount: commission,
+    total_amount: base + commission};
+}
+
+function maxBaseForTotal(totalAmount, rateBps) {
+  const total = Math.max(0, Math.floor(Number(totalAmount || 0)));
+  const rate = Math.max(0, Math.floor(Number(rateBps || 0)));
+  let base = Math.floor(total * 10000 / (10000 + rate));
+  while (base > 0 && commissionQuote(base, rate).total_amount > total) base -= 1;
+  while (commissionQuote(base + 1, rate).total_amount <= total) base += 1;
+  return base;
+}
+
+async function commissionPolicy(env, auth, headers) {
+  if (!['DAE','DSM'].includes(auth.role)) {
+    return success({node_code: auth.node_code, role: auth.role, default_rate_bps: 0, children: []}, 200, headers);
+  }
+  const childRole = auth.role === 'DAE' ? 'DSM' : 'POS';
+  const parent = await env.DB.prepare('SELECT default_commission_bps FROM nodes WHERE node_code=?')
+    .bind(auth.node_code).first();
+  const children = await env.DB.prepare(
+    'SELECT n.node_code,n.phone_number,o.rate_bps AS override_rate_bps FROM nodes n '
+    + 'LEFT JOIN commission_overrides o ON o.parent_node_code=? AND o.child_node_code=n.node_code '
+    + 'WHERE n.parent_node_code=? AND n.role=? AND n.active=1 ORDER BY n.node_code'
+  ).bind(auth.node_code, auth.node_code, childRole).all();
+  return success({node_code:auth.node_code, role:auth.role,
+    default_rate_bps:Number(parent?.default_commission_bps || 0),
+    children:(children.results||[]).map(row=>({...row,
+      effective_rate_bps: row.override_rate_bps == null ? Number(parent?.default_commission_bps || 0) : Number(row.override_rate_bps),
+      source: row.override_rate_bps == null ? 'PARENT_DEFAULT' : 'CHILD_OVERRIDE'}))},200,headers);
+}
+
+async function commissionSetDefault(env, auth, input, headers) {
+  if (!['DAE','DSM'].includes(auth.role)) throw new ApiError('REQUEST_NOT_ALLOWED','Seul un DAE ou DSM définit un taux enfant.',403);
+  const rate = Number(input.rate_bps);
+  if (!Number.isInteger(rate) || rate < 0 || rate > 5000) throw new ApiError('INVALID_COMMISSION_RATE','Taux invalide.',422);
+  await env.DB.prepare('UPDATE nodes SET default_commission_bps=? WHERE node_code=?')
+    .bind(rate,auth.node_code).run();
+  return commissionPolicy(env,auth,headers);
+}
+
+async function commissionSetChild(env, auth, input, headers) {
+  if (!['DAE','DSM'].includes(auth.role)) throw new ApiError('REQUEST_NOT_ALLOWED','Seul un DAE ou DSM personnalise un taux enfant.',403);
+  const childRole=auth.role==='DAE'?'DSM':'POS';
+  const child=await resolveDirectChild(env,auth.node_code,input.child_node_code,childRole);
+  if(!child) throw new ApiError('CHILD_NOT_FOUND','Enfant direct introuvable.',422);
+  if (input.use_default === true) {
+    await env.DB.prepare('DELETE FROM commission_overrides WHERE parent_node_code=? AND child_node_code=?')
+      .bind(auth.node_code,child.node_code).run();
+  } else {
+    const rate=Number(input.rate_bps);
+    if(!Number.isInteger(rate)||rate<0||rate>5000) throw new ApiError('INVALID_COMMISSION_RATE','Taux invalide.',422);
+    await env.DB.prepare(
+      "INSERT INTO commission_overrides(parent_node_code,child_node_code,rate_bps,updated_by_node_code) VALUES(?,?,?,?) "
+      + "ON CONFLICT(parent_node_code,child_node_code) DO UPDATE SET rate_bps=excluded.rate_bps,updated_by_node_code=excluded.updated_by_node_code,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now')"
+    ).bind(auth.node_code,child.node_code,rate,auth.node_code).run();
+  }
+  return commissionPolicy(env,auth,headers);
+}
+
 async function mercenarySave(env, auth, input, headers) {
   if (auth.role !== 'DAE') throw new ApiError('REQUEST_NOT_ALLOWED','Hub Mercenaires réservé au DAE.',403);
   const p = phone(input.phone_number);
@@ -1893,7 +1996,7 @@ async function networkDashboard(env, auth, headers) {
     'WITH RECURSIVE network(node_code) AS (SELECT ? UNION ALL '
     + 'SELECT n.node_code FROM nodes n JOIN network p ON n.parent_node_code = p.node_code '
     + 'WHERE n.active = 1) '
-    + 'SELECT n.node_code, n.role, n.phone_number, n.parent_node_code, '
+    + 'SELECT n.node_code, n.role, n.phone_number, n.parent_node_code, n.default_commission_bps, '
     + 'b.balance, b.source AS balance_source, b.evidence_kind, b.confidence, b.observed_at, b.valid_until, '
     + 'b.evidence_priority, b.operator_event_at, b.balance_quality, b.last_transaction_id, '
     + 'a.last_financial_activity_at, a.last_unbalanced_activity_at, '
@@ -1929,7 +2032,11 @@ async function networkDashboard(env, auth, headers) {
         && Date.parse(row.last_unbalanced_activity_at) > Date.parse(evidenceAt));
       const reusable = balance != null && row.balance_quality === 'EXACT'
         && Date.parse(row.valid_until || '') > Date.now() && !unbalancedAfterEvidence;
-      return {...row, balance, reserved_amount: reserved,
+      const defaultRate = Number(row.default_commission_bps || 0);
+      const baseEquivalent = balance == null ? null : maxBaseForTotal(balance, defaultRate);
+      return {...row, balance, default_commission_bps: defaultRate, reserved_amount: reserved,
+        commission_base_balance: baseEquivalent,
+        commission_component_balance: balance == null ? null : balance - baseEquivalent,
         available_balance: balance == null ? null : Math.max(0, balance - reserved),
         balance_reusable: reusable,
         balance_age_seconds: row.observed_at
@@ -2040,6 +2147,7 @@ async function previewFingerprint(values) {
     values.executor || '', values.executorPhone || '', values.targetNode || '',
     values.targetPhone || '', values.amount == null ? '' : String(values.amount),
     values.operation || '', values.commandKind || '', values.commandArgument || '', values.ussd || '',
+    values.requestedBaseAmount || '', values.commissionRateBps || '', values.commissionAmount || '',
     values.requiresPin ? '1' : '0', values.requiresConfirmation ? '1' : '0',
     values.capacityCheckId || ''
   ].join('|'));

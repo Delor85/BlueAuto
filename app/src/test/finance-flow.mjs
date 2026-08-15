@@ -228,20 +228,21 @@ assert.match(service, /catch \(RuntimeException primaryFailure\)[\s\S]*FOREGROUN
 const readiness = service.slice(service.indexOf('private Readiness checkReadiness('),
   service.indexOf('private void disableUnsafeRobot('));
 assert.doesNotMatch(readiness, /verifyCallRoute/);
-assert.ok(service.indexOf('prepareSystemUssdSurface(needsWakeSettle)')
+assert.match(service, /DeviceLockState\.blocksUssd\(this\)/);
+assert.ok(service.indexOf('DeviceLockState.blocksUssd(this)')
   < service.indexOf('SimCallManager.placeUssdCall(this, ussd, profileId)'));
-assert.match(service, /SYSTEM_USSD_SCREEN_WAKE_MS = 45_000L/);
-assert.match(service, /InsecureKeyguardDismissActivity\.class/);
-assert.doesNotMatch(service, /new Intent\(this, MainActivity\.class\)[\s\S]{0,180}PREPARE_INSECURE_USSD/);
-assert.doesNotMatch(service, /"PIN_SUBMITTED"\.equals\(state\)\) releaseCommandScreenWakeLock/);
+assert.doesNotMatch(service, /prepareSystemUssdSurface/);
+assert.doesNotMatch(service, /SYSTEM_USSD_SCREEN_WAKE_MS/);
+assert.doesNotMatch(service, /InsecureKeyguardDismissActivity/);
+assert.doesNotMatch(service, /SCREEN_BRIGHT_WAKE_LOCK|ACQUIRE_CAUSES_WAKEUP|disableKeyguard/);
 
 const manifest = await readFile(new URL('../main/AndroidManifest.xml', import.meta.url), 'utf8');
 assert.match(manifest, /foregroundServiceType="dataSync\|specialUse"/);
 
 const gradleConfig = await readFile(new URL('../../build.gradle', import.meta.url), 'utf8');
 assert.match(gradleConfig, /minSdk 23/);
-assert.match(gradleConfig, /versionCode 47/);
-assert.match(gradleConfig, /versionName "2\.6\.7"/);
+assert.match(gradleConfig, /versionCode 48/);
+assert.match(gradleConfig, /versionName "2\.6\.8"/);
 assert.match(gradleConfig, /release \{[\s\S]*signingConfig signingConfigs\.pilotDebug/);
 
 const apiClient = await readFile(new URL(
