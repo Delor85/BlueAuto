@@ -112,20 +112,11 @@ jobs:
           disable-animations: true
           emulator-boot-timeout: 1200
           script: |
-            set -eu
-            apk=/tmp/blue-magic-v267-matrix/app-release.apk
-            adb install -r "$apk" | tee /tmp/blue-magic-install.txt
+            adb install -r /tmp/blue-magic-v267-matrix/app-release.apk | tee /tmp/blue-magic-install.txt
             grep -q "Success" /tmp/blue-magic-install.txt
             adb logcat -c
             adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/blue-magic-start.txt
             grep -q "Status: ok" /tmp/blue-magic-start.txt
             sleep 2
-            if adb shell 'command -v pidof >/dev/null 2>&1'; then
-              adb shell pidof com.profitloop.blueauto
-            else
-              adb shell ps | grep com.profitloop.blueauto
-            fi
-            if adb logcat -d -b crash 2>/dev/null | grep -q com.profitloop.blueauto; then
-              adb logcat -d -b crash
-              exit 1
-            fi
+            adb shell ps | grep com.profitloop.blueauto
+            test -z "$(adb logcat -d -b crash 2>/dev/null | grep com.profitloop.blueauto || true)"
