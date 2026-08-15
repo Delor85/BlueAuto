@@ -66,7 +66,8 @@ jobs:
             app/src/main/java/com/profitloop/blueauto/CamtelUssdCatalog.java \
             app/src/main/java/com/profitloop/blueauto/MainActivity.java \
             app/src/main/java/com/profitloop/blueauto/ApiClient.java \
-            app/src/main/assets/platform-v267.js docs/CAMTEL_OPERATOR_CATALOG.md
+            app/src/main/assets/platform-v267.js app/src/test/finance-flow.mjs \
+            docs/CAMTEL_OPERATOR_CATALOG.md
           git diff --cached --quiet && { echo 'No business changes produced'; exit 1; }
           git commit -m 'feat: scale v2.6.7 around canonical Camtel hierarchy'
           git push origin HEAD:fix/blue-magic-v2-6-recovery
