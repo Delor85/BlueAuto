@@ -6,7 +6,14 @@ old = "    + '(a.last_unbalanced_activity_at IS NULL OR a.last_unbalanced_activi
 new = "    + 'AND (a.last_unbalanced_activity_at IS NULL OR a.last_unbalanced_activity_at <= b.observed_at)) '\n"
 if old not in s:
     raise SystemExit('FIFO activity predicate anchor missing')
-path.write_text(s.replace(old, new, 1))
+s = s.replace(old, new, 1)
+
+old_msg = "    + \"|| (snapshot.available - request.amount) || ' FCFA.' ELSE \"\n    + \"'Les demandes arrivées avant sont prioritaires. Solde encore disponible du supérieur : ' \"\n    + \"|| snapshot.available || ' FCFA.' END, \"\n"
+new_msg = "    + \"|| CAST((snapshot.available - request.amount) AS INTEGER) || ' FCFA.' ELSE \"\n    + \"'Les demandes arrivées avant sont prioritaires. Solde encore disponible du supérieur : ' \"\n    + \"|| CAST(snapshot.available AS INTEGER) || ' FCFA.' END, \"\n"
+if old_msg not in s:
+    raise SystemExit('FIFO message formatting anchor missing')
+s = s.replace(old_msg, new_msg, 1)
+path.write_text(s)
 
 # The historical integration expected every preflight to see the full certified balance.
 # Under FIFO soft reservations, a later request must see the amount left after earlier AVAILABLE holds.
@@ -18,4 +25,4 @@ if old_test not in t:
     raise SystemExit('legacy capacity assertion anchor missing')
 test.write_text(t.replace(old_test, new_test, 1))
 
-print('FIFO SQL predicate and legacy capacity assertion corrected')
+print('FIFO SQL predicate, remaining-balance formatting and legacy assertion corrected')
