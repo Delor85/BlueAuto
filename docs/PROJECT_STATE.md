@@ -1,3 +1,65 @@
+# ÉTAT COURANT — v2.6.8 STABILISATION / PRODUCTION v2.6.7 INCHANGÉE
+
+Mise à jour de reprise : 15 août 2026. Cette section est prioritaire sur les états historiques conservés plus bas.
+
+## A. Références actuelles
+
+- Dépôt : `Delor85/BlueAuto`
+- Branche : `fix/blue-magic-v2-6-recovery`
+- PR : `#4`, ouverte et **non fusionnée**
+- Android source : `2.6.8`, `versionCode 48`, `minSdk 23`, `targetSdk 34`
+- Worker source : `2.6.8-cloudflare`
+- Migration source additive : `0005_commission_policies_and_financial_quotes.sql`
+- Production réellement active : Worker `2.6.7-cloudflare`, version Cloudflare `83bc2dd7-e28c-41f2-88f9-710c1b9dd649`, D1 migrée jusqu’à `0004`, APK permanente v2.6.7
+- Migration `0005` : **NON APPLIQUÉE EN PRODUCTION**
+- Worker 2.6.8 : **NON DÉPLOYÉ EN PRODUCTION**
+- APK permanente 2.6.8 : **NON PUBLIÉE**
+
+## B. Acquis v2.6.8
+
+- précontrôle d’approvisionnement transformé en cotation sans réservation ; seule la commande financière confirmée réserve réellement la capacité ;
+- commission DAE→DSM par défaut 10 % et DSM→PoS 8 %, avec surcharge par enfant et total base+commission ;
+- suppression du « Solde cumulé connu » ; séparation Solde Camtel / Réservé après confirmation / Disponible ;
+- périmètres DAE/DSM/PoS bornés à leur branche ;
+- rafraîchissement intelligent et réutilisation des preuves exactes : finance 1 h, rapport 14 h sous condition d’absence de mouvement non rapproché ;
+- commandes non financières directes avec PIN local, sans dépendance Accessibilité ;
+- perte d’Accessibilité : une finance non composée doit rester/revenir en file plutôt que d’être consommée ;
+- verrou sécurisé : aucun contournement ; verrou simple : assistance transparente, ponctuelle, bornée et avec cooldown, puis déverrouillage humain si nécessaire ;
+- Centre GÉRER responsive ; navigation adaptée au rôle ; affichage allégé sur petit écran ; extension plateforme compatible vieux WebView ;
+- saisie transactionnelle optimisée : claviers numériques, normalisation, focus erreur, anti-double action et nettoyage uniquement après création réussie ;
+- polling UI adaptatif et suspendu en arrière-plan ;
+- contrôle Remote↔Robot multi-SIM : timeouts courts seulement pour le plan de contrôle et isolement temporaire d’un profil réseau lent afin de ne pas bloquer les autres SIM ;
+- bandeau natif compact : un Remote ne réclame plus SIM/Accessibilité ; un Robot n’affiche une deuxième ligne que lorsqu’une action est requise.
+
+## C. Jalons de validation source
+
+- `02e15878305a45e3126c7109666f32f132decf29` — stabilisation finance/Robot + GÉRER responsive ;
+- `2ef2055e17a53b0a269f07903e5946dfc61d86d4` — baseline Java/tests/assembleRelease vert ;
+- `ece06e793c590fe79d5fe18124b3ed864e1ada80` — navigation/polling adaptatifs ;
+- `ee5bf4955cc55b4bed9ab9a5cbac239df05e737f` — compatibilité extension plateforme Android 6 ;
+- `47b024ff8dbe7244c8037ddc24e2fb75a72522b3` — ergonomie transactionnelle ;
+- `71d2ea762e531f76e97fc8386283d08e06bd4033` — résilience Remote↔Robot / profils réseau lents ;
+- `46821fcc27b9c2fd153f2e977d6c3b92076f666b` — bandeau natif compact.
+
+Chaque lot ci-dessus a été validé avec les contrats Worker/historiques/v2.6.8, les tests unitaires Android et un vrai `assembleRelease` avant persistance.
+
+## D. Interdictions de reprise
+
+- ne pas fusionner PR #4 avant validation terrain et autorisation explicite ;
+- ne pas appliquer `0005` ni déployer Worker 2.6.8 sans nouvelle autorisation de production ;
+- ne pas publier d’APK permanente v2.6.8 à partir d’une simple compilation CI ;
+- ne pas réintroduire `disableKeyguard()`, le contournement d’un verrou sécurisé, la réservation au préflight ou le solde agrégé de sous-arbre ;
+- ne pas faire dépendre les commandes directes avec PIN local de l’Accessibilité ;
+- ne pas réécrire le cœur Remote → Worker/D1 → Robot → USSD déjà validé terrain.
+
+## E. Prochaine étape terrain
+
+Après production autorisée et livraison future : tester Android 6, 8 et 11 réels ; TEST_NUMBER ; verrou simple ; perte/réactivation Accessibilité ; Remote→Robot ; files multi-SIM ; solde propre/enfant/historique/détail ; DAE→DSM à 10 % et surcharge ; DSM→PoS à 8 % et surcharge ; PoS→client ; concurrence de deux commandes ; rafraîchissement soldes/activités ; annulation et reprise après verrouillage/redémarrage.
+
+---
+
+# HISTORIQUE CONSERVÉ
+
 # ÉTAT DU PROJET — APK v2.6.6 LIVRÉE / WORKER v2.6.5 EN PRODUCTION
 
 État vérifié le 13 août 2026. La reprise doit commencer ici puis continuer dans `docs/PROCEDURE_REPRISE_EXTERNE.md`, qui contient le cahier des charges synthétisé, l'historique complet, les causes de régression, la procédure et les limites terrain.

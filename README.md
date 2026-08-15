@@ -1,88 +1,100 @@
-# Blue Magic v2.6.7 — contrôle de solde, commandes métier et Release Android
+# Blue Magic v2.6.8 — stabilisation terrain, commissions et interface adaptative
 
-Blue Magic automatise, sur un téléphone Android dédié, les transferts de crédit de distribution Blue/Camtel qui nécessitent désormais deux étapes :
+Blue Magic automatise la distribution Blue/Camtel selon le trajet sécurisé **Remote → Worker/D1 → Robot détenteur de la SIM → USSD → preuve opérateur**. La branche de développement actuelle prépare `2.6.8` (`versionCode 48`, `minSdk 23`, `targetSdk 34`) sans modifier la production tant que la validation terrain et une nouvelle autorisation explicite n’ont pas été données.
 
-1. composition de `*550*2*numéro*montant#` ou `*550*1*numéro*montant#` ;
-2. vérification de la confirmation Camtel, saisie locale du PIN puis clic sur **ENVOYER**.
+> **Production réellement active :** Worker `2.6.7-cloudflare`, D1 migrée jusqu’à `0004`, APK permanente v2.6.7.
+> **Développement :** v2.6.8 sur `fix/blue-magic-v2-6-recovery`, PR #4 ouverte/non fusionnée, migration additive `0005` présente dans les sources mais **non appliquée en production**.
 
-Cette version maintient le trajet critique **Télécommande → prévisualisation officielle → confirmation humaine → serveur → Robot exact → fenêtre USSD → contrôle Camtel → PIN → preuve opérateur** et restaure le comportement opérationnel de la v2.4.5 sans retirer les protections utiles ajoutées ensuite.
+## Noyau financier à préserver
 
-La régression v2.5 provenait d’un mélange entre deux niveaux de prérequis. Le PIN, l’Accessibilité et l’état de blocage du PIN étaient contrôlés avant même la location d’une commande et bloquaient donc aussi `TEST_NUMBER`. La v2.6 sépare désormais :
+- Chaque SIM Blue/Camtel est liée à son profil et à son slot physique.
+- Un téléphone physique n’exécute qu’une session USSD à la fois.
+- Les commandes financières sont prévisualisées puis confirmées par l’utilisateur avant création de la réservation D1.
+- Le précontrôle de capacité est une **cotation seulement** : il ne réserve et ne déduit aucun FCFA. La réservation devient réelle uniquement à la création de la commande confirmée.
+- La création finale garde une vérification atomique de capacité afin d’empêcher deux commandes concurrentes de dépenser le même stock.
+- Un résultat incertain devient `UNKNOWN` et n’est jamais rejoué automatiquement.
+- Le PIN Camtel reste local au téléphone, chiffré, absent du Worker, de D1 et du JavaScript.
 
-- la **sécurité de route**, obligatoire pour toute commande : profil appairé, SIM physique présente dans le slot choisi, route d’appel exacte et autorisations Téléphone ;
-- la **capacité financière**, exigée seulement pour un achat ou une vente : PIN chiffré disponible, Accessibilité active et PIN non bloqué.
+## Commandes Camtel
 
-Ainsi `TEST_NUMBER` reste exécutable lorsque la route SIM est sûre, même si l’Accessibilité est désactivée. Une commande financière reste refusée avant composition si ses conditions propres ne sont pas remplies.
+Le catalogue opérateur est centralisé dans :
 
-La v2.6.7 conserve le trajet validé sur le terrain — Remote distinct → commande D1 → Robot détenteur de la SIM → USSD — et ajoute le contrôle réel du solde du supérieur avant un achat. Le moteur mutualise pendant trois minutes toute preuve Camtel explicite de solde actuel obtenue par une consultation, un historique, un détail ou un résultat financier fiable, tout en déduisant les transferts et réservations connus. Une liste de transactions sans libellé de solde actuel ne suffit jamais. Un montant insuffisant est refusé avant la confirmation 1/2 avec le stock exact disponible. Le PIN du supérieur reste exclusivement dans son Robot.
+- Android : `app/src/main/java/com/profitloop/blueauto/CamtelUssdCatalog.java` ;
+- Worker : `cloudflare/src/camtel-catalog.mjs` ;
+- documentation : `docs/CAMTEL_OPERATOR_CATALOG.md`.
 
-Le verrou simple n'ouvre plus l'activité Blue Magic complète : une activité transparente sans contenu retire uniquement le swipe lock, puis le service refuse de composer tant qu'Android confirme encore un keyguard. La saisie essaie réellement `ACTION_SET_TEXT` puis le collage local avant validation.
+Les commandes non financières qui embarquent déjà le PIN local — solde, cinq dernières transactions, détail, solde enfant et administration — sont des USSD directs et **ne dépendent pas de l’Accessibilité**. Les transferts financiers restent interactifs et utilisent l’Accessibilité pour la fenêtre PIN Camtel.
 
-Rapports et Flotte utilisent maintenant les données Worker/D1 (soldes horodatés, arborescence, Android ou terminal non encore enregistré). Aucun terminal n'est étiqueté Tchoronko sans donnée dédiée. Les consultations Camtel et commandes de maintenance prévues dans le cahier disposent de routes bornées par le rôle et la filiation. Les actions de suspension ou gel exigent une confirmation explicite.
+## Solde vivant et preuves
 
-Le livrable préparé est désormais un vrai APK `assembleRelease`, non débogable, version `2.6.7`/code `47`. La CI couvre Android 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 et 16 avec une mise à jour conservant les données.
+`Solde Camtel` représente le dernier solde canonique connu pour **ce nœud**, jamais la somme de sa sous-arborescence. `Réservé après confirmation` représente les commandes financières confirmées encore non terminales. `Disponible = Solde Camtel - Réservé`.
 
-Cette version corrige aussi les propriétaires Robot fantômes créés par d’anciens renouvellements de jeton ou par la suppression locale d’un compte actif. Une réparation réutilise le même appareil serveur et la suppression tente d’abord un arrêt serveur. Si un conflit subsiste, le remplacement n’est proposé qu’après une nouvelle vérification locale de la même SIM physique au bon slot. Le transfert D1 est atomique : une SIM absente ou différente ne désactive rien. L’interface indique après création si le Robot exact est réellement en ligne ou si la commande attend un Robot hors connexion.
+La chronologie opérateur prévaut sur la priorité d’une source : un SMS ancien arrivé en retard ne peut pas faire régresser une preuve plus récente. Pour une décision financière, une preuve exacte peut être réutilisée jusqu’à **1 heure** uniquement en l’absence d’activité financière non rapprochée postérieure. Pour un rapport, une preuve exacte peut rester exploitable jusqu’à **14 heures** dans la même condition.
 
-Le Robot déjà actif conserve la priorité contre tout Remote ordinaire et contre toute SIM différente. Au moment précis d’un conflit, seul le téléphone qui prouve l’empreinte de la même SIM physique peut demander explicitement le transfert ; cette preuve désactive l’ancien propriétaire de cette empreinte et démarre le nouveau. Toucher Robot par erreur depuis un Remote ou présenter une autre SIM ne déconnecte jamais l’ancien téléphone.
+## Commissions v2.6.8
 
-Le diagnostic d’appairage, le design bleu et or, la mise en page adaptative, le multi-SIM, l’ordonnancement FIFO et la reprise automatique sont conservés. Blue Magic n’ajoute aucun voile au-dessus du pop-up Camtel : après concordance du numéro et du montant, le PIN peut être visible pendant sa saisie par Android. Il reste chiffré localement et absent du JavaScript, du Worker, de D1 et des journaux.
+La migration source `0005_commission_policies_and_financial_quotes.sql` introduit :
 
-Cette tranche nécessite le déploiement coordonné de la migration D1 `0003`, du Worker `2.6.7-cloudflare` et de l'APK v2.6.7. Tant que ce déploiement n'est pas explicitement autorisé et vérifié, la production reste en v2.6.5/v2.6.6 et les nouveaux écrans serveur ne doivent pas être considérés comme disponibles.
+- DAE → DSM : taux par défaut 10 % (`1000 bps`) et surcharge possible par DSM ;
+- DSM → PoS : taux par défaut 8 % (`800 bps`) et surcharge possible par PoS ;
+- mémorisation du montant de base, du taux et de la commission dans la cotation/commande ;
+- confirmation 1/2 affichant **base + commission = total réellement transféré** ;
+- calcul entier du montant de base maximal compatible avec le solde disponible ;
+- empreinte de confirmation incluant le taux afin qu’un changement de commission invalide une ancienne confirmation.
 
-La reprise permanente du projet se trouve dans [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md) et sa procédure obligatoire dans [`docs/BLUE_MAGIC_DELIVERY_PROCEDURE.md`](docs/BLUE_MAGIC_DELIVERY_PROCEDURE.md).
+Les vues DAE/DSM peuvent décomposer un solde réel Camtel en stock de base + composante de commission selon le taux par défaut. Il s’agit d’une vue comptable dérivée, pas de trois comptes Camtel séparés.
 
-## Ce qui change par rapport à l’ancien code
+## Navigation et ergonomie adaptatives
 
-- le PIN n’est jamais envoyé au serveur ni au JavaScript ; il est chiffré par Android Keystore ;
-- l’interface web ne peut plus demander l’exécution d’un code USSD arbitraire ;
-- numéro et montant sont recalculés par le Robot et comparés au pop-up Camtel avant le PIN ;
-- chaque opération financière reçoit une prévisualisation D1 du fournisseur, du bénéficiaire et du montant, une confirmation lisible sur la Télécommande, puis une seconde confirmation automatique sur le pop-up Camtel ;
-- tous les boutons Achat, Vente et Test partagent le même état actif bleu sur Android 6 comme sur les versions récentes, et la confirmation native ne peut plus disparaître silencieusement ;
-- chaque profil Robot est lié à l’empreinte de sa SIM physique : SIM absente, déplacée ou différente signifie arrêt avant la location d’une commande ;
-- le Worker n’accorde un lease qu’à l’unique téléphone Robot explicitement élu pour ce nœud et ayant envoyé une attestation SIM valide ; un nouveau Remote ne peut jamais l’évincer ;
-- chaque commande louée indique explicitement son nœud exécuteur et possède une empreinte d’intégrité contrôlée dans Android ;
-- chaque demande possède une clé d’idempotence et un lease anti-double exécution ;
-- les états réels sont `PENDING → LEASED → DIALING → AWAITING_PIN → PIN_SUBMITTED → AWAITING_RESULT → SUCCEEDED/FAILED/UNKNOWN/BLOCKED` ;
-- une absence de confirmation devient `UNKNOWN` et n’est jamais retentée automatiquement, afin d’éviter une double recharge ;
-- un seul message « Wrong PIN » bloque immédiatement le Robot.
-- au repos, un Robot interroge la file toutes les 30 secondes et envoie un heartbeat toutes les 5 minutes, soit environ 3 168 requêtes par jour; les boucles rapides ne sont utilisées que pendant une commande.
-- le détecteur PIN inspecte toutes les fenêtres Android accessibles, réacquiert le champ à chaque tentative, vérifie la saisie et possède une méthode de secours locale temporaire ;
-- chaque compte choisit explicitement SIM 1, SIM 2, SIM 3 ou SIM 4 selon le téléphone ;
-- plusieurs comptes DAE, DSM et PoS peuvent être conservés sur le même téléphone ; tous les profils Robots démarrés restent actifs même lorsqu’un compte Remote est affiché ;
-- deux Robots associés à deux SIM d’un même téléphone partagent un ordonnanceur équitable et n’ouvrent jamais deux sessions USSD en même temps ;
-- l’interface de commande ES5 est intégrée dans l’APK : elle reste compatible avec l’ancien WebView d’Android 6 et ne dépend plus d’un `index.html` distant ;
-- les codes courts sont résolus uniquement dans leur branche (`DSM7` → `DSM7_SU2`, `POS5` → `POS5_DSM7_SU2`) ; plusieurs DSM peuvent appartenir au même DAE, chacun avec son numéro Camtel unique ;
-- les commandes récentes affichent leur horodatage local ;
-- `ROBOT` est polyvalent (exécution + création de commandes) ; `REMOTE` reste uniquement télécommande.
-- un ancien profil dont le rôle local est vide ou obsolète récupère prudemment `DSM`/`POS` depuis son identifiant canonique, ou `DAE` depuis l’absence de supérieur ; le Worker conserve l’autorité finale sur chaque permission financière ;
-- l’écran explique les opérations permises par le rôle actif, afin de distinguer une règle hiérarchique d’un blocage technique ;
-- au repos, seul le service Robot fonctionne : l’écran peut s’éteindre normalement et n’est plus maintenu allumé ;
-- lors d’une commande sous verrou simple, Blue Magic réveille brièvement l’écran et utilise uniquement une activité transparente sans contenu pour retirer le swipe lock ; il ne compose que lorsque le keyguard a réellement disparu et ne contourne jamais un verrou sécurisé ;
-- une synchronisation finale en panne ne bloque plus les files des autres SIM et se réconcilie automatiquement avec le statut serveur ;
-- une garde globale détecte et neutralise les anciens états locaux qui prétendraient avoir deux sessions USSD simultanées ;
-- le même compte passe de `ROBOT` à `REMOTE`, ou inversement, sans suppression ni nouvel appairage ;
-- l’appairage utilise uniquement l’adresse Cloudflare choisie dans le formulaire : aucune bascule silencieuse vers l’ancien hébergement `gt.tc` ;
-- l’adresse du serveur, le secret d’appairage et le PIN redeviennent vérifiables dans le formulaire, avec affichage volontaire via la case prévue.
+Blue Magic garde les modules fonctionnels Rapports, Flotte/Réseau, Flux, Robot et SAV, mais leur présentation est adaptée au rôle :
 
-## Structure
+- **DAE :** Pilotage, Réseau, Flux, Robot, SAV ;
+- **DSM :** Soldes, Réseau, Flux, Robot, SAV ;
+- **PoS :** Solde, Vente, Robot, Aide — la Flotte administrative est masquée.
 
-- `app/` : application Android native Java, compatible Android 6.0+ ;
-- `cloudflare/` : API Workers + base D1 + interface web, option gratuite recommandée ;
-- `htdocs/` : interface PWA et API PHP/MySQL pour InfinityFree ;
-- `docs/INSTALLATION_CLOUDFLARE.md` : déploiement Cloudflare pas à pas ;
-- `docs/INSTALLATION_PAS_A_PAS.md` : procédure destinée à un débutant ;
-- `docs/TEST_TERRAIN.md` : validation obligatoire avant argent réel ;
-- `.github/workflows/build.yml` : compilation automatique de l’APK de test.
+Le panneau natif **GÉRER** est un centre de gestion défilable et responsive. Il utilise deux colonnes compactes lorsque la largeur le permet et repasse à une colonne sur les écrans très étroits. Les modules avancés sont repliables et exposés seulement aux rôles concernés.
 
-La signature permanente reste hors du dépôt et son empreinte attendue est contrôlée par la CI. Les secrets de signature sont actuellement absents de l’environnement GitHub `production` : la CI compile et teste, mais refuse donc de publier une APK permanente. L’APK v2.6 livrée a été re-signée dans le circuit contrôlé avec le même certificat que les v2.5.3/v2.5.4. La v2.4.5 historique avait un ancien certificat pilote différent : ne pas la désinstaller ni forcer une mise à jour en cas d’erreur de signature.
+Les vieux WebView Android restent pris en charge : l’extension plateforme n’emploie plus les syntaxes JavaScript modernes susceptibles de casser Android 6. Les petits écrans utilisent aussi un rendu visuel allégé (moins d’animation, de flou et d’ombres).
 
-## Limite technique honnête
+## Fluidité Remote ↔ Robot / multi-SIM
 
-Android ne fournit pas d’API publique universelle pour répondre à la deuxième étape d’une session USSD interactive. `TelephonyManager.sendUssdRequest()` sait obtenir une réponse à une requête, mais ne fournit pas de méthode publique pour continuer la session avec le PIN. Blue Magic utilise donc `ACTION_CALL` puis un `AccessibilityService` contrôlé et limité à la transaction attendue. La v2.5.1 réveille brièvement la fenêtre MMI lorsqu’une commande arrive, sans maintenir l’écran allumé au repos. Un simple écran de glissement sans code est retiré uniquement pendant la transaction puis restauré. Cela ne supprime pas cryptographiquement un mot de passe ou un schéma Android : derrière un verrou sécurisé, la commande attend le déverrouillage et le Robot reste actif. Un essai sur le modèle exact du Robot reste obligatoire.
+Le polling applicatif n’est plus exécuté aveuglément :
 
-La version gratuite d’InfinityFree est adaptée à l’interface web et fournit PHP/MySQL, mais son hébergement gratuit peut filtrer les clients automatisés et n’est pas présenté comme une plateforme d’API. Le dossier `cloudflare/` fournit donc le backend recommandé, conçu pour les clients automatisés. InfinityFree reste disponible comme solution de repli.
+- les commandes sont interrogées seulement lorsqu’elles sont non terminales et que l’application est visible ;
+- le tableau de bord est actualisé seulement dans les écrans où il est utile ;
+- les appels de contrôle retry-safe (`heartbeat`, `lease_command`, `command_status`, tableau de bord) ont des délais réseau plus courts que les opérations transactionnelles ;
+- un profil dont la route réseau ralentit est temporairement différé localement afin que les autres SIM/profils du téléphone continuent leur file ;
+- la fréquence de base n’est pas augmentée inutilement, afin de préserver batterie et réseau.
 
-## Démarrage
+## Verrou Android et Accessibilité
 
-Pour l’option recommandée, suivre [docs/INSTALLATION_CLOUDFLARE.md](docs/INSTALLATION_CLOUDFLARE.md), puis [docs/INSTALLATION_PAS_A_PAS.md](docs/INSTALLATION_PAS_A_PAS.md) à partir de l’étape APK et enfin [docs/TEST_TERRAIN.md](docs/TEST_TERRAIN.md).
+Blue Magic ne contourne jamais un PIN, schéma, mot de passe ou verrou biométrique. Sous verrou sécurisé, la commande reste/revient en file et un déverrouillage humain est requis.
+
+Pour un simple verrou sans identifiant, une activité transparente peut faire **une tentative courte et bornée** au moment précis où une commande attend. Un cooldown empêche les boucles qui faisaient trembler certains téléphones. En cas d’échec, Blue Magic renonce à forcer l’écran et demande un déverrouillage humain.
+
+Android conserve l’autorité sur l’activation de l’AccessibilityService : Blue Magic peut garder le Robot logiquement actif, surveiller/reprendre la file et guider l’utilisateur, mais ne peut pas s’auto-accorder silencieusement cette autorisation.
+
+## Rôles et périmètres
+
+La nomenclature canonique Camtel reste :
+
+- DAE : `XXY` (`OU3`, `CE04`, `LT10`) ;
+- DSM : `DSMZ_XXY` (`DSM7_OU3`) ;
+- PoS : `POSA_DSMZ_XXY` (`POS16_DSM7_OU3`).
+
+Le DAE voit sa propre pyramide ; un DSM voit son compte et ses PoS directs ; un PoS voit son propre compte. Les activités et soldes suivent le même périmètre. Les alias courts ne sont résolus que dans le contexte hiérarchique qui les rend non ambigus.
+
+## CI et livraison
+
+Les tests permanents couvrent le Worker/D1, les règles financières historiques, les contrats v2.6.8, la syntaxe WebView, les tests unitaires Java et un vrai `assembleRelease`.
+
+Un build CI ordinaire doit utiliser une signature **éphémère**. Les secrets de signature permanente restent confinés au job `production`. Une future publication permanente v2.6.8 ne doit être possible qu’après une autorisation explicite visant un SHA exact, puis un lancement manuel avec le garde correspondant. Une compilation de validation n’est jamais une autorisation de production.
+
+## Points de reprise
+
+- état détaillé : `docs/PROJECT_STATE.md` ;
+- procédure obligatoire : `docs/BLUE_MAGIC_DELIVERY_PROCEDURE.md` et `docs/PROCEDURE_REPRISE_EXTERNE.md` ;
+- tests terrain : `docs/TEST_TERRAIN.md` ;
+- catalogue opérateur : `docs/CAMTEL_OPERATOR_CATALOG.md`.
+
+**Ne pas fusionner PR #4, ne pas appliquer `0005`, ne pas déployer Worker 2.6.8 et ne pas publier d’APK permanente v2.6.8 avant validation terrain et autorisation explicite séparée.**
