@@ -7,6 +7,7 @@ new="""assert.match(tabButtons.find(item => item.tab === 'reports').className, /
 if old in s: s=s.replace(old,new,1)
 s=s.replace('assert.match(gradleConfig, /versionCode 48/);','assert.match(gradleConfig, /versionCode 50/);')
 s=s.replace('assert.match(gradleConfig, /versionName "2\\.6\\.8"/);','assert.match(gradleConfig, /versionName "2\\.6\\.10"/);')
+s=s.replace('assert.match(html, /SAV & DIAGNOSTIC/);','assert.match(html, /ACTIVITÉ & SAV/);\nassert.match(html, /DIAGNOSTIC RAPIDE/);')
 p.write_text(s,encoding='utf-8')
 
 # Historical role-nav test: panels stay, commercial names are BIR.
