@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 for path in Path('app/src/test').glob('*.mjs'):
     text = path.read_text(encoding='utf-8')
@@ -10,6 +11,10 @@ for path in Path('app/src/test').glob('*.mjs'):
     text = text.replace("gradle.includes('versionName \"2.7.1\"')", "(gradle.includes('versionName \"2.7.1\"')||gradle.includes('versionName \"2.8.0\"'))")
     text = text.replace("gradleConfig.includes('versionCode 52')", "(gradleConfig.includes('versionCode 52')||gradleConfig.includes('versionCode 53'))")
     text = text.replace("gradleConfig.includes('versionName \"2.7.1\"')", "(gradleConfig.includes('versionName \"2.7.1\"')||gradleConfig.includes('versionName \"2.8.0\"'))")
+    text = re.sub(r"([A-Za-z_$][A-Za-z0-9_$]*)\.includes\('\"2\.7\.1\"'\)",
+                  r"(\1.includes('\"2.7.1\"')||\1.includes('\"2.8.0\"'))", text)
+    text = re.sub(r"([A-Za-z_$][A-Za-z0-9_$]*)\.includes\(\"\\\"2\.7\.1\\\"\"\)",
+                  r"(\1.includes(\"\\\"2.7.1\\\"\")||\1.includes(\"\\\"2.8.0\\\"\"))", text)
     # Explicit regex-escaped v2.7.1 metadata becomes a compatibility check, not a capability change.
     text = text.replace('2\\.7\\.1', '(?:2\\.7\\.1|2\\.8\\.0)')
     if text != before:
