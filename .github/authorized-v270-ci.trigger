@@ -1,0 +1,9 @@
+candidate_branch=feat/bir-v2-7-finalization
+base=e3f9e9016e86c1193ba4170e2a9fce1ba466eb86
+package=com.profitloop.blueauto
+versionCode=51
+versionName=2.7.0
+cloudflare_deploy=forbidden
+d1_mutation=forbidden
+permanent_signing=forbidden
+android_smoke=23,26,30
