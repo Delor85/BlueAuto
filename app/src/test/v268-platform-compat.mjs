@@ -7,8 +7,10 @@ for(const banned of ['=>','?.','??','const ','let ','`']){
   if(js.includes(banned)) throw new Error('old WebView incompatible syntax remains: '+banned);
 }
 if(!js.includes("configuration.role === 'DAE'")||!js.includes("configuration.role === 'DSM'")) throw new Error('role gating missing');
-if(!js.includes('if (isDae())')||!js.includes('if (isManager())')) throw new Error('advanced module role scope missing');
+const daeScope=js.includes('if (isDae())')||js.includes('if (isDae() || isMockWorkspace())');
+if(!daeScope||!js.includes('if (isManager())')) throw new Error('advanced module role scope missing');
+if(js.includes('if (isDae() || isMockWorkspace())')&&!js.includes('function isMockWorkspace()')) throw new Error('owner MOCK scope helper missing');
 if(!js.includes('if (isRobot())')) throw new Error('Robot-only Sandbox gating missing');
 if(!js.includes('var formatter = null')) throw new Error('cached number formatter missing');
 if(!js.includes('<details class="card v267-extra"')) throw new Error('collapsible advanced modules missing');
-console.log('v2.6.8 platform extension: ES5 WebView compatibility and role-scoped advanced modules OK');
+console.log('v2.6.8 platform extension: ES5 WebView compatibility, DAE scope and explicit owner MOCK extension OK');
