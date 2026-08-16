@@ -5,3 +5,4 @@ cloudflare_change=forbidden
 d1_migration=forbidden
 pr4_merge=forbidden
 permanent_signing=forbidden
+rerun=v269-identity-aligned
