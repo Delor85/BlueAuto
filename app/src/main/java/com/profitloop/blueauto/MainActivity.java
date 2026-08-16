@@ -1361,6 +1361,7 @@ public class MainActivity extends Activity {
             try {
                 JSONObject value = new JSONObject();
                 value.put("node_code", AppConfig.nodeCode(MainActivity.this));
+                value.put("phone_number", AppConfig.phoneNumber(MainActivity.this));
                 value.put("profile_id", AppConfig.profileId(MainActivity.this));
                 value.put("role", AppConfig.role(MainActivity.this));
                 value.put("parent_node_code", AppConfig.parentNode(MainActivity.this));

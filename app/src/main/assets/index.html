@@ -5,16 +5,24 @@
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
     <meta name="theme-color" content="#05122a">
     <link rel="stylesheet" href="style.css">
-    <title>Blue Magic</title>
+    <title>B.I.R. — Blue Infinity Retail</title>
 </head>
 <body>
-<header class="topbar">
-    <div><p class="eyebrow">PROFITLOOP TELECOM</p><h1>Blue Magic</h1></div>
-    <span id="nativeBadge" class="badge badge-warn">Vérification…</span>
+<header class="topbar bir-topbar">
+    <div class="bir-brand-lockup">
+        <img class="bir-logo-image" src="bir-logo.svg" alt="B.I.R.">
+        <div class="bir-brand-copy"><p class="eyebrow">BLUE INFINITY RETAIL</p><h1>B.I.R.</h1><p class="bir-tagline">Rapide. Puissant. Infini.</p></div>
+    </div>
+    <div class="bir-account-chip">
+        <span id="birAccountRole" class="bir-account-role">COMPTE</span>
+        <strong id="birAccountNode">—</strong>
+        <small id="birAccountPhone">SIM —</small>
+        <span id="nativeBadge" class="badge badge-warn">Vérification…</span>
+    </div>
 </header>
 <main>
     <section class="hero panel">
-        <div><p class="eyebrow">NŒUD ACTIF</p><h2 id="nodeCode">—</h2><p id="nodeMeta" class="muted">Chargement…</p></div>
+        <div><p class="eyebrow">COMPTE ACTIF</p><h2 id="nodeCode">—</h2><p id="nodeMeta" class="muted">Chargement…</p></div>
         <div id="robotState" class="status-orb">—</div>
     </section>
     <section id="fatalNotice" class="notice notice-danger hidden"></section>
@@ -23,7 +31,34 @@
     <section id="browserNotice" class="notice hidden">Cette interface doit être ouverte dans l’application Android.</section>
 
     <section class="module-screen hidden" data-tab-panel="reports">
-        <article class="panel module-intro">
+        <article class="bir-balance-card">
+            <div class="bir-balance-head">
+                <div><p class="bir-kicker">SOLDE CAMTEL</p><strong id="birCamtelBalance">À actualiser</strong><span>FCFA</span><p id="birBalanceFreshness" class="bir-balance-note">Lecture du solde en cours…</p></div>
+                <div id="birRobotState" class="bir-robot-orb">ROBOT —</div>
+            </div>
+            <div class="bir-finance-grid">
+                <div><span>Disponible</span><b id="birAvailableBalance">—</b></div>
+                <div><span>Réservé confirmé</span><b id="birReservedBalance">—</b></div>
+                <div><span id="birThirdMetricLabel">Composante commission</span><b id="birThirdMetricValue">—</b></div>
+            </div>
+        </article>
+        <button type="button" class="bir-priority-action" data-tab-jump="flux">
+            <span class="bir-action-infinity">∞</span><span><b id="birRoleActionTitle">ACTION PRIORITAIRE</b><small id="birRoleActionSub">Accédez directement à votre opération principale.</small></span><i>›</i>
+        </button>
+        <div class="bir-section-title"><span></span><h2>MODULES B.I.R.</h2><span></span></div>
+        <div class="bir-modules-grid">
+            <button type="button" data-tab-jump="flux"><i>▣</i><b id="birTransactionModuleTitle">Transactions Blue</b><small>Vente, achat et approvisionnement selon votre rôle.</small></button>
+            <button type="button" data-tab-jump="fleet"><i>⌁</i><b>Réseau vivant</b><small>Comptes, SIM, terminaux et périmètre commercial.</small></button>
+            <button type="button" data-action="check-balance"><i>◫</i><b>Soldes & preuves</b><small>Solde Camtel, disponible, historique et justificatifs.</small></button>
+            <button type="button" data-tab-jump="config"><i>◉</i><b>Robot intelligent</b><small>Remote, Robot, permissions, PIN, reprise et sécurité.</small></button>
+            <button type="button" data-tab-jump="support"><i>▤</i><b>Activité & SAV</b><small>Commandes, diagnostic, serveur et assistance terrain.</small></button>
+            <button type="button" data-native-action="manage"><i>⚙</i><b>Centre Gérer</b><small>Comptes, SIM, PIN Camtel et réglages essentiels.</small></button>
+        </div>
+        <article class="bir-live-strip">
+            <div><span class="bir-pulse-dot"></span><p><b>ACTIVITÉ EN COURS</b><small id="birActivityLine">Aucune commande locale récente.</small></p></div>
+            <button type="button" data-tab-jump="support">Voir tout</button>
+        </article>
+        <article class="panel module-intro bir-existing-content">
             <p class="eyebrow">PILOTAGE & RAPPORTS</p>
             <h3 id="reportsIntroTitle">Vue utile du compte</h3>
             <p id="reportsIntroText" class="muted">Soldes, activité et opérations sont affichés selon le périmètre réel de votre rôle, sans exposer le PIN Camtel.</p>
@@ -147,6 +182,15 @@
             <h3>Hall Remote / Robot</h3>
             <p id="configRobotStatus" class="muted">Chargement de la configuration…</p>
         </article>
+        <article class="panel module-card bir-manage-quick">
+            <p class="eyebrow">COMPTE & SIM</p><h3>Identité, liaison et comptes</h3>
+            <p class="muted">Toutes les fonctions historiques restent disponibles : compte actif, slots, SIM, mode Remote/Robot et centre natif Gérer.</p>
+            <div class="module-actions">
+                <button type="button" class="secondary" data-native-action="accounts">Comptes et slots</button>
+                <button type="button" class="secondary" data-native-action="verify-sim">Vérifier / lier la SIM</button>
+                <button type="button" class="secondary" data-native-action="manage">Ouvrir le centre Gérer</button>
+            </div>
+        </article>
         <article class="panel module-card">
             <p class="eyebrow">ORDRE SÛR</p>
             <ol class="compact-steps">
@@ -176,9 +220,9 @@
 
     <section class="module-screen hidden" data-tab-panel="support">
         <article class="panel module-intro">
-            <p class="eyebrow">SAV & DIAGNOSTIC</p>
-            <h3>Contrôle sans fonds</h3>
-            <p class="muted">Le test numéro reste dans l’onglet Flux et compose uniquement <code>*825*3*3#</code>. Commencez toujours par lui après une installation ou un changement de Robot.</p>
+            <p class="eyebrow">ACTIVITÉ & SAV</p>
+            <h3>Activité, preuves et diagnostic</h3>
+            <p id="birActivityDetail" class="muted">Vos dernières commandes, les preuves Camtel et les contrôles terrain restent accessibles ici. Le test numéro compose uniquement <code>*825*3*3#</code>.</p>
         </article>
         <article class="panel module-card">
             <p class="eyebrow">DIAGNOSTIC RAPIDE</p>
@@ -196,12 +240,12 @@
         </article>
     </section>
 </main>
-<nav class="module-tabs" aria-label="Modules Blue Magic">
-    <button type="button" class="module-tab" data-tab="reports"><span class="module-icon">▥</span><span>Rapports</span></button>
-    <button type="button" class="module-tab" data-tab="fleet"><span class="module-icon">♧</span><span>Flotte</span></button>
-    <button type="button" class="module-tab module-tab-primary active" data-tab="flux"><span class="module-icon">⚡</span><span>Flux</span></button>
-    <button type="button" class="module-tab" data-tab="config"><span class="module-icon">⚙</span><span>Robot</span></button>
-    <button type="button" class="module-tab" data-tab="support"><span class="module-icon">◇</span><span>SAV</span></button>
+<nav class="module-tabs bir-bottom-nav" aria-label="Navigation B.I.R.">
+    <button type="button" class="module-tab" data-tab="reports"><span class="module-icon">⌂</span><span>Accueil</span></button>
+    <button type="button" class="module-tab" data-tab="fleet"><span class="module-icon">⌁</span><span>Réseau</span></button>
+    <button type="button" class="module-tab module-tab-primary" data-tab="flux"><span class="module-icon bir-nav-infinity">∞</span><span>Piloter</span></button>
+    <button type="button" class="module-tab" data-tab="support"><span class="module-icon">▤</span><span>Activité</span></button>
+    <button type="button" class="module-tab" data-tab="config"><span class="module-icon">⚙</span><span>Gérer</span></button>
 </nav>
 <div id="toast" class="toast hidden" role="status"></div>
 <script src="app.js"></script>

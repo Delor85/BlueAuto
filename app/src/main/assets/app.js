@@ -3,7 +3,7 @@
     var TERMINAL = {SUCCEEDED:true,FAILED:true,UNKNOWN:true,BLOCKED:true,CANCELLED:true};
     var labels = {PENDING:'En attente',LEASED:'Réservée au Robot',DIALING:'Composition USSD',AWAITING_PIN:'Vérification du pop-up',PIN_SUBMITTED:'PIN validé',AWAITING_RESULT:'Confirmation Camtel',SUCCEEDED:'Réussie',FAILED:'Échec',UNKNOWN:'À vérifier',BLOCKED:'Robot bloqué — PIN',CANCELLED:'Annulée'};
     var configuration = {}, commands = [], pendingPreview = null, capacityPolls = 0, dashboard = null;
-    var activeTab = 'flux', commandPollTimer = null, dashboardPollTimer = null;
+    var activeTab = 'reports', commandPollTimer = null, dashboardPollTimer = null;
     var commandPollCursor = 0, dashboardLoadedAt = 0, actionInFlight = false;
     var submittedForm = null;
     function byId(id){return document.getElementById(id);}
@@ -15,7 +15,7 @@
         onCommandCreated:function(data){var submitted=submittedForm;setBusy(false);pendingPreview=null;submittedForm=null;if(data.error){showActionError(data);return;}clearActionError();var command=data.command||{};if(!command.public_id){showActionError({code:'INVALID_RESPONSE',message:'Réponse serveur incomplète.'});return;}clearSubmittedFields(submitted);upsert(command);render();scheduleCommandPoll(1200);if(command.robot_ready===false){showActionProgress((command.robot_status||'ROBOT_OFFLINE')+' — '+(command.robot_message||'Commande créée, mais le Robot ne communique pas encore.'));showToast('Commande créée, mais Robot hors ligne.');return;}showActionProgress('Commande créée. Le Robot détenteur de la SIM est connecté et va la prendre.');showToast(data.duplicate?'Cette demande existait déjà.':'Commande créée et transmise au Robot exact.');},
         onCommandStatus:function(data){if(data&&data.command){upsert(data.command);render();if(TERMINAL[data.command.state]){requestDashboard(true);}scheduleCommandPoll(5000);}},
         onCommandCancelled:function(data){if(data.error){showToast(data.message||'Annulation impossible.');return;}if(data.command){upsert(data.command);render();showToast('Commande annulée.');}},
-        onServerHealth:function(data){var line=byId('serverHealthStatus');if(data&&data.error){line.textContent=(data.code||'SERVER_ERROR')+' — '+(data.message||'Serveur inaccessible.');line.className='health-line notice-danger';showToast('Serveur inaccessible.');return;}line.textContent='EN LIGNE — '+(data.service||'blue-magic-api')+' • '+(data.version||'version inconnue')+' • D1 '+(data.database||'inconnu');line.className='health-line muted';showToast('Serveur Blue Magic en ligne.');},
+        onServerHealth:function(data){var line=byId('serverHealthStatus');if(data&&data.error){line.textContent=(data.code||'SERVER_ERROR')+' — '+(data.message||'Serveur inaccessible.');line.className='health-line notice-danger';showToast('Serveur inaccessible.');return;}line.textContent='EN LIGNE — '+(data.service||'blue-magic-api')+' • '+(data.version||'version inconnue')+' • D1 '+(data.database||'inconnu');line.className='health-line muted';showToast('Serveur B.I.R. / Blue Magic Engine en ligne.');},
         onDashboard:function(data){if(data&&data.error){showToast((data.code||'DASHBOARD_ERROR')+' — '+(data.message||'Rapport indisponible.'));scheduleDashboardPoll();return;}dashboard=data||{};dashboardLoadedAt=new Date().getTime();renderDashboard();scheduleDashboardPoll();}
     };
     function initialize(){
@@ -24,13 +24,18 @@
         configuration.role=normalizeRole(configuration);
         commands=load();byId('nativeBadge').textContent='PONT NATIF ACTIF';byId('nativeBadge').className='badge badge-ok';
         byId('nodeCode').textContent=configuration.node_code||'Nœud non configuré';
-        byId('nodeMeta').textContent=(configuration.role||'—')+' • '+(configuration.mode||'—')+' • SIM '+((configuration.sim_slot||0)+1);
+        var accountPhone=configuration.phone_number||'Numéro non renseigné';
+        byId('nodeMeta').textContent=(configuration.role||'—')+' • '+(configuration.mode||'—')+' • SIM '+((configuration.sim_slot||0)+1)+' • '+accountPhone;
         byId('robotState').textContent=configuration.robot_enabled?'ROBOT ACTIF':'ROBOT ARRÊTÉ';
+        if(byId('birAccountRole')){byId('birAccountRole').textContent=configuration.role||'COMPTE';}
+        if(byId('birAccountNode')){byId('birAccountNode').textContent=configuration.node_code||'—';}
+        if(byId('birAccountPhone')){byId('birAccountPhone').textContent='SIM '+((configuration.sim_slot||0)+1)+' • '+accountPhone;}
+        if(byId('birRobotState')){byId('birRobotState').textContent=configuration.robot_enabled?'ROBOT ACTIF':'ROBOT ARRÊTÉ';}
         if(configuration.pin_blocked){byId('fatalNotice').textContent='PIN BLOQUÉ pour les achats et ventes. TEST_NUMBER et les fonctions Remote restent disponibles.';byId('fatalNotice').className='notice notice-danger';}
         else if(configuration.mode==='ROBOT'&&!configuration.sim_verified){byId('fatalNotice').textContent='SIM NON VÉRIFIÉE : le Robot est arrêté et ne peut réserver aucune commande. Ouvrez ☰ GÉRER > VÉRIFIER / LIER LA SIM.';byId('fatalNotice').className='notice notice-danger';}
-        if(configuration.role==='DAE'){showRoleNotice('Profil DAE : approvisionnement des DSM disponible. Un DAE n’achète pas auprès d’un supérieur et ne vend pas aux clients finaux.');byId('reportsIntroTitle').textContent='Pilotage de mon réseau';byId('reportsIntroText').textContent='Mon solde, mes DSM et leurs PoS sont présentés dans ma propre pyramide uniquement, avec les activités et preuves disponibles.';}
-        else if(configuration.role==='DSM'){showRoleNotice('Profil DSM : achat auprès du DAE et approvisionnement des PoS disponibles.');byId('reportsIntroTitle').textContent='Mes soldes et mes PoS';byId('reportsIntroText').textContent='Mon compte et mes PoS directs sont suivis ici sans exposer les autres DSM ni les autres branches du DAE.';}
-        else if(configuration.role==='POS'){showRoleNotice('Profil PoS : achat auprès du DSM et vente aux clients finaux disponibles.');byId('reportsIntroTitle').textContent='Mon solde et mon activité';byId('reportsIntroText').textContent='Ce PoS affiche uniquement son propre solde Camtel, son disponible, ses ventes et ses preuves récentes.';}
+        if(configuration.role==='DAE'){showRoleNotice('DAE actif : pilotez vos DSM, leurs PoS, les soldes et les approvisionnements depuis votre propre pyramide.');if(byId('birRoleActionTitle')){byId('birRoleActionTitle').textContent='ACTIONS DAE PRIORITAIRES';byId('birRoleActionSub').textContent='Pilotez, approvisionnez et développez votre réseau.';byId('birTransactionModuleTitle').textContent='Approvisionnement Blue';}byId('reportsIntroTitle').textContent='Pilotage de mon réseau';byId('reportsIntroText').textContent='Mon solde, mes DSM et leurs PoS sont présentés dans ma propre pyramide uniquement, avec les activités et preuves disponibles.';}
+        else if(configuration.role==='DSM'){showRoleNotice('DSM actif : demandez du stock au DAE, approvisionnez vos PoS et suivez votre réseau direct.');if(byId('birRoleActionTitle')){byId('birRoleActionTitle').textContent='ACTIONS DSM PRIORITAIRES';byId('birRoleActionSub').textContent='Approvisionnez vos PoS et maîtrisez votre stock.';byId('birTransactionModuleTitle').textContent='Approvisionnement PoS';}byId('reportsIntroTitle').textContent='Mes soldes et mes PoS';byId('reportsIntroText').textContent='Mon compte et mes PoS directs sont suivis ici sans exposer les autres DSM ni les autres branches du DAE.';}
+        else if(configuration.role==='POS'){showRoleNotice('PoS actif : vendez du crédit Blue, demandez du stock à votre DSM et suivez votre propre activité.');if(byId('birRoleActionTitle')){byId('birRoleActionTitle').textContent='VENDRE & SUIVRE';byId('birRoleActionSub').textContent='Vendez du crédit Blue rapidement et gardez votre solde sous contrôle.';byId('birTransactionModuleTitle').textContent='Vente Blue';}byId('reportsIntroTitle').textContent='Mon solde et mon activité';byId('reportsIntroText').textContent='Ce PoS affiche uniquement son propre solde Camtel, son disponible, ses ventes et ses preuves récentes.';}
         else{byId('fatalNotice').textContent='RÔLE NON RECONNU : ouvrez ☰ GÉRER > VÉRIFIER / RÉPARER L’APPAIRAGE. Aucune opération financière ne sera envoyée tant que le profil n’est pas identifié.';byId('fatalNotice').className='notice notice-danger';}
         if(configuration.mode==='ROBOT'&&!configuration.pin_configured){showActionError({code:'FINANCE_PIN_REQUIRED',message:'TEST_NUMBER reste disponible. Enregistrez le PIN Camtel chiffré avant un achat ou une vente.'});}
         else if(configuration.mode==='ROBOT'&&!configuration.accessibility_enabled){showActionError({code:'FINANCE_ACCESSIBILITY_REQUIRED',message:'TEST_NUMBER reste disponible. Activez l’Accessibilité Blue Magic avant un achat ou une vente.'});}
@@ -43,6 +48,7 @@
         each('button[data-native-action]',function(button){button.onclick=function(){runNativeAction(button.getAttribute('data-native-action'));};});
         initializeInputErgonomics();
         initializeTabs();
+        each('[data-tab-jump]',function(button){button.onclick=function(){showTab(button.getAttribute('data-tab-jump'));};});
         byId('refreshCommands').onclick=function(){refresh(true);};
         document.addEventListener('focusin',function(event){if(event.target&&event.target.tagName==='INPUT'){document.body.className='form-editing';try{window.AndroidBridge.setFormEditing(true);}catch(ignored){}}});
         document.addEventListener('focusout',function(){window.setTimeout(function(){if(!document.activeElement||document.activeElement.tagName!=='INPUT'){document.body.className='';try{window.AndroidBridge.setFormEditing(false);}catch(ignored){}}},180);});
@@ -56,9 +62,8 @@
         });
     }
     function initializeTabs(){
-        var saved=localStorage.getItem('blue_magic_active_module')||'flux';
+        var saved=localStorage.getItem('bir_active_module_v269')||'reports';
         applyRoleNavigation();
-        if(configuration.role==='POS'&&saved==='fleet'){saved='flux';}
         each('button[data-tab]',function(button){button.onclick=function(){showTab(button.getAttribute('data-tab'));};});
         showTab(saved);
     }
@@ -70,28 +75,23 @@
     function applyRoleNavigation(){
         var fleet=document.querySelector('button[data-tab="fleet"]');
         if(fleet){fleet.className='module-tab';fleet.setAttribute('aria-hidden','false');}
-        if(configuration.role==='DAE'){
-            tabLabel('reports','Pilotage');tabLabel('fleet','Réseau');tabLabel('flux','Flux');tabLabel('config','Robot');tabLabel('support','SAV');
-        }else if(configuration.role==='DSM'){
-            tabLabel('reports','Soldes');tabLabel('fleet','Réseau');tabLabel('flux','Flux');tabLabel('config','Robot');tabLabel('support','SAV');
-        }else if(configuration.role==='POS'){
-            tabLabel('reports','Solde');tabLabel('flux','Vente');tabLabel('config','Robot');tabLabel('support','Aide');
-            if(fleet){fleet.className='module-tab hidden';fleet.setAttribute('aria-hidden','true');}
-        }
+        tabLabel('reports','Accueil');tabLabel('fleet','Réseau');tabLabel('support','Activité');tabLabel('config','Gérer');
+        if(configuration.role==='DAE'){tabLabel('flux','Piloter');}
+        else if(configuration.role==='DSM'){tabLabel('flux','Fournir');}
+        else if(configuration.role==='POS'){tabLabel('flux','Vendre');}
+        else{tabLabel('flux','Action');}
         updateTabAttention();
     }
     function showTab(name){
         var found=false;
-        if(configuration.role==='POS'&&name==='fleet'){name='flux';}
         activeTab=name;
         each('[data-tab-panel]',function(panel){var active=panel.getAttribute('data-tab-panel')===name;found=found||active;panel.className=active?'module-screen':'module-screen hidden';});
         if(!found&&name!=='flux'){showTab('flux');return;}
         each('button[data-tab]',function(button){
             var tab=button.getAttribute('data-tab'),isActive=tab===name,isPrimary=tab==='flux';
-            if(configuration.role==='POS'&&tab==='fleet'){button.className='module-tab hidden';return;}
             button.className='module-tab'+(isPrimary?' module-tab-primary':'')+(isActive?' active':'');
         });
-        localStorage.setItem('blue_magic_active_module',name);
+        localStorage.setItem('bir_active_module_v269',name);
         if(dashboardRelevant()){requestDashboard(false);}scheduleDashboardPoll();
         updateTabAttention();
         window.scrollTo(0,0);
@@ -298,6 +298,8 @@
         byId('metricLastDuration').textContent=duration;
         byId('metricSuccessRate').textContent=terminal?Math.round(success*100/terminal)+' %':'—';
         byId('metricFinanceCount').textContent=String(finance);
+        if(byId('birActivityLine')){byId('birActivityLine').textContent=last?((labels[last.state]||last.state||'Commande')+' • '+(last.operation||'opération')+' • '+formatTime(last.updated_at||last.created_at||'')):'Aucune commande locale récente.';}
+        if(byId('birActivityDetail')){byId('birActivityDetail').textContent=last?('Dernière activité : '+(labels[last.state]||last.state||'Commande')+' • '+(last.operation||'opération')+' • '+formatTime(last.updated_at||last.created_at||'')):'Aucune activité locale récente. Les preuves Camtel et diagnostics restent disponibles ci-dessous.';}
         byId('reportActivityTitle').textContent=last?(labels[last.state]||last.state||'Commande locale'):'Aucune activité locale';
         byId('reportActivityDetail').textContent=last?((last.operation||'Commande')+' • '+formatTime(last.updated_at||last.created_at||'')):'Les résultats apparaîtront ici sans exposer le PIN.';
         byId('fleetNodeStatus').textContent=(configuration.node_code||'Nœud non configuré')+' • '+(configuration.role||'—')+' • '+(configuration.mode||'—');
@@ -338,6 +340,14 @@
         byId('fleetNetworkList').innerHTML=fleet||'<p class="muted">Aucun terminal rattaché.</p>';
         byId('fleetNetworkTitle').textContent=configuration.role==='DAE'?'Mes DSM et leurs PoS — '+String(nodes.length)+' nœud(s)':configuration.role==='DSM'?'Mes PoS — '+String(nodes.length)+' nœud(s)':'Mon terminal';
         byId('ownBalance').textContent=own&&own.balance!==null?formatMoney(own.balance)+' FCFA':'À actualiser';
+        if(byId('birCamtelBalance')){byId('birCamtelBalance').textContent=own&&own.balance!==null?formatMoney(own.balance):'À actualiser';}
+        if(byId('birAvailableBalance')){byId('birAvailableBalance').textContent=own&&own.available_balance!==null&&typeof own.available_balance!=='undefined'?formatMoney(own.available_balance)+' F':'—';}
+        if(byId('birReservedBalance')){byId('birReservedBalance').textContent=own?formatMoney(Number(own.reserved_amount||0))+' F':'—';}
+        if(byId('birThirdMetricLabel')&&byId('birThirdMetricValue')){
+            if(own&&(configuration.role==='DAE'||configuration.role==='DSM')){byId('birThirdMetricLabel').textContent='Composante commission';byId('birThirdMetricValue').textContent=formatMoney(Number(own.commission_component_balance||0))+' F';}
+            else{byId('birThirdMetricLabel').textContent='Commandes réussies';byId('birThirdMetricValue').textContent=byId('metricSuccessCount')?byId('metricSuccessCount').textContent:'0';}
+        }
+        if(byId('birBalanceFreshness')){byId('birBalanceFreshness').textContent=own&&own.observed_at?((own.balance_quality==='EXACT'?'Confirmé Camtel':'Estimé')+' • '+formatTime(own.operator_event_at||own.observed_at)):'Aucune lecture Camtel horodatée.';}
         byId('balanceFreshness').textContent=own&&own.observed_at
             ? ('Dernière observation : '+formatTime(own.operator_event_at||own.observed_at)+' • '+(own.balance_quality==='EXACT'?'confirmé Camtel':'estimé')+' • '+(own.evidence_kind||own.balance_source||'source inconnue')
                 +(own.available_balance!==null&&typeof own.available_balance!=='undefined'?' • disponible '+formatMoney(own.available_balance)+' FCFA':'')

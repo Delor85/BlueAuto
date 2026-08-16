@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Blue Magic</string>
-    <string name="accessibility_service_name">Automatisation PIN Blue Magic</string>
+    <string name="app_name">B.I.R. — Blue Infinity Retail</string>
+    <string name="accessibility_service_name">Automatisation PIN B.I.R.</string>
     <string name="accessibility_service_description">Vérifie la confirmation USSD Blue, remplit le PIN local et valide uniquement la transaction attendue.</string>
-    <string name="robot_channel_name">Robot Blue Magic</string>
+    <string name="robot_channel_name">Robot B.I.R.</string>
 </resources>
