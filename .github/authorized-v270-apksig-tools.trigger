@@ -3,3 +3,4 @@ candidate_sha=c92e62e5f3a22369f99c3c2bfe04592abe18cb16
 cloudflare_deploy=forbidden
 d1_mutation=forbidden
 permanent_key_export=forbidden
+rerun=include-lib64
