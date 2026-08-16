@@ -1,6 +1,6 @@
-candidate_sha=73b2623446457b698013aa3cef4406abfbf7b885
+candidate_sha=4c24ded4e2053aa30640f654ddaf5ddf55908c20
 production_worker_deploy=forbidden
 d1_migration=forbidden
 pr4_merge=forbidden
 permanent_signing=forbidden
-rerun=one-shot-ephemeral-final-source
+rerun=admin-tchoronko-final-source
