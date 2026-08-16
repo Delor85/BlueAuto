@@ -1,0 +1,6 @@
+purpose=bir-v2.7.1-field-stabilization
+base=b3db1e3b2baac3424f4d7192ecb62d8b61020e8c
+production_worker_deploy=forbidden
+d1_migration=forbidden
+pr4_merge=forbidden
+permanent_signing=forbidden
