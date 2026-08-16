@@ -1,0 +1,7 @@
+authorized_sha=4c24ded4e2053aa30640f654ddaf5ddf55908c20
+certificate_sha256=f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5
+package=com.profitloop.blueauto
+versionCode=53
+versionName=2.8.0
+production_v280_validated=31974344187
+pr4_merge=forbidden
