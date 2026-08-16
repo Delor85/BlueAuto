@@ -1,0 +1,58 @@
+name: BIR v2.7.1 Field Patch
+
+on:
+  push:
+    branches: [fix/bir-v2-7-1-field-stabilization]
+    paths: [.github/authorized-v271-field.trigger]
+
+permissions:
+  contents: write
+
+jobs:
+  apply-field-patch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout field branch
+        uses: actions/checkout@v5
+        with:
+          ref: fix/bir-v2-7-1-field-stabilization
+          fetch-depth: 0
+
+      - name: Prove protected baseline and PR/server scope
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor b3db1e3b2baac3424f4d7192ecb62d8b61020e8c HEAD
+          if ! git diff --quiet b3db1e3b2baac3424f4d7192ecb62d8b61020e8c...HEAD -- cloudflare; then
+            echo '::error::cloudflare/ changed before the v2.7.1 patch.'
+            exit 1
+          fi
+
+      - name: Apply v2.7.1 Android/client stabilization
+        run: python3 .github/scripts/v271_field_patch.py
+
+      - name: Guard server production files
+        run: |
+          set -euo pipefail
+          if ! git diff --quiet -- cloudflare; then
+            echo '::error::v2.7.1 patch attempted to modify cloudflare/.'
+            git diff -- cloudflare
+            exit 1
+          fi
+          test "$(grep -c 'applicationId \"com.profitloop.blueauto\"' app/build.gradle)" -eq 1
+          grep -q 'versionCode 52' app/build.gradle
+          grep -q 'versionName "2.7.1"' app/build.gradle
+          node app/src/test/v271-field-stabilization-contract.mjs
+
+      - name: Commit generated source patch
+        run: |
+          set -euo pipefail
+          git config user.name 'Delor85'
+          git config user.email 'mbolodelorpro@gmail.com'
+          git add app docs/BIR_V271_FIELD_STABILIZATION_STATE.md
+          if git diff --cached --quiet; then
+            echo '::error::No source changes produced.'
+            exit 1
+          fi
+          git commit -m 'fix: stabilize BIR v2.7.1 field behavior [v271-source]'
+          git push origin HEAD:fix/bir-v2-7-1-field-stabilization
