@@ -5,3 +5,4 @@ migration_0006=authorized
 worker_v280=authorized
 pr4_merge=forbidden
 permanent_apk=after-production-validation
+rerun=2-schema-smoke-root-fix
