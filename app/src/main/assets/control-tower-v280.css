@@ -1,0 +1,19 @@
+.v280-card{border:1px solid rgba(73,211,255,.22);background:linear-gradient(145deg,rgba(9,30,66,.96),rgba(5,18,42,.96));box-shadow:0 16px 42px rgba(0,0,0,.2)}
+.v280-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.v280-head h3{margin:.18rem 0 .5rem}
+.v280-rule{padding:10px 12px;border-radius:12px;background:rgba(255,207,84,.1);border:1px solid rgba(255,207,84,.22);font-weight:700}
+#v280CommissionSemantics ol{padding-left:1.25rem}#v280CommissionSemantics li{margin:.6rem 0;line-height:1.45}
+.v280-periods{display:flex;gap:7px;overflow:auto;padding:5px 0 10px}.v280-periods button{min-width:max-content;padding:8px 10px;font-size:12px}
+.v280-accounting-grid,.v280-admin-kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.v280-accounting-grid>div,.v280-admin-kpis>div{padding:12px;border-radius:14px;background:rgba(5,18,42,.58);border:1px solid rgba(93,220,255,.15)}
+.v280-accounting-grid span,.v280-admin-kpis span{display:block;font-size:12px;color:#b7c9e3}.v280-accounting-grid b,.v280-admin-kpis b{display:block;margin-top:4px;font-size:18px;color:#f7d774}.v280-accounting-grid small{color:#9eb1ca}
+.v280-tcho,.v280-admin-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.08)}
+.v280-tcho>div,.v280-admin-row{min-width:0}.v280-tcho span,.v280-tcho small,.v280-admin-row span,.v280-admin-row small{display:block;color:#aebfd5;font-size:12px;overflow-wrap:anywhere}.v280-tcho strong{color:#55dcff}
+.v280-admin-hero{border:1px solid rgba(255,211,91,.38);background:radial-gradient(circle at 85% 10%,rgba(20,174,255,.2),transparent 35%),linear-gradient(135deg,#071a3d,#04112a 68%)}
+.v280-admin-hero h2{margin-top:.25rem}.v280-admin-kpis{grid-template-columns:repeat(4,minmax(0,1fr));margin:14px 0}.v280-admin-kpis>div{text-align:center}
+.v280-admin-list{margin-top:12px}.v280-control-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:9px}.v280-control-grid button{min-height:42px}
+.v280-table{overflow:auto;max-height:56vh}.v280-table table{width:100%;border-collapse:collapse;font-size:12px}.v280-table th,.v280-table td{padding:8px;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,.08);text-align:left}
+.v280-admin-workspace .bir-account-role{background:rgba(255,209,91,.16);color:#ffe27a}.v280-admin-workspace .bir-priority-action{display:none}
+.v280-admin-workspace #requestSupplyCard,.v280-admin-workspace #supplyChildCard,.v280-admin-workspace #retailCard{display:none!important}
+.muted,.small,.bir-balance-note,.bir-modules-grid small,.network-item span{font-size:max(13px,.86rem)}
+body.form-editing .module-dock{transform:translateY(0)!important;opacity:1!important;visibility:visible!important}
+@media(max-width:520px){.v280-admin-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.v280-head{display:block}.v280-head>button{margin-bottom:8px}.v280-tcho{display:block}.v280-tcho>div+div{margin-top:7px}.v280-table{max-height:50vh}}
