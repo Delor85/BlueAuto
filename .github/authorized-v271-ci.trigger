@@ -1,6 +1,6 @@
-candidate_source=3b40e665456232275548183095a0e81ee72d88fc
+candidate_source=6b89f5bb983a11b3ee30234f69e708d4542e20a3
 production_worker_deploy=forbidden
 d1_migration=forbidden
 pr4_merge=forbidden
 permanent_signing=forbidden
-rerun=blue-field-contract-aligned
+rerun=internal-dom-contract-restored
