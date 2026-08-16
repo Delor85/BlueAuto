@@ -1,0 +1,190 @@
+name: BIR v2.8 Production Activation
+
+on:
+  push:
+    branches: [feat/bir-v2-8-operations-admin]
+    paths: [.github/authorized-v280-production.trigger]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: blue-magic-cloudflare-production
+  cancel-in-progress: false
+
+jobs:
+  activate-production:
+    if: "${{ github.event.head_commit.message == 'release: authorized BIR v2.8 production activation' }}"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
+
+    steps:
+      - name: Checkout authorization commit with full history
+        uses: actions/checkout@v5
+        with:
+          ref: feat/bir-v2-8-operations-admin
+          fetch-depth: 0
+
+      - name: Resolve exact authorized server source and protected scope
+        id: auth
+        run: |
+          set -euo pipefail
+          server_sha="$(sed -n 's/^server_sha=//p' .github/authorized-v280-production.trigger | head -1 | tr -d '\r\n')"
+          app_sha="$(sed -n 's/^app_sha=//p' .github/authorized-v280-production.trigger | head -1 | tr -d '\r\n')"
+          test "$server_sha" = 'a6426433aad0972d6359574314737ba9cdf399c3'
+          test "$app_sha" = '4c24ded4e2053aa30640f654ddaf5ddf55908c20'
+          grep -q '^migration_0005=authorized$' .github/authorized-v280-production.trigger
+          grep -q '^migration_0006=authorized$' .github/authorized-v280-production.trigger
+          grep -q '^worker_v280=authorized$' .github/authorized-v280-production.trigger
+          grep -q '^pr4_merge=forbidden$' .github/authorized-v280-production.trigger
+          git cat-file -e "$server_sha^{commit}"
+          git cat-file -e "$app_sha^{commit}"
+          git merge-base --is-ancestor "$server_sha" HEAD
+          if ! git diff --quiet "$app_sha...$server_sha" -- app; then
+            echo '::error::Server activation source unexpectedly changes app/. Refusing production activation.'
+            exit 1
+          fi
+          changed="$(git diff --name-only "$app_sha...$server_sha" -- cloudflare | sort)"
+          expected="$(printf '%s\n' 'cloudflare/src/production-v280.js' 'cloudflare/wrangler.jsonc' | sort)"
+          test "$changed" = "$expected"
+          echo "server_sha=$server_sha" >> "$GITHUB_OUTPUT"
+          echo "app_sha=$app_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout exact authorized server source
+        run: |
+          set -euo pipefail
+          git checkout --detach '${{ steps.auth.outputs.server_sha }}'
+          test "$(git rev-parse HEAD)" = '${{ steps.auth.outputs.server_sha }}'
+          grep -q "const API_VERSION = '2.8.0-cloudflare'" cloudflare/src/index.js
+          grep -q 'OWNER_ADMIN_BOOTSTRAP_SHA256' cloudflare/src/production-v280.js
+          grep -q 'MOCK_OWNER_BOOTSTRAP_SHA256' cloudflare/src/production-v280.js
+          grep -q '"main": "src/production-v280.js"' cloudflare/wrangler.jsonc
+
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: cloudflare/package-lock.json
+
+      - name: Validate Worker and D1 migration chain before touching production
+        working-directory: cloudflare
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run check
+          node --check src/production-v280.js
+          python3 ../.github/scripts/v280_schema_smoke.py
+          node scripts/prepare-production-config.mjs
+          npx wrangler deploy --dry-run --config wrangler.production.jsonc
+
+      - name: Require currently stable v2.6.7 production before mutation
+        working-directory: cloudflare
+        run: |
+          set -euo pipefail
+          health="$(curl --fail --silent --show-error --retry 6 --retry-delay 3 'https://blue-magic-api.mbolodelorpro.workers.dev/api?action=health&release=pre-v280')"
+          printf '%s\n' "$health"
+          printf '%s\n' "$health" | grep -q '"version":"2.6.7-cloudflare"'
+          printf '%s\n' "$health" | grep -q '"database":"online"'
+          npx wrangler deployments status --json --config wrangler.production.jsonc > ../BIR-worker-pre-v280.json
+
+      - name: Require exactly D1 migrations 0005 and 0006 pending
+        working-directory: cloudflare
+        run: |
+          set -euo pipefail
+          status="$(npx wrangler d1 migrations list blue-magic --remote --config wrangler.production.jsonc 2>&1)"
+          printf '%s\n' "$status"
+          pending="$(printf '%s\n' "$status" | grep -oE '000[0-9][A-Za-z0-9_.-]*\.sql' | sort -u | paste -sd, - || true)"
+          expected='0005_commission_policies_and_financial_quotes.sql,0006_owner_admin_control_and_audit.sql'
+          if [ "$pending" != "$expected" ]; then
+            echo "::error::Expected pending migrations $expected; got ${pending:-none/unknown}."
+            exit 1
+          fi
+
+      - name: Export a temporary full D1 safety copy on the runner
+        working-directory: cloudflare
+        run: |
+          set -euo pipefail
+          npx wrangler d1 export blue-magic --remote --skip-confirmation --output=../BIR-D1-pre-v280.sql --config wrangler.production.jsonc
+          test -s ../BIR-D1-pre-v280.sql
+          sha256sum ../BIR-D1-pre-v280.sql > ../BIR-D1-pre-v280.sha256.txt
+
+      - name: Apply only authorized D1 0005 and 0006
+        working-directory: cloudflare
+        run: |
+          set -euo pipefail
+          npx wrangler d1 migrations apply blue-magic --remote --config wrangler.production.jsonc
+          status="$(npx wrangler d1 migrations list blue-magic --remote --config wrangler.production.jsonc 2>&1)"
+          printf '%s\n' "$status"
+          printf '%s\n' "$status" | grep -q 'No migrations to apply'
+
+      - name: Prove v2.8 schema and commission defaults remotely
+        working-directory: cloudflare
+        run: |
+          set -euo pipefail
+          npx wrangler d1 execute blue-magic --remote --json --config wrangler.production.jsonc --command "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('commission_overrides','owner_entitlements','admin_audit_log','device_control_actions','admin_assist_requests') ORDER BY name;" | tee /tmp/v280-schema.json
+          for name in commission_overrides owner_entitlements admin_audit_log device_control_actions admin_assist_requests; do grep -q "\"$name\"" /tmp/v280-schema.json; done
+          npx wrangler d1 execute blue-magic --remote --json --config wrangler.production.jsonc --command "SELECT COUNT(*) AS invalid_defaults FROM nodes WHERE (role='DAE' AND default_commission_bps<>1000) OR (role='DSM' AND default_commission_bps<>800) OR (role='POS' AND default_commission_bps<>0);" | tee /tmp/v280-commissions.json
+          grep -Eq '"invalid_defaults"[[:space:]]*:[[:space:]]*0' /tmp/v280-commissions.json
+
+      - name: Deploy only the authorized BIR v2.8 Worker
+        working-directory: cloudflare
+        run: |
+          set -euo pipefail
+          npx wrangler deploy --strict --message 'BIR v2.8 authorized production activation' --config wrangler.production.jsonc
+          touch ../v280_deployed.flag
+
+      - name: Validate live Worker v2.8 and D1 after deployment
+        working-directory: cloudflare
+        run: |
+          set -euo pipefail
+          health="$(curl --fail --silent --show-error --retry 12 --retry-delay 3 'https://blue-magic-api.mbolodelorpro.workers.dev/api?action=health&release=280')"
+          printf '%s\n' "$health" | tee ../BIR-v280-production-health.json
+          printf '%s\n' "$health" | grep -q '"version":"2.8.0-cloudflare"'
+          printf '%s\n' "$health" | grep -q '"database":"online"'
+          printf '%s\n' "$health" | grep -q '"owner_admin":true'
+          printf '%s\n' "$health" | grep -q '"owner_mock_entitlement":true'
+          printf '%s\n' "$health" | grep -q '"accounting":true'
+          printf '%s\n' "$health" | grep -q '"commissions":true'
+          printf '%s\n' "$health" | grep -q '"tchoronko":true'
+          npx wrangler deployments status --json --config wrangler.production.jsonc > ../BIR-worker-post-v280.json
+
+      - name: Automatic Worker rollback if live validation failed
+        if: failure()
+        working-directory: cloudflare
+        run: |
+          set +e
+          if [ -f ../v280_deployed.flag ]; then
+            npx wrangler rollback --message 'Automatic rollback after failed BIR v2.8 live validation' --config wrangler.production.jsonc
+            sleep 5
+            curl --silent --show-error --retry 6 --retry-delay 3 'https://blue-magic-api.mbolodelorpro.workers.dev/api?action=health&release=rollback' || true
+          fi
+
+      - name: Record non-sensitive activation evidence
+        if: success()
+        run: |
+          set -euo pipefail
+          {
+            echo "server_source_sha=${{ steps.auth.outputs.server_sha }}"
+            echo "app_release_sha=${{ steps.auth.outputs.app_sha }}"
+            echo 'worker_version=2.8.0-cloudflare'
+            echo 'd1_0005=applied'
+            echo 'd1_0006=applied'
+            echo 'pr4_merge=forbidden'
+          } > BIR-v2.8-production-activation-info.txt
+
+      - name: Upload non-sensitive production evidence only
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIR-v2.8-production-activation-evidence
+          path: |
+            BIR-v2.8-production-activation-info.txt
+            BIR-v280-production-health.json
+          if-no-files-found: error
+          retention-days: 30
