@@ -28,8 +28,9 @@ replace('cloudflare/src/index.js',
         "return success({service: 'blue-magic-api', version: API_VERSION, database: 'online'}, 200, headers);",
         "return success({service: 'blue-magic-api', version: API_VERSION, database: 'online', capabilities: {commissions: true, commission_override: true, remote_results: true, force_sync: true, network_audit: true}}, 200, headers);")
 replace('cloudflare/package.json', '"version": "2.6.8"', '"version": "2.6.11"')
+replace('cloudflare/package-lock.json', '"version": "2.6.8"', '"version": "2.6.11"')
 
-# Les contrats historiques doivent accepter la nouvelle version sans perdre les acquis.
+# Les contrats historiques doivent vérifier la cohérence actuelle sans figer l'identité 2.6.8.
 for test in [
     'app/src/test/finance-flow.mjs',
     'app/src/test/v268-release-hygiene.mjs',
@@ -43,6 +44,11 @@ for test in [
     s = s.replace('versionName "2.6.9"', 'versionName "2.6.11"')
     s = s.replace('/versionCode 50/', '/versionCode 51/')
     s = s.replace('/versionName "2\\.6\\.10"/', '/versionName "2\\.6\\.11"/')
+    s = s.replace("pkg.version!=='2.6.8'", "pkg.version!=='2.6.11'")
+    s = s.replace("Cloudflare package version not 2.6.8", "Cloudflare package version not 2.6.11")
+    s = s.replace("lock.version!=='2.6.8'", "lock.version!=='2.6.11'")
+    s = s.replace("lock.packages[''].version!=='2.6.8'", "lock.packages[''].version!=='2.6.11'")
+    s = s.replace("Cloudflare lock root version not 2.6.8", "Cloudflare lock root version not 2.6.11")
     p.write_text(s, encoding='utf-8')
 
 # Nouveau contrat v2.6.11 : design validé, saisie visible, négociation de capacités et absence
