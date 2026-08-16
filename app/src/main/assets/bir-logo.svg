@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 155" role="img" aria-label="B.I.R. Blue Infinity Retail">
+  <defs>
+    <linearGradient id="blue" x1="0" x2="1"><stop offset="0" stop-color="#16d7ff"/><stop offset=".55" stop-color="#0b83ff"/><stop offset="1" stop-color="#0650d8"/></linearGradient>
+    <linearGradient id="gold" x1="0" x2="1"><stop offset="0" stop-color="#f4a814"/><stop offset=".55" stop-color="#ffe26f"/><stop offset="1" stop-color="#fff1b6"/></linearGradient>
+    <filter id="glow" x="-30%" y="-40%" width="160%" height="180%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <g fill="none" stroke-linecap="round" stroke-width="15" filter="url(#glow)">
+    <path d="M194 77 C154 26 110 16 71 25 C30 34 19 71 33 95 C48 122 91 127 126 109 C151 96 171 79 194 61" stroke="url(#blue)"/>
+    <path d="M196 61 C219 79 239 96 264 109 C299 127 342 122 357 95 C371 71 360 34 319 25 C280 16 236 26 196 77" stroke="url(#gold)"/>
+  </g>
+  <rect x="188" y="23" width="14" height="108" rx="6" fill="url(#gold)" filter="url(#glow)"/>
+  <text x="91" y="95" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="58" font-weight="900" fill="#33c8ff" stroke="#064b9d" stroke-width="2">B</text>
+  <text x="299" y="95" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="58" font-weight="900" fill="#ffe37b" stroke="#8a5600" stroke-width="2">R</text>
+</svg>
