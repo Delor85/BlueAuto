@@ -32,6 +32,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 .github/scripts/v270_owner_mock_patch.py
+          python3 .github/scripts/v270_owner_mock_patch_fix.py
           git diff --check
 
       - name: Prove Cloudflare and D1 source are untouched
