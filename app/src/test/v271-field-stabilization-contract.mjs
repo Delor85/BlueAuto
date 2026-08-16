@@ -23,6 +23,7 @@ ok(app.includes('legacy_commission_mode')&&app.includes('commission_base_amount'
 ok(v271.includes('bir_commission_policy_v271_')&&v271.includes('default_bps'),'local default/custom commission policy');
 ok(v271.includes('slice(0,5000)')&&v271.includes('1900000'),'compact durable journal');
 ok(v271.includes('bir_balance_guard_v271_')&&v271.includes('incoming<Number(cached.ts||0)'),'chronology-first balance guard');
+ok(v271.includes("kind==='FINANCIAL_RESULT'&&!own.operator_event_at")&&v271.includes('LATE_FINANCIAL_RESULT_IGNORED'),'late financial balance without operator chronology must never override a newer proof');
 ok(v271.includes('replace(/CAMTEL/g,\'BLUE\')')&&v271.includes("getUiLanguage"),'Blue branding + bilingual switch');
 ok(html.includes('control-tower-v271.css')&&html.includes('control-tower-v271.js'),'v271 assets wired');
 ok(!/form-editing[^}]*display\s*:\s*none/.test(css),'dock must not disappear while typing');
