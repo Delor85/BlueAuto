@@ -379,7 +379,7 @@ public class MainActivity extends Activity {
         LinearLayout page = new LinearLayout(this);
         page.setOrientation(LinearLayout.VERTICAL);
         applyMagicBackground(page);
-        page.setPadding(dp(10), dp(8), dp(10), dp(6));
+        page.setPadding(0, 0, 0, 0);
         nativeStatus = help("");
         nativeStatus.setTextColor(CYAN);
         nativeStatus.setTextSize(12);
