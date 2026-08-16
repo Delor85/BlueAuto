@@ -1,0 +1,170 @@
+name: BIR v2.7.1 Field Stabilization CI
+
+on:
+  push:
+    branches: [fix/bir-v2-7-1-field-stabilization]
+    paths: [.github/authorized-v271-ci.trigger]
+
+permissions:
+  contents: read
+
+jobs:
+  verify-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: fix/bir-v2-7-1-field-stabilization
+          fetch-depth: 0
+
+      - name: Prove protected production scope
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor 3b40e665456232275548183095a0e81ee72d88fc HEAD
+          if ! git diff --quiet b3db1e3b2baac3424f4d7192ecb62d8b61020e8c...HEAD -- cloudflare; then
+            echo '::error::cloudflare/ changed in v2.7.1 candidate.'
+            exit 1
+          fi
+          grep -q 'applicationId "com.profitloop.blueauto"' app/build.gradle
+          grep -q 'versionCode 52' app/build.gradle
+          grep -q 'versionName "2.7.1"' app/build.gradle
+
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate Worker source without deployment
+        working-directory: cloudflare
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run check
+          node --check src/index.js
+
+      - name: Historical Blue Magic and BIR contracts
+        run: |
+          set -euo pipefail
+          node app/src/test/finance-flow.mjs
+          node app/src/test/v268-field-contract.mjs
+          node app/src/test/v268-responsive-management.mjs
+          node app/src/test/v268-ux-performance.mjs
+          node app/src/test/v268-platform-compat.mjs
+          node app/src/test/v268-transaction-ux.mjs
+          node app/src/test/v268-control-plane.mjs
+          node app/src/test/v268-native-status.mjs
+          node app/src/test/v268-release-hygiene.mjs
+          node app/src/test/bir-v269-functional-contract.mjs
+          node app/src/test/v2610-control-tower.mjs
+          node app/src/test/v2611-finalization-contract.mjs
+          node app/src/test/v2611-shell-contract.mjs
+          node app/src/test/v270-finalization-contract.mjs
+          node app/src/test/v270-owner-mock-contract.mjs
+          node app/src/test/v271-field-stabilization-contract.mjs
+          node --check app/src/main/assets/app.js
+          node --check app/src/main/assets/platform-v267.js
+          node --check app/src/main/assets/control-tower-v2611.js
+          node --check app/src/main/assets/control-tower-v270.js
+          node --check app/src/main/assets/control-tower-v271.js
+
+      - name: Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Gradle 8.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+
+      - name: Prepare unmistakably ephemeral validation signature
+        run: |
+          set -euo pipefail
+          mkdir -p .pilot-signing
+          password="$(openssl rand -hex 32)"
+          echo "::add-mask::$password"
+          printf '%s' "$password" > .pilot-signing/keystore.password
+          keytool -genkeypair -keystore .pilot-signing/debug.keystore -storepass "$password" -alias androiddebugkey -keypass "$password" -dname "CN=BIR v2.7.1 CI Validation,O=ProfitLoop,C=CM" -keyalg RSA -keysize 2048 -validity 30 -noprompt
+          echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$password" >> "$GITHUB_ENV"
+
+      - name: Android unit tests and Release assembly
+        run: |
+          set -euo pipefail
+          gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
+
+      - name: Verify validation APK identity and alignment
+        run: |
+          set -euo pipefail
+          build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          apk=app/build/outputs/apk/release/app-release.apk
+          "$build_tools/zipalign" -c -v 4 "$apk"
+          "$build_tools/aapt" dump badging "$apk" | tee /tmp/v271-badging.txt
+          grep -q "package: name='com.profitloop.blueauto' versionCode='52' versionName='2.7.1'" /tmp/v271-badging.txt
+          grep -q "sdkVersion:'23'" /tmp/v271-badging.txt
+          "$build_tools/apksigner" verify --verbose --print-certs "$apk" | tee /tmp/v271-signature.txt
+          if "$build_tools/aapt" dump badging "$apk" | grep -q 'application-debuggable'; then exit 1; fi
+          cp "$apk" BIR-Blue-Infinity-Retail-v2.7.1-Validation-Ephemeral.apk
+          sha256sum BIR-Blue-Infinity-Retail-v2.7.1-Validation-Ephemeral.apk | tee BIR-v2.7.1-validation.sha256.txt
+
+      - name: Upload validation APK only
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIR-v2.7.1-validation-ephemeral
+          path: |
+            BIR-Blue-Infinity-Retail-v2.7.1-Validation-Ephemeral.apk
+            BIR-v2.7.1-validation.sha256.txt
+          if-no-files-found: error
+          retention-days: 14
+
+  smoke-android:
+    needs: verify-build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - api: 23
+            arch: x86
+            profile: Nexus 5
+          - api: 26
+            arch: x86_64
+            profile: Nexus 5X
+          - api: 30
+            arch: x86_64
+            profile: Nexus 5X
+    steps:
+      - name: Checkout test fixture
+        uses: actions/checkout@v5
+        with:
+          ref: fix/bir-v2-7-1-field-stabilization
+      - name: Download exact validation APK
+        uses: actions/download-artifact@v4
+        with:
+          name: BIR-v2.7.1-validation-ephemeral
+          path: apk
+      - name: Boot, launch and prove Robot intent survives reboot-style SIM warm-up on Android ${{ matrix.api }}
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: ${{ matrix.arch }}
+          profile: ${{ matrix.profile }}
+          disable-animations: true
+          script: |
+            adb install -r apk/BIR-Blue-Infinity-Retail-v2.7.1-Validation-Ephemeral.apk
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity
+            sleep 2
+            adb shell am force-stop com.profitloop.blueauto
+            adb push app/src/test/fixtures/android11_robot_profile.xml /data/local/tmp/bir-v271-prefs.xml
+            adb shell run-as com.profitloop.blueauto mkdir -p shared_prefs
+            adb shell run-as com.profitloop.blueauto cp /data/local/tmp/bir-v271-prefs.xml shared_prefs/blue_magic_native_v2.xml
+            adb shell am broadcast -a android.intent.action.BOOT_COMPLETED -n com.profitloop.blueauto/.BootReceiver
+            sleep 5
+            adb shell run-as com.profitloop.blueauto cat shared_prefs/blue_magic_native_v2.xml | grep -q 'profile_android11-emulator_robot_enabled.*true'
+            adb shell pidof com.profitloop.blueauto
+            adb logcat -d '*:E' > /tmp/bir-v271-logcat.txt
+            ! grep -E 'FATAL EXCEPTION.*com.profitloop.blueauto|Process: com.profitloop.blueauto' /tmp/bir-v271-logcat.txt
+            echo "Android API ${{ matrix.api }} launch + Robot reboot-intent persistence OK"
