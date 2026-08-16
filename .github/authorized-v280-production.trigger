@@ -1,0 +1,7 @@
+server_sha=a6426433aad0972d6359574314737ba9cdf399c3
+app_sha=4c24ded4e2053aa30640f654ddaf5ddf55908c20
+migration_0005=authorized
+migration_0006=authorized
+worker_v280=authorized
+pr4_merge=forbidden
+permanent_apk=after-production-validation
