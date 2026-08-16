@@ -21,6 +21,8 @@ Branche : `feat/bir-v2-7-stabilization` créée depuis le HEAD exact v2.6.10 ci-
 
 Commit source v2.7 : `16d45ed5fbaca6adb6b9a22067ffa15c09dcbd16` — `feat: stabilize BIR v2.7 UI and legacy-server compatibility`.
 
+Commit CI : `2e895e6e1499a0d8e4c9db99333f7f861db9cfe9` — `ci: adapt legacy version assertions for BIR v2.7`.
+
 Cette branche est additive. Elle ne réécrit pas le moteur financier, le moteur Remote/Robot, la file multi-SIM, le package, le PIN Keystore ni les règles de verrouillage.
 
 ## 3. Retour terrain traité
@@ -121,3 +123,24 @@ Toute nouvelle conversation doit lire dans cet ordre :
 8. ne jamais considérer une conversation ChatGPT comme source de vérité supérieure à GitHub, Actions, Cloudflare/D1 et les APK vérifiés.
 
 À la fin de chaque étape, consigner obligatoirement : Version, Branche, Commit, GitHub/PR/Actions, Cloudflare/D1, APK/versionCode/SHA/certificat, problème, cause, correction, fichiers, tests, résultats, acquis, reste à faire, interdictions, point de reprise, régression et autorisation nécessaire.
+
+## 9. Vérification automatisée réalisée
+
+Run : `31952135956` — **SUCCESS** sur le commit CI `2e895e6e1499a0d8e4c9db99333f7f861db9cfe9`.
+
+Résultats :
+
+- backend Cloudflare : tests catalogue, intelligence messages et intégration Remote/Robot/FIFO/solde/concurrence atomique : OK;
+- contrats Android v2.6.x/v2.6.8 : OK;
+- contrat UI/compatibilité v2.7 : OK;
+- tests unitaires Android : OK;
+- `assembleRelease` : SUCCESS;
+- `zipalign` : OK;
+- package : `com.profitloop.blueauto`;
+- versionCode : `51`;
+- versionName : `2.7.0`;
+- APK de validation éphémère SHA-256 : `aa95b4b60accf5faa454ae616bbd61993a65f3f20294570a85d87f8681f4268e`;
+- signature de validation éphémère : V1=true, V2=true, V3=false. Cette signature n’est volontairement pas la signature permanente et cet APK ne doit pas être utilisé pour mettre à jour l’installation terrain permanente.
+- artefact CI : `BIR-v2.7.0-validation-ephemeral`, ID GitHub Actions `9264951009`.
+
+Le certificat permanent n’a pas été utilisé. La production Worker/D1 n’a pas été modifiée. PR #4 n’a pas été fusionnée.
