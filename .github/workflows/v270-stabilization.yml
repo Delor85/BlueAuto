@@ -1,0 +1,91 @@
+name: BIR v2.7 Stabilization CI
+
+on:
+  push:
+    branches: [feat/bir-v2-7-stabilization]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify-v270:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v5
+
+      - name: Installer Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Vérifier le backend sans déployer
+        working-directory: cloudflare
+        run: |
+          npm ci
+          npm run check
+          node --check src/index.js
+
+      - name: Vérifier le contrat B.I.R. v2.7
+        run: |
+          node --check app/src/main/assets/app.js
+          node --check app/src/main/assets/platform-v267.js
+          node --check app/src/main/assets/control-tower-v2610.js
+          node app/src/test/finance-flow.mjs
+          node app/src/test/v268-field-contract.mjs
+          node app/src/test/v268-responsive-management.mjs
+          node app/src/test/v268-ux-performance.mjs
+          node app/src/test/v268-platform-compat.mjs
+          node app/src/test/v268-transaction-ux.mjs
+          node app/src/test/v268-control-plane.mjs
+          node app/src/test/v268-native-status.mjs
+          node app/src/test/v268-release-hygiene.mjs
+          node app/src/test/v270-ui-contract.mjs
+
+      - name: Installer Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Installer Gradle 8.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+
+      - name: Préparer une signature éphémère de validation
+        run: |
+          set -euo pipefail
+          mkdir -p .pilot-signing
+          pilot_password="$(openssl rand -hex 32)"
+          echo "::add-mask::$pilot_password"
+          keytool -genkeypair \
+            -keystore .pilot-signing/debug.keystore \
+            -storepass "$pilot_password" \
+            -alias androiddebugkey \
+            -keypass "$pilot_password" \
+            -dname "CN=BIR v2.7 CI,O=ProfitLoop,C=CM" \
+            -keyalg RSA -keysize 2048 -validity 30 -noprompt
+          echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$pilot_password" >> "$GITHUB_ENV"
+
+      - name: Compiler l'APK Release de validation
+        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
+
+      - name: Vérifier l'APK de validation
+        run: |
+          set -euo pipefail
+          build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          apk=app/build/outputs/apk/release/app-release.apk
+          "$build_tools/zipalign" -c -v 4 "$apk"
+          "$build_tools/apksigner" verify --verbose "$apk"
+          "$build_tools/aapt" dump badging "$apk" | grep "versionCode='51'" | grep "versionName='2.7.0'"
+          sha256sum "$apk" | tee /tmp/bir-v270-validation.sha256
+
+      - name: Publier uniquement l'APK de validation CI
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIR-v2.7.0-validation-ephemeral
+          path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
