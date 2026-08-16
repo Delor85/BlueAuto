@@ -22,6 +22,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 .github/scripts/v2610_control_tower_patch.py
+          python3 .github/scripts/v2610_compile_hotfix.py
           python3 .github/scripts/v2610_test_compat.py
           git diff --check
 
