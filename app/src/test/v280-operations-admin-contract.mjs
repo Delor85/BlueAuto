@@ -20,14 +20,17 @@ ok(gradle.includes('versionCode 53')&&gradle.includes('versionName "2.8.0"'),'v2
 ok(api.includes('"2.8.0"')&&api.includes('X-Owner-Token')&&api.includes('ownerEnroll'),'native owner entitlement transport');
 ok(main.includes('"ADMIN".equals(node)')&&main.includes('OWNER_ADMIN_WORKSPACE_KEY')&&main.includes('SecureOwnerStore'),'private ADMIN entry, not a Blue role');
 ok(main.includes('owner_admin_workspace')&&main.includes('exitOwnerAdminWorkspace'),'admin workspace lifecycle');
+ok(main.includes('ownerEnroll("MOCK_OWNER"')&&main.includes('mock_owner_entitled'),'MOCK must bridge to device-bound server entitlement without breaking current production');
 ok(v280.includes('ONE-SHOT > CHILD-SPECIFIC > DEFAULT')&&v280.includes('PERSONNALISÉ > DÉFAUT'),'three-level commission semantics');
 ok(v271.includes('clearOneShotRate')&&app.includes('clearOneShotRate'),'one-shot rate must be consumed after one transaction');
 ok(v280.includes('COMPTABILITÉ GÉNÉRALE')&&v280.includes("period==='quarter'")&&worker.includes('accountingSummary'),'day/week/month/quarter/year accounting');
 ok(v280.includes('TCHORONKOS')&&v280.includes('TCHORONKO_SHADOW'),'Tchoronko network support');
 ok(migration.includes('owner_entitlements')&&migration.includes('admin_audit_log')&&migration.includes('device_control_actions')&&migration.includes('admin_assist_requests'),'audited owner-admin data model');
 ok(worker.includes("case 'owner_snapshot'")&&worker.includes("case 'owner_control'")&&worker.includes("case 'owner_assist'")&&worker.includes('authenticateOwner'),'server owner control source');
+ok(!worker.includes('b.available_balance')&&!worker.includes('b.reserved_amount'),'owner snapshot must query only real account_balances columns');
 ok(robot.includes('ACTION_CONTROL_POLL')&&robot.includes('START_ROBOT')&&robot.includes('STOP_ROBOT')&&boot.includes('pollAdministrativeControls'),'remote control application path');
 ok(worker.includes('requires_user_confirmation:true')||worker.includes('requires_user_confirmation:true'),'admin assistance must require user confirmation');
 ok(html.includes('control-tower-v280.css')&&html.includes('control-tower-v280.js'),'v2.8 overlay wired');
+ok(html.includes('balance-engine-v280.js'),'event-driven balance engine wired');
 ok(!migration.toLowerCase().includes('wrangler deploy')&&!migration.toLowerCase().includes('d1 migrations apply'),'migration file must never deploy itself');
 console.log('B.I.R. v2.8 operations/admin contract OK');

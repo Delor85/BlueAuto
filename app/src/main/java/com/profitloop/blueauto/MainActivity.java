@@ -163,6 +163,20 @@ public class MainActivity extends Activity {
                 .putBoolean(MOCK_WORKSPACE_KEY, true)
                 .commit();
         mockRouteProfile();
+        final String ownerCode = code.trim();
+        new Thread(() -> {
+            try {
+                JSONObject data = new ApiClient(MainActivity.this).ownerEnroll("MOCK_OWNER", ownerCode);
+                String token = data.optString("owner_token", "");
+                String entitlementId = data.optString("entitlement_id", "");
+                if (!token.isEmpty() && !entitlementId.isEmpty()) {
+                    SecureOwnerStore.save(MainActivity.this, "MOCK_OWNER", entitlementId, token);
+                }
+            } catch (Exception ignored) {
+                // Production v2.6.7 has no owner endpoint yet. Local private MOCK remains available
+                // until a separately authorized v2.8 Worker/D1 rollout enables server verification.
+            }
+        }, "BIR-MockOwnerEnroll-v280").start();
         recreate();
     }
 
@@ -2261,6 +2275,11 @@ public class MainActivity extends Activity {
                             throw new SecurityException("Aucun DAE réel appairé n’est disponible comme route MOCK.");
                         }
                         client = ApiClient.forProfile(MainActivity.this, routeProfile);
+                        String mockOwnerToken = SecureOwnerStore.token(MainActivity.this, "MOCK_OWNER");
+                        if (!mockOwnerToken.isEmpty()) {
+                            client.withOwnerToken(mockOwnerToken);
+                            payload.put("mock_owner_entitled", true);
+                        }
                     }
                     JSONObject data = client.platformAction(action, payload);
                     data.put("_action", action == null ? "" : action);

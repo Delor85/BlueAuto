@@ -2325,7 +2325,7 @@ async function transactionLedger(env, auth, input, headers) {
 async function ownerSnapshot(request, env, auth, headers) {
   const owner = await authenticateOwner(request,env,auth,'OWNER_ADMIN');
   const nodes = await env.DB.prepare(
-    'SELECT n.node_code,n.role,n.phone_number,n.parent_node_code,n.active,n.created_at,b.balance,b.available_balance,b.reserved_amount,b.balance_quality,b.evidence_kind,b.observed_at,b.operator_event_at,s.terminal_type,s.display_name,s.zone ' +
+    'SELECT n.node_code,n.role,n.phone_number,n.parent_node_code,n.active,n.created_at,n.default_commission_bps,b.balance,b.balance_quality,b.evidence_kind,b.observed_at,b.operator_event_at,s.terminal_type,s.display_name,s.zone ' +
     'FROM nodes n LEFT JOIN account_balances b ON b.node_code=n.node_code LEFT JOIN shadow_accounts s ON s.node_code=n.node_code ORDER BY n.role,n.node_code').all();
   const devices = await env.DB.prepare('SELECT device_id,node_code,mode,device_name,active,robot_enabled,sim_verified,sim_slot,app_version,android_version,last_seen_at,created_at FROM devices ORDER BY node_code,last_seen_at DESC').all();
   const alerts=[];
