@@ -2,7 +2,7 @@ name: Build Blue Magic APK
 
 on:
   push:
-    branches: [main, codex/blue-magic-v2-robot-core, fix/blue-magic-v2-5-2-finance-unlock, fix/blue-magic-v2-6-recovery]
+    branches: [main, codex/blue-magic-v2-robot-core, fix/blue-magic-v2-5-2-finance-unlock, fix/blue-magic-v2-6-recovery, fix/bir-v2-6-10-field-control-tower]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -98,6 +98,7 @@ jobs:
           node app/src/test/v268-control-plane.mjs
           node app/src/test/v268-native-status.mjs
           node app/src/test/v268-release-hygiene.mjs
+          node app/src/test/v2610-field-control-tower.mjs
           node --check app/src/main/assets/app.js
           node --check app/src/main/assets/platform-v267.js
           gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
@@ -186,6 +187,7 @@ jobs:
           node app/src/test/v268-control-plane.mjs
           node app/src/test/v268-native-status.mjs
           node app/src/test/v268-release-hygiene.mjs
+          node app/src/test/v2610-field-control-tower.mjs
           node --check app/src/main/assets/app.js
           node --check app/src/main/assets/platform-v267.js
           gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
@@ -205,19 +207,19 @@ jobs:
             echo "::error::Le livrable permanent est encore débogable."
             exit 1
           fi
-          sha256sum "$apk" | tee /tmp/blue-magic-v268.sha256
-          cat /tmp/blue-magic-v268.sha256 >> "$GITHUB_STEP_SUMMARY"
+          sha256sum "$apk" | tee /tmp/bir-v2610.sha256
+          cat /tmp/bir-v2610.sha256 >> "$GITHUB_STEP_SUMMARY"
 
       - name: Préparer l'APK permanente
         if: steps.signing-availability.outputs.available == 'true'
-        run: cp app/build/outputs/apk/release/app-release.apk Blue-Magic-v2.6.8-Stabilisation-Ergonomie-Release.apk
+        run: cp app/build/outputs/apk/release/app-release.apk BIR-Blue-Infinity-Retail-v2.6.10-Control-Tower-Release.apk
 
       - name: Publier l'APK permanente vérifiée
         if: steps.signing-availability.outputs.available == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: Blue-Magic-v2-Robot-Core-Permanent
-          path: Blue-Magic-v2.6.8-Stabilisation-Ergonomie-Release.apk
+          path: BIR-Blue-Infinity-Retail-v2.6.10-Control-Tower-Release.apk
           if-no-files-found: error
 
       - name: Confirmer l'absence de publication permanente
@@ -237,7 +239,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: Blue-Magic-v2-Robot-Core-Permanent
-          path: /tmp/blue-magic-v268-final
+          path: /tmp/bir-v2610-final
 
       - name: Démarrer réellement Blue Magic sous Android 11
         uses: reactivecircus/android-emulator-runner@v2
@@ -248,7 +250,7 @@ jobs:
           disable-animations: true
           script: |
             set -eu
-            adb install -r /tmp/blue-magic-v268-final/Blue-Magic-v2.6.8-Stabilisation-Ergonomie-Release.apk | tee /tmp/blue-magic-install.txt
+            adb install -r /tmp/bir-v2610-final/BIR-Blue-Infinity-Retail-v2.6.10-Control-Tower-Release.apk | tee /tmp/blue-magic-install.txt
             grep -q "Success" /tmp/blue-magic-install.txt
             adb logcat -c || true
             adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/blue-magic-first-start.txt
@@ -355,7 +357,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: Blue-Magic-v2-Robot-Core-Permanent
-          path: /tmp/blue-magic-v268-final
+          path: /tmp/bir-v2610-final
 
       - name: Vérifier la mise à jour Android ${{ matrix.api }} sans perte de données
         uses: reactivecircus/android-emulator-runner@v2
@@ -374,14 +376,14 @@ jobs:
             adb shell run-as com.profitloop.blueauto mkdir -p files
             adb shell run-as com.profitloop.blueauto touch files/upgrade-v265-marker
 
-            adb install -r /tmp/blue-magic-v268-final/Blue-Magic-v2.6.8-Stabilisation-Ergonomie-Release.apk | tee /tmp/v268-install.txt
+            adb install -r /tmp/bir-v2610-final/BIR-Blue-Infinity-Retail-v2.6.10-Control-Tower-Release.apk | tee /tmp/v268-install.txt
             grep -q "Success" /tmp/v268-install.txt
             adb shell am force-stop com.profitloop.blueauto
             adb logcat -c || true
             adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/v268-start.txt
             grep -q "Status: ok" /tmp/v268-start.txt
             adb shell run-as com.profitloop.blueauto ls files/upgrade-v265-marker
-            adb shell dumpsys package com.profitloop.blueauto | grep -q "versionName=2.6.8"
+            adb shell dumpsys package com.profitloop.blueauto | grep -q "versionName=2.6.10"
             if adb shell dumpsys package com.profitloop.blueauto | grep -q "DEBUGGABLE"; then
               echo "::error::L’APK candidate ne doit pas être débogable."
               exit 1
@@ -390,8 +392,8 @@ jobs:
 
             adb uninstall com.profitloop.blueauto | tee /tmp/v268-uninstall.txt
             grep -q "Success" /tmp/v268-uninstall.txt
-            adb install /tmp/blue-magic-v268-final/Blue-Magic-v2.6.8-Stabilisation-Ergonomie-Release.apk | tee /tmp/v268-clean-install.txt
+            adb install /tmp/bir-v2610-final/BIR-Blue-Infinity-Retail-v2.6.10-Control-Tower-Release.apk | tee /tmp/v268-clean-install.txt
             grep -q "Success" /tmp/v268-clean-install.txt
             adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/v268-clean-start.txt
             grep -q "Status: ok" /tmp/v268-clean-start.txt
-            adb shell dumpsys package com.profitloop.blueauto | grep -q "versionName=2.6.8"
+            adb shell dumpsys package com.profitloop.blueauto | grep -q "versionName=2.6.10"
