@@ -1,0 +1,100 @@
+name: BIR v2.6.10 Control Tower Validation
+
+on:
+  push:
+    branches: [feat/bir-v2-6-10-control-tower]
+
+permissions:
+  contents: write
+
+jobs:
+  integrate-test-build:
+    if: "${{ !contains(github.event.head_commit.message, '[v2610-source]') }}"
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: feat/bir-v2-6-10-control-tower
+          fetch-depth: 0
+
+      - name: Apply v2.6.10 control-tower patch
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/v2610_control_tower_patch.py
+          git diff --check
+
+      - name: Full Worker and historical contracts
+        run: |
+          set -euo pipefail
+          cd cloudflare
+          npm ci
+          npm run check
+          cd ..
+          node app/src/test/finance-flow.mjs
+          node app/src/test/v268-field-contract.mjs
+          node app/src/test/v268-responsive-management.mjs
+          node app/src/test/v268-ux-performance.mjs
+          node app/src/test/v268-platform-compat.mjs
+          node app/src/test/v268-transaction-ux.mjs
+          node app/src/test/v268-control-plane.mjs
+          node app/src/test/v268-native-status.mjs
+          node app/src/test/v268-release-hygiene.mjs
+          node app/src/test/bir-v269-functional-contract.mjs
+          node app/src/test/v2610-control-tower.mjs
+          node --check app/src/main/assets/app.js
+          node --check app/src/main/assets/platform-v267.js
+          node --check app/src/main/assets/control-tower-v2610.js
+
+      - name: Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Gradle 8.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+
+      - name: Ephemeral validation signing
+        run: |
+          set -euo pipefail
+          mkdir -p .pilot-signing
+          password="validation-v2610-only"
+          keytool -genkeypair -v -keystore .pilot-signing/debug.keystore -storepass "$password" -keypass "$password" -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 3650 -dname "CN=BIR v2610 CI,O=Validation,C=CM" >/dev/null 2>&1
+          echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$password" >> "$GITHUB_ENV"
+
+      - name: Android unit tests and Release APK
+        run: |
+          set -euo pipefail
+          gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
+          build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          apk=app/build/outputs/apk/release/app-release.apk
+          "$build_tools/aapt" dump badging "$apk" | tee /tmp/badging.txt
+          grep -q "package: name='com.profitloop.blueauto' versionCode='50' versionName='2.6.10'" /tmp/badging.txt
+          grep -q "sdkVersion:'23'" /tmp/badging.txt
+          if grep -q "application-debuggable" /tmp/badging.txt; then exit 1; fi
+          cp "$apk" BIR-Blue-Infinity-Retail-v2.6.10-Control-Tower-Candidate.apk
+          sha256sum BIR-Blue-Infinity-Retail-v2.6.10-Control-Tower-Candidate.apk
+
+      - name: Upload functional candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIR-v2.6.10-Control-Tower-Candidate
+          path: BIR-Blue-Infinity-Retail-v2.6.10-Control-Tower-Candidate.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Persist validated business source only
+        run: |
+          set -euo pipefail
+          git config user.name "Delor85"
+          git config user.email "mbolodelorpro@gmail.com"
+          git add app cloudflare
+          if git diff --cached --quiet; then
+            echo "No source changes to persist."
+            exit 0
+          fi
+          git commit -m "feat: BIR v2.6.10 control tower and resilient sync [v2610-source]"
+          git push origin HEAD:feat/bir-v2-6-10-control-tower
