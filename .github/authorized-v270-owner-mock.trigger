@@ -10,3 +10,4 @@ d1=forbidden
 worker_deploy=forbidden
 pr4_merge=forbidden
 permanent_signing=forbidden-until-new-sha-authorized
+rerun_reason=contract-worker-path
