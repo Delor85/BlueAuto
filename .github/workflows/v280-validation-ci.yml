@@ -1,0 +1,190 @@
+name: BIR v2.8 Exact Source Validation
+
+on:
+  push:
+    branches: [feat/bir-v2-8-operations-admin]
+    paths: [.github/authorized-v280-validation.trigger]
+
+permissions:
+  contents: read
+
+jobs:
+  verify-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    outputs:
+      candidate_sha: ${{ steps.auth.outputs.candidate_sha }}
+    steps:
+      - name: Checkout validation metadata
+        uses: actions/checkout@v5
+        with:
+          ref: feat/bir-v2-8-operations-admin
+          fetch-depth: 0
+      - name: Resolve and checkout exact authorized source
+        id: auth
+        run: |
+          set -euo pipefail
+          sha="$(sed -n 's/^candidate_sha=//p' .github/authorized-v280-validation.trigger | head -1)"
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]]
+          grep -q '^production_worker_deploy=forbidden$' .github/authorized-v280-validation.trigger
+          grep -q '^d1_migration=forbidden$' .github/authorized-v280-validation.trigger
+          grep -q '^pr4_merge=forbidden$' .github/authorized-v280-validation.trigger
+          grep -q '^permanent_signing=forbidden$' .github/authorized-v280-validation.trigger
+          git cat-file -e "$sha^{commit}"
+          git checkout --detach "$sha"
+          test "$(git rev-parse HEAD)" = "$sha"
+          echo "candidate_sha=$sha" >> "$GITHUB_OUTPUT"
+      - name: Prove v2.8 identity, launcher and reboot receiver contract
+        run: |
+          set -euo pipefail
+          grep -q 'applicationId "com.profitloop.blueauto"' app/build.gradle
+          grep -q 'versionCode 53' app/build.gradle
+          grep -q 'versionName "2.8.0"' app/build.gradle
+          grep -q 'minSdk 23' app/build.gradle
+          grep -q 'android:icon="@drawable/ic_launcher_bir"' app/src/main/AndroidManifest.xml
+          grep -q 'android:roundIcon="@drawable/ic_launcher_bir"' app/src/main/AndroidManifest.xml
+          grep -q 'android.intent.action.BOOT_COMPLETED' app/src/main/AndroidManifest.xml
+          grep -q 'com.profitloop.blueauto.ROBOT_WATCHDOG' app/src/main/AndroidManifest.xml
+          grep -q 'M194,77 C154,26 110,16 71,25' app/src/main/res/drawable/ic_launcher_bir.xml
+      - name: Validate D1 migration chain locally only
+        run: python3 .github/scripts/v280_schema_smoke.py
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate Worker source without deployment
+        working-directory: cloudflare
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run check
+          node --check src/index.js
+      - name: Historical and v2.8 contracts
+        run: |
+          set -euo pipefail
+          node app/src/test/finance-flow.mjs
+          node app/src/test/v268-field-contract.mjs
+          node app/src/test/v268-responsive-management.mjs
+          node app/src/test/v268-ux-performance.mjs
+          node app/src/test/v268-platform-compat.mjs
+          node app/src/test/v268-transaction-ux.mjs
+          node app/src/test/v268-control-plane.mjs
+          node app/src/test/v268-native-status.mjs
+          node app/src/test/v268-release-hygiene.mjs
+          node app/src/test/bir-v269-functional-contract.mjs
+          node app/src/test/v2610-control-tower.mjs
+          node app/src/test/v2611-finalization-contract.mjs
+          node app/src/test/v2611-shell-contract.mjs
+          node app/src/test/v270-finalization-contract.mjs
+          node app/src/test/v270-owner-mock-contract.mjs
+          node app/src/test/v271-field-stabilization-contract.mjs
+          node app/src/test/v280-operations-admin-contract.mjs
+          node --check app/src/main/assets/app.js
+          node --check app/src/main/assets/platform-v267.js
+          node --check app/src/main/assets/control-tower-v271.js
+          node --check app/src/main/assets/balance-engine-v280.js
+          node --check app/src/main/assets/control-tower-v280.js
+      - name: Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Gradle 8.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+      - name: Prepare unmistakably ephemeral Release key
+        run: |
+          set -euo pipefail
+          mkdir -p .pilot-signing
+          password="$(openssl rand -hex 32)"
+          echo "::add-mask::$password"
+          keytool -genkeypair -keystore .pilot-signing/debug.keystore -storepass "$password" -alias androiddebugkey -keypass "$password" -dname "CN=BIR v2.8 Validation,O=ProfitLoop,C=CM" -keyalg RSA -keysize 2048 -validity 30 -noprompt
+          echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$password" >> "$GITHUB_ENV"
+      - name: Build same-source Debug harness and Release candidate
+        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease
+      - name: Verify Release identity, launcher, alignment and ephemeral signature
+        run: |
+          set -euo pipefail
+          build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          release=app/build/outputs/apk/release/app-release.apk
+          debug=app/build/outputs/apk/debug/app-debug.apk
+          "$build_tools/zipalign" -c -v 4 "$release"
+          "$build_tools/aapt" dump badging "$release" | tee /tmp/v280-badging.txt
+          grep -q "package: name='com.profitloop.blueauto' versionCode='53' versionName='2.8.0'" /tmp/v280-badging.txt
+          grep -q "sdkVersion:'23'" /tmp/v280-badging.txt
+          grep -q "launchable-activity: name='com.profitloop.blueauto.MainActivity'" /tmp/v280-badging.txt
+          grep -q "application-icon" /tmp/v280-badging.txt
+          "$build_tools/apksigner" verify --verbose --print-certs "$release" | tee /tmp/v280-signature.txt
+          if "$build_tools/aapt" dump badging "$release" | grep -q 'application-debuggable'; then exit 1; fi
+          cp "$release" BIR-Blue-Infinity-Retail-v2.8.0-Validation-Ephemeral.apk
+          cp "$debug" BIR-Blue-Infinity-Retail-v2.8.0-Reboot-Harness-Debug.apk
+          sha256sum BIR-Blue-Infinity-Retail-v2.8.0-Validation-Ephemeral.apk | tee BIR-v2.8.0-validation.sha256.txt
+      - name: Upload validation artifacts only
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIR-v2.8.0-validation-ephemeral
+          path: |
+            BIR-Blue-Infinity-Retail-v2.8.0-Validation-Ephemeral.apk
+            BIR-Blue-Infinity-Retail-v2.8.0-Reboot-Harness-Debug.apk
+            BIR-v2.8.0-validation.sha256.txt
+          if-no-files-found: error
+          retention-days: 14
+
+  smoke-android:
+    needs: verify-build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 28
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - api: 23
+            arch: x86
+            profile: Nexus 5
+          - api: 26
+            arch: x86_64
+            profile: Nexus 5X
+          - api: 30
+            arch: x86_64
+            profile: Nexus 5X
+    steps:
+      - name: Checkout exact source fixture
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.verify-build.outputs.candidate_sha }}
+      - name: Download exact validation APKs
+        uses: actions/download-artifact@v4
+        with:
+          name: BIR-v2.8.0-validation-ephemeral
+          path: apk
+      - name: Launch Release and prove Robot reboot/watchdog intent on Android ${{ matrix.api }}
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: ${{ matrix.arch }}
+          profile: ${{ matrix.profile }}
+          disable-animations: true
+          script: |
+            set -e
+            adb install -r apk/BIR-Blue-Infinity-Retail-v2.8.0-Validation-Ephemeral.apk
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity
+            sleep 3
+            adb shell dumpsys activity activities | grep -q 'com.profitloop.blueauto'
+            adb logcat -d '*:E' > /tmp/v280-release-logcat.txt || true
+            ! grep -E 'FATAL EXCEPTION.*com.profitloop.blueauto|Process: com.profitloop.blueauto' /tmp/v280-release-logcat.txt
+            adb uninstall com.profitloop.blueauto
+            adb install -r apk/BIR-Blue-Infinity-Retail-v2.8.0-Reboot-Harness-Debug.apk
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity
+            sleep 2
+            adb shell am force-stop com.profitloop.blueauto
+            adb push app/src/test/fixtures/android11_robot_profile.xml /data/local/tmp/bir-v280-prefs.xml
+            adb shell run-as com.profitloop.blueauto mkdir -p shared_prefs
+            adb shell run-as com.profitloop.blueauto cp /data/local/tmp/bir-v280-prefs.xml shared_prefs/blue_magic_native_v2.xml
+            adb shell am broadcast -a com.profitloop.blueauto.ROBOT_WATCHDOG -n com.profitloop.blueauto/.BootReceiver
+            sleep 6
+            adb shell run-as com.profitloop.blueauto cat shared_prefs/blue_magic_native_v2.xml | grep -q 'profile_android11-emulator_robot_enabled.*true'
+            adb shell pidof com.profitloop.blueauto
+            adb logcat -d '*:E' > /tmp/v280-reboot-logcat.txt || true
+            ! grep -E 'FATAL EXCEPTION.*com.profitloop.blueauto|Process: com.profitloop.blueauto' /tmp/v280-reboot-logcat.txt
+            echo "Android API ${{ matrix.api }} Release launch + custom Robot watchdog recovery OK"
