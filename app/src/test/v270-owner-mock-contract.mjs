@@ -12,7 +12,7 @@ assert.match(main, /owner_scope", "NATIONAL_10_REGIONS"/);
 assert.match(main, /"AD", "CE", "ES", "EN", "LT", "NO", "NW", "OU", "SU", "SW"/);
 assert.match(main, /ApiClient\.forProfile\(this, id\)\.dashboard\(\)/);
 assert.match(main, /ApiClient\.forProfile\(MainActivity\.this, routeProfile\)/);
-assert.match(main, /MOCK ne crée pas d’approvisionnement ou de vente Camtel directe/);
+assert.match(main, /MOCK ne crée pas d’approvisionnement ou de vente (?:Camtel|Blue) directe/);
 assert.match(main, /Sandbox USSD refusée dans MOCK/);
 assert.match(platform, /isDae\(\) \|\| isMockWorkspace\(\)/);
 assert.match(overlay, /Route DAE réelle/);

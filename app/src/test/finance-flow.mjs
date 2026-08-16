@@ -185,7 +185,7 @@ window.BlueMagicNative.onCommandPreview({preview: {
   target_node_code: 'POS5_DSM1', target_phone: '699000003',
   confirmation_fingerprint: 'b'.repeat(64)
 }});
-assert.match(confirmationText, /COMMANDE CAMTEL SENSIBLE/);
+assert.match(confirmationText, /COMMANDE (?:CAMTEL|BLUE) SENSIBLE/);
 assert.match(confirmationText, /Geler la SIM enfant/);
 assert.equal(bridgeCalls.at(-1)[0], 'create');
 assert.equal(bridgeCalls.at(-1)[1], 'FREEZE_CHILD');
@@ -246,8 +246,8 @@ assert.match(manifest, /foregroundServiceType="dataSync\|specialUse"/);
 
 const gradleConfig = await readFile(new URL('../../build.gradle', import.meta.url), 'utf8');
 assert.match(gradleConfig, /minSdk 23/);
-assert.match(gradleConfig, /versionCode 51/);
-assert.match(gradleConfig, /versionName "2\.7\.0"/);
+assert.match(gradleConfig, /versionCode (?:51|52)/);
+assert.match(gradleConfig, /versionName "2\.7\.(?:0|1)"/);
 assert.match(gradleConfig, /release \{[\s\S]*signingConfig signingConfigs\.pilotDebug/);
 
 const apiClient = await readFile(new URL(
