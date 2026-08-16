@@ -3,4 +3,4 @@ production_worker_deploy=forbidden
 d1_migration=forbidden
 pr4_merge=forbidden
 permanent_signing=forbidden
-rerun=historical-blue-brand-test-alignment
+rerun=blue-field-contract-aligned
