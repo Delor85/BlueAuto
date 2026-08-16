@@ -22,3 +22,10 @@ if old_labels not in s:
     raise SystemExit('v268 UX role navigation anchor not found')
 s=s.replace(old_labels,new_labels,1)
 p.write_text(s,encoding='utf-8')
+
+# Transaction ergonomics still requires Fleet/Robot/SAV content, not their old exact titles.
+p=Path('app/src/test/v268-transaction-ux.mjs')
+s=p.read_text(encoding='utf-8')
+s=s.replace("if(!html.includes('FLOTTE & RÉSEAU')||!html.includes('ROBOT & CONFIGURATION')||!html.includes('SAV & DIAGNOSTIC')) throw new Error('dynamic module headings missing');",
+            "if(!html.includes('FLOTTE & RÉSEAU')||!html.includes('ROBOT & CONFIGURATION')||!html.includes('ACTIVITÉ & SAV')||!html.includes('DIAGNOSTIC RAPIDE')) throw new Error('dynamic module content missing');")
+p.write_text(s,encoding='utf-8')
