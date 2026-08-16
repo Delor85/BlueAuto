@@ -1,0 +1,53 @@
+name: BIR v2.7 Metadata Sync
+
+on:
+  push:
+    branches: [feat/bir-v2-7-finalization]
+    paths: [.github/authorized-v270-metadata.trigger]
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: feat/bir-v2-7-finalization
+          fetch-depth: 0
+
+      - name: Synchronize Android v2.7 metadata
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/v270_metadata_patch.py
+          git diff --check
+          grep -q 'payload.put("app_version", "2.7.0")' app/src/main/java/com/profitloop/blueauto/ApiClient.java
+          grep -q 'versionName "2.7.0"' app/build.gradle
+
+      - name: Prove server source remains untouched
+        run: |
+          set -euo pipefail
+          git diff --quiet -- cloudflare
+
+      - name: Run version-sensitive contracts
+        run: |
+          set -euo pipefail
+          node app/src/test/finance-flow.mjs
+          node app/src/test/bir-v269-functional-contract.mjs
+          node app/src/test/v2610-control-tower.mjs
+          node app/src/test/v2611-finalization-contract.mjs
+          node app/src/test/v2611-shell-contract.mjs
+          node app/src/test/v268-release-hygiene.mjs
+          node app/src/test/v270-finalization-contract.mjs
+
+      - name: Persist synchronized metadata only
+        run: |
+          set -euo pipefail
+          git config user.name "Delor85"
+          git config user.email "mbolodelorpro@gmail.com"
+          git add app/src/main/java/com/profitloop/blueauto/ApiClient.java app/src/test/*.mjs
+          git diff --cached --check
+          git commit -m "chore: align BIR v2.7 Android metadata and inherited contracts [v270-meta]"
+          git push origin HEAD:feat/bir-v2-7-finalization
