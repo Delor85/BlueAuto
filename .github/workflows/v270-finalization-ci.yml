@@ -155,13 +155,10 @@ jobs:
           profile: Nexus 5X
           disable-animations: true
           script: |
-            set -eu
             adb install -r apk/BIR-Blue-Infinity-Retail-v2.7.0-Validation-Ephemeral.apk
             adb shell monkey -p com.profitloop.blueauto -c android.intent.category.LAUNCHER 1
             sleep 5
             adb shell dumpsys activity activities | grep -q 'com.profitloop.blueauto'
-            if adb logcat -d '*:E' | grep -E 'FATAL EXCEPTION|Process: com.profitloop.blueauto' | grep -q 'com.profitloop.blueauto'; then
-              echo '::error::BIR fatal exception detected after launch.'
-              exit 1
-            fi
+            adb logcat -d '*:E' > /tmp/bir-logcat.txt
+            ! grep -E 'FATAL EXCEPTION.*com.profitloop.blueauto|Process: com.profitloop.blueauto' /tmp/bir-logcat.txt
             echo "Android API ${{ matrix.api-level }} clean install and launch OK"
