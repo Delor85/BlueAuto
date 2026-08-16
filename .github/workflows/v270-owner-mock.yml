@@ -1,0 +1,81 @@
+name: BIR v2.7 National Owner MOCK
+
+on:
+  push:
+    branches: [feat/bir-v2-7-finalization]
+    paths: [.github/authorized-v270-owner-mock.trigger]
+
+permissions:
+  contents: write
+
+jobs:
+  converge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v5
+        with:
+          ref: feat/bir-v2-7-finalization
+          fetch-depth: 0
+
+      - name: Assert authorized predecessor and untouched production server scope
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor fbbb17d05e16f03dd82224df4b9aa67277272197 HEAD
+          grep -q 'versionCode 51' app/build.gradle
+          grep -q 'versionName "2.7.0"' app/build.gradle
+          grep -q 'MOCK_OWNER_NODE_CODE = "SU1"' app/src/main/java/com/profitloop/blueauto/MainActivity.java
+          git diff --quiet fbbb17d05e16f03dd82224df4b9aa67277272197...HEAD -- cloudflare
+
+      - name: Apply national owner MOCK patch
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/v270_owner_mock_patch.py
+          git diff --check
+
+      - name: Prove Cloudflare and D1 source are untouched
+        run: |
+          set -euo pipefail
+          git diff --quiet -- cloudflare
+          echo 'Cloudflare/D1 source unchanged.'
+
+      - name: JavaScript syntax and contracts
+        run: |
+          set -euo pipefail
+          node --check app/src/main/assets/platform-v267.js
+          node --check app/src/main/assets/control-tower-v270.js
+          node app/src/test/v270-finalization-contract.mjs
+          node app/src/test/v270-owner-mock-contract.mjs
+
+      - name: Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Gradle 8.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+
+      - name: Compile Java and run Android unit tests without permanent signing
+        run: |
+          set -euo pipefail
+          gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
+
+      - name: Persist validated source convergence only
+        run: |
+          set -euo pipefail
+          git config user.name "Delor85"
+          git config user.email "mbolodelorpro@gmail.com"
+          git add app/src/main/java/com/profitloop/blueauto/MainActivity.java \
+            app/src/main/assets/platform-v267.js \
+            app/src/main/assets/control-tower-v270.js \
+            app/src/main/assets/control-tower-v270.css \
+            app/src/test/v270-finalization-contract.mjs \
+            app/src/test/v270-owner-mock-contract.mjs \
+            docs/BIR_V270_MOCK_OWNER_STATE.md
+          git diff --cached --check
+          git commit -m "feat: activate national owner MOCK without SU1 dependency [v270-mock-owner]"
+          git push origin HEAD:feat/bir-v2-7-finalization
