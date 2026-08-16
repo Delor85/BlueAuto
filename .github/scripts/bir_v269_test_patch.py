@@ -8,4 +8,5 @@ if old not in s:
 s=s.replace(old,new,1)
 s=s.replace("assert.match(gradleConfig, /versionCode 48/);", "assert.match(gradleConfig, /versionCode 49/);")
 s=s.replace("assert.match(gradleConfig, /versionName \"2\\.6\\.8\"/);", "assert.match(gradleConfig, /versionName \"2\\.6\\.9\"/);")
+s=s.replace("assert.match(html, /SAV & DIAGNOSTIC/);", "assert.match(html, /ACTIVITÉ & SAV/);\nassert.match(html, /DIAGNOSTIC RAPIDE/);")
 p.write_text(s,encoding='utf-8')
