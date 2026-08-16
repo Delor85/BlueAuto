@@ -1,0 +1,34 @@
+name: BIR v2.7 APK verification tools
+
+on:
+  push:
+    branches: [feat/bir-v2-7-finalization]
+    paths: [.github/authorized-v270-apksig-tools.trigger]
+
+permissions:
+  contents: read
+
+jobs:
+  pack-tools:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Package official Android build-tools verifier
+        run: |
+          set -euo pipefail
+          build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          mkdir -p /tmp/bir-apktools
+          cp "$build_tools/apksigner" /tmp/bir-apktools/
+          cp -R "$build_tools/lib" /tmp/bir-apktools/
+          cp "$build_tools/aapt" /tmp/bir-apktools/
+          cp "$build_tools/zipalign" /tmp/bir-apktools/
+          "$build_tools/apksigner" version
+          "$build_tools/aapt" version
+          "$build_tools/zipalign" -h >/dev/null 2>&1 || true
+      - name: Upload verifier tools
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIR-apksig-tools-linux
+          path: /tmp/bir-apktools
+          if-no-files-found: error
+          retention-days: 1
