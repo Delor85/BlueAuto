@@ -157,9 +157,10 @@ jobs:
           disable-animations: true
           script: |
             adb install -r apk/BIR-Blue-Infinity-Retail-v2.7.0-Validation-Ephemeral.apk
-            adb shell monkey -p com.profitloop.blueauto -c android.intent.category.LAUNCHER 1
+            sleep 3
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity
             sleep 5
             adb shell dumpsys activity activities | grep -q 'com.profitloop.blueauto'
             adb logcat -d '*:E' > /tmp/bir-logcat.txt
             ! grep -E 'FATAL EXCEPTION.*com.profitloop.blueauto|Process: com.profitloop.blueauto' /tmp/bir-logcat.txt
-            echo "Android API ${{ matrix.api-level }} clean install and launch OK"
+            echo "Android API ${{ matrix.api-level }} clean install and explicit launch OK"
