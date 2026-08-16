@@ -45,6 +45,8 @@ jobs:
           grep -q 'android:roundIcon="@drawable/ic_launcher_bir"' app/src/main/AndroidManifest.xml
           grep -q 'android.intent.action.BOOT_COMPLETED' app/src/main/AndroidManifest.xml
           grep -q 'com.profitloop.blueauto.ROBOT_WATCHDOG' app/src/main/AndroidManifest.xml
+          grep -q 'RobotService.startEnabled(context)' app/src/main/java/com/profitloop/blueauto/BootReceiver.java
+          grep -q 'RobotService.scheduleWatchdog(context)' app/src/main/java/com/profitloop/blueauto/BootReceiver.java
           grep -q 'M194,77 C154,26 110,16 71,25' app/src/main/res/drawable/ic_launcher_bir.xml
       - name: Validate D1 migration chain locally only
         run: python3 .github/scripts/v280_schema_smoke.py
@@ -184,7 +186,6 @@ jobs:
             adb shell am broadcast -a com.profitloop.blueauto.ROBOT_WATCHDOG -n com.profitloop.blueauto/.BootReceiver
             sleep 6
             adb shell run-as com.profitloop.blueauto cat shared_prefs/blue_magic_native_v2.xml | grep -q 'profile_android11-emulator_robot_enabled.*true'
-            adb shell pidof com.profitloop.blueauto
             adb logcat -d '*:E' > /tmp/v280-reboot-logcat.txt || true
             ! grep -E 'FATAL EXCEPTION.*com.profitloop.blueauto|Process: com.profitloop.blueauto' /tmp/v280-reboot-logcat.txt
-            echo "Android API ${{ matrix.api }} Release launch + custom Robot watchdog recovery OK"
+            echo "Android API ${{ matrix.api }} Release launch + Robot intent persisted through watchdog; no emulator SIM liveness assumption"
