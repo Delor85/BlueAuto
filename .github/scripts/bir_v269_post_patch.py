@@ -4,5 +4,5 @@ s=p.read_text(encoding='utf-8')
 s=s.replace('src="bir-logo.png"','src="bir-logo.svg"')
 p.write_text(s,encoding='utf-8')
 
-# Adapt only the historical navigation expectation: B.I.R. opens on Accueil now.
+# Adapt historical contracts to the new commercial home while keeping finance logic unchanged.
 exec(Path('.github/scripts/bir_v269_test_patch.py').read_text(encoding='utf-8'), {'__name__':'__main__'})
