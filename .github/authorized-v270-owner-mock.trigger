@@ -1,0 +1,12 @@
+authorized_predecessor=fbbb17d05e16f03dd82224df4b9aa67277272197
+scope=android-owner-mock-only
+mock_identity=virtual-national-owner
+real_node_dependency=none
+route_model=paired-dae-token
+regions=AD,CE,ES,EN,LT,NO,NW,OU,SU,SW
+su1_dependency=forbidden
+cloudflare=forbidden
+d1=forbidden
+worker_deploy=forbidden
+pr4_merge=forbidden
+permanent_signing=forbidden-until-new-sha-authorized
