@@ -63,6 +63,8 @@ public class MainActivity extends Activity {
     private static final String MOCK_WORKSPACE_KEY = "bir_mock_workspace_v270";
     private static final String MOCK_OWNER_ENABLED_KEY = "bir_mock_owner_enabled_v270";
     private static final String MOCK_ROUTE_PROFILE_KEY = "bir_mock_route_profile_v270";
+    private static final String MOCK_RETURN_PROFILE_KEY = "bir_mock_return_profile_v271";
+    private static final String UI_LANGUAGE_KEY = "bir_ui_language_v271";
     private static final String MOCK_OWNER_CODE_SHA256 = "207e4a9bca5e4073fa98e767a85bd937a63d9e2f62d2fe5e693360ab2ee3e3cd";
     private static final String MOCK_PROFILE_ID = "__BIR_MOCK_OWNER__";
     private static final String[] MOCK_REGION_CODES = {"AD", "CE", "ES", "EN", "LT", "NO", "NW", "OU", "SU", "SW"};
@@ -73,6 +75,7 @@ public class MainActivity extends Activity {
     private AlertDialog managementDialog;
     private Button manageButton;
     private volatile boolean robotStartInProgress;
+    private static boolean mockSessionAuthorized;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -92,6 +95,74 @@ public class MainActivity extends Activity {
         setIntent(intent);
     }
 
+
+    private String ui(String fr, String en) {
+        return "en".equalsIgnoreCase(AppConfig.prefs(this).getString(UI_LANGUAGE_KEY, "fr")) ? en : fr;
+    }
+
+    private String inferParentFromNode(String node, String role) {
+        if (node == null || "DAE".equalsIgnoreCase(role)) return "";
+        String value = node.trim().toUpperCase(Locale.ROOT);
+        int separator = value.indexOf('_');
+        return separator >= 0 && separator + 1 < value.length() ? value.substring(separator + 1) : "";
+    }
+
+    private void showPairingAdminActivation(TextView status, Button button) {
+        EditText secret = field(ui("Code d’activation administrateur", "Administrator activation code"), "", true);
+        LinearLayout content = verticalContainer();
+        content.setPadding(dp(18), dp(8), dp(18), dp(4));
+        content.addView(help(ui("Cette étape n’apparaît que sur un téléphone non encore activé. Le code reste chiffré localement.",
+                "This step appears only on a phone that has not been activated yet. The code stays encrypted locally.")));
+        content.addView(secret);
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(ui("Activation administrateur", "Administrator activation"))
+                .setView(content)
+                .setPositiveButton(ui("ENREGISTRER", "SAVE"), null)
+                .setNegativeButton(ui("Annuler", "Cancel"), null)
+                .create();
+        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String value = secret.getText().toString().trim();
+            if (value.length() < 24) {
+                secret.setError(ui("Code incomplet.", "Incomplete code."));
+                return;
+            }
+            try {
+                SecurePairingStore.save(this, value);
+                secret.setText("");
+                status.setText(ui("Téléphone activé. Vous pouvez ajouter le compte.",
+                        "Phone activated. You can now add the account."));
+                status.setTextColor(CYAN);
+                button.setVisibility(View.GONE);
+                dialog.dismiss();
+            } catch (Exception error) {
+                secret.setError(readable(error));
+            }
+        }));
+        dialog.show();
+    }
+
+    private void openMockFromPairing(String code, TextView feedback) {
+        if (!mockOwnerCodeMatches(code)) {
+            feedback.setText(ui("Code MOCK incorrect.", "Incorrect MOCK code."));
+            feedback.setTextColor(Color.rgb(255, 139, 152));
+            return;
+        }
+        if (!AppConfig.hasProfiles(this)) {
+            feedback.setText(ui("Ajoutez d’abord au moins un compte Blue réel sur ce téléphone.",
+                    "Add at least one real Blue account on this phone first."));
+            feedback.setTextColor(Color.rgb(255, 139, 152));
+            return;
+        }
+        mockSessionAuthorized = true;
+        AppConfig.prefs(this).edit()
+                .putString(MOCK_RETURN_PROFILE_KEY, AppConfig.profileId(this))
+                .putBoolean(MOCK_OWNER_ENABLED_KEY, false)
+                .putBoolean(MOCK_WORKSPACE_KEY, true)
+                .commit();
+        mockRouteProfile();
+        recreate();
+    }
+
     private void showPairingScreen(boolean addingAccount) {
         disposeWebView();
         ScrollView scroll = new ScrollView(this);
@@ -99,8 +170,197 @@ public class MainActivity extends Activity {
         LinearLayout form = verticalContainer();
         scroll.addView(form);
 
+        form.addView(title(ui("B.I.R. — AJOUTER / OUVRIR UN COMPTE", "B.I.R. — ADD / OPEN ACCOUNT")));
+        form.addView(help(ui("Renseignez seulement votre identité Blue et le mode de ce téléphone.",
+                "Enter only your Blue identity and this phone’s operating mode.")));
+
+        EditText nodeCode = field(ui("Identifiant Blue (ex. OU3, DSM7_OU3, POS16_DSM7_OU3) — ou MOCK",
+                "Blue ID (e.g. OU3, DSM7_OU3, POS16_DSM7_OU3) — or MOCK"), "", false);
+        form.addView(nodeCode);
+
+        EditText mockCode = field(ui("Code privé MOCK", "Private MOCK code"), "", true);
+        mockCode.setVisibility(View.GONE);
+        form.addView(mockCode);
+
+        LinearLayout realFields = verticalContainer();
+        EditText phone = field(ui("Numéro Blue de la SIM (9 chiffres)", "Blue SIM number (9 digits)"), "", false);
+        EditText parent = field(ui("Supérieur direct (laisser vide si l’identifiant complet le contient)",
+                "Direct superior (leave blank if included in the full ID)"), "", false);
+        Spinner role = spinner(new String[]{"DAE", "DSM", "POS"});
+        Spinner mode = spinner(new String[]{"REMOTE", "ROBOT"});
+        Spinner simSlot = spinner(SimCallManager.slotLabels(this));
+        EditText operatorPin = field(ui("PIN Blue 4 chiffres — uniquement Robot", "4-digit Blue PIN — Robot only"), "", true);
+        operatorPin.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+
+        realFields.addView(phone);
+        realFields.addView(parent);
+        realFields.addView(label(ui("Rôle du compte", "Account role")));
+        realFields.addView(role);
+        realFields.addView(label(ui("Mode de ce téléphone", "This phone mode")));
+        realFields.addView(mode);
+        LinearLayout robotFields = verticalContainer();
+        robotFields.addView(label(ui("SIM utilisée par ce Robot", "SIM used by this Robot")));
+        robotFields.addView(simSlot);
+        robotFields.addView(operatorPin);
+        realFields.addView(robotFields);
+        form.addView(realFields);
+
+        TextView feedback = help(ui("Les réglages techniques du serveur sont gérés automatiquement par B.I.R.",
+                "B.I.R. manages server technical settings automatically."));
+        form.addView(feedback);
+
+        Button adminActivation = actionButton(ui("ACTIVATION ADMINISTRATEUR", "ADMINISTRATOR ACTIVATION"), VIOLET);
+        boolean secretReady = false;
+        try { secretReady = SecurePairingStore.read(this).trim().length() >= 24; } catch (Exception ignored) {}
+        adminActivation.setVisibility(secretReady ? View.GONE : View.VISIBLE);
+        adminActivation.setOnClickListener(v -> showPairingAdminActivation(feedback, adminActivation));
+        form.addView(adminActivation);
+
+        Button pair = actionButton(ui("CONTINUER", "CONTINUE"), GOLD);
+        form.addView(pair);
+
+        nodeCode.addTextChangedListener(new android.text.TextWatcher() {
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            public void afterTextChanged(android.text.Editable value) {
+                boolean mock = "MOCK".equalsIgnoreCase(value.toString().trim());
+                mockCode.setVisibility(mock ? View.VISIBLE : View.GONE);
+                realFields.setVisibility(mock ? View.GONE : View.VISIBLE);
+                adminActivation.setVisibility(mock ? View.GONE : (hasPairingSecret() ? View.GONE : View.VISIBLE));
+                feedback.setText(mock
+                        ? ui("Accès propriétaire privé. Le compte MOCK ne sera jamais affiché dans la liste normale des comptes.",
+                                "Private owner access. MOCK will never appear in the normal account list.")
+                        : ui("Les réglages techniques du serveur sont gérés automatiquement par B.I.R.",
+                                "B.I.R. manages server technical settings automatically."));
+            }
+        });
+
+        mode.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            public void onItemSelected(android.widget.AdapterView<?> parentView, View view, int position, long id) {
+                robotFields.setVisibility("ROBOT".equals(mode.getSelectedItem().toString()) ? View.VISIBLE : View.GONE);
+            }
+            public void onNothingSelected(android.widget.AdapterView<?> parentView) {}
+        });
+        robotFields.setVisibility(View.GONE);
+
+        pair.setOnClickListener(v -> {
+            String node = nodeCode.getText().toString().trim().toUpperCase(Locale.ROOT);
+            if ("MOCK".equals(node)) {
+                openMockFromPairing(mockCode.getText().toString().trim(), feedback);
+                return;
+            }
+            if (!node.matches("[A-Z0-9/_-]{3,64}")) {
+                nodeCode.setError(ui("Identifiant Blue invalide.", "Invalid Blue ID."));
+                nodeCode.requestFocus();
+                return;
+            }
+            String sim = normalizeCameroonPhone(phone.getText().toString());
+            if (!sim.matches("6\\d{8}")) {
+                phone.setError(ui("Numéro Blue camerounais invalide.", "Invalid Cameroon Blue number."));
+                phone.requestFocus();
+                return;
+            }
+            String selectedRole = role.getSelectedItem().toString();
+            String selectedMode = mode.getSelectedItem().toString();
+            String parentNode = "DAE".equals(selectedRole) ? "" : parent.getText().toString().trim().toUpperCase(Locale.ROOT);
+            if (parentNode.isEmpty()) parentNode = inferParentFromNode(node, selectedRole);
+            if (!"DAE".equals(selectedRole) && !parentNode.matches("[A-Z0-9/_-]{3,64}")) {
+                parent.setError(ui("Indiquez le supérieur direct ou utilisez l’identifiant Blue complet.",
+                        "Enter the direct superior or use the full Blue ID."));
+                parent.requestFocus();
+                return;
+            }
+            String pin = operatorPin.getText().toString().trim();
+            if ("ROBOT".equals(selectedMode) && !pin.matches("\\d{4}")) {
+                operatorPin.setError(ui("Le Robot exige le PIN Blue exact à 4 chiffres.",
+                        "Robot mode requires the exact 4-digit Blue PIN."));
+                operatorPin.requestFocus();
+                return;
+            }
+            String secret;
+            try { secret = SecurePairingStore.read(this).trim(); } catch (Exception error) { secret = ""; }
+            if (secret.length() < 24) {
+                feedback.setText(ui("Activation administrateur requise une seule fois sur ce téléphone.",
+                        "One-time administrator activation is required on this phone."));
+                feedback.setTextColor(GOLD);
+                adminActivation.setVisibility(View.VISIBLE);
+                return;
+            }
+            String apiUrl = AppConfig.pairingApiUrl(this);
+            int selectedSlot = simSlot.getSelectedItemPosition();
+            pair.setEnabled(false);
+            pair.setText(ui("CONNEXION…", "CONNECTING…"));
+            feedback.setTextColor(CYAN);
+            feedback.setText(ui("Appairage sécurisé Blue en cours…", "Secure Blue pairing in progress…"));
+            final String resolvedParent = parentNode;
+            final String pairingSecret = secret;
+            new Thread(() -> {
+                try {
+                    JSONObject payload = new JSONObject();
+                    payload.put("node_code", node);
+                    payload.put("phone_number", sim);
+                    payload.put("parent_node_code", resolvedParent);
+                    payload.put("role", selectedRole);
+                    payload.put("mode", selectedMode);
+                    payload.put("pairing_secret", pairingSecret);
+                    payload.put("device_name", Build.MANUFACTURER + " " + Build.MODEL);
+                    JSONObject data = new ApiClient(this, apiUrl, "").pair(payload);
+                    String token = data.optString("device_token", "");
+                    String deviceId = data.optString("device_id", "");
+                    String canonicalNode = data.optString("node_code", node);
+                    String canonicalParent = data.optString("parent_node_code", resolvedParent);
+                    if (token.isEmpty()) throw new IllegalStateException(ui("Jeton appareil absent.", "Device token missing."));
+                    AppConfig.savePairing(this, deviceId, token, canonicalNode, sim, canonicalParent,
+                            selectedRole, selectedMode, apiUrl, selectedSlot);
+                    SecurePairingStore.save(this, pairingSecret);
+                    String resultMessage;
+                    if ("ROBOT".equals(selectedMode)) {
+                        SecurePinStore.save(this, pin);
+                        SimIdentityManager.Verification verification = SimIdentityManager.bindSelectedSim(this, AppConfig.profileId(this));
+                        resultMessage = verification.valid
+                                ? ui("Compte Robot ajouté et SIM liée.", "Robot account added and SIM linked.")
+                                : ui("Compte ajouté. Vérifiez ensuite la SIM dans Gérer : ", "Account added. Verify the SIM in Manage: ") + verification.message;
+                    } else {
+                        resultMessage = ui("Compte Remote ajouté.", "Remote account added.");
+                    }
+                    final String message = resultMessage;
+                    runOnUiThread(() -> {
+                        toast(message);
+                        recreate();
+                    });
+                } catch (Exception error) {
+                    runOnUiThread(() -> {
+                        pair.setEnabled(true);
+                        pair.setText(ui("RÉESSAYER", "TRY AGAIN"));
+                        feedback.setTextColor(Color.rgb(255, 139, 152));
+                        feedback.setText(ui("Échec de l’appairage : ", "Pairing failed: ") + readable(error));
+                    });
+                }
+            }, "BIR-Pairing-v271").start();
+        });
+
+        if (addingAccount && AppConfig.hasProfiles(this)) {
+            Button cancel = actionButton(ui("ANNULER — REVENIR", "CANCEL — GO BACK"), CYAN);
+            cancel.setOnClickListener(v -> showControlScreen());
+            form.addView(cancel);
+        }
+        setContentView(scroll);
+    }
+
+    private boolean hasPairingSecret() {
+        try { return SecurePairingStore.read(this).trim().length() >= 24; }
+        catch (Exception ignored) { return false; }
+    }
+
+    private void showPairingScreenLegacy(boolean addingAccount) {
+        disposeWebView();
+        ScrollView scroll = new ScrollView(this);
+        applyMagicBackground(scroll);
+        LinearLayout form = verticalContainer();
+        scroll.addView(form);
+
         form.addView(title("BLUE MAGIC — APPAIRAGE SÉCURISÉ"));
-        form.addView(help("Vérifiez l’adresse et le secret avant l’appairage. Le PIN Camtel reste uniquement dans le Keystore du téléphone."));
+        form.addView(help("Vérifiez l’adresse et le secret avant l’appairage. Le PIN Blue reste uniquement dans le Keystore du téléphone."));
 
         TextView installedVersion = help("VERSION INSTALLÉE : " + installedVersionLabel());
         installedVersion.setTextColor(CYAN);
@@ -112,7 +372,7 @@ public class MainActivity extends Activity {
         form.addView(diagnostic);
 
         EditText apiUrl = field("Adresse du serveur Blue Magic", AppConfig.pairingApiUrl(this), false);
-        EditText nodeCode = field("Identifiant Camtel (ex. OU3, DSM7 ou POS16)", "", false);
+        EditText nodeCode = field("Identifiant Blue (ex. OU3, DSM7 ou POS16)", "", false);
         EditText phone = field("Numéro SIM du compte (9 chiffres)", "", false);
         EditText parent = field("Supérieur : OU3 pour DSM / DSM7_OU3 pour PoS", "", false);
         Spinner role = spinner(new String[]{"DAE", "DSM", "POS"});
@@ -124,7 +384,7 @@ public class MainActivity extends Activity {
         } catch (Exception ignored) {
         }
         EditText pairingSecret = field("Secret d’appairage", savedActivation, true);
-        EditText operatorPin = field("PIN Camtel 4 chiffres (Robot/Hybride)", "", true);
+        EditText operatorPin = field("PIN Blue 4 chiffres (Robot/Hybride)", "", true);
         operatorPin.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
 
         form.addView(apiUrl);
@@ -255,7 +515,7 @@ public class MainActivity extends Activity {
             }
             if (("ROBOT".equals(selectedMode) || "HYBRID".equals(selectedMode)) && !pin.matches("\\d{4}")) {
                 showPairingIssue(scroll, operatorPin, feedback, diagnostic,
-                        "LOCAL_PIN_INVALID", "Un Robot doit recevoir le PIN Camtel exact à 4 chiffres.");
+                        "LOCAL_PIN_INVALID", "Un Robot doit recevoir le PIN Blue exact à 4 chiffres.");
                 return;
             }
 
@@ -699,7 +959,7 @@ public class MainActivity extends Activity {
         explanation.setTextColor(Color.DKGRAY);
         content.addView(explanation);
 
-        EditText pin = field("Nouveau PIN Camtel (4 chiffres)", "", true);
+        EditText pin = field("Nouveau PIN Blue (4 chiffres)", "", true);
         pin.setTextColor(Color.BLACK);
         pin.setHintTextColor(Color.DKGRAY);
         pin.setBackgroundColor(Color.rgb(238, 243, 250));
@@ -718,7 +978,7 @@ public class MainActivity extends Activity {
         content.addView(reveal);
 
         AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle("PIN Camtel — " + AppConfig.nodeCode(this))
+                .setTitle("PIN Blue — " + AppConfig.nodeCode(this))
                 .setView(content)
                 .setPositiveButton("ENREGISTRER", null)
                 .setNegativeButton("Annuler", null)
@@ -747,14 +1007,14 @@ public class MainActivity extends Activity {
             return;
         }
         if (!SecurePinStore.hasPin(this, AppConfig.profileId(this))) {
-            toast("Enregistrez d’abord le PIN Camtel actuel dans le stockage local sécurisé.");
+            toast("Enregistrez d’abord le PIN Blue actuel dans le stockage local sécurisé.");
             return;
         }
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(dp(20), dp(8), dp(20), 0);
         content.addView(help("Le nouveau PIN reste chiffré sur ce Robot et n’est jamais envoyé au Worker, à D1 ni au JavaScript."));
-        EditText first = field("Nouveau PIN Camtel (4 chiffres)", "", true);
+        EditText first = field("Nouveau PIN Blue (4 chiffres)", "", true);
         EditText second = field("Confirmer le nouveau PIN", "", true);
         first.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
         second.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
@@ -770,7 +1030,7 @@ public class MainActivity extends Activity {
             try { PendingPinChangeStore.save(this, AppConfig.profileId(this), a); }
             catch (Exception error) { second.setError(readable(error)); return; }
             first.setText(""); second.setText(""); dialog.dismiss();
-            queueLocalMaintenance("MODIFY_PIN_LOCAL", "Modification PIN Camtel mise en file.");
+            queueLocalMaintenance("MODIFY_PIN_LOCAL", "Modification PIN Blue mise en file.");
         }));
         dialog.show();
     }
@@ -801,11 +1061,11 @@ public class MainActivity extends Activity {
 
 
     private boolean mockOwnerEnrolled() {
-        return AppConfig.prefs(this).getBoolean(MOCK_OWNER_ENABLED_KEY, false);
+        return mockSessionAuthorized;
     }
 
     private boolean mockOwnerEligible() {
-        // MOCK is deliberately independent from every real Camtel identity. It becomes available
+        // MOCK is deliberately independent from every real Blue identity. It becomes available
         // only after the high-entropy owner code has been enrolled on this physical installation.
         return mockOwnerEnrolled() && AppConfig.hasProfiles(this);
     }
@@ -845,7 +1105,7 @@ public class MainActivity extends Activity {
                 + "il n'est jamais envoyé à Cloudflare.");
         EditText code = field("Code propriétaire MOCK", "", true);
         TextView feedback = help("Après activation, MOCK pourra agréger les DAE appairés sur ce téléphone et choisir une route DAE/PoS. "
-                + "Les transactions Camtel directes resteront interdites dans MOCK.");
+                + "Les transactions Blue directes resteront interdites dans MOCK.");
         content.addView(explanation);
         content.addView(code);
         content.addView(feedback);
@@ -959,62 +1219,52 @@ public class MainActivity extends Activity {
     }
 
     private void showAccountManager() {
-        String[] baseLabels = AppConfig.profileLabels(this);
-        String[] baseIds = AppConfig.profileIds(this);
-        List<String> labelsList = new ArrayList<>();
-        List<String> idsList = new ArrayList<>();
-        boolean mockActive = isMockWorkspaceActive();
-        for (int i = 0; i < baseLabels.length; i++) {
-            String current = baseLabels[i] == null ? "Compte inconnu" : baseLabels[i];
-            if (mockActive && current.startsWith("✓ ")) current = current.substring(2);
-            labelsList.add(current);
-            idsList.add(baseIds[i]);
-        }
-        labelsList.add((mockActive ? "✓ " : "") + (mockOwnerEnrolled()
-                ? "MOCK • PROPRIÉTAIRE NATIONAL • 10 RÉGIONS"
-                : "🔒 MOCK • ACTIVER LE COMPTE PROPRIÉTAIRE NATIONAL"));
-        idsList.add(MOCK_PROFILE_ID);
-        String[] labels = labelsList.toArray(new String[0]);
-        String[] ids = idsList.toArray(new String[0]);
+        String[] labels = AppConfig.profileLabels(this);
+        String[] ids = AppConfig.profileIds(this);
+        final boolean leavingMock = isMockWorkspaceActive();
         AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle("Comptes Blue Magic")
+                .setTitle(ui("Comptes Blue", "Blue accounts"))
                 .setItems(labels, (ignored, index) -> {
                     if (index < 0 || index >= ids.length) return;
-                    if (MOCK_PROFILE_ID.equals(ids[index])) {
-                        if (!mockOwnerEnrolled()) {
-                            showMockActivationDialog();
-                            return;
-                        }
-                        setMockWorkspaceActive(true);
-                        mockRouteProfile();
-                        recreate();
-                        return;
+                    if (leavingMock) {
+                        mockSessionAuthorized = false;
+                        AppConfig.prefs(this).edit()
+                                .putBoolean(MOCK_WORKSPACE_KEY, false)
+                                .putBoolean(MOCK_OWNER_ENABLED_KEY, false)
+                                .remove(MOCK_RETURN_PROFILE_KEY)
+                                .commit();
                     }
-                    setMockWorkspaceActive(false);
-                    if (ids[index].equals(AppConfig.profileId(this))) {
-                        showSimSlotChooser();
-                        return;
+                    if (!ids[index].equals(AppConfig.profileId(this))) {
+                        AppConfig.activateProfile(this, ids[index]);
                     }
-                    if (AppConfig.activateProfile(this, ids[index])) recreate();
+                    // Even when this was already the hidden routing profile under MOCK, force a
+                    // real UI rebuild. The old behavior opened only the SIM picker and visually
+                    // trapped the user in MOCK.
+                    recreate();
                 })
-                .setPositiveButton("Ajouter", null)
-                .setNeutralButton("Supprimer l’actif", null)
-                .setNegativeButton("Fermer", null)
+                .setPositiveButton(ui("Ajouter / Ouvrir", "Add / Open"), null)
+                .setNeutralButton(ui("Supprimer l’actif", "Delete active"), null)
+                .setNegativeButton(ui("Fermer", "Close"), null)
                 .create();
         dialog.setOnShowListener(ignored -> {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
                 dialog.dismiss();
                 showPairingScreen(true);
             });
-            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> {
-                if (!canModifyActiveProfile()) return;
-                new AlertDialog.Builder(this)
-                        .setTitle("Supprimer " + AppConfig.nodeCode(this) + " ?")
-                        .setMessage("Le Robot sera d’abord arrêté sur le serveur, puis le compte et son PIN chiffré seront retirés de ce téléphone.")
-                        .setPositiveButton("SUPPRIMER", (confirm, which) -> deleteActiveProfileSafely())
-                        .setNegativeButton("Annuler", null)
-                        .show();
-            });
+            if (leavingMock) {
+                dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setVisibility(View.GONE);
+            } else {
+                dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> {
+                    if (!canModifyActiveProfile()) return;
+                    new AlertDialog.Builder(this)
+                            .setTitle(ui("Supprimer ", "Delete ") + AppConfig.nodeCode(this) + " ?")
+                            .setMessage(ui("Le Robot sera arrêté puis le compte et son PIN chiffré seront retirés de ce téléphone.",
+                                    "The Robot will be stopped, then the account and encrypted PIN will be removed from this phone."))
+                            .setPositiveButton(ui("SUPPRIMER", "DELETE"), (confirm, which) -> deleteActiveProfileSafely())
+                            .setNegativeButton(ui("Annuler", "Cancel"), null)
+                            .show();
+                });
+            }
         });
         dialog.show();
     }
@@ -1459,7 +1709,7 @@ public class MainActivity extends Activity {
         }
 
         String message = "Vérifiez physiquement :\n\nCompte : " + AppConfig.nodeCode(this)
-                + "\nNuméro Camtel : " + AppConfig.phoneNumber(this)
+                + "\nNuméro Blue : " + AppConfig.phoneNumber(this)
                 + "\nEmplacement : SIM " + (AppConfig.simSlot(this) + 1)
                 + (current.carrier.isEmpty() ? "" : "\nSIM détectée : " + current.carrier)
                 + "\n\nEn confirmant, ce Robot refusera ensuite toute autre SIM dans ce slot.";
@@ -1651,7 +1901,7 @@ public class MainActivity extends Activity {
                                   String commandArgument) {
             if (mockDirectNetworkBlocked()) {
                 callbackError("onCommandCreated", new SecurityException(
-                        "MOCK ne crée pas d’approvisionnement ou de vente Camtel directe. Utilisez un compte réseau normal; les ventes Mercenaires restent routables via le PoS choisi."));
+                        "MOCK ne crée pas d’approvisionnement ou de vente Blue directe. Utilisez un compte réseau normal; les ventes Mercenaires restent routables via le PoS choisi."));
                 return;
             }
             new Thread(() -> {
@@ -1686,7 +1936,7 @@ public class MainActivity extends Activity {
                                                      String commandArgument, int commissionRateBps) {
             if (mockDirectNetworkBlocked()) {
                 callbackError("onCommandCreated", new SecurityException(
-                        "MOCK ne crée pas de transaction Camtel directe."));
+                        "MOCK ne crée pas de transaction Blue directe."));
                 return;
             }
             new Thread(() -> {
@@ -1823,6 +2073,17 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public String getUiLanguage() {
+            return AppConfig.prefs(MainActivity.this).getString(UI_LANGUAGE_KEY, "fr");
+        }
+
+        @JavascriptInterface
+        public void setUiLanguage(String value) {
+            String language = "en".equalsIgnoreCase(value) ? "en" : "fr";
+            AppConfig.prefs(MainActivity.this).edit().putString(UI_LANGUAGE_KEY, language).commit();
+        }
+
+        @JavascriptInterface
         public boolean isMockWorkspace() {
             return isMockWorkspaceActive();
         }
@@ -1830,7 +2091,14 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void exitMockWorkspace() {
             runOnUiThread(() -> {
-                setMockWorkspaceActive(false);
+                String returnProfile = AppConfig.prefs(MainActivity.this).getString(MOCK_RETURN_PROFILE_KEY, "");
+                mockSessionAuthorized = false;
+                AppConfig.prefs(MainActivity.this).edit()
+                        .putBoolean(MOCK_WORKSPACE_KEY, false)
+                        .putBoolean(MOCK_OWNER_ENABLED_KEY, false)
+                        .remove(MOCK_RETURN_PROFILE_KEY)
+                        .commit();
+                if (!returnProfile.isEmpty()) AppConfig.activateProfile(MainActivity.this, returnProfile);
                 recreate();
             });
         }
@@ -2019,7 +2287,7 @@ public class MainActivity extends Activity {
     private TextView help(String text) {
         TextView view = label(text);
         view.setTextColor(Color.LTGRAY);
-        view.setTextSize(13);
+        view.setTextSize(14);
         view.setPadding(0, dp(6), 0, dp(12));
         return view;
     }

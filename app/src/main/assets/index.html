@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="control-tower-v2611.css">
     <link rel="stylesheet" href="control-tower-v270.css">
+    <link rel="stylesheet" href="control-tower-v271.css">
     <title>B.I.R. — Blue Infinity Retail</title>
 </head>
 <body>
@@ -35,7 +36,7 @@
     <section class="module-screen hidden" data-tab-panel="reports">
         <article class="bir-balance-card">
             <div class="bir-balance-head">
-                <div><p class="bir-kicker">SOLDE CAMTEL</p><strong id="birCamtelBalance">À actualiser</strong><span>FCFA</span><p id="birBalanceFreshness" class="bir-balance-note">Lecture du solde en cours…</p></div>
+                <div><p class="bir-kicker">SOLDE BLUE</p><strong id="birBlueBalance">À actualiser</strong><span>FCFA</span><p id="birBalanceFreshness" class="bir-balance-note">Lecture du solde en cours…</p></div>
                 <div id="birRobotState" class="bir-robot-orb">ROBOT —</div>
             </div>
             <div class="bir-finance-grid">
@@ -51,10 +52,10 @@
         <div class="bir-modules-grid">
             <button type="button" data-tab-jump="flux"><i>▣</i><b id="birTransactionModuleTitle">Transactions Blue</b><small>Vente, achat et approvisionnement selon votre rôle.</small></button>
             <button type="button" data-tab-jump="fleet"><i>⌁</i><b>Réseau vivant</b><small>Comptes, SIM, terminaux et périmètre commercial.</small></button>
-            <button type="button" data-action="check-balance"><i>◫</i><b>Soldes & preuves</b><small>Solde Camtel, disponible, historique et justificatifs.</small></button>
+            <button type="button" data-action="check-balance"><i>◫</i><b>Soldes & preuves</b><small>Solde Blue, disponible, historique et justificatifs.</small></button>
             <button type="button" data-tab-jump="config"><i>◉</i><b>Robot intelligent</b><small>Remote, Robot, permissions, PIN, reprise et sécurité.</small></button>
             <button type="button" data-tab-jump="support"><i>▤</i><b>Activité & SAV</b><small>Commandes, diagnostic, serveur et assistance terrain.</small></button>
-            <button type="button" data-native-action="manage"><i>⚙</i><b>Centre Gérer</b><small>Comptes, SIM, PIN Camtel et réglages essentiels.</small></button>
+            <button type="button" data-native-action="manage"><i>⚙</i><b>Centre Gérer</b><small>Comptes, SIM, PIN Blue et réglages essentiels.</small></button>
         </div>
         <article class="bir-live-strip">
             <div><span class="bir-pulse-dot"></span><p><b>ACTIVITÉ EN COURS</b><small id="birActivityLine">Aucune commande locale récente.</small></p></div>
@@ -63,7 +64,7 @@
         <article class="panel module-intro bir-existing-content">
             <p class="eyebrow">PILOTAGE & RAPPORTS</p>
             <h3 id="reportsIntroTitle">Vue utile du compte</h3>
-            <p id="reportsIntroText" class="muted">Soldes, activité et opérations sont affichés selon le périmètre réel de votre rôle, sans exposer le PIN Camtel.</p>
+            <p id="reportsIntroText" class="muted">Soldes, activité et opérations sont affichés selon le périmètre réel de votre rôle, sans exposer le PIN Blue.</p>
         </article>
         <div class="metric-grid">
             <article class="panel metric"><strong id="metricCommandCount">0</strong><span>commandes locales</span></article>
@@ -74,9 +75,9 @@
             <article class="panel metric"><strong id="metricFinanceCount">0</strong><span>opérations financières</span></article>
         </div>
         <article class="panel module-card balance-hero">
-            <p class="eyebrow">VÉRITÉ SERVEUR & CAMTEL</p>
+            <p class="eyebrow">VÉRITÉ SERVEUR & BLUE</p>
             <div class="balance-row"><div><span class="muted">Solde connu du nœud</span><strong id="ownBalance">À actualiser</strong></div><button type="button" class="secondary button-small" data-action="check-balance">Actualiser par USSD</button></div>
-            <p id="balanceFreshness" class="muted">Aucune lecture Camtel horodatée.</p>
+            <p id="balanceFreshness" class="muted">Aucune lecture Blue horodatée.</p>
         </article>
         <article class="panel module-card">
             <div class="section-heading"><div><p class="eyebrow">RÉSEAU DAE → DSM → POS</p><h3>Soldes, activité et type de terminal</h3></div><button type="button" class="secondary button-small" data-native-action="refresh-dashboard">Rafraîchir</button></div>
@@ -99,7 +100,7 @@
         </article>
         <article id="supplyChildCard" class="panel command-card hidden">
             <p class="eyebrow">APPROVISIONNEMENT</p><h3>Recharger un enfant direct</h3>
-            <p class="muted">Le serveur résout exclusivement le numéro Camtel officiel de ce nœud.</p>
+            <p class="muted">Le serveur résout exclusivement le numéro Blue officiel de ce nœud.</p>
             <label for="childNode">Code du DSM/PoS</label><input id="childNode" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" data-uppercase="true" maxlength="64" placeholder="Ex. DSM7 ou POS5">
             <label for="childAmount">Montant (FCFA)</label><input id="childAmount" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="9" autocomplete="off" data-digits-only="9" placeholder="Ex. 25000">
             <button type="button" class="transaction-action" data-action="supply-child">Programmer la recharge</button>
@@ -117,13 +118,13 @@
             <button type="button" class="transaction-action" data-action="test-number">Lancer le test numéro</button>
         </article>
         <article class="panel command-card">
-            <p class="eyebrow">HISTORIQUE CAMTEL</p><h3>Mes 5 dernières transactions</h3>
+            <p class="eyebrow">HISTORIQUE BLUE</p><h3>Mes 5 dernières transactions</h3>
             <p class="muted">Le Robot compose la consultation avec le PIN conservé localement.</p>
             <button type="button" class="transaction-action" data-action="last-transactions">Consulter l’historique</button>
         </article>
         <article class="panel command-card">
-            <p class="eyebrow">PREUVE CAMTEL</p><h3>Détails d’une transaction</h3>
-            <label for="transactionId">Identifiant Camtel</label><input id="transactionId" type="text" inputmode="numeric" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="64" placeholder="Ex. 123456789">
+            <p class="eyebrow">PREUVE BLUE</p><h3>Détails d’une transaction</h3>
+            <label for="transactionId">Identifiant Blue</label><input id="transactionId" type="text" inputmode="numeric" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="64" placeholder="Ex. 123456789">
             <button type="button" class="transaction-action" data-action="transaction-details">Consulter les détails</button>
         </article>
         <article id="childBalanceCard" class="panel command-card hidden">
@@ -164,7 +165,7 @@
             <p class="muted">Le téléphone qui prouve physiquement la bonne SIM et le bon slot peut remplacer un Robot fantôme. Une SIM différente et un second Robot vivant restent refusés.</p>
         </article>
         <article id="childAdminCard" class="panel module-card hidden">
-            <p class="eyebrow">MAINTENANCE CAMTEL ENFANT DIRECT</p>
+            <p class="eyebrow">MAINTENANCE BLUE ENFANT DIRECT</p>
             <h3>PIN, suspension et gel</h3>
             <label for="adminChildNode">Code du DSM / PoS enfant</label><input id="adminChildNode" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" data-uppercase="true" maxlength="64" placeholder="Ex. DSM7 ou POS5">
             <div class="module-actions admin-actions">
@@ -205,7 +206,7 @@
                 <button type="button" class="secondary" data-native-action="permissions">1. Autorisations</button>
                 <button type="button" class="secondary" data-native-action="battery-settings">2. Batterie sans restriction</button>
                 <button type="button" class="secondary" data-native-action="pin">3. Enregistrer le PIN local</button>
-                <button type="button" class="secondary" data-native-action="change-pin">Modifier mon PIN Camtel</button>
+                <button type="button" class="secondary" data-native-action="change-pin">Modifier mon PIN Blue</button>
                 <button type="button" class="secondary" data-native-action="reset-pin">Demander reset PIN</button>
                 <button type="button" class="secondary" data-native-action="manage">Tous les réglages</button>
                 <button type="button" data-native-action="start-robot">Démarrer / reprendre le Robot</button>
@@ -214,7 +215,7 @@
         </article>
         <article class="panel module-card danger-zone">
             <p class="eyebrow">URGENCE VOL / PERTE</p>
-            <h3>Geler cette SIM Camtel</h3>
+            <h3>Geler cette SIM Blue</h3>
             <p class="muted">Commande sensible : elle cible uniquement le numéro officiel du compte actif et exige une confirmation avant envoi.</p>
             <button type="button" class="secondary" data-action="freeze-self">Préparer le gel de ma SIM</button>
         </article>
@@ -224,7 +225,7 @@
         <article class="panel module-intro">
             <p class="eyebrow">ACTIVITÉ & SAV</p>
             <h3>Activité, preuves et diagnostic</h3>
-            <p id="birActivityDetail" class="muted">Vos dernières commandes, les preuves Camtel et les contrôles terrain restent accessibles ici. Le test numéro compose uniquement <code>*825*3*3#</code>.</p>
+            <p id="birActivityDetail" class="muted">Vos dernières commandes, les preuves Blue et les contrôles terrain restent accessibles ici. Le test numéro compose uniquement <code>*825*3*3#</code>.</p>
         </article>
         <article class="panel module-card">
             <p class="eyebrow">DIAGNOSTIC RAPIDE</p>
@@ -254,5 +255,6 @@
   <script src="platform-v267.js"></script>
   <script src="control-tower-v2611.js"></script>
   <script src="control-tower-v270.js"></script>
+  <script src="control-tower-v271.js"></script>
 </body>
 </html>

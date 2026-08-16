@@ -37,7 +37,7 @@ final class SimIdentityManager {
         String savedType = AppConfig.simBindingType(context, profileId);
         String savedHash = AppConfig.simBindingHash(context, profileId);
         if (savedType.isEmpty() || savedHash.isEmpty()) {
-            // A number read directly from Android and equal to the Camtel number is safe to enroll
+            // A number read directly from Android and equal to the Blue number is safe to enroll
             // automatically. Hidden-number SIMs need one explicit confirmation in the UI.
             if ("PHONE".equals(snapshot.identityType)) {
                 AppConfig.updateSimBinding(context, profileId, snapshot.identityType,
@@ -55,6 +55,15 @@ final class SimIdentityManager {
                             + " n’est plus celle liée à ce Robot.", snapshot);
         }
         return Verification.ready(snapshot, false);
+    }
+
+    static boolean isHardMismatch(Verification verification) {
+        return verification != null && !verification.valid
+                && (NUMBER_MISMATCH.equals(verification.code) || SIM_CHANGED.equals(verification.code));
+    }
+
+    static boolean isTransientOrRecoverable(Verification verification) {
+        return verification != null && !verification.valid && !isHardMismatch(verification);
     }
 
     /** Bind after an explicit user choice (pairing, slot selection, or confirmation dialog). */

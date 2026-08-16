@@ -1,0 +1,7 @@
+/* B.I.R. v2.7.1 — field stabilization overlay. */
+.v271-language{min-width:44px;height:34px;padding:0 10px;border:1px solid rgba(255,255,255,.28);border-radius:999px;background:rgba(255,255,255,.1);color:#fff;font-size:.72rem;font-weight:900;letter-spacing:.05em}
+.muted,.small,.bir-tagline,.bir-modules-grid small,.bir-balance-note,.command-time,.v270-evidence-grid span,.v270-business-grid span{font-size:max(.76rem,12.5px)!important;line-height:1.43!important}
+.v271-journal{margin:8px 0 14px!important}.v271-journal-tools{display:flex;gap:8px;margin:8px 0}.v271-journal-tools input{flex:1;min-width:0}.v271-journal-tools button{white-space:nowrap}.v271-journal-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}.v271-journal table{width:100%;border-collapse:collapse;font-size:.72rem}.v271-journal th,.v271-journal td{padding:8px 6px;border-bottom:1px solid #dbe5ef;text-align:left;vertical-align:top}.v271-journal th{color:#0b3567;font-size:.67rem;text-transform:uppercase;letter-spacing:.03em}.v271-journal td{color:#304f6d}.v271-journal td:nth-child(3){white-space:nowrap;font-weight:800}
+/* Preserve the validated keyboard behavior: the bottom dock may compact/move, never disappear. */
+body.form-editing .module-tabs{opacity:.97!important;visibility:visible!important;pointer-events:auto!important}
+@media(max-width:520px){.v271-journal-tools{align-items:stretch;flex-direction:column}.v271-journal-tools button{width:100%}.v271-language{height:32px;padding:0 8px}}

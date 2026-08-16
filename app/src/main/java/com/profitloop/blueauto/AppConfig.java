@@ -512,7 +512,7 @@ final class AppConfig {
     }
 
     static void setRobotEnabled(Context context, String profileId, boolean enabled) {
-        prefs(context).edit().putBoolean(robotEnabledKey(profileId), enabled).apply();
+        prefs(context).edit().putBoolean(robotEnabledKey(profileId), enabled).commit();
     }
 
     static boolean pinBlocked(Context context) {

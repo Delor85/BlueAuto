@@ -194,7 +194,7 @@ public class RobotService extends Service {
                     finishCommand(owner, false, "SIM_LOST_DURING_COMMAND",
                             readiness.message + " La transaction doit être vérifiée avant toute reprise.", "");
                 }
-                disableUnsafeRobot(owner, readiness.message);
+                handleRobotNotReady(owner, readiness);
             }
 
             activeCommands = PendingCommandStore.getActiveUssdCommands(this);
@@ -280,7 +280,7 @@ public class RobotService extends Service {
                 try {
                     Readiness readiness = checkReadiness(profileId);
                     if (!readiness.ready) {
-                        disableUnsafeRobot(profileId, readiness.message);
+                        handleRobotNotReady(profileId, readiness);
                         try {
                             api.heartbeat();
                             lastHeartbeatByProfile.put(profileId, System.currentTimeMillis());
@@ -323,7 +323,7 @@ public class RobotService extends Service {
                         readiness = checkReadiness(profileId);
                         if (!readiness.ready) {
                             releaseUnexecutedLease(profileId, command, api, readiness.message);
-                            disableUnsafeRobot(profileId, readiness.message);
+                            handleRobotNotReady(profileId, readiness);
                             nextDelay = 1_000L;
                             return;
                         }
@@ -462,7 +462,7 @@ public class RobotService extends Service {
             Readiness readiness = checkReadiness(profileId);
             if (!readiness.ready) {
                 releaseUnexecutedLease(profileId, command, api, readiness.message);
-                disableUnsafeRobot(profileId, readiness.message);
+                handleRobotNotReady(profileId, readiness);
                 return;
             }
             String operation = UssdCommandFactory.operation(command);
@@ -535,7 +535,7 @@ public class RobotService extends Service {
             if ("PIN_SUBMITTED".equals(state)) {
                 PendingCommandStore.updateState(this, profileId, PendingCommandStore.AWAITING_RESULT);
                 api.sendEvent(command, "AWAITING_RESULT",
-                        "Validation envoyée; attente confirmation Camtel.", "");
+                        "Validation envoyée; attente confirmation Blue.", "");
             }
         } catch (Exception ignored) {
         }
@@ -728,12 +728,30 @@ public class RobotService extends Service {
             return Readiness.failure("Autorisation État du téléphone absente; SIM invérifiable.");
         }
         SimIdentityManager.Verification sim = SimIdentityManager.verify(this, profileId);
-        if (!sim.valid) return Readiness.failure(sim.message);
+        if (!sim.valid) {
+            return SimIdentityManager.isHardMismatch(sim)
+                    ? Readiness.hardFailure(sim.message)
+                    : Readiness.retryable(sim.message);
+        }
         // La présence de la SIM est le verrou d'éligibilité. Certains dialers Android 6 à 13
         // ne publient leur PhoneAccount qu'au moment de l'appel : exiger cette route ici arrêtait
         // le Robot avant qu'il puisse louer TEST_NUMBER ou une commande financière. La route
         // exacte reste résolue et contrôlée immédiatement avant placeCall().
         return Readiness.ready(sim);
+    }
+
+    private void handleRobotNotReady(String profileId, Readiness readiness) {
+        if (profileId == null || profileId.isEmpty() || readiness == null) return;
+        if (readiness.hardFailure) {
+            disableUnsafeRobot(profileId, readiness.message);
+            return;
+        }
+        // Permission/SIM service/slot can be temporarily unavailable during boot. Keep the
+        // persisted Robot intent and retry instead of silently turning the Robot off forever.
+        lastHeartbeatByProfile.remove(profileId);
+        updateNotification(robotSummary(AppConfig.nodeCode(this, profileId)
+                + " en attente — " + readiness.message));
+        scheduleWatchdog(this, 15_000L);
     }
 
     private void disableUnsafeRobot(String profileId, String reason) {
@@ -761,23 +779,34 @@ public class RobotService extends Service {
 
     private static final class Readiness {
         final boolean ready;
+        final boolean hardFailure;
         final String message;
         final String simFingerprint;
         final int simSlot;
 
-        private Readiness(boolean ready, String message, String simFingerprint, int simSlot) {
+        private Readiness(boolean ready, boolean hardFailure, String message,
+                          String simFingerprint, int simSlot) {
             this.ready = ready;
+            this.hardFailure = hardFailure;
             this.message = message;
             this.simFingerprint = simFingerprint;
             this.simSlot = simSlot;
         }
 
         static Readiness ready(SimIdentityManager.Verification sim) {
-            return new Readiness(true, sim.message, sim.attestation(), sim.slot);
+            return new Readiness(true, false, sim.message, sim.attestation(), sim.slot);
         }
 
         static Readiness failure(String message) {
-            return new Readiness(false, message, "", -1);
+            return retryable(message);
+        }
+
+        static Readiness retryable(String message) {
+            return new Readiness(false, false, message, "", -1);
+        }
+
+        static Readiness hardFailure(String message) {
+            return new Readiness(false, true, message, "", -1);
         }
     }
 

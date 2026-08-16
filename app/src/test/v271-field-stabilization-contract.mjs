@@ -1,0 +1,29 @@
+import fs from 'node:fs';
+function read(p){return fs.readFileSync(p,'utf8');}
+function ok(v,m){if(!v)throw new Error(m);}
+const gradle=read('app/build.gradle');
+const app=read('app/src/main/assets/app.js');
+const v271=read('app/src/main/assets/control-tower-v271.js');
+const css=read('app/src/main/assets/control-tower-v271.css');
+const html=read('app/src/main/assets/index.html');
+const main=read('app/src/main/java/com/profitloop/blueauto/MainActivity.java');
+const cfg=read('app/src/main/java/com/profitloop/blueauto/AppConfig.java');
+const sim=read('app/src/main/java/com/profitloop/blueauto/SimIdentityManager.java');
+const simRx=read('app/src/main/java/com/profitloop/blueauto/SimStateReceiver.java');
+const robot=read('app/src/main/java/com/profitloop/blueauto/RobotService.java');
+ok(gradle.includes('versionCode 52')&&gradle.includes('versionName "2.7.1"'),'v2.7.1 identity');
+ok(main.includes('Identifiant Blue')&&main.includes('"MOCK".equals(node)')&&main.includes('Code privé MOCK'),'MOCK only through add/open form');
+ok(!main.includes('labelsList.add((mockActive'),'MOCK must not be inserted into normal account list');
+ok(main.includes('mockSessionAuthorized = false')&&main.includes('recreate();'),'MOCK must exit/rebuild cleanly');
+ok(main.includes('ACTIVATION ADMINISTRATEUR')&&!main.substring(main.indexOf('private void showPairingScreen(boolean'),main.indexOf('private void showPairingScreenLegacy')).includes('Adresse du serveur'),'normal pairing hides server URL');
+ok(cfg.includes('putBoolean(robotEnabledKey(profileId), enabled).commit()'),'Robot intent must persist synchronously');
+ok(sim.includes('isHardMismatch')&&simRx.includes('isTransientOrRecoverable'),'transient SIM boot state must not disable Robot');
+ok(robot.includes('handleRobotNotReady')&&robot.includes('scheduleWatchdog(this, 15_000L)'),'Robot retry path after boot');
+ok(app.includes('legacy_commission_mode')&&app.includes('commission_base_amount'),'legacy commission fallback');
+ok(v271.includes('bir_commission_policy_v271_')&&v271.includes('default_bps'),'local default/custom commission policy');
+ok(v271.includes('slice(0,5000)')&&v271.includes('1900000'),'compact durable journal');
+ok(v271.includes('bir_balance_guard_v271_')&&v271.includes('incoming<Number(cached.ts||0)'),'chronology-first balance guard');
+ok(v271.includes('replace(/CAMTEL/g,\'BLUE\')')&&v271.includes("getUiLanguage"),'Blue branding + bilingual switch');
+ok(html.includes('control-tower-v271.css')&&html.includes('control-tower-v271.js'),'v271 assets wired');
+ok(!/form-editing[^}]*display\s*:\s*none/.test(css),'dock must not disappear while typing');
+console.log('B.I.R. v2.7.1 field stabilization contract OK');

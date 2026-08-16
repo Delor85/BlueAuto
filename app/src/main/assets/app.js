@@ -1,7 +1,7 @@
 (function () {
     'use strict';
     var TERMINAL = {SUCCEEDED:true,FAILED:true,UNKNOWN:true,BLOCKED:true,CANCELLED:true};
-    var labels = {PENDING:'En attente',LEASED:'Réservée au Robot',DIALING:'Composition USSD',AWAITING_PIN:'Vérification du pop-up',PIN_SUBMITTED:'PIN validé',AWAITING_RESULT:'Confirmation Camtel',SUCCEEDED:'Réussie',FAILED:'Échec',UNKNOWN:'À vérifier',BLOCKED:'Robot bloqué — PIN',CANCELLED:'Annulée'};
+    var labels = {PENDING:'En attente',LEASED:'Réservée au Robot',DIALING:'Composition USSD',AWAITING_PIN:'Vérification du pop-up',PIN_SUBMITTED:'PIN validé',AWAITING_RESULT:'Confirmation Blue',SUCCEEDED:'Réussie',FAILED:'Échec',UNKNOWN:'À vérifier',BLOCKED:'Robot bloqué — PIN',CANCELLED:'Annulée'};
     var configuration = {}, commands = [], pendingPreview = null, capacityPolls = 0, dashboard = null;
     var activeTab = 'reports', commandPollTimer = null, dashboardPollTimer = null;
     var commandPollCursor = 0, dashboardLoadedAt = 0, actionInFlight = false;
@@ -35,9 +35,9 @@
         else if(configuration.mode==='ROBOT'&&!configuration.sim_verified){byId('fatalNotice').textContent='SIM NON VÉRIFIÉE : le Robot est arrêté et ne peut réserver aucune commande. Ouvrez ☰ GÉRER > VÉRIFIER / LIER LA SIM.';byId('fatalNotice').className='notice notice-danger';}
         if(configuration.role==='DAE'){showRoleNotice('DAE actif : pilotez vos DSM, leurs PoS, les soldes et les approvisionnements depuis votre propre pyramide.');if(byId('birRoleActionTitle')){byId('birRoleActionTitle').textContent='ACTIONS DAE PRIORITAIRES';byId('birRoleActionSub').textContent='Pilotez, approvisionnez et développez votre réseau.';byId('birTransactionModuleTitle').textContent='Approvisionnement Blue';}byId('reportsIntroTitle').textContent='Pilotage de mon réseau';byId('reportsIntroText').textContent='Mon solde, mes DSM et leurs PoS sont présentés dans ma propre pyramide uniquement, avec les activités et preuves disponibles.';}
         else if(configuration.role==='DSM'){showRoleNotice('DSM actif : demandez du stock au DAE, approvisionnez vos PoS et suivez votre réseau direct.');if(byId('birRoleActionTitle')){byId('birRoleActionTitle').textContent='ACTIONS DSM PRIORITAIRES';byId('birRoleActionSub').textContent='Approvisionnez vos PoS et maîtrisez votre stock.';byId('birTransactionModuleTitle').textContent='Approvisionnement PoS';}byId('reportsIntroTitle').textContent='Mes soldes et mes PoS';byId('reportsIntroText').textContent='Mon compte et mes PoS directs sont suivis ici sans exposer les autres DSM ni les autres branches du DAE.';}
-        else if(configuration.role==='POS'){showRoleNotice('PoS actif : vendez du crédit Blue, demandez du stock à votre DSM et suivez votre propre activité.');if(byId('birRoleActionTitle')){byId('birRoleActionTitle').textContent='VENDRE & SUIVRE';byId('birRoleActionSub').textContent='Vendez du crédit Blue rapidement et gardez votre solde sous contrôle.';byId('birTransactionModuleTitle').textContent='Vente Blue';}byId('reportsIntroTitle').textContent='Mon solde et mon activité';byId('reportsIntroText').textContent='Ce PoS affiche uniquement son propre solde Camtel, son disponible, ses ventes et ses preuves récentes.';}
+        else if(configuration.role==='POS'){showRoleNotice('PoS actif : vendez du crédit Blue, demandez du stock à votre DSM et suivez votre propre activité.');if(byId('birRoleActionTitle')){byId('birRoleActionTitle').textContent='VENDRE & SUIVRE';byId('birRoleActionSub').textContent='Vendez du crédit Blue rapidement et gardez votre solde sous contrôle.';byId('birTransactionModuleTitle').textContent='Vente Blue';}byId('reportsIntroTitle').textContent='Mon solde et mon activité';byId('reportsIntroText').textContent='Ce PoS affiche uniquement son propre solde Blue, son disponible, ses ventes et ses preuves récentes.';}
         else{byId('fatalNotice').textContent='RÔLE NON RECONNU : ouvrez ☰ GÉRER > VÉRIFIER / RÉPARER L’APPAIRAGE. Aucune opération financière ne sera envoyée tant que le profil n’est pas identifié.';byId('fatalNotice').className='notice notice-danger';}
-        if(configuration.mode==='ROBOT'&&!configuration.pin_configured){showActionError({code:'FINANCE_PIN_REQUIRED',message:'TEST_NUMBER reste disponible. Enregistrez le PIN Camtel chiffré avant un achat ou une vente.'});}
+        if(configuration.mode==='ROBOT'&&!configuration.pin_configured){showActionError({code:'FINANCE_PIN_REQUIRED',message:'TEST_NUMBER reste disponible. Enregistrez le PIN Blue chiffré avant un achat ou une vente.'});}
         else if(configuration.mode==='ROBOT'&&!configuration.accessibility_enabled){showActionError({code:'FINANCE_ACCESSIBILITY_REQUIRED',message:'TEST_NUMBER reste disponible. Activez l’Accessibilité Blue Magic avant un achat ou une vente.'});}
         if(configuration.role==='DSM'||configuration.role==='POS'){byId('requestSupplyCard').className='panel command-card';}
         if(configuration.role==='DAE'||configuration.role==='DSM'){byId('supplyChildCard').className='panel command-card';}
@@ -169,8 +169,8 @@
         if((type==='INIT_CHILD_PIN_RESET'||type==='SUSPEND_CHILD'||type==='REACTIVATE_CHILD'||type==='FREEZE_CHILD'||type==='REACTIVATE_FROZEN_CHILD')&&!node){fieldIssue('adminChildNode','Saisissez le code du nœud enfant à administrer.');return;}
         if(type==='RETAIL_SALE'&&!/^\d{9}$/.test(phone)){fieldIssue('retailPhone','Le numéro client doit avoir 9 chiffres.');return;}
         if(type==='RETAIL_SALE'&&!/^[1-9]\d{0,8}$/.test(amount)){fieldIssue('retailAmount','Saisissez un montant entier valide.');return;}
-        if(type==='TRANSACTION_DETAILS'&&!/^[A-Za-z0-9_-]{6,64}$/.test(argument)){fieldIssue('transactionId','Saisissez un identifiant Camtel valide.');return;}
-        pendingPreview={type:type,node:node,phone:phone,amount:amount,argument:argument,request_id:requestId(),capacity_check_id:''};
+        if(type==='TRANSACTION_DETAILS'&&!/^[A-Za-z0-9_-]{6,64}$/.test(argument)){fieldIssue('transactionId','Saisissez un identifiant Blue valide.');return;}
+        pendingPreview={type:type,node:node,phone:phone,amount:amount,argument:argument,request_id:requestId(),capacity_check_id:''};if(type==='SUPPLY_CHILD'&&window.BIRCommissionPolicy&&window.BIRCommissionPolicy.getRateBps){pendingPreview.commission_rate_bps=Number(window.BIRCommissionPolicy.getRateBps(node)||0);pendingPreview.commission_base_amount=Number(amount||0);pendingPreview.original_amount=String(amount||'');}
         submittedForm=snapshotForm(type);setBusy(true);clearActionError();
         if(type==='REQUEST_SUPPLY'){
             capacityPolls=0;showActionProgress('Lecture du solde disponible du supérieur avant confirmation…');
@@ -208,8 +208,8 @@
         }
         pendingPreview.capacity_check_id=String(capacity.capacity_check_id||'');
         showActionProgress((capacity.balance_reused
-            ? 'Solde Camtel récent réutilisé — aucune commande USSD supplémentaire. '
-            : 'Solde Camtel actualisé. ')
+            ? 'Solde Blue récent réutilisé — aucune commande USSD supplémentaire. '
+            : 'Solde Blue actualisé. ')
             +'Disponible : '+formatMoney(capacity.available_balance||0)+' FCFA. Vérification finale des numéros…');
         window.AndroidBridge.previewCommand(pendingPreview.type,pendingPreview.node,pendingPreview.phone,
             pendingPreview.amount,pendingPreview.request_id,pendingPreview.capacity_check_id,pendingPreview.argument);
@@ -221,12 +221,25 @@
         preview=data&&data.preview||{};fingerprint=String(preview.confirmation_fingerprint||'');
         if(!fingerprint){setBusy(false);pendingPreview=null;showActionError({code:'PREVIEW_INCOMPLETE',message:'Le serveur n’a pas certifié les numéros de cette commande.'});return;}
         clearActionError();
+        if(pendingPreview.type==='SUPPLY_CHILD'&&typeof pendingPreview.commission_rate_bps==='number'&&!pendingPreview.legacy_commission_mode){
+            var expectedBps=Number(pendingPreview.commission_rate_bps||0),serverBps=Number(preview.commission_rate_bps||0);
+            if(expectedBps!==serverBps){
+                var legacyBase=Number(pendingPreview.commission_base_amount||pendingPreview.original_amount||pendingPreview.amount||0);
+                var legacyCommission=Math.floor(legacyBase*expectedBps/10000),legacyTotal=legacyBase+legacyCommission;
+                pendingPreview.legacy_commission_mode=true;
+                pendingPreview.commission_base_amount=legacyBase;
+                pendingPreview.amount=String(legacyTotal);
+                showActionProgress('Compatibilité serveur : '+String(expectedBps/100).replace('.',',')+' % appliqué localement, total '+formatMoney(legacyTotal)+' FCFA à certifier une seule fois…');
+                window.AndroidBridge.previewCommand(pendingPreview.type,pendingPreview.node,pendingPreview.phone,pendingPreview.amount,pendingPreview.request_id,pendingPreview.capacity_check_id,pendingPreview.argument);
+                return;
+            }
+        }
         if(preview.robot_ready===false){showActionProgress((preview.robot_status||'ROBOT_OFFLINE')+' — '+(preview.robot_message||'Le Robot ne communique pas encore. La commande peut être mise en attente.'));}
         var decision=confirmFinancial(preview);
         if(decision==='REPREVIEW'){return;}
         if(!decision){setBusy(false);pendingPreview=null;submittedForm=null;showToast('Commande annulée avant toute composition.');return;}
         showActionProgress('Commande confirmée. Transmission au Robot de la SIM fournisseur…');
-        if(pendingPreview.type==='SUPPLY_CHILD'&&typeof pendingPreview.commission_rate_bps==='number'&&window.AndroidBridge.createCommandWithCommissionRate){
+        if(pendingPreview.type==='SUPPLY_CHILD'&&typeof pendingPreview.commission_rate_bps==='number'&&!pendingPreview.legacy_commission_mode&&window.AndroidBridge.createCommandWithCommissionRate){
             window.AndroidBridge.createCommandWithCommissionRate(pendingPreview.type,pendingPreview.node,pendingPreview.phone,
                 pendingPreview.amount,pendingPreview.request_id,fingerprint,pendingPreview.capacity_check_id,pendingPreview.argument,pendingPreview.commission_rate_bps);
         }else{
@@ -236,13 +249,16 @@
     }
     function confirmFinancial(preview){
         if(preview.dangerous){
-            return window.confirm('COMMANDE CAMTEL SENSIBLE\n\n'+(preview.operation_label||preview.operation||'Maintenance SIM')+'\n\nCOMPTE EXÉCUTEUR : '+(preview.executor_node_code||'—')+' — '+(preview.executor_phone||'—')+'\nCIBLE : '+(preview.target_node_code||preview.executor_node_code||'—')+' — '+(preview.target_phone||preview.executor_phone||'—')+'\n\nCette commande peut suspendre ou geler une SIM. Vérifiez la cible avant de confirmer. Le PIN reste uniquement sur le Robot.\n\nCONFIRMER CETTE COMMANDE ?');
+            return window.confirm('COMMANDE BLUE SENSIBLE\n\n'+(preview.operation_label||preview.operation||'Maintenance SIM')+'\n\nCOMPTE EXÉCUTEUR : '+(preview.executor_node_code||'—')+' — '+(preview.executor_phone||'—')+'\nCIBLE : '+(preview.target_node_code||preview.executor_node_code||'—')+' — '+(preview.target_phone||preview.executor_phone||'—')+'\n\nCette commande peut suspendre ou geler une SIM. Vérifiez la cible avant de confirmer. Le PIN reste uniquement sur le Robot.\n\nCONFIRMER CETTE COMMANDE ?');
         }
         var title=preview.operation==='RETAIL_TRANSFER'?'VENTE À UN CLIENT':'TRANSFERT DE CRÉDIT';
         var supplier=(preview.executor_node_code||'FOURNISSEUR')+' — '+(preview.executor_phone||'numéro absent');
         var beneficiary=(preview.target_node_code||'CLIENT')+' — '+(preview.target_phone||'numéro absent');
-        var base=Number(preview.requested_base_amount||preview.amount||0), commission=Number(preview.commission_amount||0), rateBps=Number(preview.commission_rate_bps||0), rate=rateBps/100;
-        var quote=preview.operation==='DISTRIBUTION_TRANSFER' ? ('\nMONTANT DE BASE : '+formatMoney(base)+' FCFA\nCOMMISSION ('+String(rate).replace('.',',')+' %) : '+formatMoney(commission)+' FCFA\nTOTAL À RECEVOIR : '+formatMoney(preview.amount)+' FCFA') : ('\nMONTANT : '+formatMoney(preview.amount)+' FCFA');
+        var localCommission=pendingPreview&&pendingPreview.type==='SUPPLY_CHILD'&&typeof pendingPreview.commission_rate_bps==='number';
+        var base=localCommission?Number(pendingPreview.commission_base_amount||pendingPreview.original_amount||preview.requested_base_amount||0):Number(preview.requested_base_amount||preview.amount||0);
+        var rateBps=localCommission?Number(pendingPreview.commission_rate_bps||0):Number(preview.commission_rate_bps||0), rate=rateBps/100;
+        var commission=localCommission?Math.floor(base*rateBps/10000):Number(preview.commission_amount||0), total=localCommission?base+commission:Number(preview.amount||0);
+        var quote=preview.operation==='DISTRIBUTION_TRANSFER' ? ('\nMONTANT DE BASE : '+formatMoney(base)+' FCFA\nCOMMISSION ('+String(rate).replace('.',',')+' %) : '+formatMoney(commission)+' FCFA\nTOTAL À RECEVOIR : '+formatMoney(total)+' FCFA') : ('\nMONTANT : '+formatMoney(preview.amount)+' FCFA');
         if(pendingPreview&&pendingPreview.type==='SUPPLY_CHILD'){
             var entered=window.prompt('Vous êtes le supérieur de ce bénéficiaire. Vérifiez ou modifiez le taux appliqué uniquement à cet envoi (0 à 50 %). Le taux par défaut/personnalisé du compte n’est pas modifié par ce choix.',String(rate).replace('.',','));
             if(entered===null){return false;}
@@ -250,7 +266,14 @@
             if(!isFinite(chosen)||chosen<0||chosen>50){showToast('Taux invalide : choisissez une valeur entre 0 et 50 %.');return false;}
             if(chosenBps!==rateBps){
                 pendingPreview.commission_rate_bps=chosenBps;
-                showActionProgress('Nouveau taux '+String(chosen).replace('.',',')+' % : recalcul et nouvelle certification serveur…');
+                if(window.BIRCommissionPolicy&&window.BIRCommissionPolicy.setOneShotRate){window.BIRCommissionPolicy.setOneShotRate(pendingPreview.node,chosenBps);}
+                showActionProgress('Nouveau taux '+String(chosen).replace('.',',')+' % : recalcul et nouvelle certification…');
+                if(pendingPreview.legacy_commission_mode){
+                    var changedBase=Number(pendingPreview.commission_base_amount||pendingPreview.original_amount||0);
+                    pendingPreview.amount=String(changedBase+Math.floor(changedBase*chosenBps/10000));
+                    window.AndroidBridge.previewCommand(pendingPreview.type,pendingPreview.node,pendingPreview.phone,pendingPreview.amount,pendingPreview.request_id,pendingPreview.capacity_check_id,pendingPreview.argument);
+                    return 'REPREVIEW';
+                }
                 if(window.AndroidBridge.previewCommandWithCommissionRate){
                     window.AndroidBridge.previewCommandWithCommissionRate(pendingPreview.type,pendingPreview.node,pendingPreview.phone,pendingPreview.amount,pendingPreview.request_id,pendingPreview.capacity_check_id,pendingPreview.argument,chosenBps);
                     return 'REPREVIEW';
@@ -258,9 +281,9 @@
                 showToast('Cette version Android ne sait pas recertifier un taux ponctuel.');return false;
             }
             pendingPreview.commission_rate_bps=rateBps;
-            return window.confirm('CONFIRMATION 1 SUR 2\n\n'+title+'\n\nFOURNISSEUR : '+supplier+'\nBÉNÉFICIAIRE : '+beneficiary+quote+'\n\nVOUS ÊTES LE SUPÉRIEUR : ce taux est celui que vous validez pour cet envoi. Après confirmation, le Robot composera exactement le total certifié et contrôlera le pop-up Camtel avant le PIN.\n\nCONFIRMER CETTE TRANSACTION ?');
+            return window.confirm('CONFIRMATION 1 SUR 2\n\n'+title+'\n\nFOURNISSEUR : '+supplier+'\nBÉNÉFICIAIRE : '+beneficiary+quote+'\n\nVOUS ÊTES LE SUPÉRIEUR : ce taux est celui que vous validez pour cet envoi. Après confirmation, le Robot composera exactement le total certifié et contrôlera le pop-up Blue avant le PIN.\n\nCONFIRMER CETTE TRANSACTION ?');
         }
-        var guidance=pendingPreview&&pendingPreview.type==='REQUEST_SUPPLY' ? 'Le taux est fixé par votre supérieur. S’il ne vous convient pas, annulez maintenant et contactez directement votre supérieur avant de commander.' : 'Après confirmation, Blue Magic contrôlera les mêmes données dans le pop-up Camtel avant d’insérer le PIN.';
+        var guidance=pendingPreview&&pendingPreview.type==='REQUEST_SUPPLY' ? 'Le taux est fixé par votre supérieur. S’il ne vous convient pas, annulez maintenant et contactez directement votre supérieur avant de commander.' : 'Après confirmation, Blue Magic contrôlera les mêmes données dans le pop-up Blue avant d’insérer le PIN.';
         return window.confirm('CONFIRMATION 1 SUR 2\n\n'+title+'\n\nFOURNISSEUR : '+supplier+'\nBÉNÉFICIAIRE : '+beneficiary+quote+'\n\n'+guidance+'\n\nCONFIRMER CETTE TRANSACTION ?');
     }
     function formatMoney(value){return String(value).replace(/\B(?=(\d{3})+(?!\d))/g,' ');}
@@ -322,7 +345,7 @@
         byId('metricSuccessRate').textContent=terminal?Math.round(success*100/terminal)+' %':'—';
         byId('metricFinanceCount').textContent=String(finance);
         if(byId('birActivityLine')){byId('birActivityLine').textContent=last?((labels[last.state]||last.state||'Commande')+' • '+(last.operation||'opération')+' • '+formatTime(last.updated_at||last.created_at||'')):'Aucune commande locale récente.';}
-        if(byId('birActivityDetail')){byId('birActivityDetail').textContent=last?('Dernière activité : '+(labels[last.state]||last.state||'Commande')+' • '+(last.operation||'opération')+' • '+formatTime(last.updated_at||last.created_at||'')):'Aucune activité locale récente. Les preuves Camtel et diagnostics restent disponibles ci-dessous.';}
+        if(byId('birActivityDetail')){byId('birActivityDetail').textContent=last?('Dernière activité : '+(labels[last.state]||last.state||'Commande')+' • '+(last.operation||'opération')+' • '+formatTime(last.updated_at||last.created_at||'')):'Aucune activité locale récente. Les preuves Blue et diagnostics restent disponibles ci-dessous.';}
         byId('reportActivityTitle').textContent=last?(labels[last.state]||last.state||'Commande locale'):'Aucune activité locale';
         byId('reportActivityDetail').textContent=last?((last.operation||'Commande')+' • '+formatTime(last.updated_at||last.created_at||'')):'Les résultats apparaîtront ici sans exposer le PIN.';
         byId('fleetNodeStatus').textContent=(configuration.node_code||'Nœud non configuré')+' • '+(configuration.role||'—')+' • '+(configuration.mode||'—');
@@ -346,7 +369,7 @@
         if((n.role==='DAE'||n.role==='DSM')&&n.balance!==null&&typeof n.balance!=='undefined'){
             split='<br><small>Stock hors commission : '+escapeHtml(formatMoney(n.commission_base_balance||0))+' • part taux par défaut : '+escapeHtml(formatMoney(n.commission_component_balance||0))+' • total réel : '+escapeHtml(formatMoney(n.balance))+' • taux '+escapeHtml(String(Number(n.default_commission_bps||0)/100).replace('.',','))+' %</small>';
         }
-        return '<article class="network-item"><div><strong>'+escapeHtml(n.node_code||'—')+'</strong><span>'+escapeHtml((n.role||'—')+' • '+(n.device_kind||'—')+evidenceText+activity)+'</span></div><div class="network-balance"><b>Solde Camtel : '+escapeHtml(balanceText)+'</b><br><small>Réservé après confirmation : '+escapeHtml(formatMoney(reserved))+' FCFA • Disponible : '+escapeHtml(available===null?'—':formatMoney(available)+' FCFA')+'</small>'+split+'</div></article>';
+        return '<article class="network-item"><div><strong>'+escapeHtml(n.node_code||'—')+'</strong><span>'+escapeHtml((n.role||'—')+' • '+(n.device_kind||'—')+evidenceText+activity)+'</span></div><div class="network-balance"><b>Solde Blue : '+escapeHtml(balanceText)+'</b><br><small>Réservé après confirmation : '+escapeHtml(formatMoney(reserved))+' FCFA • Disponible : '+escapeHtml(available===null?'—':formatMoney(available)+' FCFA')+'</small>'+split+'</div></article>';
     }
     function fleetCard(n){return '<article class="network-item"><div><strong>'+escapeHtml(n.node_code||'—')+'</strong><span>'+escapeHtml(n.phone_number||'—')+'</span></div><div class="network-balance">'+escapeHtml(n.device_kind||'—')+'</div></article>';}
     function renderDashboard(){
@@ -363,19 +386,19 @@
         byId('fleetNetworkList').innerHTML=fleet||'<p class="muted">Aucun terminal rattaché.</p>';
         byId('fleetNetworkTitle').textContent=configuration.role==='DAE'?'Mes DSM et leurs PoS — '+String(nodes.length)+' nœud(s)':configuration.role==='DSM'?'Mes PoS — '+String(nodes.length)+' nœud(s)':'Mon terminal';
         byId('ownBalance').textContent=own&&own.balance!==null?formatMoney(own.balance)+' FCFA':'À actualiser';
-        if(byId('birCamtelBalance')){byId('birCamtelBalance').textContent=own&&own.balance!==null?formatMoney(own.balance):'À actualiser';}
+        if(byId('birBlueBalance')){byId('birBlueBalance').textContent=own&&own.balance!==null?formatMoney(own.balance):'À actualiser';}
         if(byId('birAvailableBalance')){byId('birAvailableBalance').textContent=own&&own.available_balance!==null&&typeof own.available_balance!=='undefined'?formatMoney(own.available_balance)+' F':'—';}
         if(byId('birReservedBalance')){byId('birReservedBalance').textContent=own?formatMoney(Number(own.reserved_amount||0))+' F':'—';}
         if(byId('birThirdMetricLabel')&&byId('birThirdMetricValue')){
             if(own&&(configuration.role==='DAE'||configuration.role==='DSM')){byId('birThirdMetricLabel').textContent='Composante commission';byId('birThirdMetricValue').textContent=formatMoney(Number(own.commission_component_balance||0))+' F';}
             else{byId('birThirdMetricLabel').textContent='Commandes réussies';byId('birThirdMetricValue').textContent=byId('metricSuccessCount')?byId('metricSuccessCount').textContent:'0';}
         }
-        if(byId('birBalanceFreshness')){byId('birBalanceFreshness').textContent=own&&own.observed_at?((own.balance_quality==='EXACT'?'Confirmé Camtel':'Estimé')+' • '+formatTime(own.operator_event_at||own.observed_at)):'Aucune lecture Camtel horodatée.';}
+        if(byId('birBalanceFreshness')){byId('birBalanceFreshness').textContent=own&&own.observed_at?((own.balance_quality==='EXACT'?'Confirmé Blue':'Estimé')+' • '+formatTime(own.operator_event_at||own.observed_at)):'Aucune lecture Blue horodatée.';}
         byId('balanceFreshness').textContent=own&&own.observed_at
-            ? ('Dernière observation : '+formatTime(own.operator_event_at||own.observed_at)+' • '+(own.balance_quality==='EXACT'?'confirmé Camtel':'estimé')+' • '+(own.evidence_kind||own.balance_source||'source inconnue')
+            ? ('Dernière observation : '+formatTime(own.operator_event_at||own.observed_at)+' • '+(own.balance_quality==='EXACT'?'confirmé Blue':'estimé')+' • '+(own.evidence_kind||own.balance_source||'source inconnue')
                 +(own.available_balance!==null&&typeof own.available_balance!=='undefined'?' • disponible '+formatMoney(own.available_balance)+' FCFA':'')
                 +(own.balance_reusable?' • réutilisable / partageable sans nouvel USSD':' • à recertifier avant finance'))
-            :'Aucune lecture Camtel horodatée.';
+            :'Aucune lecture Blue horodatée.';
     }
     function cancelRemote(commandId){if(!bridge()||!window.confirm('Annuler cette commande encore en attente ?')){return;}window.AndroidBridge.cancelCommand(commandId);}
     function formatTime(value){var d=new Date(value);if(isNaN(d.getTime())){return String(value);}return two(d.getDate())+'/'+two(d.getMonth()+1)+'/'+d.getFullYear()+' à '+two(d.getHours())+':'+two(d.getMinutes())+':'+two(d.getSeconds());}

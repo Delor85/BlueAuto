@@ -10,6 +10,7 @@ public class BootReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
+        AppConfig.migrateLegacyProfile(context);
         if (!AppConfig.anyRobotEnabled(context)) return;
         // Robot intent is persistent locally. Boot, package replacement, watchdog and a normal
         // user unlock all wake the same foreground service; none of these silently changes the
