@@ -155,7 +155,7 @@ jobs:
           profile: Nexus 5X
           disable-animations: true
           script: |
-            set -euo pipefail
+            set -eu
             adb install -r apk/BIR-Blue-Infinity-Retail-v2.7.0-Validation-Ephemeral.apk
             adb shell monkey -p com.profitloop.blueauto -c android.intent.category.LAUNCHER 1
             sleep 5
