@@ -28,6 +28,13 @@ new="if(!['2.6.11','2.8.0'].includes(pkg.version)) throw new Error('Cloudflare p
 if old not in release: raise SystemExit('release hygiene metadata anchor missing')
 write(release_test,release.replace(old,new,1))
 
+control_test='app/src/test/v2610-control-tower.mjs'
+control=read(control_test)
+old="if(!worker.includes(\"source: 'TRANSACTION_OVERRIDE'\")||!worker.includes(\"const API_VERSION = '2.6.11-cloudflare'\")) throw new Error('worker one-off commission missing');"
+new="if(!worker.includes(\"source: 'TRANSACTION_OVERRIDE'\")||!(worker.includes(\"const API_VERSION = '2.6.11-cloudflare'\")||worker.includes(\"const API_VERSION = '2.8.0-cloudflare'\"))) throw new Error('worker one-off commission missing');"
+if old not in control: raise SystemExit('v2610 Worker metadata anchor missing')
+write(control_test,control.replace(old,new,1))
+
 final_test='app/src/test/v2611-finalization-contract.mjs'
 final=read(final_test)
 old="if(!worker.includes(\"2.6.11-cloudflare\")||!worker.includes('capabilities: {commissions: true')) throw new Error('worker capabilities missing');"
