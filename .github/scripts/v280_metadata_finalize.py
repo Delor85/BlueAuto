@@ -20,7 +20,22 @@ lock=read('cloudflare/package-lock.json')
 if lock.count('"version": "2.6.11"') < 2: raise SystemExit('package-lock version anchors missing')
 write('cloudflare/package-lock.json',lock.replace('"version": "2.6.11"','"version": "2.8.0"',2))
 
-# The launcher now follows the original SVG's exact cyan #16D7FF and gold #FFE26F geometry.
+# Historical tests remain capability guards, not permanent metadata freezes.
+release_test='app/src/test/v268-release-hygiene.mjs'
+release=read(release_test)
+old="if(pkg.version!=='2.6.11') throw new Error('Cloudflare package version not 2.6.11');\nif(lock.version!=='2.6.11'||(lock.packages&&lock.packages['']&&lock.packages[''].version!=='2.6.11')) throw new Error('Cloudflare lock root version not 2.6.11');"
+new="if(!['2.6.11','2.8.0'].includes(pkg.version)) throw new Error('Cloudflare package version outside supported stabilized lines');\nif(!['2.6.11','2.8.0'].includes(lock.version)||(lock.packages&&lock.packages['']&&!['2.6.11','2.8.0'].includes(lock.packages[''].version))) throw new Error('Cloudflare lock root version outside supported stabilized lines');"
+if old not in release: raise SystemExit('release hygiene metadata anchor missing')
+write(release_test,release.replace(old,new,1))
+
+final_test='app/src/test/v2611-finalization-contract.mjs'
+final=read(final_test)
+old="if(!worker.includes(\"2.6.11-cloudflare\")||!worker.includes('capabilities: {commissions: true')) throw new Error('worker capabilities missing');"
+new="if(!(worker.includes(\"2.6.11-cloudflare\")||worker.includes(\"2.8.0-cloudflare\"))||!worker.includes('capabilities: {commissions: true')) throw new Error('worker capabilities missing');"
+if old not in final: raise SystemExit('v2611 Worker metadata anchor missing')
+write(final_test,final.replace(old,new,1))
+
+# The launcher follows the original in-app SVG's exact cyan #16D7FF and gold #FFE26F geometry.
 test='app/src/test/v280-operations-admin-contract.mjs'
 text=read(test)
 old="ok(icon.includes('strokeColor=\"#19D7FF\"')&&icon.includes('strokeColor=\"#FFE26F\"'),'launcher icon must preserve blue/gold infinity identity');"
