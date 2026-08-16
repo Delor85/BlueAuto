@@ -1,0 +1,33 @@
+import fs from 'node:fs';
+function read(p){return fs.readFileSync(p,'utf8');}
+function ok(v,m){if(!v)throw new Error('v2.8 contract failed: '+m);}
+const manifest=read('app/src/main/AndroidManifest.xml');
+const icon=read('app/src/main/res/drawable/ic_launcher_bir.xml');
+const gradle=read('app/build.gradle');
+const api=read('app/src/main/java/com/profitloop/blueauto/ApiClient.java');
+const main=read('app/src/main/java/com/profitloop/blueauto/MainActivity.java');
+const robot=read('app/src/main/java/com/profitloop/blueauto/RobotService.java');
+const boot=read('app/src/main/java/com/profitloop/blueauto/BootReceiver.java');
+const app=read('app/src/main/assets/app.js');
+const v271=read('app/src/main/assets/control-tower-v271.js');
+const v280=read('app/src/main/assets/control-tower-v280.js');
+const html=read('app/src/main/assets/index.html');
+const worker=read('cloudflare/src/index.js');
+const migration=read('cloudflare/migrations/0006_owner_admin_control_and_audit.sql');
+ok(manifest.includes('android:icon="@drawable/ic_launcher_bir"')&&manifest.includes('android:roundIcon="@drawable/ic_launcher_bir"'),'launcher icon must use BIR mark');
+ok(icon.includes('strokeColor="#19D7FF"')&&icon.includes('strokeColor="#FFE26F"'),'launcher icon must preserve blue/gold infinity identity');
+ok(gradle.includes('versionCode 53')&&gradle.includes('versionName "2.8.0"'),'v2.8 identity');
+ok(api.includes('"2.8.0"')&&api.includes('X-Owner-Token')&&api.includes('ownerEnroll'),'native owner entitlement transport');
+ok(main.includes('"ADMIN".equals(node)')&&main.includes('OWNER_ADMIN_WORKSPACE_KEY')&&main.includes('SecureOwnerStore'),'private ADMIN entry, not a Blue role');
+ok(main.includes('owner_admin_workspace')&&main.includes('exitOwnerAdminWorkspace'),'admin workspace lifecycle');
+ok(v280.includes('ONE-SHOT > CHILD-SPECIFIC > DEFAULT')&&v280.includes('PERSONNALISÉ > DÉFAUT'),'three-level commission semantics');
+ok(v271.includes('clearOneShotRate')&&app.includes('clearOneShotRate'),'one-shot rate must be consumed after one transaction');
+ok(v280.includes('COMPTABILITÉ GÉNÉRALE')&&v280.includes("period==='quarter'")&&worker.includes('accountingSummary'),'day/week/month/quarter/year accounting');
+ok(v280.includes('TCHORONKOS')&&v280.includes('TCHORONKO_SHADOW'),'Tchoronko network support');
+ok(migration.includes('owner_entitlements')&&migration.includes('admin_audit_log')&&migration.includes('device_control_actions')&&migration.includes('admin_assist_requests'),'audited owner-admin data model');
+ok(worker.includes("case 'owner_snapshot'")&&worker.includes("case 'owner_control'")&&worker.includes("case 'owner_assist'")&&worker.includes('authenticateOwner'),'server owner control source');
+ok(robot.includes('ACTION_CONTROL_POLL')&&robot.includes('START_ROBOT')&&robot.includes('STOP_ROBOT')&&boot.includes('pollAdministrativeControls'),'remote control application path');
+ok(worker.includes('requires_user_confirmation:true')||worker.includes('requires_user_confirmation:true'),'admin assistance must require user confirmation');
+ok(html.includes('control-tower-v280.css')&&html.includes('control-tower-v280.js'),'v2.8 overlay wired');
+ok(!migration.toLowerCase().includes('wrangler deploy')&&!migration.toLowerCase().includes('d1 migrations apply'),'migration file must never deploy itself');
+console.log('B.I.R. v2.8 operations/admin contract OK');
