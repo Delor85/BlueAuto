@@ -1,0 +1,5 @@
+candidate_source=3b40e665456232275548183095a0e81ee72d88fc
+production_worker_deploy=forbidden
+d1_migration=forbidden
+pr4_merge=forbidden
+permanent_signing=forbidden
