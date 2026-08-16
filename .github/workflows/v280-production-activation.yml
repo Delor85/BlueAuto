@@ -79,7 +79,7 @@ jobs:
           npm ci
           npm run check
           node --check src/production-v280.js
-          python3 ../.github/scripts/v280_schema_smoke.py
+          (cd .. && python3 .github/scripts/v280_schema_smoke.py)
           node scripts/prepare-production-config.mjs
           npx wrangler deploy --dry-run --config wrangler.production.jsonc
 
