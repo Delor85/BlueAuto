@@ -24,11 +24,12 @@ jobs:
             exit 1
           fi
           node app/src/test/finance-flow.mjs
+          node app/src/test/v268-field-contract.mjs
       - name: Commit test-only compatibility
         run: |
           set -euo pipefail
           git config user.name 'Delor85'
           git config user.email 'mbolodelorpro@gmail.com'
-          git add app/src/test/finance-flow.mjs app/src/test/v270-finalization-contract.mjs app/src/test/v270-owner-mock-contract.mjs
+          git add app/src/test/finance-flow.mjs app/src/test/v268-field-contract.mjs app/src/test/v270-finalization-contract.mjs app/src/test/v270-owner-mock-contract.mjs
           git commit -m 'test: accept v2.7.1 Blue branding in inherited contracts'
           git push origin HEAD:fix/bir-v2-7-1-field-stabilization
