@@ -1,0 +1,37 @@
+name: BIR v2.7.1 Balance Chronology Hardening
+
+on:
+  push:
+    branches: [fix/bir-v2-7-1-field-stabilization]
+    paths: [.github/authorized-v271-balance-hardening.trigger]
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fix/bir-v2-7-1-field-stabilization
+          fetch-depth: 0
+      - name: Reject unchronologized delayed financial balances client-side
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/v271_balance_chronology_hardening.py
+          if ! git diff --quiet -- cloudflare; then
+            echo '::error::Balance client hardening touched cloudflare/.'
+            exit 1
+          fi
+          node app/src/test/v271-field-stabilization-contract.mjs
+          node --check app/src/main/assets/control-tower-v271.js
+      - name: Commit Android/client hardening
+        run: |
+          set -euo pipefail
+          git config user.name 'Delor85'
+          git config user.email 'mbolodelorpro@gmail.com'
+          git add app/src/main/assets/control-tower-v271.js app/src/test/v271-field-stabilization-contract.mjs
+          git commit -m 'fix: reject delayed unchronologized financial balances [v271-source]'
+          git push origin HEAD:fix/bir-v2-7-1-field-stabilization
