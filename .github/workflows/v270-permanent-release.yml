@@ -1,0 +1,167 @@
+name: BIR v2.7 Permanent Release
+
+on:
+  push:
+    branches: [feat/bir-v2-7-finalization]
+    paths: [.github/authorized-v270-permanent.trigger]
+
+permissions:
+  contents: read
+
+jobs:
+  permanent-release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: production
+    steps:
+      - name: Checkout trigger commit with full history
+        uses: actions/checkout@v5
+        with:
+          ref: feat/bir-v2-7-finalization
+          fetch-depth: 0
+
+      - name: Resolve and prove explicitly authorized source SHA
+        id: authorized
+        run: |
+          set -euo pipefail
+          authorized_sha="$(sed -n 's/^authorized_sha=//p' .github/authorized-v270-permanent.trigger | head -1 | tr -d '\r\n')"
+          expected_cert="$(sed -n 's/^certificate_sha256=//p' .github/authorized-v270-permanent.trigger | head -1 | tr -d '\r\n' | tr '[:upper:]' '[:lower:]')"
+          test "${#authorized_sha}" -eq 40
+          printf '%s' "$authorized_sha" | grep -Eq '^[0-9a-f]{40}$'
+          test "$expected_cert" = 'f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5'
+          git cat-file -e "$authorized_sha^{commit}"
+          git merge-base --is-ancestor "$authorized_sha" HEAD
+          git merge-base --is-ancestor e3f9e9016e86c1193ba4170e2a9fce1ba466eb86 "$authorized_sha"
+          if ! git diff --quiet e3f9e9016e86c1193ba4170e2a9fce1ba466eb86..."$authorized_sha" -- cloudflare; then
+            echo '::error::Authorized APK source modifies cloudflare/. Refusing permanent publication.'
+            exit 1
+          fi
+          echo "sha=$authorized_sha" >> "$GITHUB_OUTPUT"
+          echo "cert=$expected_cert" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout exact authorized source SHA
+        run: |
+          set -euo pipefail
+          git checkout --detach '${{ steps.authorized.outputs.sha }}'
+          test "$(git rev-parse HEAD)" = '${{ steps.authorized.outputs.sha }}'
+          grep -q 'applicationId "com.profitloop.blueauto"' app/build.gradle
+          grep -q 'versionCode 51' app/build.gradle
+          grep -q 'versionName "2.7.0"' app/build.gradle
+          grep -q 'payload.put("app_version", "2.7.0")' app/src/main/java/com/profitloop/blueauto/ApiClient.java
+          if grep -q 'MOCK_OWNER_NODE_CODE = "SU1"' app/src/main/java/com/profitloop/blueauto/MainActivity.java; then
+            echo '::error::Obsolete SU1-dependent MOCK detected.'
+            exit 1
+          fi
+          grep -q 'NATIONAL_10_REGIONS' app/src/main/java/com/profitloop/blueauto/MainActivity.java
+
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate Worker source without deployment
+        working-directory: cloudflare
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run check
+          node --check src/index.js
+
+      - name: Run complete inherited and v2.7 contracts
+        run: |
+          set -euo pipefail
+          node app/src/test/finance-flow.mjs
+          node app/src/test/v268-field-contract.mjs
+          node app/src/test/v268-responsive-management.mjs
+          node app/src/test/v268-ux-performance.mjs
+          node app/src/test/v268-platform-compat.mjs
+          node app/src/test/v268-transaction-ux.mjs
+          node app/src/test/v268-control-plane.mjs
+          node app/src/test/v268-native-status.mjs
+          node app/src/test/v268-release-hygiene.mjs
+          node app/src/test/bir-v269-functional-contract.mjs
+          node app/src/test/v2610-control-tower.mjs
+          node app/src/test/v2611-finalization-contract.mjs
+          node app/src/test/v2611-shell-contract.mjs
+          node app/src/test/v270-finalization-contract.mjs
+          node app/src/test/v270-owner-mock-contract.mjs
+          node --check app/src/main/assets/app.js
+          node --check app/src/main/assets/platform-v267.js
+          node --check app/src/main/assets/control-tower-v2611.js
+          node --check app/src/main/assets/control-tower-v270.js
+
+      - name: Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Gradle 8.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+
+      - name: Load and prove historical permanent certificate
+        env:
+          PERMANENT_KEYSTORE_BASE64: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_BASE64 }}
+          PERMANENT_KEYSTORE_PASSWORD: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$PERMANENT_KEYSTORE_BASE64"
+          test -n "$PERMANENT_KEYSTORE_PASSWORD"
+          mkdir -p .pilot-signing
+          printf '%s' "$PERMANENT_KEYSTORE_BASE64" | base64 --decode > .pilot-signing/debug.keystore
+          printf '%s' "$PERMANENT_KEYSTORE_PASSWORD" > .pilot-signing/keystore.password
+          password="$(tr -d '\r\n' < .pilot-signing/keystore.password)"
+          echo "::add-mask::$password"
+          actual="$(keytool -list -v -keystore .pilot-signing/debug.keystore -storepass "$password" -alias androiddebugkey | awk '/SHA256:/{gsub(":", "", $2); print tolower($2); exit}')"
+          test "$actual" = '${{ steps.authorized.outputs.cert }}'
+          echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$password" >> "$GITHUB_ENV"
+
+      - name: Build permanent BIR v2.7.0 Release
+        run: |
+          set -euo pipefail
+          gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
+
+      - name: Verify permanent APK identity, signature and bytes
+        run: |
+          set -euo pipefail
+          build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          apk=app/build/outputs/apk/release/app-release.apk
+          "$build_tools/zipalign" -c -v 4 "$apk"
+          "$build_tools/apksigner" verify --verbose --print-certs "$apk" | tee /tmp/permanent-signature.txt
+          grep -qi 'Verified using v1 scheme.*true' /tmp/permanent-signature.txt
+          grep -qi 'Verified using v2 scheme.*true' /tmp/permanent-signature.txt
+          grep -qi 'Verified using v3 scheme.*true' /tmp/permanent-signature.txt
+          actual_cert="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' /tmp/permanent-signature.txt | tr -d ':' | tr '[:upper:]' '[:lower:]' | head -1)"
+          test "$actual_cert" = '${{ steps.authorized.outputs.cert }}'
+          "$build_tools/aapt" dump badging "$apk" | tee /tmp/permanent-badging.txt
+          grep -q "package: name='com.profitloop.blueauto' versionCode='51' versionName='2.7.0'" /tmp/permanent-badging.txt
+          grep -q "sdkVersion:'23'" /tmp/permanent-badging.txt
+          if grep -q 'application-debuggable' /tmp/permanent-badging.txt; then
+            echo '::error::Permanent APK is debuggable.'
+            exit 1
+          fi
+          cp "$apk" BIR-Blue-Infinity-Retail-v2.7.0-vc51-Permanent.apk
+          sha256sum BIR-Blue-Infinity-Retail-v2.7.0-vc51-Permanent.apk | tee BIR-v2.7.0-Permanent.sha256.txt
+          {
+            echo "source_sha=${{ steps.authorized.outputs.sha }}"
+            echo "package=com.profitloop.blueauto"
+            echo "versionName=2.7.0"
+            echo "versionCode=51"
+            echo "certificate_sha256=${{ steps.authorized.outputs.cert }}"
+            echo "cloudflare_deployed=false"
+            echo "d1_migrated=false"
+            echo "pr4_merged=false"
+          } > BIR-v2.7.0-Permanent-release-info.txt
+
+      - name: Publish permanent APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIR-v2.7.0-Permanent
+          path: |
+            BIR-Blue-Infinity-Retail-v2.7.0-vc51-Permanent.apk
+            BIR-v2.7.0-Permanent.sha256.txt
+            BIR-v2.7.0-Permanent-release-info.txt
+          if-no-files-found: error
+          retention-days: 90
