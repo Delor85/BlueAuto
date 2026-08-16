@@ -92,13 +92,14 @@ const localStorage = {
 const script = await readFile(new URL('../main/assets/app.js', import.meta.url), 'utf8');
 vm.runInNewContext(script, {window, document, localStorage, Date, Math, JSON, String, Object, isNaN});
 
-assert.match(tabButtons.find(item => item.tab === 'flux').className, /active/);
-assert.equal(tabPanels.find(item => item.panel === 'flux').className, 'module-screen');
-tabButtons.find(item => item.tab === 'reports').onclick();
 assert.match(tabButtons.find(item => item.tab === 'reports').className, /active/);
 assert.equal(tabPanels.find(item => item.panel === 'reports').className, 'module-screen');
 assert.equal(tabPanels.find(item => item.panel === 'flux').className, 'module-screen hidden');
-assert.equal(localStorage.getItem('blue_magic_active_module'), 'reports');
+tabButtons.find(item => item.tab === 'flux').onclick();
+assert.match(tabButtons.find(item => item.tab === 'flux').className, /active/);
+assert.equal(tabPanels.find(item => item.panel === 'flux').className, 'module-screen');
+assert.equal(tabPanels.find(item => item.panel === 'reports').className, 'module-screen hidden');
+assert.equal(localStorage.getItem('bir_active_module_v269'), 'flux');
 
 elements.get('retailPhone').value = '620550255';
 elements.get('retailAmount').value = '1';
@@ -245,8 +246,8 @@ assert.match(manifest, /foregroundServiceType="dataSync\|specialUse"/);
 
 const gradleConfig = await readFile(new URL('../../build.gradle', import.meta.url), 'utf8');
 assert.match(gradleConfig, /minSdk 23/);
-assert.match(gradleConfig, /versionCode 48/);
-assert.match(gradleConfig, /versionName "2\.6\.8"/);
+assert.match(gradleConfig, /versionCode 50/);
+assert.match(gradleConfig, /versionName "2\.6\.10"/);
 assert.match(gradleConfig, /release \{[\s\S]*signingConfig signingConfigs\.pilotDebug/);
 
 const apiClient = await readFile(new URL(
@@ -265,7 +266,8 @@ for (const moduleName of moduleNames) {
   assert.match(html, new RegExp('data-tab-panel="' + moduleName + '"'));
 }
 assert.match(html, /PILOTAGE & RAPPORTS/);
-assert.match(html, /SAV & DIAGNOSTIC/);
+assert.match(html, /ACTIVITÉ & SAV/);
+assert.match(html, /DIAGNOSTIC RAPIDE/);
 assert.match(css, /\.module-tabs\{position:fixed/);
 assert.match(css, /\.module-tab-primary/);
 assert.ok(activity.indexOf('MODIFIER LE PIN CAMTEL') < activity.indexOf('1. AUTORISATIONS'));

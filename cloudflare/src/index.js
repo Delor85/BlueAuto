@@ -1,7 +1,7 @@
 import {parseBlueMessage} from './blue-message.mjs';
 import {CAMTEL_USSD, canonicalCamtelIdentity, parseCamtelIdentity, publicCamtelCatalog} from './camtel-catalog.mjs';
 
-const API_VERSION = '2.6.8-cloudflare';
+const API_VERSION = '2.6.10-cloudflare';
 const ROBOT_LIVE_WINDOW_MINUTES = 15;
 const BALANCE_EVIDENCE_TTL_SECONDS = 3600;
 const REPORT_BALANCE_EVIDENCE_TTL_SECONDS = 14 * 3600;
@@ -1024,7 +1024,14 @@ async function resolveCommand(env, auth, input, requestType) {
     const child = await resolveDirectChild(env, requester, input.target_node_code, childRole);
     if (!child) throw new ApiError('CHILD_NOT_FOUND', 'Ce compte n’est pas un enfant direct actif.', 422);
     const value = amount(input.amount);
-    const policy = await commissionRateFor(env, requester, child.node_code);
+    let policy = await commissionRateFor(env, requester, child.node_code);
+    if (input.commission_rate_bps !== undefined && input.commission_rate_bps !== null && String(input.commission_rate_bps) !== '') {
+      const oneOffRate = Number(input.commission_rate_bps);
+      if (!Number.isInteger(oneOffRate) || oneOffRate < 0 || oneOffRate > 5000) {
+        throw new ApiError('INVALID_COMMISSION_RATE', 'Le taux de commission de cet envoi doit être compris entre 0 et 50 %.', 422);
+      }
+      policy = {rate_bps: oneOffRate, source: 'TRANSACTION_OVERRIDE'};
+    }
     const quote = commissionQuote(value, policy.rate_bps);
     return {
       executor: requester, executorPhone: auth.phone_number,

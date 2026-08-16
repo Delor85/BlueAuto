@@ -36,6 +36,7 @@ public class RobotService extends Service {
     static final String ACTION_PIN_SUBMITTED = "com.profitloop.blueauto.PIN_SUBMITTED";
     static final String ACTION_OPERATOR_RESULT = "com.profitloop.blueauto.OPERATOR_RESULT";
     static final String ACTION_AUDIT = "com.profitloop.blueauto.REQUEST_AUDIT";
+    static final String ACTION_FORCE_SYNC = "com.profitloop.blueauto.FORCE_SYNC";
     static final String EXTRA_PROFILE_ID = "profile_id";
     static final String EXTRA_SUCCESS = "success";
     static final String EXTRA_MESSAGE = "message";
@@ -127,6 +128,16 @@ public class RobotService extends Service {
             String transactionId = intent.getStringExtra(EXTRA_TRANSACTION_ID);
             final String targetProfile = profileId;
             executor.execute(() -> finishCommand(targetProfile, success, code, message, transactionId));
+            return START_STICKY;
+        }
+
+        if (ACTION_FORCE_SYNC.equals(action)) {
+            apiRetryAtByProfile.clear();
+            apiFailureCountByProfile.clear();
+            lastHeartbeatByProfile.clear();
+            backoffMs = 250L;
+            updateNotification(robotSummary("Synchronisation forcée de tous les comptes"));
+            scheduleCycle(0L);
             return START_STICKY;
         }
 
@@ -336,7 +347,7 @@ public class RobotService extends Service {
                 }
             }
 
-            boolean reportOutstanding = retryOneDueFinalReport();
+            boolean reportOutstanding = retryDueFinalReports(4);
             if (profiles.isEmpty()) {
                 releaseStandbyWakeLock();
                 if (!reportOutstanding) stopSelf();
@@ -428,16 +439,16 @@ public class RobotService extends Service {
         return Math.abs(hash) % Math.max(1, spanMinutes);
     }
 
-    private boolean retryOneDueFinalReport() {
+    private boolean retryDueFinalReports(int maxAttempts) {
         boolean outstanding = false;
-        boolean attempted = false;
+        int attempted = 0;
         for (String profileId : AppConfig.profileIds(this)) {
             JSONObject pending = PendingCommandStore.get(this, profileId);
             if (pending == null || !PendingCommandStore.REPORT_PENDING.equals(
                     pending.optString("local_state", ""))) continue;
-            if (!attempted && PendingCommandStore.isFinalReportRetryDue(pending)) {
+            if (attempted < Math.max(1, maxAttempts) && PendingCommandStore.isFinalReportRetryDue(pending)) {
                 retryFinalReport(profileId, pending);
-                attempted = true;
+                attempted += 1;
                 pending = PendingCommandStore.get(this, profileId);
             }
             if (pending != null && PendingCommandStore.REPORT_PENDING.equals(
@@ -882,6 +893,10 @@ public class RobotService extends Service {
 
     static void startEnabled(Context context) {
         sendServiceAction(context, new Intent(context, RobotService.class).setAction(ACTION_WAKE));
+    }
+
+    static void forceSync(Context context) {
+        sendServiceAction(context, new Intent(context, RobotService.class).setAction(ACTION_FORCE_SYNC));
     }
 
     static void scheduleWatchdog(Context context, long delayMs) {

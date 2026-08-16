@@ -709,6 +709,8 @@ public class BlueAccessibilityService extends AccessibilityService {
         return false;
     }
 
+    static boolean isConnected() { return liveInstance != null; }
+
     static boolean isEnabled(Context context) {
         String enabled = Settings.Secure.getString(
                 context.getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);

@@ -222,10 +222,17 @@
         if(!fingerprint){setBusy(false);pendingPreview=null;showActionError({code:'PREVIEW_INCOMPLETE',message:'Le serveur n’a pas certifié les numéros de cette commande.'});return;}
         clearActionError();
         if(preview.robot_ready===false){showActionProgress((preview.robot_status||'ROBOT_OFFLINE')+' — '+(preview.robot_message||'Le Robot ne communique pas encore. La commande peut être mise en attente.'));}
-        if(!confirmFinancial(preview)){setBusy(false);pendingPreview=null;submittedForm=null;showToast('Commande annulée avant toute composition.');return;}
+        var decision=confirmFinancial(preview);
+        if(decision==='REPREVIEW'){return;}
+        if(!decision){setBusy(false);pendingPreview=null;submittedForm=null;showToast('Commande annulée avant toute composition.');return;}
         showActionProgress('Commande confirmée. Transmission au Robot de la SIM fournisseur…');
-        window.AndroidBridge.createCommand(pendingPreview.type,pendingPreview.node,pendingPreview.phone,
-            pendingPreview.amount,pendingPreview.request_id,fingerprint,pendingPreview.capacity_check_id,pendingPreview.argument);
+        if(pendingPreview.type==='SUPPLY_CHILD'&&typeof pendingPreview.commission_rate_bps==='number'&&window.AndroidBridge.createCommandWithCommissionRate){
+            window.AndroidBridge.createCommandWithCommissionRate(pendingPreview.type,pendingPreview.node,pendingPreview.phone,
+                pendingPreview.amount,pendingPreview.request_id,fingerprint,pendingPreview.capacity_check_id,pendingPreview.argument,pendingPreview.commission_rate_bps);
+        }else{
+            window.AndroidBridge.createCommand(pendingPreview.type,pendingPreview.node,pendingPreview.phone,
+                pendingPreview.amount,pendingPreview.request_id,fingerprint,pendingPreview.capacity_check_id,pendingPreview.argument);
+        }
     }
     function confirmFinancial(preview){
         if(preview.dangerous){
@@ -234,11 +241,27 @@
         var title=preview.operation==='RETAIL_TRANSFER'?'VENTE À UN CLIENT':'TRANSFERT DE CRÉDIT';
         var supplier=(preview.executor_node_code||'FOURNISSEUR')+' — '+(preview.executor_phone||'numéro absent');
         var beneficiary=(preview.target_node_code||'CLIENT')+' — '+(preview.target_phone||'numéro absent');
-        var base=Number(preview.requested_base_amount||preview.amount||0), commission=Number(preview.commission_amount||0), rate=Number(preview.commission_rate_bps||0)/100;
-        var quote=preview.operation==='DISTRIBUTION_TRANSFER'
-            ? ('\nMONTANT COMMANDÉ : '+formatMoney(base)+' FCFA\nCOMMISSION ('+String(rate).replace('.',',')+' %) : '+formatMoney(commission)+' FCFA\nTOTAL À RECEVOIR : '+formatMoney(preview.amount)+' FCFA')
-            : ('\nMONTANT : '+formatMoney(preview.amount)+' FCFA');
-        return window.confirm('CONFIRMATION 1 SUR 2\n\n'+title+'\n\nFOURNISSEUR : '+supplier+'\nBÉNÉFICIAIRE : '+beneficiary+quote+'\n\nSi le taux de commission ne vous convient pas, annulez maintenant et contactez votre supérieur. Après confirmation, le Robot composera le montant total certifié. Blue Magic contrôlera ensuite les mêmes données dans le pop-up Camtel avant d’insérer le PIN.\n\nCONFIRMER CETTE TRANSACTION ?');
+        var base=Number(preview.requested_base_amount||preview.amount||0), commission=Number(preview.commission_amount||0), rateBps=Number(preview.commission_rate_bps||0), rate=rateBps/100;
+        var quote=preview.operation==='DISTRIBUTION_TRANSFER' ? ('\nMONTANT DE BASE : '+formatMoney(base)+' FCFA\nCOMMISSION ('+String(rate).replace('.',',')+' %) : '+formatMoney(commission)+' FCFA\nTOTAL À RECEVOIR : '+formatMoney(preview.amount)+' FCFA') : ('\nMONTANT : '+formatMoney(preview.amount)+' FCFA');
+        if(pendingPreview&&pendingPreview.type==='SUPPLY_CHILD'){
+            var entered=window.prompt('Vous êtes le supérieur de ce bénéficiaire. Vérifiez ou modifiez le taux appliqué uniquement à cet envoi (0 à 50 %). Le taux par défaut/personnalisé du compte n’est pas modifié par ce choix.',String(rate).replace('.',','));
+            if(entered===null){return false;}
+            var normalized=String(entered).replace(',','.').replace(/^\s+|\s+$/g,''), chosen=Number(normalized), chosenBps=Math.round(chosen*100);
+            if(!isFinite(chosen)||chosen<0||chosen>50){showToast('Taux invalide : choisissez une valeur entre 0 et 50 %.');return false;}
+            if(chosenBps!==rateBps){
+                pendingPreview.commission_rate_bps=chosenBps;
+                showActionProgress('Nouveau taux '+String(chosen).replace('.',',')+' % : recalcul et nouvelle certification serveur…');
+                if(window.AndroidBridge.previewCommandWithCommissionRate){
+                    window.AndroidBridge.previewCommandWithCommissionRate(pendingPreview.type,pendingPreview.node,pendingPreview.phone,pendingPreview.amount,pendingPreview.request_id,pendingPreview.capacity_check_id,pendingPreview.argument,chosenBps);
+                    return 'REPREVIEW';
+                }
+                showToast('Cette version Android ne sait pas recertifier un taux ponctuel.');return false;
+            }
+            pendingPreview.commission_rate_bps=rateBps;
+            return window.confirm('CONFIRMATION 1 SUR 2\n\n'+title+'\n\nFOURNISSEUR : '+supplier+'\nBÉNÉFICIAIRE : '+beneficiary+quote+'\n\nVOUS ÊTES LE SUPÉRIEUR : ce taux est celui que vous validez pour cet envoi. Après confirmation, le Robot composera exactement le total certifié et contrôlera le pop-up Camtel avant le PIN.\n\nCONFIRMER CETTE TRANSACTION ?');
+        }
+        var guidance=pendingPreview&&pendingPreview.type==='REQUEST_SUPPLY' ? 'Le taux est fixé par votre supérieur. S’il ne vous convient pas, annulez maintenant et contactez directement votre supérieur avant de commander.' : 'Après confirmation, Blue Magic contrôlera les mêmes données dans le pop-up Camtel avant d’insérer le PIN.';
+        return window.confirm('CONFIRMATION 1 SUR 2\n\n'+title+'\n\nFOURNISSEUR : '+supplier+'\nBÉNÉFICIAIRE : '+beneficiary+quote+'\n\n'+guidance+'\n\nCONFIRMER CETTE TRANSACTION ?');
     }
     function formatMoney(value){return String(value).replace(/\B(?=(\d{3})+(?!\d))/g,' ');}
     function hasPendingCommands(){var i;for(i=0;i<commands.length;i+=1){if(!TERMINAL[commands[i].state]){return true;}}return false;}

@@ -18,6 +18,7 @@ import android.view.View;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.JsResult;
+import android.webkit.JsPromptResult;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
@@ -428,6 +429,24 @@ public class MainActivity extends Activity {
                         .show();
                 return true;
             }
+
+            @Override
+            public boolean onJsPrompt(WebView view, String url, String message, String defaultValue, JsPromptResult result) {
+                final EditText input = new EditText(MainActivity.this);
+                input.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+                input.setText(defaultValue == null ? "" : defaultValue);
+                input.setSelectAllOnFocus(true);
+                int pad = dp(18); input.setPadding(pad, dp(8), pad, dp(8));
+                new AlertDialog.Builder(MainActivity.this)
+                        .setTitle("Taux de commission")
+                        .setMessage(message)
+                        .setView(input)
+                        .setPositiveButton("VALIDER LE TAUX", (dialog, which) -> result.confirm(input.getText().toString().trim()))
+                        .setNegativeButton("ANNULER", (dialog, which) -> result.cancel())
+                        .setOnCancelListener(dialog -> result.cancel())
+                        .show();
+                return true;
+            }
         });
         webView.setWebViewClient(new WebViewClient() {
             @Override
@@ -502,7 +521,7 @@ public class MainActivity extends Activity {
         addManagementPair(tools, accounts, addAccount);
         Button verifySim = managementActionButton("🔗 VÉRIFIER / LIER SIM", VIOLET);
         Button repairPairing = managementActionButton("🛠 RÉPARER APPAIRAGE", CYAN);
-        addManagementPair(tools, verifySim, repairPairing);
+        addManagementFull(tools, repairPairing);
         Button switchMode = managementActionButton(AppConfig.isRobotMode(this)
                 ? "↔ PASSER EN REMOTE" : "↔ PASSER EN ROBOT", GOLD);
         addManagementFull(tools, switchMode);
@@ -524,10 +543,9 @@ public class MainActivity extends Activity {
             tools.addView(managementSectionTitle("ROBOT & TÉLÉPHONE"));
             prepare = managementActionButton("1. AUTORISATIONS", GOLD);
             battery = managementActionButton("🔋 BATTERIE SANS RESTRICTION", CYAN);
-            addManagementPair(tools, prepare, battery);
+            // Autorisations, batterie et démarrage sont désormais visibles directement dans la Tour de contrôle.
             toggle = managementActionButton(AppConfig.robotEnabled(this)
                     ? "■ ARRÊTER ROBOT" : "▶ DÉMARRER ROBOT", VIOLET);
-            addManagementFull(tools, toggle);
         }
 
         tools.addView(managementSectionTitle("FILES & SÉCURITÉ"));
@@ -1370,6 +1388,7 @@ public class MainActivity extends Activity {
                 value.put("robot_enabled", AppConfig.robotEnabled(MainActivity.this));
                 value.put("pin_blocked", AppConfig.pinBlocked(MainActivity.this));
                 value.put("accessibility_enabled", BlueAccessibilityService.isEnabled(MainActivity.this));
+                value.put("accessibility_connected", BlueAccessibilityService.isConnected());
                 value.put("pin_configured", SecurePinStore.hasPin(MainActivity.this,
                         AppConfig.profileId(MainActivity.this)));
                 SimIdentityManager.Verification sim = AppConfig.isRobotMode(MainActivity.this)
@@ -1406,6 +1425,26 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void previewCommandWithCommissionRate(String requestType, String targetNode, String targetPhone,
+                                                     String amount, String clientRequestId, String capacityCheckId,
+                                                     String commandArgument, int commissionRateBps) {
+            new Thread(() -> {
+                try {
+                    JSONObject payload = new JSONObject();
+                    payload.put("request_type", requestType == null ? "" : requestType);
+                    payload.put("target_node_code", targetNode == null ? "" : targetNode.trim().toUpperCase());
+                    payload.put("target_phone", targetPhone == null ? "" : targetPhone.trim());
+                    payload.put("amount", amount == null ? "" : amount.trim());
+                    payload.put("client_request_id", validRequestId(clientRequestId));
+                    payload.put("capacity_check_id", capacityCheckId == null ? "" : capacityCheckId.trim());
+                    payload.put("transaction_id", commandArgument == null ? "" : commandArgument.trim());
+                    payload.put("commission_rate_bps", commissionRateBps);
+                    callback("onCommandPreview", new ApiClient(MainActivity.this).previewCommand(payload));
+                } catch (Exception error) { callbackError("onCommandPreview", error); }
+            }).start();
+        }
+
+        @JavascriptInterface
         public void createCommand(String requestType, String targetNode, String targetPhone,
                                   String amount, String clientRequestId,
                                   String confirmationFingerprint, String capacityCheckId,
@@ -1433,6 +1472,35 @@ public class MainActivity extends Activity {
                     callbackError("onCommandCreated", error);
                 }
             }).start();
+        }
+
+        @JavascriptInterface
+        public void createCommandWithCommissionRate(String requestType, String targetNode, String targetPhone,
+                                                     String amount, String clientRequestId,
+                                                     String confirmationFingerprint, String capacityCheckId,
+                                                     String commandArgument, int commissionRateBps) {
+            new Thread(() -> {
+                try {
+                    JSONObject payload = new JSONObject();
+                    payload.put("request_type", requestType == null ? "" : requestType);
+                    payload.put("target_node_code", targetNode == null ? "" : targetNode.trim().toUpperCase());
+                    payload.put("target_phone", targetPhone == null ? "" : targetPhone.trim());
+                    payload.put("amount", amount == null ? "" : amount.trim());
+                    payload.put("client_request_id", validRequestId(clientRequestId));
+                    payload.put("confirmation_fingerprint", confirmationFingerprint == null ? "" : confirmationFingerprint.trim().toLowerCase(Locale.ROOT));
+                    payload.put("capacity_check_id", capacityCheckId == null ? "" : capacityCheckId.trim());
+                    payload.put("transaction_id", commandArgument == null ? "" : commandArgument.trim());
+                    payload.put("commission_rate_bps", commissionRateBps);
+                    callback("onCommandCreated", new ApiClient(MainActivity.this).createCommand(payload));
+                    if (AppConfig.anyRobotEnabled(MainActivity.this)) RobotService.startEnabled(MainActivity.this);
+                } catch (Exception error) { callbackError("onCommandCreated", error); }
+            }).start();
+        }
+
+        @JavascriptInterface
+        public void synchronizeNow() {
+            RobotService.forceSync(MainActivity.this);
+            runOnUiThread(() -> toast("Synchronisation de tous les comptes relancée immédiatement."));
         }
 
         @JavascriptInterface

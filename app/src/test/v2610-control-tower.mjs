@@ -1,0 +1,16 @@
+import fs from 'node:fs';
+const html=fs.readFileSync('app/src/main/assets/index.html','utf8');
+const js=fs.readFileSync('app/src/main/assets/control-tower-v2610.js','utf8');
+const css=fs.readFileSync('app/src/main/assets/control-tower-v2610.css','utf8');
+const app=fs.readFileSync('app/src/main/assets/app.js','utf8');
+const main=fs.readFileSync('app/src/main/java/com/profitloop/blueauto/MainActivity.java','utf8');
+const robot=fs.readFileSync('app/src/main/java/com/profitloop/blueauto/RobotService.java','utf8');
+const worker=fs.readFileSync('cloudflare/src/index.js','utf8');
+if(!html.includes('control-tower-v2610.js')||!html.includes('control-tower-v2610.css')) throw new Error('control tower not loaded');
+if(css.includes('.form-editing .module-tabs{display:none}')) throw new Error('dock still hidden while editing');
+for(const x of ['AUTORISATIONS','SYNCHRONISER','commission_set_default','commission_set_child','RETOUR CAMTEL DISTANT','DSM direct','PoS direct']) if(!js.includes(x)) throw new Error('missing UI contract '+x);
+if(!app.includes("pendingPreview.type==='SUPPLY_CHILD'")||!app.includes('VOUS ÊTES LE SUPÉRIEUR')||!app.includes('Le taux est fixé par votre supérieur')) throw new Error('commission direction wording missing');
+if(!main.includes('previewCommandWithCommissionRate')||!main.includes('createCommandWithCommissionRate')||!main.includes('synchronizeNow')) throw new Error('native bridge v2610 missing');
+if(!robot.includes('ACTION_FORCE_SYNC')||!robot.includes('retryDueFinalReports(4)')) throw new Error('multi-profile sync recovery missing');
+if(!worker.includes("source: 'TRANSACTION_OVERRIDE'")||!worker.includes("const API_VERSION = '2.6.10-cloudflare'")) throw new Error('worker one-off commission missing');
+console.log('BIR v2.6.10 control tower: persistent dock, role hierarchy, commission direction, remote evidence and sync OK');
