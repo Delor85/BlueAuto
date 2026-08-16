@@ -7,4 +7,4 @@ cloudflare_deploy=forbidden
 d1_mutation=forbidden
 permanent_signing=forbidden
 android_smoke=23,26,30
-rerun_reason=emulator-line-safety
+rerun_reason=national-owner-mock
