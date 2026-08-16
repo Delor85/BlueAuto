@@ -385,6 +385,7 @@ public class MainActivity extends Activity {
         nativeStatus.setTextSize(12);
         nativeStatus.setPadding(dp(4), 0, dp(4), dp(3));
         page.addView(nativeStatus);
+        nativeStatus.setVisibility(View.GONE);
 
         LinearLayout compactBar = new LinearLayout(this);
         compactBar.setOrientation(LinearLayout.HORIZONTAL);
@@ -393,6 +394,7 @@ public class MainActivity extends Activity {
         compactBar.addView(accounts, weighted());
         compactBar.addView(manageButton, weighted());
         page.addView(compactBar);
+        compactBar.setVisibility(View.GONE);
 
         webView = new WebView(this);
         webView.setBackgroundColor(BACKGROUND);

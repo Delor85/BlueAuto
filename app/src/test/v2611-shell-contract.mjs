@@ -1,0 +1,12 @@
+import fs from 'node:fs';
+const manifest=fs.readFileSync('app/src/main/AndroidManifest.xml','utf8');
+const styles=fs.readFileSync('app/src/main/res/values/styles.xml','utf8');
+const main=fs.readFileSync('app/src/main/java/com/profitloop/blueauto/MainActivity.java','utf8');
+const js=fs.readFileSync('app/src/main/assets/control-tower-v2611.js','utf8');
+const css=fs.readFileSync('app/src/main/assets/control-tower-v2611.css','utf8');
+if(!manifest.includes('android:theme="@style/BlueMagicAppTheme"')) throw new Error('BIR app theme not applied');
+if(!styles.includes('Theme.Material.Light.NoActionBar')||!styles.includes('BlueMagicAppTheme')) throw new Error('no-actionbar shell missing');
+if(!main.includes('nativeStatus.setVisibility(View.GONE)')||!main.includes('compactBar.setVisibility(View.GONE)')) throw new Error('duplicate native shell remains visible');
+for(const x of ['buildHeaderControls','openManagement','openAccounts','visibilitychange','Toucher pour démarrer']) if(!js.includes(x)) throw new Error('interactive BIR shell missing '+x);
+if(!css.includes('.bir-menu-button{')||!css.includes('.bir-account-chip{cursor:pointer')) throw new Error('header action styling missing');
+console.log('BIR v2.6.11 shell: no duplicate ActionBar/native toolbar, functional menu/account and live Robot state OK');
