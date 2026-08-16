@@ -15,6 +15,6 @@ for(const x of ['birCamtelBalance','birAvailableBalance','birReservedBalance','b
   if(!(html+js+css).includes(x)) throw new Error('BIR functional UX missing: '+x);
 }
 if(!js.includes("bir_active_module_v269')||'reports'")) throw new Error('BIR home is not default');
-if(!gradle.includes('versionCode 51')||!gradle.includes('versionName "2.7.0"')) throw new Error('version mismatch');
+if(!gradle.includes('versionCode 52')||!gradle.includes('versionName "2.7.1"')) throw new Error('version mismatch');
 if(html.includes('une plateforme, pas un catalogue')||html.includes('Uniquement les capacités propres')) throw new Error('meta competitor/catalog copy must not appear');
 console.log('BIR v2.6.9 functional UX + historical Blue Magic contract OK');
