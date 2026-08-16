@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "blue-magic-api",
-  "main": "src/index.js",
+  "main": "src/production-v280.js",
   "compatibility_date": "2026-08-07",
   "keep_vars": true,
   "secrets": {
