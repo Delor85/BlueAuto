@@ -46,6 +46,7 @@
   }
   function isManager() { return configuration.role === 'DAE' || configuration.role === 'DSM'; }
   function isDae() { return configuration.role === 'DAE'; }
+  function isMockWorkspace() { var nativeBridge = bridge(); try { return !!(nativeBridge && nativeBridge.isMockWorkspace && nativeBridge.isMockWorkspace()); } catch (ignored) { return false; } }
   function isRobot() { return configuration.mode === 'ROBOT'; }
 
   var reports = document.querySelector('[data-tab-panel="reports"], #panel-reports .panel-body, #panel-reports, [data-panel="reports"]');
@@ -56,7 +57,7 @@
     '<div id="v267-report-output" class="mono small"></div></details>');
 
   var flux = document.querySelector('[data-tab-panel="flux"], #panel-flux .panel-body, #panel-flux, [data-panel="flux"]');
-  if (isDae()) {
+  if (isDae() || isMockWorkspace()) {
     add(flux, '<details class="card v267-extra"><summary><strong>🧾 Hub Mercenaires — DAE</strong></summary>' +
       '<p>Les SMS/pop-up Blue alimentent le registre structuré : ID, numéro, montant, CurrentBalance, date/heure et statut.</p>' +
       '<input id="merc-name" placeholder="Nom du mercenaire"><input id="merc-phone" placeholder="Téléphone 9 chiffres">' +

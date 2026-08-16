@@ -35,11 +35,14 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -58,8 +61,12 @@ public class MainActivity extends Activity {
     private static final int BACKGROUND = Color.rgb(5, 18, 42);
     private static final String PAIRING_DIAGNOSTIC_KEY = "pairing_diagnostic_v254";
     private static final String MOCK_WORKSPACE_KEY = "bir_mock_workspace_v270";
-    private static final String MOCK_OWNER_NODE_CODE = "SU1";
+    private static final String MOCK_OWNER_ENABLED_KEY = "bir_mock_owner_enabled_v270";
+    private static final String MOCK_ROUTE_PROFILE_KEY = "bir_mock_route_profile_v270";
+    private static final String MOCK_OWNER_CODE_SHA256 = "207e4a9bca5e4073fa98e767a85bd937a63d9e2f62d2fe5e693360ab2ee3e3cd";
     private static final String MOCK_PROFILE_ID = "__BIR_MOCK_OWNER__";
+    private static final String[] MOCK_REGION_CODES = {"AD", "CE", "ES", "EN", "LT", "NO", "NW", "OU", "SU", "SW"};
+    private static final String[] MOCK_REGION_NAMES = {"Adamaoua", "Centre", "Est", "Extrême-Nord", "Littoral", "Nord", "Nord-Ouest", "Ouest", "Sud", "Sud-Ouest"};
 
     private TextView nativeStatus;
     private WebView webView;
@@ -793,9 +800,14 @@ public class MainActivity extends Activity {
     }
 
 
+    private boolean mockOwnerEnrolled() {
+        return AppConfig.prefs(this).getBoolean(MOCK_OWNER_ENABLED_KEY, false);
+    }
+
     private boolean mockOwnerEligible() {
-        return "DAE".equalsIgnoreCase(AppConfig.role(this))
-                && MOCK_OWNER_NODE_CODE.equalsIgnoreCase(AppConfig.nodeCode(this));
+        // MOCK is deliberately independent from every real Camtel identity. It becomes available
+        // only after the high-entropy owner code has been enrolled on this physical installation.
+        return mockOwnerEnrolled() && AppConfig.hasProfiles(this);
     }
 
     private boolean isMockWorkspaceActive() {
@@ -804,6 +816,146 @@ public class MainActivity extends Activity {
 
     private void setMockWorkspaceActive(boolean active) {
         AppConfig.prefs(this).edit().putBoolean(MOCK_WORKSPACE_KEY, active && mockOwnerEligible()).commit();
+    }
+
+    private boolean isDaeProfile(String profileId) {
+        return profileId != null && !profileId.isEmpty()
+                && AppConfig.isPaired(this, profileId)
+                && "DAE".equalsIgnoreCase(AppConfig.role(this, profileId));
+    }
+
+    private String mockRouteProfile() {
+        String saved = AppConfig.prefs(this).getString(MOCK_ROUTE_PROFILE_KEY, "");
+        if (isDaeProfile(saved)) return saved;
+        String[] ids = AppConfig.profileIds(this);
+        for (String id : ids) {
+            if (isDaeProfile(id)) {
+                AppConfig.prefs(this).edit().putString(MOCK_ROUTE_PROFILE_KEY, id).commit();
+                return id;
+            }
+        }
+        return "";
+    }
+
+    private void showMockActivationDialog() {
+        LinearLayout content = verticalContainer();
+        content.setPadding(dp(16), dp(8), dp(16), dp(8));
+        TextView explanation = help("MOCK est le compte propriétaire national, au-dessus des 10 régions. "
+                + "Il n'est ni DAE, ni DSM, ni PoS et ne possède aucune SIM. Son code propriétaire reste local : "
+                + "il n'est jamais envoyé à Cloudflare.");
+        EditText code = field("Code propriétaire MOCK", "", true);
+        TextView feedback = help("Après activation, MOCK pourra agréger les DAE appairés sur ce téléphone et choisir une route DAE/PoS. "
+                + "Les transactions Camtel directes resteront interdites dans MOCK.");
+        content.addView(explanation);
+        content.addView(code);
+        content.addView(feedback);
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Activer le compte MOCK propriétaire")
+                .setView(content)
+                .setPositiveButton("ACTIVER", null)
+                .setNegativeButton("Annuler", null)
+                .create();
+        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                .setOnClickListener(v -> {
+                    String provided = code.getText().toString().trim();
+                    if (!mockOwnerCodeMatches(provided)) {
+                        code.setError("Code propriétaire incorrect.");
+                        feedback.setText("Activation refusée. Aucun droit réseau n'a été modifié.");
+                        return;
+                    }
+                    AppConfig.prefs(this).edit()
+                            .putBoolean(MOCK_OWNER_ENABLED_KEY, true)
+                            .putBoolean(MOCK_WORKSPACE_KEY, true)
+                            .commit();
+                    mockRouteProfile();
+                    code.setText("");
+                    dialog.dismiss();
+                    Toast.makeText(this, "Compte MOCK propriétaire activé sur ce téléphone.", Toast.LENGTH_LONG).show();
+                    recreate();
+                }));
+        dialog.show();
+    }
+
+    private boolean mockOwnerCodeMatches(String value) {
+        if (value == null || value.length() < 32) return false;
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] actual = digest.digest(value.getBytes(StandardCharsets.UTF_8));
+            byte[] expected = hexBytes(MOCK_OWNER_CODE_SHA256);
+            return MessageDigest.isEqual(actual, expected);
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private static byte[] hexBytes(String value) {
+        byte[] result = new byte[value.length() / 2];
+        for (int i = 0; i < result.length; i++) {
+            int high = Character.digit(value.charAt(i * 2), 16);
+            int low = Character.digit(value.charAt(i * 2 + 1), 16);
+            result[i] = (byte) ((high << 4) | low);
+        }
+        return result;
+    }
+
+    private JSONObject mockNationalSnapshot() throws Exception {
+        if (!isMockWorkspaceActive()) throw new SecurityException("Compte MOCK propriétaire requis.");
+        JSONObject result = new JSONObject();
+        result.put("_action", "mock_national_snapshot");
+        result.put("owner_scope", "NATIONAL_10_REGIONS");
+        JSONArray regions = new JSONArray();
+        for (int i = 0; i < MOCK_REGION_CODES.length; i++) {
+            JSONObject region = new JSONObject();
+            region.put("code", MOCK_REGION_CODES[i]);
+            region.put("name", MOCK_REGION_NAMES[i]);
+            region.put("paired", false);
+            regions.put(region);
+        }
+        JSONArray networks = new JSONArray();
+        String selectedRoute = mockRouteProfile();
+        int daeProfiles = 0;
+        int reachable = 0;
+        String[] ids = AppConfig.profileIds(this);
+        for (String id : ids) {
+            if (!isDaeProfile(id)) continue;
+            daeProfiles += 1;
+            String node = AppConfig.nodeCode(this, id);
+            String regionCode = node != null && node.length() >= 2 ? node.substring(0, 2).toUpperCase(Locale.ROOT) : "";
+            for (int r = 0; r < regions.length(); r++) {
+                JSONObject region = regions.optJSONObject(r);
+                if (region != null && regionCode.equals(region.optString("code"))) region.put("paired", true);
+            }
+            JSONObject network = new JSONObject();
+            network.put("profile_id", id);
+            network.put("node_code", node);
+            network.put("region_code", regionCode);
+            network.put("selected", id.equals(selectedRoute));
+            try {
+                JSONObject dashboard = ApiClient.forProfile(this, id).dashboard();
+                network.put("reachable", true);
+                network.put("generated_at", dashboard.optString("generated_at", ""));
+                JSONArray nodes = dashboard.optJSONArray("nodes");
+                network.put("nodes", nodes == null ? new JSONArray() : nodes);
+                reachable += 1;
+            } catch (Exception error) {
+                network.put("reachable", false);
+                network.put("error", readable(error));
+                network.put("nodes", new JSONArray());
+            }
+            networks.put(network);
+        }
+        result.put("regions", regions);
+        result.put("networks", networks);
+        result.put("paired_dae_profiles", daeProfiles);
+        result.put("reachable_dae_profiles", reachable);
+        result.put("selected_route_profile_id", selectedRoute);
+        result.put("selected_route_node_code", selectedRoute.isEmpty() ? "" : AppConfig.nodeCode(this, selectedRoute));
+        result.put("routing_rule", "Chaque action réelle utilise le jeton du DAE sélectionné; MOCK ne contourne jamais les droits du Worker.");
+        return result;
+    }
+
+    private boolean mockDirectNetworkBlocked() {
+        return isMockWorkspaceActive();
     }
 
     private void showAccountManager() {
@@ -818,10 +970,10 @@ public class MainActivity extends Activity {
             labelsList.add(current);
             idsList.add(baseIds[i]);
         }
-        if (mockOwnerEligible()) {
-            labelsList.add((mockActive ? "✓ " : "") + "MOCK • ESPACE PROPRIÉTAIRE • HORS RÉSEAU");
-            idsList.add(MOCK_PROFILE_ID);
-        }
+        labelsList.add((mockActive ? "✓ " : "") + (mockOwnerEnrolled()
+                ? "MOCK • PROPRIÉTAIRE NATIONAL • 10 RÉGIONS"
+                : "🔒 MOCK • ACTIVER LE COMPTE PROPRIÉTAIRE NATIONAL"));
+        idsList.add(MOCK_PROFILE_ID);
         String[] labels = labelsList.toArray(new String[0]);
         String[] ids = idsList.toArray(new String[0]);
         AlertDialog dialog = new AlertDialog.Builder(this)
@@ -829,7 +981,12 @@ public class MainActivity extends Activity {
                 .setItems(labels, (ignored, index) -> {
                     if (index < 0 || index >= ids.length) return;
                     if (MOCK_PROFILE_ID.equals(ids[index])) {
+                        if (!mockOwnerEnrolled()) {
+                            showMockActivationDialog();
+                            return;
+                        }
                         setMockWorkspaceActive(true);
+                        mockRouteProfile();
                         recreate();
                         return;
                     }
@@ -1492,6 +1649,11 @@ public class MainActivity extends Activity {
                                   String amount, String clientRequestId,
                                   String confirmationFingerprint, String capacityCheckId,
                                   String commandArgument) {
+            if (mockDirectNetworkBlocked()) {
+                callbackError("onCommandCreated", new SecurityException(
+                        "MOCK ne crée pas d’approvisionnement ou de vente Camtel directe. Utilisez un compte réseau normal; les ventes Mercenaires restent routables via le PoS choisi."));
+                return;
+            }
             new Thread(() -> {
                 try {
                     JSONObject payload = new JSONObject();
@@ -1522,6 +1684,11 @@ public class MainActivity extends Activity {
                                                      String amount, String clientRequestId,
                                                      String confirmationFingerprint, String capacityCheckId,
                                                      String commandArgument, int commissionRateBps) {
+            if (mockDirectNetworkBlocked()) {
+                callbackError("onCommandCreated", new SecurityException(
+                        "MOCK ne crée pas de transaction Camtel directe."));
+                return;
+            }
             new Thread(() -> {
                 try {
                     JSONObject payload = new JSONObject();
@@ -1548,6 +1715,11 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public void checkPurchaseCapacity(String amount, String clientRequestId) {
+            if (mockDirectNetworkBlocked()) {
+                callbackError("onPurchaseCapacity", new SecurityException(
+                        "Le compte MOCK ne s’approvisionne pas lui-même."));
+                return;
+            }
             new Thread(() -> {
                 try {
                     JSONObject payload = new JSONObject();
@@ -1664,6 +1836,33 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void loadMockNationalSnapshot() {
+            new Thread(() -> {
+                try { callback("onMockNationalSnapshot", mockNationalSnapshot()); }
+                catch (Exception error) { callbackError("onMockNationalSnapshot", error); }
+            }).start();
+        }
+
+        @JavascriptInterface
+        public void setMockRouteProfile(String profileId) {
+            if (!isMockWorkspaceActive()) {
+                callbackError("onMockRouteChanged", new SecurityException("Compte MOCK propriétaire requis."));
+                return;
+            }
+            if (!isDaeProfile(profileId)) {
+                callbackError("onMockRouteChanged", new SecurityException("La route MOCK doit être un DAE réel appairé sur ce téléphone."));
+                return;
+            }
+            AppConfig.prefs(MainActivity.this).edit().putString(MOCK_ROUTE_PROFILE_KEY, profileId).commit();
+            try {
+                JSONObject data = new JSONObject();
+                data.put("profile_id", profileId);
+                data.put("node_code", AppConfig.nodeCode(MainActivity.this, profileId));
+                callback("onMockRouteChanged", data);
+            } catch (Exception error) { callbackError("onMockRouteChanged", error); }
+        }
+
+        @JavascriptInterface
         public void openPinSettings() {
             runOnUiThread(() -> showPinEditorDialog());
         }
@@ -1706,8 +1905,18 @@ public class MainActivity extends Activity {
                 try {
                     JSONObject payload = payloadJson == null || payloadJson.trim().isEmpty()
                             ? new JSONObject() : new JSONObject(payloadJson);
-                    JSONObject data = new ApiClient(MainActivity.this).platformAction(action, payload);
+                    ApiClient client = new ApiClient(MainActivity.this);
+                    if (isMockWorkspaceActive() && normalizedAction.startsWith("mercenary_")) {
+                        String routeProfile = mockRouteProfile();
+                        if (!isDaeProfile(routeProfile)) {
+                            throw new SecurityException("Aucun DAE réel appairé n’est disponible comme route MOCK.");
+                        }
+                        client = ApiClient.forProfile(MainActivity.this, routeProfile);
+                    }
+                    JSONObject data = client.platformAction(action, payload);
                     data.put("_action", action == null ? "" : action);
+                    if (isMockWorkspaceActive()) data.put("_mock_route_node_code",
+                            AppConfig.nodeCode(MainActivity.this, mockRouteProfile()));
                     callback("onPlatformAction", data);
                 } catch (Exception error) {
                     callbackError("onPlatformAction", error);
@@ -1717,6 +1926,10 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public void executeRawUSSD(String raw) {
+            if (mockDirectNetworkBlocked()) {
+                runOnUiThread(() -> toast("Sandbox USSD refusée dans MOCK : choisissez un compte réseau réel."));
+                return;
+            }
             runOnUiThread(() -> {
                 try {
                     if (!AppConfig.isRobotMode(MainActivity.this)) throw new IllegalStateException("Mode Robot requis.");
