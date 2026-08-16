@@ -81,7 +81,8 @@ jobs:
       - name: Persist only validated business source
         run: |
           set -euo pipefail
-          rm -rf .github/patches/v2610 .github/patches/v2610-field-control-tower.patch.gz.b64 .github/workflows/v2610-integrate.yml
+          rm -rf .github/patches/v2610 .github/patches/v2610-field-control-tower.patch.gz.b64
+          git checkout HEAD -- .github/workflows/build.yml .github/workflows/v2610-integrate.yml
           git add -A
           git diff --cached --check
           git config user.name 'Delor85'
