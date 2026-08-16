@@ -57,6 +57,9 @@ public class MainActivity extends Activity {
     private static final int SURFACE = Color.rgb(15, 37, 70);
     private static final int BACKGROUND = Color.rgb(5, 18, 42);
     private static final String PAIRING_DIAGNOSTIC_KEY = "pairing_diagnostic_v254";
+    private static final String MOCK_WORKSPACE_KEY = "bir_mock_workspace_v270";
+    private static final String MOCK_OWNER_NODE_CODE = "SU1";
+    private static final String MOCK_PROFILE_ID = "__BIR_MOCK_OWNER__";
 
     private TextView nativeStatus;
     private WebView webView;
@@ -68,6 +71,9 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         AppConfig.migrateLegacyProfile(this);
+        if (AppConfig.prefs(this).getBoolean(MOCK_WORKSPACE_KEY, false) && !mockOwnerEligible()) {
+            AppConfig.prefs(this).edit().putBoolean(MOCK_WORKSPACE_KEY, false).commit();
+        }
         applyRobotWindowPolicy();
         if (AppConfig.isPaired(this)) showControlScreen();
         else showPairingScreen(false);
@@ -786,13 +792,48 @@ public class MainActivity extends Activity {
         }).start();
     }
 
+
+    private boolean mockOwnerEligible() {
+        return "DAE".equalsIgnoreCase(AppConfig.role(this))
+                && MOCK_OWNER_NODE_CODE.equalsIgnoreCase(AppConfig.nodeCode(this));
+    }
+
+    private boolean isMockWorkspaceActive() {
+        return mockOwnerEligible() && AppConfig.prefs(this).getBoolean(MOCK_WORKSPACE_KEY, false);
+    }
+
+    private void setMockWorkspaceActive(boolean active) {
+        AppConfig.prefs(this).edit().putBoolean(MOCK_WORKSPACE_KEY, active && mockOwnerEligible()).commit();
+    }
+
     private void showAccountManager() {
-        String[] labels = AppConfig.profileLabels(this);
-        String[] ids = AppConfig.profileIds(this);
+        String[] baseLabels = AppConfig.profileLabels(this);
+        String[] baseIds = AppConfig.profileIds(this);
+        List<String> labelsList = new ArrayList<>();
+        List<String> idsList = new ArrayList<>();
+        boolean mockActive = isMockWorkspaceActive();
+        for (int i = 0; i < baseLabels.length; i++) {
+            String current = baseLabels[i] == null ? "Compte inconnu" : baseLabels[i];
+            if (mockActive && current.startsWith("✓ ")) current = current.substring(2);
+            labelsList.add(current);
+            idsList.add(baseIds[i]);
+        }
+        if (mockOwnerEligible()) {
+            labelsList.add((mockActive ? "✓ " : "") + "MOCK • ESPACE PROPRIÉTAIRE • HORS RÉSEAU");
+            idsList.add(MOCK_PROFILE_ID);
+        }
+        String[] labels = labelsList.toArray(new String[0]);
+        String[] ids = idsList.toArray(new String[0]);
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle("Comptes Blue Magic")
                 .setItems(labels, (ignored, index) -> {
                     if (index < 0 || index >= ids.length) return;
+                    if (MOCK_PROFILE_ID.equals(ids[index])) {
+                        setMockWorkspaceActive(true);
+                        recreate();
+                        return;
+                    }
+                    setMockWorkspaceActive(false);
                     if (ids[index].equals(AppConfig.profileId(this))) {
                         showSimSlotChooser();
                         return;
@@ -1610,6 +1651,19 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public boolean isMockWorkspace() {
+            return isMockWorkspaceActive();
+        }
+
+        @JavascriptInterface
+        public void exitMockWorkspace() {
+            runOnUiThread(() -> {
+                setMockWorkspaceActive(false);
+                recreate();
+            });
+        }
+
+        @JavascriptInterface
         public void openPinSettings() {
             runOnUiThread(() -> showPinEditorDialog());
         }
@@ -1641,6 +1695,13 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public void platformAction(String action, String payloadJson) {
+            String normalizedAction = action == null ? "" : action.trim().toLowerCase(Locale.ROOT);
+            if ((normalizedAction.startsWith("mercenary_") || normalizedAction.startsWith("monetization_"))
+                    && !isMockWorkspaceActive()) {
+                callbackError("onPlatformAction", new SecurityException(
+                        "Cette rubrique est réservée au compte MOCK propriétaire."));
+                return;
+            }
             new Thread(() -> {
                 try {
                     JSONObject payload = payloadJson == null || payloadJson.trim().isEmpty()
