@@ -20,6 +20,7 @@ jobs:
           mkdir -p /tmp/bir-apktools
           cp "$build_tools/apksigner" /tmp/bir-apktools/
           cp -R "$build_tools/lib" /tmp/bir-apktools/
+          if [ -d "$build_tools/lib64" ]; then cp -R "$build_tools/lib64" /tmp/bir-apktools/; fi
           cp "$build_tools/aapt" /tmp/bir-apktools/
           cp "$build_tools/zipalign" /tmp/bir-apktools/
           "$build_tools/apksigner" version
