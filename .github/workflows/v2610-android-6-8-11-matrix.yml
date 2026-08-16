@@ -1,0 +1,100 @@
+name: BIR v2.6.10 Android 6 8 11 Matrix
+
+on:
+  push:
+    branches: [fix/bir-v2-6-10-field-control-tower]
+    paths:
+      - '.github/workflows/v2610-android-6-8-11-matrix.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  upgrade-and-launch:
+    name: Android-${{ matrix.api }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - api: 23
+            arch: x86
+            profile: Nexus 5
+          - api: 26
+            arch: x86_64
+            profile: Nexus 5
+          - api: 30
+            arch: x86_64
+            profile: Nexus 6
+    steps:
+      - name: Checkout exact validated business source
+        uses: actions/checkout@v5
+        with:
+          ref: 489d17e5bab2e116fd39fa77e60ebdd3622c7055
+          fetch-depth: 0
+
+      - name: Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Gradle 8.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+
+      - name: Build v2.6.9 and v2.6.10 with the same ephemeral test certificate
+        run: |
+          set -euo pipefail
+          mkdir -p .pilot-signing
+          keytool -genkeypair -v -keystore .pilot-signing/debug.keystore -storepass matrixvalidate -alias androiddebugkey -keypass matrixvalidate -keyalg RSA -keysize 2048 -validity 10000 -dname 'CN=BIR Matrix Validation,O=Blue Magic,C=CM' >/dev/null 2>&1
+          git worktree add /tmp/bir-v269 88b47b4c49e8d20c37b8da5ecb3fae9b07d868b0
+          mkdir -p /tmp/bir-v269/.pilot-signing
+          cp .pilot-signing/debug.keystore /tmp/bir-v269/.pilot-signing/debug.keystore
+          (
+            cd /tmp/bir-v269
+            BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=matrixvalidate gradle --no-daemon :app:assembleRelease
+          )
+          BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=matrixvalidate gradle --no-daemon :app:assembleRelease
+          cp /tmp/bir-v269/app/build/outputs/apk/release/app-release.apk /tmp/BIR-v269.apk
+          cp app/build/outputs/apk/release/app-release.apk /tmp/BIR-v2610.apk
+
+      - name: Upgrade and launch on Android ${{ matrix.api }}
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: ${{ matrix.arch }}
+          profile: ${{ matrix.profile }}
+          disable-animations: true
+          emulator-boot-timeout: 1200
+          script: |
+            set -eu
+            adb install /tmp/BIR-v269.apk | tee /tmp/install-v269.txt
+            grep -q 'Success' /tmp/install-v269.txt
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/start-v269.txt
+            grep -q 'Status: ok' /tmp/start-v269.txt
+            adb shell run-as com.profitloop.blueauto mkdir -p files
+            adb shell run-as com.profitloop.blueauto touch files/v2610-upgrade-marker
+
+            adb install -r /tmp/BIR-v2610.apk | tee /tmp/install-v2610.txt
+            grep -q 'Success' /tmp/install-v2610.txt
+            adb shell am force-stop com.profitloop.blueauto
+            adb logcat -c || true
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/start-v2610.txt
+            grep -q 'Status: ok' /tmp/start-v2610.txt
+            adb shell run-as com.profitloop.blueauto ls files/v2610-upgrade-marker
+            adb shell dumpsys package com.profitloop.blueauto | grep -q 'versionName=2.6.10'
+            adb shell pidof com.profitloop.blueauto
+            sleep 3
+            if adb logcat -d -b crash 2>/dev/null | grep -q com.profitloop.blueauto; then adb logcat -d -b crash; exit 1; fi
+
+            adb uninstall com.profitloop.blueauto | tee /tmp/uninstall.txt
+            grep -q 'Success' /tmp/uninstall.txt
+            adb install /tmp/BIR-v2610.apk | tee /tmp/clean-install.txt
+            grep -q 'Success' /tmp/clean-install.txt
+            adb logcat -c || true
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/clean-start.txt
+            grep -q 'Status: ok' /tmp/clean-start.txt
+            adb shell pidof com.profitloop.blueauto
+            if adb logcat -d -b crash 2>/dev/null | grep -q com.profitloop.blueauto; then adb logcat -d -b crash; exit 1; fi
