@@ -1,0 +1,34 @@
+name: BIR v2.7.1 Test Compatibility
+
+on:
+  push:
+    branches: [fix/bir-v2-7-1-field-stabilization]
+    paths: [.github/authorized-v271-test-compat.trigger]
+
+permissions:
+  contents: write
+
+jobs:
+  patch-tests:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fix/bir-v2-7-1-field-stabilization
+      - name: Update superseded historical expectations only
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/v271_test_compat.py
+          if ! git diff --quiet -- app/src/main cloudflare; then
+            echo '::error::Test compatibility patch touched product/server source.'
+            exit 1
+          fi
+          node app/src/test/finance-flow.mjs
+      - name: Commit test-only compatibility
+        run: |
+          set -euo pipefail
+          git config user.name 'Delor85'
+          git config user.email 'mbolodelorpro@gmail.com'
+          git add app/src/test/finance-flow.mjs app/src/test/v270-finalization-contract.mjs app/src/test/v270-owner-mock-contract.mjs
+          git commit -m 'test: accept v2.7.1 Blue branding in inherited contracts'
+          git push origin HEAD:fix/bir-v2-7-1-field-stabilization
