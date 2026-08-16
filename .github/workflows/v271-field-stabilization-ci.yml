@@ -22,7 +22,7 @@ jobs:
       - name: Prove protected production scope
         run: |
           set -euo pipefail
-          git merge-base --is-ancestor 3b40e665456232275548183095a0e81ee72d88fc HEAD
+          git merge-base --is-ancestor a5e0369420f917d684d35c2f53f2fc3cfff8be25 HEAD
           if ! git diff --quiet b3db1e3b2baac3424f4d7192ecb62d8b61020e8c...HEAD -- cloudflare; then
             echo '::error::cloudflare/ changed in v2.7.1 candidate.'
             exit 1
@@ -90,31 +90,37 @@ jobs:
           keytool -genkeypair -keystore .pilot-signing/debug.keystore -storepass "$password" -alias androiddebugkey -keypass "$password" -dname "CN=BIR v2.7.1 CI Validation,O=ProfitLoop,C=CM" -keyalg RSA -keysize 2048 -validity 30 -noprompt
           echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$password" >> "$GITHUB_ENV"
 
-      - name: Android unit tests and Release assembly
+      - name: Android unit tests, debug harness and Release assembly
         run: |
           set -euo pipefail
-          gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
+          gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease
 
       - name: Verify validation APK identity and alignment
         run: |
           set -euo pipefail
           build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
           apk=app/build/outputs/apk/release/app-release.apk
+          debug_apk=app/build/outputs/apk/debug/app-debug.apk
           "$build_tools/zipalign" -c -v 4 "$apk"
           "$build_tools/aapt" dump badging "$apk" | tee /tmp/v271-badging.txt
           grep -q "package: name='com.profitloop.blueauto' versionCode='52' versionName='2.7.1'" /tmp/v271-badging.txt
           grep -q "sdkVersion:'23'" /tmp/v271-badging.txt
           "$build_tools/apksigner" verify --verbose --print-certs "$apk" | tee /tmp/v271-signature.txt
           if "$build_tools/aapt" dump badging "$apk" | grep -q 'application-debuggable'; then exit 1; fi
+          test -f "$debug_apk"
+          "$build_tools/aapt" dump badging "$debug_apk" | grep -q "package: name='com.profitloop.blueauto' versionCode='52' versionName='2.7.1'"
+          "$build_tools/aapt" dump badging "$debug_apk" | grep -q 'application-debuggable'
           cp "$apk" BIR-Blue-Infinity-Retail-v2.7.1-Validation-Ephemeral.apk
+          cp "$debug_apk" BIR-Blue-Infinity-Retail-v2.7.1-Reboot-Harness-Debug.apk
           sha256sum BIR-Blue-Infinity-Retail-v2.7.1-Validation-Ephemeral.apk | tee BIR-v2.7.1-validation.sha256.txt
 
-      - name: Upload validation APK only
+      - name: Upload validation APK and same-source reboot harness
         uses: actions/upload-artifact@v4
         with:
           name: BIR-v2.7.1-validation-ephemeral
           path: |
             BIR-Blue-Infinity-Retail-v2.7.1-Validation-Ephemeral.apk
+            BIR-Blue-Infinity-Retail-v2.7.1-Reboot-Harness-Debug.apk
             BIR-v2.7.1-validation.sha256.txt
           if-no-files-found: error
           retention-days: 14
@@ -141,12 +147,12 @@ jobs:
         uses: actions/checkout@v5
         with:
           ref: fix/bir-v2-7-1-field-stabilization
-      - name: Download exact validation APK
+      - name: Download exact validation APKs
         uses: actions/download-artifact@v4
         with:
           name: BIR-v2.7.1-validation-ephemeral
           path: apk
-      - name: Boot, launch and prove Robot intent survives reboot-style SIM warm-up on Android ${{ matrix.api }}
+      - name: Launch Release then prove Robot reboot intent with same-source harness on Android ${{ matrix.api }}
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api }}
@@ -155,6 +161,14 @@ jobs:
           disable-animations: true
           script: |
             adb install -r apk/BIR-Blue-Infinity-Retail-v2.7.1-Validation-Ephemeral.apk
+            adb logcat -c
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity
+            sleep 3
+            adb shell dumpsys activity activities | grep -q 'com.profitloop.blueauto'
+            adb logcat -d '*:E' > /tmp/bir-v271-release-logcat.txt
+            ! grep -E 'FATAL EXCEPTION.*com.profitloop.blueauto|Process: com.profitloop.blueauto' /tmp/bir-v271-release-logcat.txt
+            adb uninstall com.profitloop.blueauto
+            adb install -r apk/BIR-Blue-Infinity-Retail-v2.7.1-Reboot-Harness-Debug.apk
             adb shell am start -W -n com.profitloop.blueauto/.MainActivity
             sleep 2
             adb shell am force-stop com.profitloop.blueauto
@@ -165,6 +179,6 @@ jobs:
             sleep 5
             adb shell run-as com.profitloop.blueauto cat shared_prefs/blue_magic_native_v2.xml | grep -q 'profile_android11-emulator_robot_enabled.*true'
             adb shell pidof com.profitloop.blueauto
-            adb logcat -d '*:E' > /tmp/bir-v271-logcat.txt
-            ! grep -E 'FATAL EXCEPTION.*com.profitloop.blueauto|Process: com.profitloop.blueauto' /tmp/bir-v271-logcat.txt
-            echo "Android API ${{ matrix.api }} launch + Robot reboot-intent persistence OK"
+            adb logcat -d '*:E' > /tmp/bir-v271-reboot-logcat.txt
+            ! grep -E 'FATAL EXCEPTION.*com.profitloop.blueauto|Process: com.profitloop.blueauto' /tmp/bir-v271-reboot-logcat.txt
+            echo "Android API ${{ matrix.api }} Release launch + Robot reboot-intent persistence OK"
