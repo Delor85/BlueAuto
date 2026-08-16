@@ -1,0 +1,6 @@
+scope=source-only-v280-admin-tchoronko
+base_source=73b2623446457b698013aa3cef4406abfbf7b885
+production_worker_deploy=forbidden
+d1_migration=forbidden
+pr4_merge=forbidden
+permanent_signing=forbidden
