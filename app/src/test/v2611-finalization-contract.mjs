@@ -10,6 +10,6 @@ for(const x of ['bir-topbar','bir-control-balance','bir-modules-grid','bir-botto
 for(const x of ['REMOTE PRÊT','buildRoleModules','bindKeyboardVisibility','detectCapabilities','serverSupportsCommissions','commission_policy','Aucun message d\\\'erreur ne sera affiché']) if(!js.includes(x)) throw new Error('control tower contract missing: '+x);
 if(/commissionCard\([\s\S]{0,800}platform\('commission_policy'/.test(js)) throw new Error('commission_policy must not run blindly at card creation');
 if(!worker.includes("2.6.11-cloudflare")||!worker.includes('capabilities: {commissions: true')) throw new Error('worker capabilities missing');
-if(!gradle.includes('versionCode 51')||!gradle.includes('versionName "2.7.0"')) throw new Error('android version mismatch');
-if(!api.includes('"2.7.0"')) throw new Error('api client version mismatch');
+if(!gradle.includes('versionCode 52')||!gradle.includes('versionName "2.7.1"')) throw new Error('android version mismatch');
+if(!api.includes('"2.7.1"')) throw new Error('api client version mismatch');
 console.log('BIR v2.6.11 finalization: reference UI, keyboard visibility, capability negotiation and commissions gate OK');
