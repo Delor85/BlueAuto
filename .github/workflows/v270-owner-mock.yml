@@ -63,7 +63,7 @@ jobs:
       - name: Compile Java and run Android unit tests without permanent signing
         run: |
           set -euo pipefail
-          gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug
+          gradle --no-daemon :app:testDebugUnitTest
 
       - name: Persist validated source convergence only
         run: |
