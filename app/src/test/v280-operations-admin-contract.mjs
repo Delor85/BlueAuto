@@ -15,7 +15,7 @@ const html=read('app/src/main/assets/index.html');
 const worker=read('cloudflare/src/index.js');
 const migration=read('cloudflare/migrations/0006_owner_admin_control_and_audit.sql');
 ok(manifest.includes('android:icon="@drawable/ic_launcher_bir"')&&manifest.includes('android:roundIcon="@drawable/ic_launcher_bir"'),'launcher icon must use BIR mark');
-ok(icon.includes('strokeColor="#19D7FF"')&&icon.includes('strokeColor="#FFE26F"'),'launcher icon must preserve blue/gold infinity identity');
+ok(icon.includes('strokeColor="#16D7FF"')&&icon.includes('strokeColor="#FFE26F"')&&icon.includes('M194,77 C154,26 110,16 71,25'),'launcher icon must reuse the in-app BIR blue/gold infinity geometry');
 ok(gradle.includes('versionCode 53')&&gradle.includes('versionName "2.8.0"'),'v2.8 identity');
 ok(api.includes('"2.8.0"')&&api.includes('X-Owner-Token')&&api.includes('ownerEnroll'),'native owner entitlement transport');
 ok(main.includes('"ADMIN".equals(node)')&&main.includes('OWNER_ADMIN_WORKSPACE_KEY')&&main.includes('SecureOwnerStore'),'private ADMIN entry, not a Blue role');
@@ -27,6 +27,7 @@ ok(v280.includes('COMPTABILITÉ GÉNÉRALE')&&v280.includes("period==='quarter'"
 ok(v280.includes('TCHORONKOS')&&v280.includes('TCHORONKO_SHADOW'),'Tchoronko network support');
 ok(migration.includes('owner_entitlements')&&migration.includes('admin_audit_log')&&migration.includes('device_control_actions')&&migration.includes('admin_assist_requests'),'audited owner-admin data model');
 ok(worker.includes("case 'owner_snapshot'")&&worker.includes("case 'owner_control'")&&worker.includes("case 'owner_assist'")&&worker.includes('authenticateOwner'),'server owner control source');
+ok(worker.includes("const API_VERSION = '2.8.0-cloudflare'")&&worker.includes('owner_admin: true')&&worker.includes('event_balance: true'),'v2.8 Worker source metadata and capabilities');
 ok(!worker.includes('b.available_balance')&&!worker.includes('b.reserved_amount'),'owner snapshot must query only real account_balances columns');
 ok(robot.includes('ACTION_CONTROL_POLL')&&robot.includes('START_ROBOT')&&robot.includes('STOP_ROBOT')&&boot.includes('pollAdministrativeControls'),'remote control application path');
 ok(worker.includes('requires_user_confirmation:true')||worker.includes('requires_user_confirmation:true'),'admin assistance must require user confirmation');

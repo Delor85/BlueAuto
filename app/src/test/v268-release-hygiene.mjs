@@ -2,8 +2,8 @@ import fs from 'node:fs';
 const build=fs.readFileSync('.github/workflows/build.yml','utf8');
 const pkg=JSON.parse(fs.readFileSync('cloudflare/package.json','utf8'));
 const lock=JSON.parse(fs.readFileSync('cloudflare/package-lock.json','utf8'));
-if(pkg.version!=='2.6.11') throw new Error('Cloudflare package version not 2.6.11');
-if(lock.version!=='2.6.11'||(lock.packages&&lock.packages['']&&lock.packages[''].version!=='2.6.11')) throw new Error('Cloudflare lock root version not 2.6.11');
+if(!['2.6.11','2.8.0'].includes(pkg.version)) throw new Error('Cloudflare package version outside supported stabilized lines');
+if(!['2.6.11','2.8.0'].includes(lock.version)||(lock.packages&&lock.packages['']&&!['2.6.11','2.8.0'].includes(lock.packages[''].version))) throw new Error('Cloudflare lock root version outside supported stabilized lines');
 for(const required of ['publish_permanent','authorized_sha','inputs.authorized_sha == github.sha','Préparer une signature éphémère de validation','v268-native-status.mjs','Blue-Magic-v2.6.8-Stabilisation-Ergonomie-Release.apk','versionName=2.6.8']){
   if(!build.includes(required)) throw new Error('release hygiene missing: '+required);
 }
