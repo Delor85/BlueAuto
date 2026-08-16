@@ -1,7 +1,7 @@
 import {parseBlueMessage} from './blue-message.mjs';
 import {CAMTEL_USSD, canonicalCamtelIdentity, parseCamtelIdentity, publicCamtelCatalog} from './camtel-catalog.mjs';
 
-const API_VERSION = '2.6.10-cloudflare';
+const API_VERSION = '2.6.11-cloudflare';
 const ROBOT_LIVE_WINDOW_MINUTES = 15;
 const BALANCE_EVIDENCE_TTL_SECONDS = 3600;
 const REPORT_BALANCE_EVIDENCE_TTL_SECONDS = 14 * 3600;
@@ -45,7 +45,7 @@ export default {
       const input = request.method === 'POST' ? await readJson(request) : {};
       if (action === 'health') {
         await env.DB.prepare('SELECT 1 AS online').first();
-        return success({service: 'blue-magic-api', version: API_VERSION, database: 'online'}, 200, headers);
+        return success({service: 'blue-magic-api', version: API_VERSION, database: 'online', capabilities: {commissions: true, commission_override: true, remote_results: true, force_sync: true, network_audit: true}}, 200, headers);
       }
       if (action === 'pair_device') return await pairDevice(env, input, headers);
 

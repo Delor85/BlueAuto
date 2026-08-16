@@ -1,0 +1,15 @@
+import fs from 'node:fs';
+const html=fs.readFileSync('app/src/main/assets/index.html','utf8');
+const css=fs.readFileSync('app/src/main/assets/control-tower-v2611.css','utf8');
+const js=fs.readFileSync('app/src/main/assets/control-tower-v2611.js','utf8');
+const gradle=fs.readFileSync('app/build.gradle','utf8');
+const worker=fs.readFileSync('cloudflare/src/index.js','utf8');
+const api=fs.readFileSync('app/src/main/java/com/profitloop/blueauto/ApiClient.java','utf8');
+if(!html.includes('control-tower-v2611.css')||!html.includes('control-tower-v2611.js')) throw new Error('v2611 assets not wired');
+for(const x of ['bir-topbar','bir-control-balance','bir-modules-grid','bir-bottom-nav','form-editing .module-tabs','-webkit-text-fill-color:#071b3a','scroll-margin-bottom:150px']) if(!css.includes(x)) throw new Error('visual/input contract missing: '+x);
+for(const x of ['REMOTE PRÊT','buildRoleModules','bindKeyboardVisibility','detectCapabilities','serverSupportsCommissions','commission_policy','Aucun message d\\\'erreur ne sera affiché']) if(!js.includes(x)) throw new Error('control tower contract missing: '+x);
+if(/commissionCard\([\s\S]{0,800}platform\('commission_policy'/.test(js)) throw new Error('commission_policy must not run blindly at card creation');
+if(!worker.includes("2.6.11-cloudflare")||!worker.includes('capabilities: {commissions: true')) throw new Error('worker capabilities missing');
+if(!gradle.includes('versionCode 51')||!gradle.includes('versionName "2.6.11"')) throw new Error('android version mismatch');
+if(!api.includes('"2.6.11"')) throw new Error('api client version mismatch');
+console.log('BIR v2.6.11 finalization: reference UI, keyboard visibility, capability negotiation and commissions gate OK');
