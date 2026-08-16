@@ -63,6 +63,7 @@ jobs:
           node app/src/test/v2611-finalization-contract.mjs
           node app/src/test/v2611-shell-contract.mjs
           node app/src/test/v270-finalization-contract.mjs
+          node app/src/test/v270-owner-mock-contract.mjs
           node --check app/src/main/assets/app.js
           node --check app/src/main/assets/platform-v267.js
           node --check app/src/main/assets/control-tower-v2611.js
