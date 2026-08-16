@@ -3,167 +3,50 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#071a39">
-<title>Blue Magic Infinite — Prototype</title>
+<meta name="theme-color" content="#f4fbff">
+<title>Blue Magic Infinite — Prototype UX</title>
 <style>
-:root{
-  --ink:#07152d;--deep:#071a39;--deep2:#0c2c5c;--blue:#136ff5;--cyan:#25d9ff;
-  --sky:#ecf9ff;--white:#fff;--gold:#ffcc59;--gold2:#ffe9a8;--mint:#27d7a1;
-  --violet:#7b63ff;--danger:#ff6177;--muted:#72839a;--line:rgba(8,55,108,.10);
-  --shadow:0 18px 48px rgba(14,67,125,.14);--radius:24px;
-}
-*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,Roboto,"Segoe UI",Arial,sans-serif;color:var(--ink);background:#f5fbff}
-body{background:radial-gradient(circle at 90% 2%,rgba(37,217,255,.16),transparent 28%),radial-gradient(circle at 4% 8%,rgba(255,204,89,.14),transparent 26%),linear-gradient(180deg,#f9fdff,#eef8ff 46%,#f8fbff)}
-button,input,select{font:inherit}.app{max-width:720px;margin:0 auto;padding:0 12px 110px}.top{position:sticky;top:0;z-index:10;margin:0 -12px;padding:10px 14px 8px;background:rgba(247,252,255,.90);backdrop-filter:blur(14px);border-bottom:1px solid rgba(12,44,92,.07)}
-.toprow{display:flex;align-items:center;justify-content:space-between;gap:10px}.brand{display:flex;align-items:center;gap:10px}.mark{width:43px;height:43px;border-radius:16px;display:grid;place-items:center;color:#fff;font-size:27px;font-weight:900;background:linear-gradient(145deg,#0a2a59,#136ff5 57%,#25d9ff);box-shadow:0 8px 22px rgba(19,111,245,.28),inset 0 0 0 1px rgba(255,255,255,.24)}
-.brand small{display:block;color:#44809c;font-weight:900;letter-spacing:.13em;font-size:9px}.brand strong{display:block;font-size:18px;letter-spacing:-.02em}.role{border:1px solid rgba(19,111,245,.14);background:#fff;border-radius:999px;padding:8px 10px;color:#0f4d94;font-weight:900;font-size:11px;box-shadow:0 7px 20px rgba(14,67,125,.08)}
-.hero{position:relative;overflow:hidden;margin-top:12px;border-radius:28px;padding:20px 18px 18px;color:#fff;background:radial-gradient(circle at 82% 22%,rgba(37,217,255,.34),transparent 24%),radial-gradient(circle at 18% 0,rgba(255,204,89,.28),transparent 32%),linear-gradient(135deg,#071a39,#0a3470 52%,#126ff4);box-shadow:0 24px 54px rgba(7,43,90,.22)}
-.hero:after{content:"∞";position:absolute;right:-16px;bottom:-58px;font-size:190px;font-weight:900;color:rgba(255,255,255,.055);line-height:1}.herohead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.eyebrow{font-size:9px;font-weight:900;letter-spacing:.15em;text-transform:uppercase;color:#6fdfff;margin:0 0 5px}.hero .eyebrow{color:#91eeff}.node{font-size:13px;font-weight:800;color:#cfe9ff}.pulse{display:inline-flex;align-items:center;gap:6px;padding:7px 9px;border-radius:999px;border:1px solid rgba(114,239,255,.35);background:rgba(0,0,0,.16);font-size:10px;font-weight:900}.dot{width:7px;height:7px;border-radius:50%;background:#5df2aa;box-shadow:0 0 0 5px rgba(93,242,170,.11)}
-.balanceLabel{margin-top:22px;color:#b9d5f6;font-size:11px;font-weight:700}.balance{display:flex;align-items:end;gap:7px;margin-top:2px}.balance strong{font-size:35px;letter-spacing:-.05em}.balance span{font-size:12px;font-weight:900;margin-bottom:6px;color:#c8ecff}.moneyrow{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}.moneybox{padding:10px 11px;border:1px solid rgba(255,255,255,.13);border-radius:16px;background:rgba(3,16,40,.19)}.moneybox small{display:block;color:#b8d3ed;font-size:9px;font-weight:800}.moneybox strong{display:block;margin-top:3px;font-size:14px}.moneybox.gold strong{color:#ffe08c}
-.heroactions{display:flex;gap:8px;margin-top:14px}.heroactions button{flex:1;min-height:44px;border:0;border-radius:14px;font-weight:900;font-size:11px}.primary{color:#07152d;background:linear-gradient(100deg,#ffd25e,#fff0b2);box-shadow:0 9px 22px rgba(255,204,89,.22)}.ghost{color:#fff;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.18)!important}
-.section{margin-top:16px}.sectiontitle{display:flex;align-items:end;justify-content:space-between;gap:10px;margin:0 3px 9px}.sectiontitle h2{font-size:16px;margin:0;letter-spacing:-.02em}.sectiontitle p{font-size:10px;color:var(--muted);margin:3px 0 0}.sectiontitle button{border:0;background:transparent;color:#1169dd;font-size:10px;font-weight:900}
-.momentum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{background:#fff;border:1px solid var(--line);border-radius:18px;padding:12px 10px;box-shadow:0 10px 25px rgba(14,67,125,.07)}.stat b{display:block;font-size:18px;letter-spacing:-.04em}.stat span{display:block;margin-top:3px;color:#74859b;font-size:9px;font-weight:800}.stat.good b{color:#0d9d73}.stat.gold b{color:#be7c00}
-.progressCard{margin-top:8px;padding:12px;border-radius:18px;background:#fff;border:1px solid var(--line);box-shadow:0 10px 25px rgba(14,67,125,.06)}.progressline{display:flex;justify-content:space-between;font-size:10px;font-weight:900}.track{height:7px;border-radius:999px;background:#eaf1f8;margin-top:8px;overflow:hidden}.track i{display:block;width:72%;height:100%;border-radius:inherit;background:linear-gradient(90deg,#25d9ff,#136ff5,#7b63ff)}
-.quick{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.quick button{border:0;background:#fff;border-radius:18px;padding:11px 5px 10px;min-height:78px;box-shadow:0 10px 25px rgba(14,67,125,.07);border:1px solid var(--line);color:#153252;font-weight:900;font-size:9px}.ico{width:36px;height:36px;margin:0 auto 6px;border-radius:13px;display:grid;place-items:center;font-size:18px;background:linear-gradient(145deg,#e8f9ff,#ddecff);color:#126ff4}.quick .magic .ico{background:linear-gradient(145deg,#fff3c2,#ffe080);color:#8a5a00}.quick .network .ico{background:linear-gradient(145deg,#ddfff4,#c9f7e7);color:#088661}.quick .robot .ico{background:linear-gradient(145deg,#eee9ff,#ddd5ff);color:#654de5}
-.catalog{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.product{position:relative;min-height:112px;padding:13px 10px;border-radius:20px;background:#fff;border:1px solid var(--line);box-shadow:0 11px 28px rgba(14,67,125,.07);overflow:hidden}.product:after{content:"";position:absolute;width:54px;height:54px;border-radius:50%;right:-22px;bottom:-22px;background:rgba(37,217,255,.09)}.product .ico{margin:0 0 12px}.product b{display:block;font-size:11px}.product small{display:block;color:#7a8da3;margin-top:3px;font-size:8px;line-height:1.3}.product.hot{background:linear-gradient(160deg,#fff,#f0fbff);border-color:rgba(37,217,255,.22)}.product.gold{background:linear-gradient(160deg,#fff,#fff9e8);border-color:rgba(255,204,89,.28)}
-.paycard{border-radius:24px;padding:15px;background:linear-gradient(145deg,#fff,#f8fcff);border:1px solid rgba(19,111,245,.12);box-shadow:var(--shadow)}.payhead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}.payhead h3{font-size:15px;margin:3px 0}.freebadge{padding:7px 9px;border-radius:999px;color:#087b5b;background:#e1fff5;font-size:9px;font-weight:900;white-space:nowrap}.paygrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.provider{padding:11px;border-radius:16px;border:1px solid var(--line);background:#f9fcff}.provider b{display:block;font-size:11px}.provider span{display:block;font-size:8px;color:#7a8da3;margin-top:3px}.route{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding:10px;border-radius:14px;background:#071a39;color:#fff}.route small{color:#afc9e7;font-size:8px}.route strong{display:block;font-size:11px;margin-top:2px}.route button{border:0;border-radius:10px;padding:9px 11px;background:linear-gradient(100deg,#ffd25e,#fff0b2);font-size:9px;font-weight:900;color:#07152d}
-.activity{background:#fff;border-radius:21px;border:1px solid var(--line);box-shadow:0 10px 25px rgba(14,67,125,.06);overflow:hidden}.event{display:flex;align-items:center;gap:10px;padding:11px 12px;border-bottom:1px solid #eef3f7}.event:last-child{border-bottom:0}.event .ico{width:34px;height:34px;margin:0;flex:0 0 auto}.eventbody{min-width:0;flex:1}.eventbody b{font-size:10px;display:block}.eventbody span{font-size:8px;color:#7d8ea3;display:block;margin-top:3px}.amount{font-size:10px;font-weight:900;color:#0a875f;white-space:nowrap}
-.nav{position:fixed;z-index:20;left:50%;transform:translateX(-50%);bottom:max(7px,env(safe-area-inset-bottom));width:min(94%,680px);display:grid;grid-template-columns:repeat(5,1fr);gap:3px;padding:6px;background:rgba(6,26,57,.96);border:1px solid rgba(255,255,255,.10);border-radius:22px;box-shadow:0 20px 50px rgba(4,27,60,.34)}.nav button{border:0;background:transparent;color:#94abc5;min-height:54px;border-radius:16px;font-size:8px;font-weight:900}.nav button span{display:block;font-size:18px;margin-bottom:3px}.nav button.active{color:#fff;background:linear-gradient(145deg,rgba(37,217,255,.18),rgba(19,111,245,.28));box-shadow:inset 0 0 0 1px rgba(107,227,255,.18)}.nav button.center{transform:translateY(-13px);background:linear-gradient(145deg,#ffd25e,#25d9ff 65%,#136ff5);color:#07152d;border:3px solid #071a39;box-shadow:0 9px 22px rgba(19,111,245,.30)}
-.sheet{position:fixed;inset:0;z-index:50;display:none;align-items:flex-end;justify-content:center;background:rgba(2,13,30,.56);padding:10px}.sheet.open{display:flex}.sheetbox{width:min(100%,680px);max-height:88vh;overflow:auto;background:#f8fcff;border-radius:28px 28px 20px 20px;padding:16px;box-shadow:0 -24px 80px rgba(0,0,0,.28)}.sheetbar{width:54px;height:5px;border-radius:999px;background:#d5e2ec;margin:0 auto 14px}.sheet h3{margin:0;font-size:18px}.sheet p{color:#71839a;font-size:10px;line-height:1.5}.field{margin-top:11px}.field label{display:block;font-size:9px;font-weight:900;color:#44627f;margin-bottom:5px}.field input,.field select{width:100%;min-height:47px;border-radius:14px;border:1px solid #dce8f1;background:#fff;padding:0 12px;color:#0b2342;outline:0}.field input:focus,.field select:focus{border-color:#25bff1;box-shadow:0 0 0 3px rgba(37,217,255,.12)}.quote{margin-top:12px;padding:12px;border-radius:17px;background:#071a39;color:#fff}.qrow{display:flex;justify-content:space-between;gap:10px;margin:6px 0;font-size:10px}.qrow span{color:#bdd0e6}.qrow strong.gold{color:#ffdd80}.submit{width:100%;min-height:49px;margin-top:12px;border:0;border-radius:15px;background:linear-gradient(100deg,#ffd25e,#25d9ff 72%,#136ff5);color:#07152d;font-weight:950}.cancel{width:100%;min-height:42px;border:0;background:transparent;color:#71839a;font-weight:900;font-size:10px}.disclaimer{margin-top:10px;padding:10px;border-radius:13px;background:#fff8dc;color:#715511;font-size:8px;line-height:1.45}
-.toast{position:fixed;z-index:80;left:50%;transform:translateX(-50%);bottom:86px;width:min(90%,620px);padding:12px 14px;border-radius:15px;background:#071a39;color:#fff;font-size:10px;font-weight:800;box-shadow:0 15px 38px rgba(0,0,0,.27);display:none}.toast.show{display:block}
-@media(max-width:360px){.app{padding-left:8px;padding-right:8px}.top{margin-left:-8px;margin-right:-8px}.hero{border-radius:23px;padding:16px 13px}.balance strong{font-size:30px}.momentum{gap:5px}.stat{padding:10px 7px}.stat b{font-size:15px}.quick{gap:5px}.quick button{min-height:72px;padding-left:2px;padding-right:2px}.catalog{gap:5px}.product{padding:11px 7px;min-height:104px}.nav{width:97%;padding:5px}.nav button{font-size:7px;min-height:50px}.paygrid{grid-template-columns:1fr}.moneyrow{gap:5px}}
-@media(max-width:310px){.catalog{grid-template-columns:1fr 1fr}.quick{grid-template-columns:1fr 1fr}.momentum{grid-template-columns:1fr}.heroactions{display:block}.heroactions button{width:100%;margin-top:6px}}
+:root{--ink:#07152d;--deep:#071a39;--blue:#136ff5;--cyan:#25d9ff;--gold:#ffd25e;--mint:#26d6a0;--violet:#765dff;--muted:#74869b;--line:rgba(9,56,108,.10);--shadow:0 16px 42px rgba(13,68,126,.12)}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,Roboto,"Segoe UI",Arial,sans-serif;color:var(--ink);background:#f5fbff}body{background:radial-gradient(circle at 90% 1%,rgba(37,217,255,.15),transparent 28%),radial-gradient(circle at 3% 9%,rgba(255,210,94,.14),transparent 24%),linear-gradient(180deg,#fbfeff,#edf8ff 50%,#f8fcff)}button,select{font:inherit}.app{max-width:720px;margin:auto;padding:0 12px 112px}.top{position:sticky;top:0;z-index:10;margin:0 -12px;padding:10px 14px 8px;background:rgba(248,253,255,.91);backdrop-filter:blur(14px);border-bottom:1px solid rgba(7,26,57,.06)}.row{display:flex;align-items:center;justify-content:space-between;gap:10px}.brand{display:flex;align-items:center;gap:10px}.mark{width:43px;height:43px;border-radius:16px;display:grid;place-items:center;color:#fff;font-size:27px;font-weight:900;background:linear-gradient(145deg,#092451,#136ff5 58%,#25d9ff);box-shadow:0 8px 22px rgba(19,111,245,.28),inset 0 0 0 1px rgba(255,255,255,.25)}.brand small{display:block;color:#44809c;font-weight:900;letter-spacing:.13em;font-size:9px}.brand strong{display:block;font-size:18px}.role{border:1px solid rgba(19,111,245,.14);background:#fff;border-radius:999px;padding:8px 9px;color:#0f4d94;font-weight:900;font-size:10px;box-shadow:0 7px 18px rgba(14,67,125,.07)}
+.hero{position:relative;overflow:hidden;margin-top:12px;border-radius:28px;padding:19px 18px;color:#fff;background:radial-gradient(circle at 84% 19%,rgba(37,217,255,.34),transparent 25%),radial-gradient(circle at 16% 0,rgba(255,210,94,.28),transparent 31%),linear-gradient(135deg,#071a39,#0b3470 52%,#136ff5);box-shadow:0 24px 54px rgba(7,43,90,.21)}.hero:after{content:"∞";position:absolute;right:-18px;bottom:-61px;font-size:190px;font-weight:900;color:rgba(255,255,255,.055);line-height:1}.herohead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.eyebrow{margin:0 0 5px;color:#3c8fac;font-size:9px;font-weight:900;letter-spacing:.15em}.hero .eyebrow{color:#92efff}.node{font-size:12px;font-weight:850;color:#d5eaff}.pulse{display:inline-flex;align-items:center;gap:6px;padding:7px 9px;border-radius:999px;border:1px solid rgba(114,239,255,.35);background:rgba(0,0,0,.16);font-size:9px;font-weight:900}.dot{width:7px;height:7px;border-radius:50%;background:#5df2aa;box-shadow:0 0 0 5px rgba(93,242,170,.11)}.balanceLabel{margin-top:21px;color:#b9d5f6;font-size:10px;font-weight:800}.balance{display:flex;align-items:end;gap:7px}.balance strong{font-size:35px;letter-spacing:-.05em}.balance span{font-size:11px;font-weight:900;margin-bottom:6px;color:#c8ecff}.moneyrow{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:13px}.money{padding:10px 11px;border:1px solid rgba(255,255,255,.13);border-radius:16px;background:rgba(3,16,40,.19)}.money small{display:block;color:#b8d3ed;font-size:8px;font-weight:800}.money strong{display:block;margin-top:3px;font-size:14px}.money.gold strong{color:#ffe08c}.heroactions{display:flex;gap:8px;margin-top:13px}.heroactions button{flex:1;min-height:44px;border:0;border-radius:14px;font-weight:950;font-size:10px}.primary{color:#07152d;background:linear-gradient(100deg,#ffd25e,#fff0b2);box-shadow:0 9px 22px rgba(255,204,89,.22)}.ghost{color:#fff;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.18)!important}
+.section{margin-top:16px}.sectiontitle{display:flex;align-items:end;justify-content:space-between;gap:8px;margin:0 3px 9px}.sectiontitle h2{font-size:16px;margin:0;letter-spacing:-.02em}.sectiontitle p{font-size:9px;color:var(--muted);margin:3px 0 0}.sectiontitle button{border:0;background:transparent;color:#1169dd;font-size:9px;font-weight:900}.momentum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{background:#fff;border:1px solid var(--line);border-radius:18px;padding:12px 10px;box-shadow:0 10px 25px rgba(14,67,125,.07)}.stat b{display:block;font-size:18px;letter-spacing:-.04em}.stat span{display:block;margin-top:3px;color:#74859b;font-size:8px;font-weight:800}.stat.good b{color:#0d9d73}.stat.gold b{color:#b87900}.progress{margin-top:8px;padding:12px;border-radius:18px;background:#fff;border:1px solid var(--line);box-shadow:0 10px 25px rgba(14,67,125,.06)}.progressline{display:flex;justify-content:space-between;font-size:9px;font-weight:900}.track{height:7px;border-radius:999px;background:#eaf1f8;margin-top:8px;overflow:hidden}.track i{display:block;width:72%;height:100%;border-radius:inherit;background:linear-gradient(90deg,#25d9ff,#136ff5,#765dff)}
+.quick{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.quick button{border:0;background:#fff;border-radius:18px;padding:11px 4px 10px;min-height:78px;box-shadow:0 10px 25px rgba(14,67,125,.07);border:1px solid var(--line);color:#153252;font-weight:900;font-size:8px}.ico{width:36px;height:36px;margin:0 auto 6px;border-radius:13px;display:grid;place-items:center;font-size:18px;background:linear-gradient(145deg,#e8f9ff,#ddecff);color:#126ff4}.magic .ico{background:linear-gradient(145deg,#fff3c2,#ffe080);color:#8a5a00}.network .ico{background:linear-gradient(145deg,#ddfff4,#c9f7e7);color:#088661}.robot .ico{background:linear-gradient(145deg,#eee9ff,#ddd5ff);color:#654de5}
+.capabilities{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.cap{position:relative;min-height:118px;padding:14px;border-radius:21px;background:#fff;border:1px solid var(--line);box-shadow:0 11px 28px rgba(14,67,125,.07);overflow:hidden}.cap:after{content:"";position:absolute;width:64px;height:64px;border-radius:50%;right:-26px;bottom:-25px;background:rgba(37,217,255,.08)}.cap .ico{margin:0 0 12px}.cap b{display:block;font-size:11px}.cap small{display:block;color:#7a8da3;margin-top:4px;font-size:8px;line-height:1.45}.cap.featured{background:linear-gradient(155deg,#fff,#f0fbff);border-color:rgba(37,217,255,.22)}.cap.gold{background:linear-gradient(155deg,#fff,#fff9e8);border-color:rgba(255,204,89,.28)}
+.foundation{border-radius:24px;padding:15px;background:linear-gradient(145deg,#fff,#f8fcff);border:1px solid rgba(19,111,245,.12);box-shadow:var(--shadow)}.foundationhead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}.foundation h3{font-size:15px;margin:3px 0}.badge{padding:7px 9px;border-radius:999px;font-size:8px;font-weight:900;white-space:nowrap}.badge.off{color:#765a11;background:#fff4c9}.architecture{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:11px}.layer{padding:10px 8px;border-radius:15px;border:1px solid var(--line);background:#f9fcff;text-align:center}.layer b{display:block;font-size:9px}.layer span{display:block;margin-top:3px;color:#7b8da3;font-size:7px;line-height:1.35}.lockline{margin-top:10px;padding:10px;border-radius:14px;background:#071a39;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:10px}.lockline small{display:block;color:#b7cae2;font-size:7px}.lockline strong{display:block;margin-top:2px;font-size:9px}.lockpill{padding:7px 8px;border-radius:10px;background:rgba(255,210,94,.16);color:#ffe18a;font-size:8px;font-weight:900}.foundationnote{margin:10px 0 0;padding:9px 10px;border-radius:13px;background:#eef9ff;color:#46647f;font-size:8px;line-height:1.5}
+.activity{background:#fff;border-radius:21px;border:1px solid var(--line);box-shadow:0 10px 25px rgba(14,67,125,.06);overflow:hidden}.event{display:flex;align-items:center;gap:10px;padding:11px 12px;border-bottom:1px solid #eef3f7}.event:last-child{border-bottom:0}.event .ico{width:34px;height:34px;margin:0;flex:0 0 auto}.eventbody{min-width:0;flex:1}.eventbody b{font-size:9px;display:block}.eventbody span{font-size:7px;color:#7d8ea3;display:block;margin-top:3px}.amount{font-size:9px;font-weight:900;color:#0a875f;white-space:nowrap}.nav{position:fixed;z-index:20;left:50%;transform:translateX(-50%);bottom:max(7px,env(safe-area-inset-bottom));width:min(94%,680px);display:grid;grid-template-columns:repeat(5,1fr);gap:3px;padding:6px;background:rgba(6,26,57,.96);border:1px solid rgba(255,255,255,.10);border-radius:22px;box-shadow:0 20px 50px rgba(4,27,60,.34)}.nav button{border:0;background:transparent;color:#94abc5;min-height:54px;border-radius:16px;font-size:7px;font-weight:900}.nav button span{display:block;font-size:18px;margin-bottom:3px}.nav button.active{color:#fff;background:linear-gradient(145deg,rgba(37,217,255,.18),rgba(19,111,245,.28));box-shadow:inset 0 0 0 1px rgba(107,227,255,.18)}.nav button.center{transform:translateY(-13px);background:linear-gradient(145deg,#ffd25e,#25d9ff 65%,#136ff5);color:#07152d;border:3px solid #071a39;box-shadow:0 9px 22px rgba(19,111,245,.30)}.toast{position:fixed;z-index:80;left:50%;transform:translateX(-50%);bottom:86px;width:min(90%,620px);padding:12px 14px;border-radius:15px;background:#071a39;color:#fff;font-size:9px;font-weight:800;box-shadow:0 15px 38px rgba(0,0,0,.27);display:none}.toast.show{display:block}
+@media(max-width:360px){.app{padding-left:8px;padding-right:8px}.top{margin-left:-8px;margin-right:-8px}.hero{border-radius:23px;padding:16px 13px}.balance strong{font-size:30px}.momentum,.quick{gap:5px}.stat{padding:10px 7px}.stat b{font-size:15px}.quick button{min-height:72px}.architecture{grid-template-columns:1fr}.nav{width:97%;padding:5px}.moneyrow{gap:5px}}
+@media(max-width:310px){.capabilities,.quick{grid-template-columns:1fr 1fr}.momentum{grid-template-columns:1fr}.heroactions{display:block}.heroactions button{width:100%;margin-top:6px}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
 </style>
 </head>
 <body>
 <div class="app">
-  <header class="top">
-    <div class="toprow">
-      <div class="brand"><div class="mark">∞</div><div><small>PROFITLOOP TELECOM</small><strong>Blue Magic</strong></div></div>
-      <select id="role" class="role" aria-label="Rôle de démonstration"><option>DAE</option><option>DSM</option><option>POS</option></select>
-    </div>
-  </header>
+<header class="top"><div class="row"><div class="brand"><div class="mark">∞</div><div><small>PROFITLOOP TELECOM</small><strong>Blue Magic</strong></div></div><select id="role" class="role" aria-label="Rôle de démonstration"><option>DAE</option><option>DSM</option><option>POS</option></select></div></header>
 
-  <section class="hero">
-    <div class="herohead">
-      <div><p class="eyebrow">RÉSEAU ACTIF</p><div class="node" id="nodeText">OU3 • DAE</div></div>
-      <div class="pulse"><i class="dot"></i><span id="robotText">ROBOT ACTIF</span></div>
-    </div>
-    <div class="balanceLabel">Disponible maintenant</div>
-    <div class="balance"><strong id="balanceText">528 400</strong><span>FCFA</span></div>
-    <div class="moneyrow">
-      <div class="moneybox"><small>Solde Camtel</small><strong>550 000 F</strong></div>
-      <div class="moneybox gold"><small>Commissions aujourd’hui</small><strong>+18 450 F</strong></div>
-    </div>
-    <div class="heroactions">
-      <button class="primary" id="mainAction">PILOTER MON RÉSEAU</button>
-      <button class="ghost" id="fundAction">＋ APPROVISIONNER</button>
-    </div>
-  </section>
+<section class="hero">
+  <div class="herohead"><div><p class="eyebrow">RÉSEAU ACTIF</p><div class="node" id="nodeText">OU3 • DAE</div></div><div class="pulse"><i class="dot"></i><span>ROBOT ACTIF</span></div></div>
+  <div class="balanceLabel">Disponible maintenant</div><div class="balance"><strong>528 400</strong><span>FCFA</span></div>
+  <div class="moneyrow"><div class="money"><small>Solde Camtel</small><strong>550 000 F</strong></div><div class="money gold"><small>Commissions aujourd’hui</small><strong>+18 450 F</strong></div></div>
+  <div class="heroactions"><button class="primary" id="mainAction">PILOTER MON RÉSEAU</button><button class="ghost" id="manageAction">∞ GÉRER</button></div>
+</section>
 
-  <section class="section">
-    <div class="sectiontitle"><div><h2>Votre énergie aujourd’hui</h2><p>Les chiffres utiles, sans écran surchargé.</p></div><button>VOIR PLUS</button></div>
-    <div class="momentum">
-      <article class="stat good"><b>47</b><span>VENTES RÉUSSIES</span></article>
-      <article class="stat gold"><b>18,4k</b><span>COMMISSIONS F</span></article>
-      <article class="stat"><b>3</b><span>NŒUDS À SUIVRE</span></article>
-    </div>
-    <article class="progressCard"><div class="progressline"><span>Objectif commercial du jour</span><b>72 %</b></div><div class="track"><i></i></div></article>
-  </section>
+<section class="section"><div class="sectiontitle"><div><h2>Votre énergie aujourd’hui</h2><p>Les indicateurs utiles sans transformer l’accueil en rapport.</p></div><button>VOIR PLUS</button></div><div class="momentum"><article class="stat good"><b>47</b><span>OPÉRATIONS RÉUSSIES</span></article><article class="stat gold"><b>18,4k</b><span>COMMISSIONS F</span></article><article class="stat"><b>3</b><span>NŒUDS À SUIVRE</span></article></div><article class="progress"><div class="progressline"><span>Dynamique commerciale du jour</span><b>72 %</b></div><div class="track"><i></i></div></article></section>
 
-  <section class="section">
-    <div class="sectiontitle"><div><h2>Actions instantanées</h2><p>Une intention = une action visible.</p></div></div>
-    <div class="quick">
-      <button class="magic" id="sellQuick"><span class="ico">⚡</span>VENDRE</button>
-      <button class="network"><span class="ico">⌁</span>RÉSEAU</button>
-      <button id="payQuick"><span class="ico">＋</span>RECHARGER</button>
-      <button class="robot"><span class="ico">◉</span>ROBOT</button>
-    </div>
-  </section>
+<section class="section"><div class="sectiontitle"><div><h2>Actions instantanées</h2><p>Une intention fréquente reste à portée du pouce.</p></div></div><div class="quick"><button class="magic" id="quickMain"><span class="ico">⚡</span>PILOTER</button><button class="network"><span class="ico">⌁</span>RÉSEAU</button><button><span class="ico">◫</span>SOLDES</button><button class="robot"><span class="ico">◉</span>ROBOT</button></div></section>
 
-  <section class="section">
-    <div class="sectiontitle"><div><h2>Univers de services</h2><p>Les produits fréquents remontent automatiquement.</p></div><button>TOUT VOIR</button></div>
-    <div class="catalog">
-      <article class="product hot"><span class="ico">B</span><b>Blue</b><small>Crédit • Internet • services Camtel</small></article>
-      <article class="product"><span class="ico">M</span><b>MTN</b><small>Mobile Money • crédit • bundles</small></article>
-      <article class="product"><span class="ico">O</span><b>Orange</b><small>Money • crédit • forfaits</small></article>
-      <article class="product gold"><span class="ico">▣</span><b>Canal+</b><small>Bouquets & réabonnements</small></article>
-      <article class="product"><span class="ico">ϟ</span><b>Énergie</b><small>Factures & compteurs</small></article>
-      <article class="product"><span class="ico">∞</span><b>Magic+</b><small>Futurs services et partenaires</small></article>
-    </div>
-  </section>
+<section class="section"><div class="sectiontitle"><div><h2>Blue Magic, simplement</h2><p>Pas de catalogue copié : uniquement les capacités propres de la plateforme.</p></div></div><div class="capabilities">
+  <article class="cap featured"><span class="ico">⚡</span><b>Vente Blue</b><small>Recharge client PoS, confirmation financière et preuve Camtel.</small></article>
+  <article class="cap gold"><span class="ico">↗</span><b>Approvisionnement</b><small>DAE → DSM → PoS avec commissions, capacité et concurrence maîtrisées.</small></article>
+  <article class="cap"><span class="ico">◫</span><b>Soldes & preuves</b><small>Solde Camtel, disponible, réservations confirmées, historique et détails.</small></article>
+  <article class="cap"><span class="ico">⌁</span><b>Réseau vivant</b><small>Visibilité selon le rôle, activité, état terminal et filiation réelle.</small></article>
+  <article class="cap"><span class="ico">◉</span><b>Robot intelligent</b><small>Remote, Robot, multi-SIM, file, reprise et assistance terrain.</small></article>
+  <article class="cap"><span class="ico">◇</span><b>SAV & diagnostic</b><small>État serveur, test sans fonds, anomalies et actions de reprise.</small></article>
+</div></section>
 
-  <section class="section">
-    <div class="sectiontitle"><div><h2>Blue Magic Pay</h2><p>Un montant, le meilleur rail disponible.</p></div><span class="freebadge">0 F frais Blue Magic*</span></div>
-    <article class="paycard">
-      <div class="payhead"><div><p class="eyebrow">ROUTEUR DE PAIEMENT</p><h3>Le paiement ne doit pas ralentir la vente.</h3></div><span class="freebadge">SANDBOX</span></div>
-      <div class="paygrid">
-        <div class="provider"><b>MTN MoMo direct</b><span>Collections • coût marchand public indicatif 1 %, négociable.</span></div>
-        <div class="provider"><b>Orange Money direct</b><span>Marchand/KYA requis • tarif contractuel local.</span></div>
-      </div>
-      <div class="route"><div><small>ROUTE CONSEILLÉE EN DÉMO</small><strong>Auto → MTN direct</strong></div><button id="quoteButton">SIMULER</button></div>
-    </article>
-  </section>
+<section class="section"><div class="sectiontitle"><div><h2>Fondations paiement</h2><p>Architecture préparée, mais aucun moyen de paiement n’est encore activé.</p></div><span class="badge off">NON OPÉRATIONNEL</span></div><article class="foundation"><div class="foundationhead"><div><p class="eyebrow">BLUE MAGIC PAY — FONDATION</p><h3>Préparer l’avenir sans toucher aux fonds aujourd’hui.</h3></div><span class="badge off">SANDBOX ARCHI</span></div><div class="architecture"><div class="layer"><b>1. Intention</b><span>Montant, compte cible, motif et idempotence.</span></div><div class="layer"><b>2. Routeur</b><span>Choisira plus tard le rail autorisé le plus adapté.</span></div><div class="layer"><b>3. Adaptateurs</b><span>Connecteurs opérateurs/agrégateurs futurs, séparés du cœur.</span></div></div><div class="lockline"><div><small>ÉTAT DE CETTE MAQUETTE</small><strong>Aucun connecteur • aucune clé • aucun débit</strong></div><span class="lockpill">VERROUILLÉ</span></div><p class="foundationnote">Le moteur Camtel/USSD et le futur moteur de paiement resteront découplés. Cette maquette ne contient volontairement ni bouton « payer », ni endpoint réel, ni secret, ni appel Mobile Money.</p></article></section>
 
-  <section class="section">
-    <div class="sectiontitle"><div><h2>Le réseau vit</h2><p>Les preuves récentes deviennent une information commerciale.</p></div></div>
-    <div class="activity">
-      <div class="event"><span class="ico">✓</span><div class="eventbody"><b>POS16_DSM7_OU3 • Vente Blue réussie</b><span>Il y a 1 min • CurrentBalance rapproché</span></div><span class="amount">+1 000 F</span></div>
-      <div class="event"><span class="ico">↗</span><div class="eventbody"><b>DSM7_OU3 • Approvisionnement confirmé</b><span>Il y a 4 min • base + commission</span></div><span class="amount">+54 000 F</span></div>
-      <div class="event"><span class="ico">∞</span><div class="eventbody"><b>Robot réseau stable</b><span>2 SIM actives • aucune file bloquée</span></div><span class="amount">ACTIF</span></div>
-    </div>
-  </section>
+<section class="section"><div class="sectiontitle"><div><h2>Le réseau vit</h2><p>Des événements utiles et compréhensibles plutôt qu’un journal technique.</p></div></div><div class="activity"><div class="event"><span class="ico">✓</span><div class="eventbody"><b>POS16_DSM7_OU3 • Vente Blue réussie</b><span>Il y a 1 min • CurrentBalance rapproché</span></div><span class="amount">+1 000 F</span></div><div class="event"><span class="ico">↗</span><div class="eventbody"><b>DSM7_OU3 • Approvisionnement confirmé</b><span>Il y a 4 min • base + commission</span></div><span class="amount">+54 000 F</span></div><div class="event"><span class="ico">∞</span><div class="eventbody"><b>Robot réseau stable</b><span>2 SIM actives • aucune file bloquée</span></div><span class="amount">ACTIF</span></div></div></section>
 </div>
-
-<nav class="nav" aria-label="Navigation prototype">
-  <button class="active"><span>⌂</span>Accueil</button>
-  <button><span>⌁</span>Réseau</button>
-  <button class="center" id="navSell"><span>⚡</span>Vendre</button>
-  <button><span>▤</span>Activité</button>
-  <button><span>◉</span>Gérer</button>
-</nav>
-
-<div id="paySheet" class="sheet" role="dialog" aria-modal="true" aria-label="Simulation Blue Magic Pay">
-  <div class="sheetbox">
-    <div class="sheetbar"></div>
-    <p class="eyebrow">BLUE MAGIC PAY • SANDBOX</p><h3>Approvisionner sans friction</h3>
-    <p>Cette démo ne contacte aucun opérateur et ne déplace aucun fonds. Elle sert à tester l’expérience et la logique économique du routeur.</p>
-    <div class="field"><label>Montant à créditer</label><input id="payAmount" inputmode="numeric" value="10000" aria-label="Montant"></div>
-    <div class="field"><label>Rail préféré</label><select id="payRail"><option value="AUTO">Automatique — moins cher disponible</option><option value="MTN">MTN MoMo direct</option><option value="ORANGE">Orange Money direct</option></select></div>
-    <div class="field"><label>Commission produit disponible pour Blue Magic (%)</label><input id="productMargin" inputmode="decimal" value="8" aria-label="Commission produit"></div>
-    <div class="quote">
-      <div class="qrow"><span>Crédit demandé</span><strong id="qAmount">10 000 F</strong></div>
-      <div class="qrow"><span>Rail simulé</span><strong id="qRail">MTN direct</strong></div>
-      <div class="qrow"><span>Coût marchand estimé du rail</span><strong id="qFee">100 F</strong></div>
-      <div class="qrow"><span>Frais Blue Magic facturés au client</span><strong class="gold">0 F</strong></div>
-      <div class="qrow"><span>Marge produit brute simulée</span><strong id="qMargin">800 F</strong></div>
-      <div class="qrow"><span>Marge après coût du rail*</span><strong class="gold" id="qNet">700 F</strong></div>
-    </div>
-    <div class="disclaimer">* Simulation commerciale uniquement. MTN Cameroun publie actuellement 1 % sur Collections et indique que ce taux est négociable ; Orange renvoie le tarif au contrat local. Les taxes, règles comptables, reversements, coûts de liquidité et accords réels ne sont pas inclus ici.</div>
-    <button class="submit" id="fakePay">SIMULER UNE DEMANDE DE PAIEMENT</button>
-    <button class="cancel" id="closePay">FERMER</button>
-  </div>
-</div>
-<div id="toast" class="toast"></div>
-<script>
-(function(){
-  'use strict';
-  var role=document.getElementById('role'),sheet=document.getElementById('paySheet'),amount=document.getElementById('payAmount'),rail=document.getElementById('payRail'),margin=document.getElementById('productMargin');
-  function money(n){return Math.round(n).toLocaleString('fr-FR')+' F';}
-  function toast(text){var t=document.getElementById('toast');t.textContent=text;t.className='toast show';setTimeout(function(){t.className='toast';},2400);}
-  function setRole(){var r=role.value,node='OU3 • DAE',action='PILOTER MON RÉSEAU';if(r==='DSM'){node='DSM7_OU3 • DSM';action='APPROVISIONNER MES POS';}if(r==='POS'){node='POS16_DSM7_OU3 • POS';action='VENDRE MAINTENANT';}document.getElementById('nodeText').textContent=node;document.getElementById('mainAction').textContent=action;document.getElementById('sellQuick').textContent='';var i=document.createElement('span');i.className='ico';i.textContent='⚡';document.getElementById('sellQuick').appendChild(i);document.getElementById('sellQuick').appendChild(document.createTextNode(r==='DAE'?'PILOTER':r==='DSM'?'FOURNIR':'VENDRE'));}
-  function openPay(){sheet.className='sheet open';quote();}
-  function closePay(){sheet.className='sheet';}
-  function numeric(v){var n=parseFloat(String(v||'').replace(',','.').replace(/[^0-9.]/g,''));return isFinite(n)?n:0;}
-  function quote(){var a=numeric(amount.value),m=numeric(margin.value),r=rail.value,chosen=r==='ORANGE'?'Orange direct':r==='MTN'?'MTN direct':'MTN direct';var feeRate=(r==='ORANGE')?null:.01;var fee=feeRate===null?0:a*feeRate,product=a*(m/100),net=product-fee;document.getElementById('qAmount').textContent=money(a);document.getElementById('qRail').textContent=chosen+(r==='ORANGE'?' • tarif à contractualiser':'');document.getElementById('qFee').textContent=feeRate===null?'À négocier':money(fee);document.getElementById('qMargin').textContent=money(product);document.getElementById('qNet').textContent=feeRate===null?'Après contrat':money(net);}
-  role.onchange=setRole;amount.oninput=quote;rail.onchange=quote;margin.oninput=quote;
-  document.getElementById('fundAction').onclick=openPay;document.getElementById('payQuick').onclick=openPay;document.getElementById('quoteButton').onclick=openPay;document.getElementById('closePay').onclick=closePay;sheet.onclick=function(e){if(e.target===sheet){closePay();}};
-  document.getElementById('fakePay').onclick=function(){toast('Sandbox : demande simulée. Aucun Mobile Money n’a été débité.');closePay();};
-  document.getElementById('navSell').onclick=function(){toast('Le bouton central devient l’action commerciale principale du rôle.');};
-  document.getElementById('mainAction').onclick=function(){toast('Action principale adaptée au rôle : '+role.value);};
-  setRole();quote();
-}());
-</script>
-</body>
-</html>
+<nav class="nav" aria-label="Navigation prototype"><button class="active"><span>⌂</span>Accueil</button><button><span>⌁</span>Réseau</button><button class="center" id="navMain"><span>⚡</span>Action</button><button><span>▤</span>Activité</button><button id="navManage"><span>∞</span>Gérer</button></nav><div id="toast" class="toast"></div>
+<script>(function(){'use strict';var role=document.getElementById('role');function toast(t){var e=document.getElementById('toast');e.textContent=t;e.className='toast show';setTimeout(function(){e.className='toast';},2200);}function setRole(){var r=role.value,node='OU3 • DAE',main='PILOTER MON RÉSEAU',quick='PILOTER';if(r==='DSM'){node='DSM7_OU3 • DSM';main='APPROVISIONNER MES POS';quick='FOURNIR';}if(r==='POS'){node='POS16_DSM7_OU3 • POS';main='VENDRE MAINTENANT';quick='VENDRE';}document.getElementById('nodeText').textContent=node;document.getElementById('mainAction').textContent=main;var q=document.getElementById('quickMain');q.lastChild.nodeValue=quick;}role.onchange=setRole;document.getElementById('mainAction').onclick=function(){toast('Prototype : action principale '+role.value+'. Aucune commande réelle.');};document.getElementById('manageAction').onclick=function(){toast('Prototype : futur Centre GÉRER Infinite responsive.');};document.getElementById('navMain').onclick=function(){toast('Le bouton central suit l’action commerciale du rôle.');};document.getElementById('navManage').onclick=function(){toast('Prototype uniquement — aucune production modifiée.');};setRole();}());</script>
+</body></html>
