@@ -1,0 +1,37 @@
+name: BIR v2.8 Export Android Signing Tooling
+
+on:
+  push:
+    branches: [feat/bir-v2-8-operations-admin]
+    paths: [.github/authorized-v280-tooling.trigger]
+
+permissions:
+  contents: read
+
+jobs:
+  export-tooling:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Locate latest Android Build Tools
+        run: |
+          set -euo pipefail
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          test -n "$sdk"
+          bt="$(find "$sdk/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          test -x "$bt/apksigner"
+          test -f "$bt/lib/apksigner.jar"
+          mkdir -p /tmp/bir-tooling/lib
+          cp "$bt/apksigner" /tmp/bir-tooling/apksigner
+          cp "$bt/lib/apksigner.jar" /tmp/bir-tooling/lib/apksigner.jar
+          if [ -x "$bt/zipalign" ]; then cp "$bt/zipalign" /tmp/bir-tooling/zipalign; fi
+          if [ -d "$bt/lib64" ]; then cp -a "$bt/lib64" /tmp/bir-tooling/lib64; fi
+          printf 'source_build_tools=%s\n' "$(basename "$bt")" > /tmp/bir-tooling/tooling-info.txt
+          sha256sum /tmp/bir-tooling/apksigner /tmp/bir-tooling/lib/apksigner.jar >> /tmp/bir-tooling/tooling-info.txt
+      - name: Upload signing tooling
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIR-v2.8-android-signing-tooling
+          path: /tmp/bir-tooling
+          if-no-files-found: error
+          retention-days: 1
