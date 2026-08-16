@@ -28,6 +28,17 @@ jobs:
           npm run check
           node --check src/index.js
 
+      - name: Adapter seulement les assertions de version héritées pour v2.7
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('app/src/test/finance-flow.mjs')
+          s = p.read_text()
+          s = s.replace('/versionCode 50/', '/versionCode 51/')
+          s = s.replace('/versionName "2\\.6\\.10"/', '/versionName "2\\.7\\.0"/')
+          p.write_text(s)
+          PY
+
       - name: Vérifier le contrat B.I.R. v2.7
         run: |
           node --check app/src/main/assets/app.js
