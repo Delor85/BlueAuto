@@ -1,6 +1,6 @@
-candidate_source=6b89f5bb983a11b3ee30234f69e708d4542e20a3
+candidate_source=a5e0369420f917d684d35c2f53f2fc3cfff8be25
 production_worker_deploy=forbidden
 d1_migration=forbidden
 pr4_merge=forbidden
 permanent_signing=forbidden
-rerun=v2611-metadata-aligned
+rerun=final-delayed-balance-guard
