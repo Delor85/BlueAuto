@@ -1,0 +1,6 @@
+scope=android-client-balance-guard
+late_financial_result_without_operator_time=reject_as_current_balance
+cloudflare_change=forbidden
+d1_migration=forbidden
+pr4_merge=forbidden
+permanent_signing=forbidden
