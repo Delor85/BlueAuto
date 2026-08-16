@@ -19,6 +19,8 @@ Date : 2026-08-16
 
 Branche : `feat/bir-v2-7-stabilization` créée depuis le HEAD exact v2.6.10 ci-dessus.
 
+Commit source v2.7 : `16d45ed5fbaca6adb6b9a22067ffa15c09dcbd16` — `feat: stabilize BIR v2.7 UI and legacy-server compatibility`.
+
 Cette branche est additive. Elle ne réécrit pas le moteur financier, le moteur Remote/Robot, la file multi-SIM, le package, le PIN Keystore ni les règles de verrouillage.
 
 ## 3. Retour terrain traité
