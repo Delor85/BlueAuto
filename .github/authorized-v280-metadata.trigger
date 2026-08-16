@@ -3,4 +3,4 @@ production_worker_deploy=forbidden
 d1_migration=forbidden
 pr4_merge=forbidden
 permanent_signing=forbidden
-rerun=legacy-worker-metadata-compat
+rerun=v2610-worker-version-compat
