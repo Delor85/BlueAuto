@@ -1,0 +1,66 @@
+name: BIR v2.7 Guarded Convergence
+
+on:
+  push:
+    branches: [feat/bir-v2-7-finalization]
+    paths: [.github/authorized-v270-converge.trigger]
+
+permissions:
+  contents: write
+
+jobs:
+  converge:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout exact v2.7 finalization branch
+        uses: actions/checkout@v5
+        with:
+          ref: feat/bir-v2-7-finalization
+          fetch-depth: 0
+
+      - name: Assert protected v2.6.11 base exists
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor e3f9e9016e86c1193ba4170e2a9fce1ba466eb86 HEAD
+          grep -q 'versionCode 51' app/build.gradle
+          grep -q 'versionName "2.6.11"' app/build.gradle
+          grep -q 'control-tower-v2611.css' app/src/main/assets/index.html
+          grep -q 'control-tower-v2611.js' app/src/main/assets/index.html
+
+      - name: Apply additive v2.7 convergence patch
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/v270_converge.py
+          git diff --check
+
+      - name: Prove Cloudflare and D1 source are untouched
+        run: |
+          set -euo pipefail
+          if ! git diff --quiet -- cloudflare; then
+            echo '::error::v2.7 APK-only convergence attempted to modify cloudflare/. Refusing.'
+            git diff -- cloudflare
+            exit 1
+          fi
+          echo 'Cloudflare/D1 source unchanged.'
+
+      - name: Syntax and convergence contract
+        run: |
+          set -euo pipefail
+          node --check app/src/main/assets/control-tower-v270.js
+          node app/src/test/v270-finalization-contract.mjs
+
+      - name: Persist only approved source convergence
+        run: |
+          set -euo pipefail
+          git config user.name "Delor85"
+          git config user.email "mbolodelorpro@gmail.com"
+          git add app/build.gradle \
+            app/src/main/assets/index.html \
+            app/src/main/assets/control-tower-v270.js \
+            app/src/main/assets/control-tower-v270.css \
+            app/src/main/java/com/profitloop/blueauto/MainActivity.java \
+            app/src/test/v270-finalization-contract.mjs \
+            docs/BIR_V270_CONVERGENCE_STATE.md
+          git diff --cached --check
+          git commit -m "feat: converge BIR v2.7 on validated v2.6.11 baseline [v270-source]"
+          git push origin HEAD:feat/bir-v2-7-finalization
