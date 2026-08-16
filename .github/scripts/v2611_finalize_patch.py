@@ -51,6 +51,15 @@ for test in [
     s = s.replace("Cloudflare lock root version not 2.6.8", "Cloudflare lock root version not 2.6.11")
     p.write_text(s, encoding='utf-8')
 
+# Le contrat v2.6.10 devient un contrat d'héritage : mêmes capacités, nouvelle couche 2.6.11.
+p = Path('app/src/test/v2610-control-tower.mjs')
+s = p.read_text(encoding='utf-8')
+s = s.replace("control-tower-v2610.js", "control-tower-v2611.js")
+s = s.replace("control-tower-v2610.css", "control-tower-v2611.css")
+s = s.replace("const API_VERSION = '2.6.10-cloudflare'", "const API_VERSION = '2.6.11-cloudflare'")
+s = s.replace("BIR v2.6.10 control tower:", "BIR v2.6.10 inherited by v2.6.11:")
+p.write_text(s, encoding='utf-8')
+
 # Nouveau contrat v2.6.11 : design validé, saisie visible, négociation de capacités et absence
 # de commission_policy automatique avant confirmation de compatibilité serveur.
 contract = Path('app/src/test/v2611-finalization-contract.mjs')
