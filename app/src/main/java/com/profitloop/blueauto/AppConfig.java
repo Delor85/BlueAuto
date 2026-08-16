@@ -209,6 +209,23 @@ final class AppConfig {
         return profile == null ? "REMOTE" : profile.optString("device_mode", "REMOTE");
     }
 
+    static synchronized boolean updateMode(Context context, String profileId, String mode) {
+        String normalized = mode == null ? "REMOTE" : mode.trim().toUpperCase(Locale.ROOT);
+        if (!"REMOTE".equals(normalized) && !"ROBOT".equals(normalized)) return false;
+        JSONArray all = profiles(context);
+        for (int i = 0; i < all.length(); i++) {
+            JSONObject profile = all.optJSONObject(i);
+            if (profile != null && profileId.equals(profile.optString("id", ""))) {
+                try {
+                    profile.put("device_mode", normalized);
+                    if ("REMOTE".equals(normalized)) setRobotEnabled(context, profileId, false);
+                    return prefs(context).edit().putString(PROFILES_KEY, all.toString()).commit();
+                } catch (Exception ignored) { return false; }
+            }
+        }
+        return false;
+    }
+
     static String role(Context context) {
         JSONObject profile = activeProfile(context);
         return normalizedRole(profile);

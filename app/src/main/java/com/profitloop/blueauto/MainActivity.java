@@ -65,6 +65,8 @@ public class MainActivity extends Activity {
     private static final String MOCK_ROUTE_PROFILE_KEY = "bir_mock_route_profile_v270";
     private static final String MOCK_RETURN_PROFILE_KEY = "bir_mock_return_profile_v271";
     private static final String UI_LANGUAGE_KEY = "bir_ui_language_v271";
+    private static final String OWNER_ADMIN_WORKSPACE_KEY = "bir_owner_admin_workspace_v280";
+    private static final String OWNER_ADMIN_RETURN_PROFILE_KEY = "bir_owner_admin_return_profile_v280";
     private static final String MOCK_OWNER_CODE_SHA256 = "207e4a9bca5e4073fa98e767a85bd937a63d9e2f62d2fe5e693360ab2ee3e3cd";
     private static final String MOCK_PROFILE_ID = "__BIR_MOCK_OWNER__";
     private static final String[] MOCK_REGION_CODES = {"AD", "CE", "ES", "EN", "LT", "NO", "NW", "OU", "SU", "SW"};
@@ -76,6 +78,7 @@ public class MainActivity extends Activity {
     private Button manageButton;
     private volatile boolean robotStartInProgress;
     private static boolean mockSessionAuthorized;
+    private static boolean adminSessionAuthorized;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -163,6 +166,48 @@ public class MainActivity extends Activity {
         recreate();
     }
 
+    private boolean isOwnerAdminWorkspaceActive() {
+        return adminSessionAuthorized && AppConfig.prefs(this).getBoolean(OWNER_ADMIN_WORKSPACE_KEY, false)
+                && SecureOwnerStore.has(this, "OWNER_ADMIN");
+    }
+
+    private void openOwnerAdminFromPairing(String code, TextView feedback) {
+        if (!AppConfig.hasProfiles(this)) {
+            feedback.setText(ui("Ajoutez d’abord au moins un compte Blue réel sur ce téléphone.",
+                    "Add at least one real Blue account on this phone first."));
+            feedback.setTextColor(Color.rgb(255, 139, 152));
+            return;
+        }
+        if (code == null || code.trim().length() < 24) {
+            feedback.setText(ui("Code ADMIN incomplet.", "Incomplete ADMIN code."));
+            feedback.setTextColor(Color.rgb(255, 139, 152));
+            return;
+        }
+        feedback.setTextColor(CYAN);
+        feedback.setText(ui("Vérification cryptographique ADMIN auprès du serveur…",
+                "Checking cryptographic ADMIN entitlement with the server…"));
+        new Thread(() -> {
+            try {
+                JSONObject data = new ApiClient(this).ownerEnroll("OWNER_ADMIN", code.trim());
+                String token = data.optString("owner_token", "");
+                String entitlementId = data.optString("entitlement_id", "");
+                SecureOwnerStore.save(this, "OWNER_ADMIN", entitlementId, token);
+                adminSessionAuthorized = true;
+                AppConfig.prefs(this).edit()
+                        .putString(OWNER_ADMIN_RETURN_PROFILE_KEY, AppConfig.profileId(this))
+                        .putBoolean(OWNER_ADMIN_WORKSPACE_KEY, true).commit();
+                runOnUiThread(this::recreate);
+            } catch (Exception error) {
+                runOnUiThread(() -> {
+                    feedback.setTextColor(Color.rgb(255, 139, 152));
+                    feedback.setText(ui("ADMIN non activé : ", "ADMIN not enabled: ") + readable(error)
+                            + ui(". Si le Worker v2.8 n’est pas encore autorisé en production, cette fonction reste volontairement inactive.",
+                            ". If the v2.8 Worker is not yet authorized in production, this feature intentionally stays inactive."));
+                });
+            }
+        }, "BIR-OwnerAdminEnroll-v280").start();
+    }
+
     private void showPairingScreen(boolean addingAccount) {
         disposeWebView();
         ScrollView scroll = new ScrollView(this);
@@ -174,13 +219,16 @@ public class MainActivity extends Activity {
         form.addView(help(ui("Renseignez seulement votre identité Blue et le mode de ce téléphone.",
                 "Enter only your Blue identity and this phone’s operating mode.")));
 
-        EditText nodeCode = field(ui("Identifiant Blue (ex. OU3, DSM7_OU3, POS16_DSM7_OU3) — ou MOCK",
-                "Blue ID (e.g. OU3, DSM7_OU3, POS16_DSM7_OU3) — or MOCK"), "", false);
+        EditText nodeCode = field(ui("Identifiant Blue (ex. OU3, DSM7_OU3, POS16_DSM7_OU3) — ou MOCK / ADMIN",
+                "Blue ID (e.g. OU3, DSM7_OU3, POS16_DSM7_OU3) — or MOCK / ADMIN"), "", false);
         form.addView(nodeCode);
 
         EditText mockCode = field(ui("Code privé MOCK", "Private MOCK code"), "", true);
         mockCode.setVisibility(View.GONE);
         form.addView(mockCode);
+        EditText adminCode = field(ui("Code privé ADMIN propriétaire", "Private owner ADMIN code"), "", true);
+        adminCode.setVisibility(View.GONE);
+        form.addView(adminCode);
 
         LinearLayout realFields = verticalContainer();
         EditText phone = field(ui("Numéro Blue de la SIM (9 chiffres)", "Blue SIM number (9 digits)"), "", false);
@@ -223,13 +271,18 @@ public class MainActivity extends Activity {
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             public void onTextChanged(CharSequence s, int start, int before, int count) {}
             public void afterTextChanged(android.text.Editable value) {
-                boolean mock = "MOCK".equalsIgnoreCase(value.toString().trim());
+                String requested = value.toString().trim();
+                boolean mock = "MOCK".equalsIgnoreCase(requested);
+                boolean admin = "ADMIN".equalsIgnoreCase(requested);
                 mockCode.setVisibility(mock ? View.VISIBLE : View.GONE);
-                realFields.setVisibility(mock ? View.GONE : View.VISIBLE);
-                adminActivation.setVisibility(mock ? View.GONE : (hasPairingSecret() ? View.GONE : View.VISIBLE));
+                adminCode.setVisibility(admin ? View.VISIBLE : View.GONE);
+                realFields.setVisibility((mock || admin) ? View.GONE : View.VISIBLE);
+                adminActivation.setVisibility((mock || admin) ? View.GONE : (hasPairingSecret() ? View.GONE : View.VISIBLE));
                 feedback.setText(mock
                         ? ui("Accès propriétaire privé. Le compte MOCK ne sera jamais affiché dans la liste normale des comptes.",
                                 "Private owner access. MOCK will never appear in the normal account list.")
+                        : admin ? ui("Tour de contrôle propriétaire privée. ADMIN n’est pas un rôle Blue et exige un entitlement cryptographique serveur.",
+                                "Private owner control tower. ADMIN is not a Blue role and requires a cryptographic server entitlement.")
                         : ui("Les réglages techniques du serveur sont gérés automatiquement par B.I.R.",
                                 "B.I.R. manages server technical settings automatically."));
             }
@@ -247,6 +300,10 @@ public class MainActivity extends Activity {
             String node = nodeCode.getText().toString().trim().toUpperCase(Locale.ROOT);
             if ("MOCK".equals(node)) {
                 openMockFromPairing(mockCode.getText().toString().trim(), feedback);
+                return;
+            }
+            if ("ADMIN".equals(node)) {
+                openOwnerAdminFromPairing(adminCode.getText().toString().trim(), feedback);
                 return;
             }
             if (!node.matches("[A-Z0-9/_-]{3,64}")) {
@@ -1791,6 +1848,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         applyRobotWindowPolicy();
+        RobotService.pollAdministrativeControls(this);
         if (AppConfig.anyRobotEnabled(this)) {
             View root = webView == null ? nativeStatus : webView;
             if (root != null) root.postDelayed(() -> RobotService.startEnabled(this), 250L);
@@ -1846,6 +1904,8 @@ public class MainActivity extends Activity {
                         AppConfig.profileId(MainActivity.this)) : null;
                 value.put("sim_verified", sim == null || sim.valid);
                 value.put("sim_status", sim == null ? "NOT_REQUIRED" : sim.code);
+                value.put("owner_admin_workspace", isOwnerAdminWorkspaceActive());
+                value.put("mock_owner_server_entitled", SecureOwnerStore.has(MainActivity.this, "MOCK_OWNER"));
                 return value.toString();
             } catch (Exception ignored) {
                 return "{}";
@@ -2089,6 +2149,21 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public boolean isOwnerAdminWorkspace() { return isOwnerAdminWorkspaceActive(); }
+
+        @JavascriptInterface
+        public void exitOwnerAdminWorkspace() {
+            runOnUiThread(() -> {
+                String returnProfile = AppConfig.prefs(MainActivity.this).getString(OWNER_ADMIN_RETURN_PROFILE_KEY, "");
+                adminSessionAuthorized = false;
+                AppConfig.prefs(MainActivity.this).edit().putBoolean(OWNER_ADMIN_WORKSPACE_KEY, false)
+                        .remove(OWNER_ADMIN_RETURN_PROFILE_KEY).commit();
+                if (!returnProfile.isEmpty()) AppConfig.activateProfile(MainActivity.this, returnProfile);
+                recreate();
+            });
+        }
+
+        @JavascriptInterface
         public void exitMockWorkspace() {
             runOnUiThread(() -> {
                 String returnProfile = AppConfig.prefs(MainActivity.this).getString(MOCK_RETURN_PROFILE_KEY, "");
@@ -2174,6 +2249,12 @@ public class MainActivity extends Activity {
                     JSONObject payload = payloadJson == null || payloadJson.trim().isEmpty()
                             ? new JSONObject() : new JSONObject(payloadJson);
                     ApiClient client = new ApiClient(MainActivity.this);
+                    if (normalizedAction.startsWith("owner_")) {
+                        if (!isOwnerAdminWorkspaceActive()) throw new SecurityException("Compte ADMIN propriétaire requis.");
+                        String ownerToken = SecureOwnerStore.token(MainActivity.this, "OWNER_ADMIN");
+                        if (ownerToken.isEmpty()) throw new SecurityException("Entitlement ADMIN absent ou illisible.");
+                        client.withOwnerToken(ownerToken);
+                    }
                     if (isMockWorkspaceActive() && normalizedAction.startsWith("mercenary_")) {
                         String routeProfile = mockRouteProfile();
                         if (!isDaeProfile(routeProfile)) {

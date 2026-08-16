@@ -11,7 +11,7 @@ const cfg=read('app/src/main/java/com/profitloop/blueauto/AppConfig.java');
 const sim=read('app/src/main/java/com/profitloop/blueauto/SimIdentityManager.java');
 const simRx=read('app/src/main/java/com/profitloop/blueauto/SimStateReceiver.java');
 const robot=read('app/src/main/java/com/profitloop/blueauto/RobotService.java');
-ok(gradle.includes('versionCode 52')&&gradle.includes('versionName "2.7.1"'),'v2.7.1 identity');
+ok((gradle.includes('versionCode 52')||gradle.includes('versionCode 53'))&&(gradle.includes('versionName "2.7.1"')||gradle.includes('versionName "2.8.0"')),'v2.7.1 identity');
 ok(main.includes('Identifiant Blue')&&main.includes('"MOCK".equals(node)')&&main.includes('Code privé MOCK'),'MOCK only through add/open form');
 ok(!main.includes('labelsList.add((mockActive'),'MOCK must not be inserted into normal account list');
 ok(main.includes('mockSessionAuthorized = false')&&main.includes('recreate();'),'MOCK must exit/rebuild cleanly');

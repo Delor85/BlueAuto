@@ -19,6 +19,7 @@ final class ApiClient {
     private final String endpointOverride;
     private String tokenOverride;
     private final String profileIdOverride;
+    private String ownerTokenOverride = "";
 
     ApiClient(Context context) {
         this(context, "", "", "");
@@ -60,7 +61,7 @@ final class ApiClient {
         SimIdentityManager.Verification sim = SimIdentityManager.verify(context, targetProfile);
         boolean locallyEnabled = AppConfig.robotEnabled(context, targetProfile);
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.7.1");
+        payload.put("app_version", "2.8.0");
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
         payload.put("robot_enabled", locallyEnabled && sim.valid);
@@ -103,7 +104,7 @@ final class ApiClient {
     JSONObject activateRobot(SimIdentityManager.Verification sim, int simSlot,
                              boolean replaceVerifiedSameSimRobot) throws Exception {
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.7.1");
+        payload.put("app_version", "2.8.0");
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
         payload.put("sim_verified", sim.valid);
@@ -137,9 +138,33 @@ final class ApiClient {
         return post("record_operator_message", payload, true);
     }
 
+    ApiClient withOwnerToken(String token) {
+        this.ownerTokenOverride = token == null ? "" : token.trim();
+        return this;
+    }
+
+    JSONObject ownerEnroll(String kind, String code) throws Exception {
+        JSONObject payload = new JSONObject();
+        payload.put("kind", kind == null ? "" : kind.trim().toUpperCase());
+        payload.put("owner_code", code == null ? "" : code.trim());
+        return post("owner_enroll", payload, true);
+    }
+
+    JSONObject controlPoll() throws Exception {
+        return postControl("device_control_poll", new JSONObject(), true);
+    }
+
+    JSONObject controlAck(long actionId, boolean success, String message) throws Exception {
+        JSONObject payload = new JSONObject();
+        payload.put("action_id", actionId);
+        payload.put("success", success);
+        payload.put("message", message == null ? "" : trim(message, 500));
+        return post("device_control_ack", payload, true);
+    }
+
     JSONObject platformAction(String action, JSONObject payload) throws Exception {
         String safe = action == null ? "" : action.trim();
-        if (!safe.matches("(?:operator_insights|operator_catalog|platform_snapshot|network_balance_audit|shadow_enroll|debt_save|debt_list|kyc_save|mercenary_save|mercenary_list|mercenary_sale|commission_policy|commission_set_default|commission_set_child)")) {
+        if (!safe.matches("(?:operator_insights|operator_catalog|platform_snapshot|network_balance_audit|shadow_enroll|debt_save|debt_list|kyc_save|mercenary_save|mercenary_list|mercenary_sale|commission_policy|commission_set_default|commission_set_child|accounting_summary|transaction_ledger|owner_snapshot|owner_transactions|owner_audit|owner_control|owner_assist)")) {
             throw new ApiException("ACTION_NOT_ALLOWED", "Action plateforme non autorisée par le pont natif.");
         }
         return post(safe, payload == null ? new JSONObject() : payload, true);
@@ -218,6 +243,9 @@ final class ApiClient {
                     : tokenOverride;
             if (requestToken.isEmpty()) throw new ApiException("NOT_PAIRED", "Appareil non appairé.");
             connection.setRequestProperty("X-Device-Token", requestToken);
+        }
+        if (!ownerTokenOverride.isEmpty()) {
+            connection.setRequestProperty("X-Owner-Token", ownerTokenOverride);
         }
 
         try {

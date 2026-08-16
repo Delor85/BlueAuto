@@ -67,6 +67,16 @@ export default {
         case 'commission_policy': return await commissionPolicy(env, auth, headers);
         case 'commission_set_default': return await commissionSetDefault(env, auth, input, headers);
         case 'commission_set_child': return await commissionSetChild(env, auth, input, headers);
+        case 'accounting_summary': return await accountingSummary(env, auth, input, headers);
+        case 'transaction_ledger': return await transactionLedger(env, auth, input, headers);
+        case 'owner_enroll': return await ownerEnroll(request, env, auth, input, headers);
+        case 'owner_snapshot': return await ownerSnapshot(request, env, auth, headers);
+        case 'owner_transactions': return await ownerTransactions(request, env, auth, input, headers);
+        case 'owner_audit': return await ownerAudit(request, env, auth, input, headers);
+        case 'owner_control': return await ownerControl(request, env, auth, input, headers);
+        case 'owner_assist': return await ownerAssist(request, env, auth, input, headers);
+        case 'device_control_poll': return await deviceControlPoll(env, auth, headers);
+        case 'device_control_ack': return await deviceControlAck(env, auth, input, headers);
         case 'shadow_enroll': return await shadowEnroll(env, auth, input, headers);
         case 'debt_save': return await debtSave(env, auth, input, headers);
         case 'debt_list': return await debtList(env, auth, headers);
@@ -2228,4 +2238,167 @@ class ApiError extends Error {
     this.code = code;
     this.status = status;
   }
+}
+
+
+// ---- B.I.R. v2.8 source-only owner/admin + accounting layer -----------------
+async function ownerEnroll(request, env, auth, input, headers) {
+  const kind = String(input.kind || '').trim().toUpperCase();
+  if (!['OWNER_ADMIN','MOCK_OWNER'].includes(kind)) throw new ApiError('OWNER_KIND_INVALID','Entitlement propriétaire invalide.',422);
+  const expected = String(kind === 'OWNER_ADMIN' ? env.OWNER_ADMIN_SECRET || '' : env.MOCK_OWNER_SECRET || '');
+  const provided = String(input.owner_code || '');
+  if (expected.length < 32) throw new ApiError('OWNER_CAPABILITY_DISABLED','Entitlement propriétaire non activé sur ce serveur.',503);
+  if (!constantTimeEqual(expected, provided)) throw new ApiError('OWNER_ENROLL_DENIED','Code propriétaire incorrect.',403);
+  const token = randomHex(32), tokenHash = await sha256(token), entitlementId = crypto.randomUUID();
+  const existing = await env.DB.prepare('SELECT entitlement_id FROM owner_entitlements WHERE kind=? AND bound_device_id=? LIMIT 1').bind(kind,auth.device_id).first();
+  if (existing) {
+    await env.DB.prepare("UPDATE owner_entitlements SET token_hash=?, active=1, last_seen_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE entitlement_id=?")
+      .bind(tokenHash,existing.entitlement_id).run();
+    await adminAudit(env, existing.entitlement_id, 'OWNER_REENROLL', auth.node_code, auth.device_id, {kind}, 'ACCEPTED');
+    return success({entitlement_id:existing.entitlement_id,owner_token:token,kind},200,headers);
+  }
+  await env.DB.prepare('INSERT INTO owner_entitlements(entitlement_id,kind,bound_device_id,token_hash,last_seen_at) VALUES(?,?,?,?,?)')
+    .bind(entitlementId,kind,auth.device_id,tokenHash,new Date().toISOString()).run();
+  await adminAudit(env, entitlementId, 'OWNER_ENROLL', auth.node_code, auth.device_id, {kind}, 'ACCEPTED');
+  return success({entitlement_id:entitlementId,owner_token:token,kind},201,headers);
+}
+
+async function authenticateOwner(request, env, auth, requiredKind='OWNER_ADMIN') {
+  const token = String(request.headers.get('X-Owner-Token') || '').trim();
+  if (!token) throw new ApiError('OWNER_AUTH_REQUIRED','Jeton propriétaire requis.',401);
+  const row = await env.DB.prepare('SELECT entitlement_id,kind,bound_device_id,active FROM owner_entitlements WHERE token_hash=? LIMIT 1')
+    .bind(await sha256(token)).first();
+  if (!row || !row.active || row.bound_device_id !== auth.device_id || (requiredKind && row.kind !== requiredKind)) {
+    throw new ApiError('OWNER_AUTH_INVALID','Entitlement propriétaire invalide pour cet appareil.',403);
+  }
+  await env.DB.prepare("UPDATE owner_entitlements SET last_seen_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE entitlement_id=?")
+    .bind(row.entitlement_id).run();
+  return row;
+}
+
+async function adminAudit(env, entitlementId, action, targetNode, targetDevice, payload, outcome='ACCEPTED') {
+  const safePayload = JSON.stringify(payload || {}).slice(0,2000);
+  await env.DB.prepare('INSERT INTO admin_audit_log(entitlement_id,action,target_node_code,target_device_id,payload_json,outcome) VALUES(?,?,?,?,?,?)')
+    .bind(entitlementId || null,String(action||'').slice(0,80),targetNode || null,targetDevice || null,safePayload,String(outcome||'ACCEPTED').slice(0,40)).run();
+}
+
+function periodSql(period) {
+  const p = String(period || 'day').toLowerCase();
+  if (p === 'week') return '-7 days';
+  if (p === 'month') return '-1 month';
+  if (p === 'quarter') return '-3 months';
+  if (p === 'year') return '-1 year';
+  return '-1 day';
+}
+
+async function accountingSummary(env, auth, input, headers) {
+  const since = periodSql(input.period);
+  const rows = await env.DB.prepare(
+    "SELECT operation,state,requester_node_code,executor_node_code,target_node_code,amount,requested_base_amount,commission_amount " +
+    "FROM commands WHERE (requester_node_code=? OR executor_node_code=? OR target_node_code=?) " +
+    "AND created_at >= strftime('%Y-%m-%dT%H:%M:%fZ','now',?) ORDER BY id DESC LIMIT 5000")
+    .bind(auth.node_code,auth.node_code,auth.node_code,since).all();
+  let purchase_count=0,purchase_amount=0,sale_count=0,sale_amount=0,commission_amount=0,success_count=0,failed_count=0;
+  for (const row of rows.results || []) {
+    if (row.state === 'SUCCEEDED') success_count += 1; else if (TERMINAL_STATES.has(row.state)) failed_count += 1;
+    if (row.state !== 'SUCCEEDED') continue;
+    const base = Number(row.requested_base_amount || row.amount || 0);
+    if (row.operation === 'RETAIL_TRANSFER' && row.executor_node_code === auth.node_code) { sale_count += 1; sale_amount += base; }
+    else if (row.operation === 'DISTRIBUTION_TRANSFER') {
+      if (row.target_node_code === auth.node_code) { purchase_count += 1; purchase_amount += base; }
+      else if (row.executor_node_code === auth.node_code) { sale_count += 1; sale_amount += base; }
+    }
+    commission_amount += Number(row.commission_amount || 0);
+  }
+  return success({period:String(input.period||'day'),purchase_count,purchase_amount,sale_count,sale_amount,commission_amount,net_flow:sale_amount-purchase_amount,success_count,failed_count,source:'SERVER'},200,headers);
+}
+
+async function transactionLedger(env, auth, input, headers) {
+  const limit = Math.max(1,Math.min(1000,Number(input.limit||300)));
+  const rows = await env.DB.prepare(
+    'SELECT public_id,requester_node_code,executor_node_code,target_node_code,operation,target_phone,amount,requested_base_amount,commission_rate_bps,commission_amount,state,operator_transaction_id,created_at,completed_at,updated_at FROM commands ' +
+    'WHERE requester_node_code=? OR executor_node_code=? OR target_node_code=? ORDER BY id DESC LIMIT ?')
+    .bind(auth.node_code,auth.node_code,auth.node_code,limit).all();
+  return success({transactions:rows.results||[]},200,headers);
+}
+
+async function ownerSnapshot(request, env, auth, headers) {
+  const owner = await authenticateOwner(request,env,auth,'OWNER_ADMIN');
+  const nodes = await env.DB.prepare(
+    'SELECT n.node_code,n.role,n.phone_number,n.parent_node_code,n.active,n.created_at,b.balance,b.available_balance,b.reserved_amount,b.balance_quality,b.evidence_kind,b.observed_at,b.operator_event_at,s.terminal_type,s.display_name,s.zone ' +
+    'FROM nodes n LEFT JOIN account_balances b ON b.node_code=n.node_code LEFT JOIN shadow_accounts s ON s.node_code=n.node_code ORDER BY n.role,n.node_code').all();
+  const devices = await env.DB.prepare('SELECT device_id,node_code,mode,device_name,active,robot_enabled,sim_verified,sim_slot,app_version,android_version,last_seen_at,created_at FROM devices ORDER BY node_code,last_seen_at DESC').all();
+  const alerts=[];
+  for (const d of devices.results||[]) {
+    if (!d.active) alerts.push({code:'DEVICE_DISABLED',node_code:d.node_code,device_id:d.device_id,message:'Appareil désactivé.'});
+    else if (d.robot_enabled && !d.sim_verified) alerts.push({code:'ROBOT_SIM_UNVERIFIED',node_code:d.node_code,device_id:d.device_id,message:'Robot actif sans preuve SIM valide.'});
+    else if (d.robot_enabled && (!d.last_seen_at || Date.now()-Date.parse(d.last_seen_at)>15*60*1000)) alerts.push({code:'ROBOT_OFFLINE',node_code:d.node_code,device_id:d.device_id,message:'Robot annoncé actif mais hors ligne.'});
+  }
+  await adminAudit(env,owner.entitlement_id,'OWNER_SNAPSHOT',null,auth.device_id,{nodes:(nodes.results||[]).length,devices:(devices.results||[]).length},'READ');
+  return success({generated_at:new Date().toISOString(),nodes:nodes.results||[],devices:devices.results||[],alerts},200,headers);
+}
+
+async function ownerTransactions(request, env, auth, input, headers) {
+  const owner = await authenticateOwner(request,env,auth,'OWNER_ADMIN');
+  const limit = Math.max(1,Math.min(2000,Number(input.limit||500)));
+  const rows = await env.DB.prepare('SELECT public_id,requester_node_code,executor_node_code,target_node_code,operation,target_phone,amount,requested_base_amount,commission_rate_bps,commission_amount,state,operator_transaction_id,created_at,completed_at,updated_at FROM commands ORDER BY id DESC LIMIT ?').bind(limit).all();
+  await adminAudit(env,owner.entitlement_id,'OWNER_TRANSACTIONS',null,auth.device_id,{limit},'READ');
+  return success({transactions:rows.results||[]},200,headers);
+}
+
+async function ownerAudit(request, env, auth, input, headers) {
+  const owner = await authenticateOwner(request,env,auth,'OWNER_ADMIN');
+  const limit = Math.max(1,Math.min(1000,Number(input.limit||300)));
+  const rows = await env.DB.prepare('SELECT id,entitlement_id,action,target_node_code,target_device_id,outcome,created_at FROM admin_audit_log ORDER BY id DESC LIMIT ?').bind(limit).all();
+  await adminAudit(env,owner.entitlement_id,'OWNER_AUDIT_READ',null,auth.device_id,{limit},'READ');
+  return success({audit:rows.results||[]},200,headers);
+}
+
+async function ownerControl(request, env, auth, input, headers) {
+  const owner = await authenticateOwner(request,env,auth,'OWNER_ADMIN');
+  const action = String(input.action||'').trim().toUpperCase();
+  if (!['START_ROBOT','STOP_ROBOT','SET_REMOTE','SET_ROBOT','SYNC_NOW','CANCEL_PENDING'].includes(action)) throw new ApiError('ADMIN_ACTION_INVALID','Action de contrôle invalide.',422);
+  let deviceId=String(input.target_device_id||'').trim(), node=String(input.target_node_code||'').trim().toUpperCase(), target=null;
+  if (deviceId) target=await env.DB.prepare('SELECT device_id,node_code FROM devices WHERE device_id=? LIMIT 1').bind(deviceId).first();
+  else if (node) target=await env.DB.prepare('SELECT device_id,node_code FROM devices WHERE node_code=? AND active=1 ORDER BY robot_enabled DESC,last_seen_at DESC LIMIT 1').bind(node).first();
+  if (!target) throw new ApiError('ADMIN_TARGET_NOT_FOUND','Appareil cible introuvable.',404);
+  await env.DB.prepare('INSERT INTO device_control_actions(target_device_id,target_node_code,action,payload_json,requested_by_entitlement_id) VALUES(?,?,?,?,?)')
+    .bind(target.device_id,target.node_code,action,JSON.stringify(input.payload||{}).slice(0,1200),owner.entitlement_id).run();
+  await adminAudit(env,owner.entitlement_id,'OWNER_CONTROL_'+action,target.node_code,target.device_id,{queued:true},'QUEUED');
+  return success({queued:true,action,target_device_id:target.device_id,target_node_code:target.node_code},202,headers);
+}
+
+async function ownerAssist(request, env, auth, input, headers) {
+  const owner = await authenticateOwner(request,env,auth,'OWNER_ADMIN');
+  const node = nodeCode(input.target_node_code), requestType=String(input.request_type||'').trim().toUpperCase();
+  const exists=await env.DB.prepare('SELECT node_code FROM nodes WHERE node_code=? LIMIT 1').bind(node).first();
+  if(!exists) throw new ApiError('ADMIN_TARGET_NOT_FOUND','Utilisateur cible introuvable.',404);
+  if(!requestType) throw new ApiError('ADMIN_ASSIST_INVALID','Type de commande absent.',422);
+  await env.DB.prepare('INSERT INTO admin_assist_requests(target_node_code,request_type,payload_json,requires_user_confirmation,requested_by_entitlement_id) VALUES(?,?,?,?,?)')
+    .bind(node,requestType,JSON.stringify(input.payload||{}).slice(0,1800),1,owner.entitlement_id).run();
+  await adminAudit(env,owner.entitlement_id,'OWNER_ASSIST',node,null,{request_type:requestType},'PENDING_USER_CONFIRMATION');
+  return success({queued:true,target_node_code:node,request_type:requestType,requires_user_confirmation:true},202,headers);
+}
+
+async function deviceControlPoll(env, auth, headers) {
+  let actions=[];
+  try {
+    const rows=await env.DB.prepare("SELECT id,action,payload_json,created_at FROM device_control_actions WHERE target_device_id=? AND state='PENDING' ORDER BY id ASC LIMIT 20").bind(auth.device_id).all();
+    actions=rows.results||[];
+  } catch (error) {
+    // Migration 0006 not applied yet: explicit capability signal instead of a generic 500.
+    throw new ApiError('ADMIN_CONTROL_NOT_ENABLED','Contrôle administrateur non activé sur cette base.',503);
+  }
+  return success({actions},200,headers);
+}
+
+async function deviceControlAck(env, auth, input, headers) {
+  const id=Number(input.action_id||0); if(!Number.isInteger(id)||id<=0) throw new ApiError('ADMIN_ACTION_INVALID','Identifiant de contrôle invalide.',422);
+  const row=await env.DB.prepare('SELECT requested_by_entitlement_id,target_node_code,action FROM device_control_actions WHERE id=? AND target_device_id=? LIMIT 1').bind(id,auth.device_id).first();
+  if(!row) throw new ApiError('ADMIN_ACTION_NOT_FOUND','Commande de contrôle introuvable.',404);
+  const ok=input.success===true;
+  await env.DB.prepare("UPDATE device_control_actions SET state=?,acknowledged_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),result_message=? WHERE id=?")
+    .bind(ok?'ACKNOWLEDGED':'FAILED',cleanText(input.message||'',500),id).run();
+  await adminAudit(env,row.requested_by_entitlement_id,'DEVICE_CONTROL_ACK_'+row.action,row.target_node_code,auth.device_id,{action_id:id},ok?'ACKNOWLEDGED':'FAILED');
+  return success({acknowledged:true,id,state:ok?'ACKNOWLEDGED':'FAILED'},200,headers);
 }

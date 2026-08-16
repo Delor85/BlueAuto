@@ -246,8 +246,8 @@ assert.match(manifest, /foregroundServiceType="dataSync\|specialUse"/);
 
 const gradleConfig = await readFile(new URL('../../build.gradle', import.meta.url), 'utf8');
 assert.match(gradleConfig, /minSdk 23/);
-assert.match(gradleConfig, /versionCode (?:51|52)/);
-assert.match(gradleConfig, /versionName "2\.7\.(?:0|1)"/);
+assert.match(gradleConfig, /versionCode (?:51|52|53)/);
+assert.match(gradleConfig, /versionName "(?:2\.7\.(?:0|1)|2\.8\.0)"/);
 assert.match(gradleConfig, /release \{[\s\S]*signingConfig signingConfigs\.pilotDebug/);
 
 const apiClient = await readFile(new URL(

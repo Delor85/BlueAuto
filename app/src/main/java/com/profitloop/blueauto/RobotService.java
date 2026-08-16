@@ -37,6 +37,7 @@ public class RobotService extends Service {
     static final String ACTION_OPERATOR_RESULT = "com.profitloop.blueauto.OPERATOR_RESULT";
     static final String ACTION_AUDIT = "com.profitloop.blueauto.REQUEST_AUDIT";
     static final String ACTION_FORCE_SYNC = "com.profitloop.blueauto.FORCE_SYNC";
+    static final String ACTION_CONTROL_POLL = "com.profitloop.blueauto.ADMIN_CONTROL_POLL";
     static final String EXTRA_PROFILE_ID = "profile_id";
     static final String EXTRA_SUCCESS = "success";
     static final String EXTRA_MESSAGE = "message";
@@ -139,6 +140,14 @@ public class RobotService extends Service {
             updateNotification(robotSummary("Synchronisation forcée de tous les comptes"));
             scheduleCycle(0L);
             return START_STICKY;
+        }
+
+        if (ACTION_CONTROL_POLL.equals(action)) {
+            executor.execute(() -> {
+                pollAdministrativeControlsInternal();
+                if (!hasServiceWork()) stopSelf();
+            });
+            return START_NOT_STICKY;
         }
 
         if (ACTION_AUDIT.equals(action)) {
@@ -373,6 +382,56 @@ public class RobotService extends Service {
             cycleRunning.set(false);
             scheduleCycle(nextDelay);
         }
+    }
+
+    private void pollAdministrativeControlsInternal() {
+        String[] ids = AppConfig.profileIds(this);
+        for (String profileId : ids) {
+            if (!AppConfig.isPaired(this, profileId)) continue;
+            try {
+                JSONObject data = ApiClient.forProfile(this, profileId).controlPoll();
+                org.json.JSONArray actions = data.optJSONArray("actions");
+                if (actions == null) continue;
+                for (int i = 0; i < actions.length(); i++) {
+                    JSONObject action = actions.optJSONObject(i);
+                    if (action == null) continue;
+                    long actionId = action.optLong("id", 0L);
+                    String command = action.optString("action", "");
+                    boolean ok = applyAdministrativeControl(profileId, command);
+                    try { ApiClient.forProfile(this, profileId).controlAck(actionId, ok,
+                            ok ? "Action appliquée localement." : "Action refusée par les contrôles locaux."); }
+                    catch (Exception ignored) {}
+                }
+            } catch (ApiClient.ApiException unsupported) {
+                // Production v2.6.7 does not expose this endpoint yet. Silent fail keeps the old app path cheap.
+                if (!"UNKNOWN_ACTION".equals(unsupported.code)) markProfileApiFailure(profileId);
+            } catch (Exception ignored) { markProfileApiFailure(profileId); }
+        }
+    }
+
+    private boolean applyAdministrativeControl(String profileId, String command) {
+        if ("STOP_ROBOT".equals(command)) {
+            AppConfig.setRobotEnabled(this, profileId, false);
+            return true;
+        }
+        if ("SET_REMOTE".equals(command)) {
+            AppConfig.setRobotEnabled(this, profileId, false);
+            return AppConfig.updateMode(this, profileId, "REMOTE");
+        }
+        if ("SET_ROBOT".equals(command)) return AppConfig.updateMode(this, profileId, "ROBOT");
+        if ("SYNC_NOW".equals(command)) {
+            apiRetryAtByProfile.remove(profileId); lastHeartbeatByProfile.remove(profileId); return true;
+        }
+        if ("CANCEL_PENDING".equals(command)) { cancelPendingCommand(profileId); return true; }
+        if ("START_ROBOT".equals(command)) {
+            if (!AppConfig.isRobotMode(this, profileId)) AppConfig.updateMode(this, profileId, "ROBOT");
+            Readiness readiness = checkReadiness(profileId);
+            if (!readiness.ready) return false;
+            AppConfig.setRobotEnabled(this, profileId, true);
+            lastHeartbeatByProfile.remove(profileId);
+            return true;
+        }
+        return false;
     }
 
     private void maybeQueueNightlyNetworkAudit(String profileId, ApiClient api) {
@@ -926,6 +985,11 @@ public class RobotService extends Service {
 
     static void forceSync(Context context) {
         sendServiceAction(context, new Intent(context, RobotService.class).setAction(ACTION_FORCE_SYNC));
+    }
+
+    static void pollAdministrativeControls(Context context) {
+        if (!AppConfig.hasProfiles(context)) return;
+        sendServiceAction(context, new Intent(context, RobotService.class).setAction(ACTION_CONTROL_POLL));
     }
 
     static void scheduleWatchdog(Context context, long delayMs) {
