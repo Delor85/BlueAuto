@@ -1,0 +1,161 @@
+name: BIR Preview APK
+
+on:
+  push:
+    branches: [experiment/bir-full-ux]
+
+permissions:
+  contents: read
+
+jobs:
+  build-bir-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Prepare isolated BIR preview sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p app/src/main/assets/bir
+          cp prototypes/bir/index.html app/src/main/assets/bir/index.html
+          cp prototypes/bir/bir.css app/src/main/assets/bir/bir.css
+          cp prototypes/bir/bir.js app/src/main/assets/bir/bir.js
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          assets=Path('app/src/main/assets/bir')
+          html=(assets/'index.html').read_text()
+          css=(assets/'bir.css').read_text()
+          js=(assets/'bir.js').read_text()
+
+          html=html.replace(
+            '<div class="bir-mark" aria-hidden="true"><span class="bir-b">B</span><span class="bir-infinity">∞</span><span class="bir-r">R</span></div>',
+            '<div class="bir-mark" aria-hidden="true"><span class="bir-infinity">∞</span><span class="bir-b">B</span><span class="bir-i">I</span><span class="bir-r">R</span></div>',1)
+          html=html.replace(
+            '<button data-nav="action" class="nav-action"><span>⚡</span><small id="navActionLabel">Action</small></button>',
+            '<button data-nav="action" class="nav-action"><span class="nav-infinity">∞</span><small id="navActionLabel">Action</small></button>',1)
+          demo='<div class="demo-banner"><span>MODE PROTOTYPE</span> Les valeurs sont fictives et servent uniquement à valider le design et l’ergonomie.</div>'
+          priority='''<button class="priority-card" id="priorityCard" data-open-screen="action"><span class="priority-icon">∞</span><span class="priority-copy"><b id="priorityTitle">ACTIONS DAE PRIORITAIRES</b><small id="priorityText">Pilotez, approvisionnez et développez votre réseau.</small></span><span class="priority-arrow">›</span></button>'''
+          if demo in html: html=html.replace(demo,demo+'\n'+priority,1)
+          engine='<article class="engine-card"><div class="engine-mark">∞</div><div><p class="eyebrow dark">CONTINUITÉ TECHNIQUE</p><b>Powered by Blue Magic Engine</b><small>B.I.R. est la marque visible. Le moteur historique reste inchangé dans ce prototype.</small></div></article>'
+          if engine in html:
+              html=html.replace(engine,engine+'<button id="openEngineButton" class="engine-open-button" type="button">OUVRIR BLUE MAGIC ENGINE v2.6.8</button>',1)
+
+          css += r'''
+          /* B.I.R. visual direction selected 2026-08-16 */
+          .bir-mark{position:relative;width:112px;height:58px;flex:0 0 112px;border-radius:0;background:transparent;box-shadow:none;overflow:visible}
+          .bir-infinity{position:absolute;left:3px;top:-10px;width:106px;height:70px;display:block;font-size:74px;line-height:.88;font-weight:950;letter-spacing:-.08em;transform:rotate(-4deg);background:linear-gradient(90deg,#22c9ff 0%,#126df1 38%,#ffd15d 61%,#fff0ad 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 6px rgba(36,215,255,.75)) drop-shadow(0 0 8px rgba(255,209,93,.55))}
+          .bir-b,.bir-r,.bir-i{position:absolute;z-index:2;font-weight:950;text-shadow:0 1px 0 rgba(255,255,255,.2),0 0 9px rgba(0,0,0,.2)}
+          .bir-b{left:22px;top:17px;color:#2ad8ff;font-size:22px}.bir-r{right:20px;top:17px;color:#ffe27e;font-size:22px}.bir-i{left:50%;top:3px;transform:translateX(-50%);color:#fff0ad;font-size:42px;font-family:Georgia,"Times New Roman",serif;text-shadow:0 0 8px rgba(255,209,93,.75)}
+          .brand-copy span{font-size:8px}.brand-copy strong{font-size:19px}.brand-copy small{font-size:9px;line-height:1.25}
+          .section-heading p:not(.eyebrow),.subcopy{font-size:9px!important}.metric-card span{font-size:8px}.metric-card small{font-size:7px}.cap-card small{font-size:8.5px;line-height:1.48}.event-copy span{font-size:7.5px}.node-id small,.node-money small{font-size:7px}.node-chip{font-size:7px}.insight-card p{font-size:8px}.action-card p{font-size:8px}.field label{font-size:8px}.safe-card p{font-size:8px}.manage-head small{font-size:7.5px}.payment-lock small{font-size:7.5px}.engine-card small{font-size:7.5px}.bottom-nav button small{font-size:7.5px}
+          .priority-card{width:100%;margin:10px 0 2px;min-height:68px;border:1px solid rgba(201,137,0,.28);border-radius:18px;display:flex;align-items:center;gap:10px;padding:10px 13px;text-align:left;color:#07152d;background:linear-gradient(100deg,#e6a82e,#ffd66d 62%,#fff0ad);box-shadow:0 10px 25px rgba(201,137,0,.15)}
+          .priority-icon{width:42px;height:42px;flex:0 0 auto;border-radius:14px;display:grid;place-items:center;background:#0b2d64;color:#ffe17e;font-size:29px;filter:drop-shadow(0 0 5px rgba(255,209,93,.4))}.priority-copy{min-width:0;flex:1}.priority-copy b{display:block;font-size:11px}.priority-copy small{display:block;margin-top:3px;font-size:9px;line-height:1.35;color:#6d4a07}.priority-arrow{font-size:31px;line-height:1}
+          .bottom-nav .nav-action{background:radial-gradient(circle at 50% 42%,rgba(255,239,167,.98),rgba(255,209,93,.98) 44%,#c98200 72%,#6b3b00 100%);color:#fff;border:3px solid #061a3a;box-shadow:0 0 0 2px rgba(255,209,93,.55),0 0 18px rgba(255,190,40,.82),0 10px 24px rgba(67,39,0,.38)}
+          .bottom-nav .nav-action.active{background:radial-gradient(circle at 50% 42%,#fff4bd,#ffd15d 44%,#d18a00 73%,#6b3b00);color:#fff}.bottom-nav .nav-action .nav-infinity{font-size:28px;color:#fff4bd;text-shadow:0 0 5px #fff,0 0 11px #ffd15d,0 0 18px #f3a900}
+          .engine-open-button{width:100%;min-height:44px;margin-top:7px;border:0;border-radius:14px;background:linear-gradient(100deg,#071a3a,#126df1 65%,#24d7ff);color:#fff;font-size:8px;font-weight:950;box-shadow:0 8px 18px rgba(18,109,241,.18)}
+          @media(max-width:390px){.bir-mark{width:96px;flex-basis:96px;height:52px}.bir-infinity{width:92px;font-size:64px;left:1px;top:-7px}.bir-b{left:19px;top:16px;font-size:19px}.bir-r{right:18px;top:16px;font-size:19px}.bir-i{font-size:36px;top:4px}.brand-copy span{font-size:7.5px}.brand-copy strong{font-size:17px}.brand-copy small{font-size:8.5px}.cap-card small{font-size:8px}.priority-copy small{font-size:8.5px}}
+          @media(max-width:330px){.bir-mark{width:82px;flex-basis:82px}.bir-infinity{font-size:56px;width:80px}.bir-b{left:16px;top:16px;font-size:17px}.bir-r{right:15px;top:16px;font-size:17px}.bir-i{font-size:32px;top:6px}.brand-copy span{font-size:7px}.brand-copy strong{font-size:16px}}
+          '''
+
+          js=js.replace("set('activityTitle',d.activityTitle);set('navActionLabel',d.navAction);renderQuick();",
+          "set('activityTitle',d.activityTitle);set('navActionLabel',d.navAction);if(role==='DAE'){set('priorityTitle','ACTIONS DAE PRIORITAIRES');set('priorityText','Pilotez, approvisionnez et développez votre réseau.');}else if(role==='DSM'){set('priorityTitle','ACTIONS DSM PRIORITAIRES');set('priorityText','Approvisionnez vos PoS et gardez votre réseau fluide.');}else{set('priorityTitle','VENTE RAPIDE POS');set('priorityText','Vendez, vérifiez et suivez votre activité en quelques gestes.');}renderQuick();")
+          end="el('modalClose').onclick=closeModal;el('demoModal').onclick=function(e){if(e.target===el('demoModal')){closeModal();}};renderRole();showScreen('home');"
+          repl="el('modalClose').onclick=closeModal;el('demoModal').onclick=function(e){if(e.target===el('demoModal')){closeModal();}};var openEngine=el('openEngineButton');if(openEngine){openEngine.onclick=function(){try{if(window.BirBridge&&window.BirBridge.openEngine){window.BirBridge.openEngine();}else{modal('Blue Magic Engine','Disponible uniquement dans l’APK B.I.R. Preview.');}}catch(err){modal('Blue Magic Engine','Ouverture impossible : '+err.message);}};}renderRole();showScreen('home');"
+          if end in js: js=js.replace(end,repl,1)
+
+          (assets/'index.html').write_text(html)
+          (assets/'bir.css').write_text(css)
+          (assets/'bir.js').write_text(js)
+
+          gradle=Path('app/build.gradle')
+          g=gradle.read_text()
+          g=g.replace('applicationId "com.profitloop.blueauto"','applicationId "com.profitloop.birpreview"')
+          g=g.replace('versionCode 48','versionCode 49')
+          g=g.replace('versionName "2.6.8"','versionName "2.6.9-bir-preview.1"')
+          gradle.write_text(g)
+
+          strings=Path('app/src/main/res/values/strings.xml')
+          st=strings.read_text().replace('<string name="app_name">Blue Magic</string>','<string name="app_name">B.I.R. Preview</string>')
+          strings.write_text(st)
+
+          manifest=Path('app/src/main/AndroidManifest.xml')
+          m=manifest.read_text()
+          old='''        <activity\n            android:name=".MainActivity"\n            android:exported="true"\n            android:launchMode="singleTask"\n            android:windowSoftInputMode="adjustResize">\n            <intent-filter>\n                <action android:name="android.intent.action.MAIN" />\n                <category android:name="android.intent.category.LAUNCHER" />\n            </intent-filter>\n        </activity>'''
+          new='''        <activity\n            android:name=".BirPrototypeActivity"\n            android:exported="true"\n            android:launchMode="singleTask">\n            <intent-filter>\n                <action android:name="android.intent.action.MAIN" />\n                <category android:name="android.intent.category.LAUNCHER" />\n            </intent-filter>\n        </activity>\n\n        <activity\n            android:name=".MainActivity"\n            android:exported="false"\n            android:launchMode="singleTask"\n            android:windowSoftInputMode="adjustResize" />'''
+          if old not in m: raise SystemExit('MainActivity manifest anchor missing')
+          manifest.write_text(m.replace(old,new,1))
+          PY
+
+          cat > app/src/main/java/com/profitloop/blueauto/BirPrototypeActivity.java <<'JAVA'
+          package com.profitloop.blueauto;
+
+          import android.app.Activity;
+          import android.content.Intent;
+          import android.graphics.Color;
+          import android.os.Bundle;
+          import android.webkit.JavascriptInterface;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+
+          public final class BirPrototypeActivity extends Activity {
+              private WebView webView;
+              @Override protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  getWindow().setStatusBarColor(Color.rgb(5,24,54));
+                  getWindow().setNavigationBarColor(Color.rgb(5,24,54));
+                  webView=new WebView(this); setContentView(webView);
+                  WebSettings s=webView.getSettings();
+                  s.setJavaScriptEnabled(true); s.setDomStorageEnabled(true); s.setAllowFileAccess(true);
+                  s.setAllowContentAccess(false); s.setBlockNetworkLoads(true); s.setTextZoom(100);
+                  webView.setWebViewClient(new WebViewClient());
+                  webView.addJavascriptInterface(new BirBridge(),"BirBridge");
+                  webView.loadUrl("file:///android_asset/bir/index.html");
+              }
+              @Override public void onBackPressed(){if(webView!=null&&webView.canGoBack())webView.goBack();else super.onBackPressed();}
+              private final class BirBridge {
+                  @JavascriptInterface public void openEngine(){runOnUiThread(() -> startActivity(new Intent(BirPrototypeActivity.this,MainActivity.class)));}
+              }
+          }
+          JAVA
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Gradle 8.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+
+      - name: Ephemeral signing key
+        shell: bash
+        run: |
+          set -euo pipefail
+          PASS="$(openssl rand -hex 18)"
+          mkdir -p .pilot-signing
+          keytool -genkeypair -v -keystore .pilot-signing/debug.keystore -storepass "$PASS" -alias androiddebugkey -keypass "$PASS" -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=BIR Preview Ephemeral,O=Profitloop,C=CM"
+          echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$PASS" >> "$GITHUB_ENV"
+
+      - name: Tests and Release build
+        run: gradle :app:testDebugUnitTest :app:assembleRelease --stacktrace
+
+      - name: Prepare named APK
+        run: |
+          mkdir -p out
+          cp app/build/outputs/apk/release/app-release.apk out/BIR-Blue-Infinity-Retail-Preview-v2.6.9.apk
+          sha256sum out/BIR-Blue-Infinity-Retail-Preview-v2.6.9.apk | tee out/SHA256.txt
+
+      - name: Upload preview APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIR-Blue-Infinity-Retail-Preview-v2.6.9
+          path: out/*
+          retention-days: 14
