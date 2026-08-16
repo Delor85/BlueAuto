@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f7fcff">
+  <title>B.I.R. — Blue Infinity Retail</title>
+  <link rel="stylesheet" href="bir.css">
+</head>
+<body>
+<div class="ambient ambient-a"></div><div class="ambient ambient-b"></div>
+<div class="app-shell">
+  <header class="topbar">
+    <div class="brand-block">
+      <div class="bir-mark" aria-hidden="true"><span class="bir-b">B</span><span class="bir-infinity">∞</span><span class="bir-r">R</span></div>
+      <div class="brand-copy"><span>BLUE INFINITY RETAIL</span><strong>B.I.R.</strong><small>Rapide. Puissant. Infini.</small></div>
+    </div>
+    <label class="role-switch"><span>APERÇU</span><select id="roleSelect" aria-label="Rôle de démonstration"><option value="DAE">DAE</option><option value="DSM">DSM</option><option value="POS">PoS</option></select></label>
+  </header>
+
+  <main id="appMain">
+    <section class="screen active" data-screen="home">
+      <article class="hero-card">
+        <div class="hero-top">
+          <div><p class="eyebrow">NŒUD ACTIF · DÉMONSTRATION</p><h1 id="heroNode">OU3</h1><p id="heroRole">DAE · ROBOT</p></div>
+          <div class="robot-pill"><i></i><span>ROBOT ACTIF</span></div>
+        </div>
+        <p class="balance-label">Disponible maintenant</p>
+        <div class="balance-line"><strong id="availableBalance">528 400</strong><span>FCFA</span></div>
+        <div class="money-grid">
+          <div class="money-tile"><span>Solde Camtel</span><b id="camtelBalance">550 000 F</b></div>
+          <div class="money-tile gold"><span>Commissions du jour</span><b id="commissionToday">+18 450 F</b></div>
+          <div class="money-tile"><span>Réservé confirmé</span><b id="reservedBalance">21 600 F</b></div>
+        </div>
+        <div class="hero-actions"><button class="cta cta-gold" id="heroPrimary">PILOTER MON RÉSEAU</button><button class="cta cta-glass" data-open-screen="manage">∞ GÉRER</button></div>
+        <div class="infinite-watermark">∞</div>
+      </article>
+
+      <div class="demo-banner"><span>MODE PROTOTYPE</span> Les valeurs sont fictives et servent uniquement à valider le design et l’ergonomie.</div>
+
+      <section class="section-block">
+        <div class="section-heading"><div><p class="eyebrow dark">ÉNERGIE COMMERCIALE</p><h2>Votre journée en un regard</h2></div><button class="text-link" data-open-screen="activity">Détails</button></div>
+        <div class="metric-grid">
+          <article class="metric-card success"><span>Opérations réussies</span><b id="metricOps">47</b><small>Aujourd’hui</small></article>
+          <article class="metric-card gold"><span>Commission</span><b id="metricCommission">18,4k</b><small>FCFA · démo</small></article>
+          <article class="metric-card"><span>Attention</span><b id="metricAttention">3</b><small id="metricAttentionLabel">nœuds à suivre</small></article>
+        </div>
+        <article class="momentum-card"><div><span id="momentumTitle">Dynamique de mon réseau</span><b id="momentumPct">72 %</b></div><div class="progress"><i id="momentumBar"></i></div><small id="momentumHint">Basé sur des données fictives du prototype.</small></article>
+      </section>
+
+      <section class="section-block">
+        <div class="section-heading"><div><p class="eyebrow dark">À PORTÉE DU POUCE</p><h2>Actions instantanées</h2></div></div>
+        <div class="quick-grid" id="quickGrid"></div>
+      </section>
+
+      <section class="section-block">
+        <div class="section-heading"><div><p class="eyebrow dark">CŒUR B.I.R.</p><h2>Une plateforme, pas un catalogue</h2><p class="subcopy">Uniquement les capacités propres à B.I.R. et au réseau Blue.</p></div></div>
+        <div class="capability-grid">
+          <article class="cap-card featured"><span class="cap-icon">⚡</span><b>Vente Blue</b><small>Vente client PoS, confirmation financière et preuve Camtel.</small></article>
+          <article class="cap-card gold"><span class="cap-icon">↗</span><b>Approvisionnement</b><small>DAE → DSM → PoS avec commissions et capacité maîtrisées.</small></article>
+          <article class="cap-card"><span class="cap-icon">◫</span><b>Soldes & preuves</b><small>Solde Camtel, disponible, réservations, historique et détails.</small></article>
+          <article class="cap-card"><span class="cap-icon">⌁</span><b>Réseau vivant</b><small>Hiérarchie réelle, activité et état des terminaux selon le rôle.</small></article>
+          <article class="cap-card"><span class="cap-icon">◉</span><b>Robot intelligent</b><small>Remote, Robot, multi-SIM, file, reprise et assistance terrain.</small></article>
+          <article class="cap-card"><span class="cap-icon">◇</span><b>SAV & diagnostic</b><small>Test sans fonds, état serveur, anomalies et reprise guidée.</small></article>
+        </div>
+      </section>
+
+      <section class="section-block">
+        <div class="section-heading"><div><p class="eyebrow dark">RÉSEAU VIVANT</p><h2>Ce qui mérite votre attention</h2></div><button class="text-link" data-open-screen="activity">Tout voir</button></div>
+        <div class="timeline compact" id="homeTimeline"></div>
+      </section>
+    </section>
+
+    <section class="screen" data-screen="network">
+      <div class="screen-intro"><div><p class="eyebrow dark">RÉSEAU B.I.R.</p><h2 id="networkTitle">Ma pyramide commerciale</h2><p id="networkIntro">Voir uniquement ce que votre rôle doit piloter.</p></div><div class="screen-badge">LIVE UX</div></div>
+      <article class="network-summary panel-light">
+        <div><span>Actifs</span><b id="netActive">38</b></div><div><span>À suivre</span><b id="netWatch">3</b></div><div><span>Robot</span><b id="netRobot">96%</b></div>
+      </article>
+      <div class="network-tree" id="networkTree"></div>
+      <article class="panel-light insight-card"><div class="insight-icon">∞</div><div><b>Lecture intelligente du réseau</b><p id="networkInsight">B.I.R. privilégiera les preuves déjà fraîches avant de demander un nouvel USSD.</p></div></article>
+    </section>
+
+    <section class="screen" data-screen="action">
+      <div class="screen-intro"><div><p class="eyebrow dark">ACTION PRINCIPALE</p><h2 id="actionTitle">Piloter mon réseau</h2><p id="actionIntro">Le contenu s’adapte au rôle actif.</p></div><div class="screen-badge gold-badge">0 F RÉEL</div></div>
+      <div id="actionCards" class="action-stack"></div>
+      <article class="safe-card"><span>🔒</span><div><b>Prototype sans fonds</b><p>Aucun bouton de cette maquette ne compose un code USSD et aucune opération financière n’est envoyée.</p></div></article>
+    </section>
+
+    <section class="screen" data-screen="activity">
+      <div class="screen-intro"><div><p class="eyebrow dark">ACTIVITÉ & PREUVES</p><h2 id="activityTitle">Mon réseau aujourd’hui</h2><p>Événements lisibles d’abord, détails techniques ensuite.</p></div><button class="filter-button">Aujourd’hui⌄</button></div>
+      <div class="filter-chips"><button class="active">Tout</button><button>Finance</button><button>Robot</button><button>Alertes</button></div>
+      <div class="timeline" id="activityTimeline"></div>
+    </section>
+
+    <section class="screen" data-screen="manage">
+      <div class="screen-intro"><div><p class="eyebrow dark">CENTRE DE COMMANDE</p><h2>∞ Gérer B.I.R.</h2><p>Réglages regroupés par intention, avec priorité aux petits écrans.</p></div><div class="screen-badge">RESPONSIVE</div></div>
+      <div class="manage-sections">
+        <article class="manage-group"><div class="manage-head"><span class="manage-icon blue">◫</span><div><b>Compte & SIM</b><small>Identité, profil actif et liaison physique.</small></div></div><div class="manage-actions"><button data-demo-action="Comptes">Comptes</button><button data-demo-action="Vérifier / lier SIM">Vérifier SIM</button><button data-demo-action="Changer de mode">Remote ↔ Robot</button></div></article>
+        <article class="manage-group" id="managePinGroup"><div class="manage-head"><span class="manage-icon gold">⌁</span><div><b>PIN Camtel</b><small>PIN local et administration réseau.</small></div></div><div class="manage-actions"><button data-demo-action="PIN local">PIN local</button><button data-demo-action="Modifier PIN Camtel">Modifier PIN</button><button data-demo-action="Reset PIN">Reset PIN</button></div></article>
+        <article class="manage-group"><div class="manage-head"><span class="manage-icon violet">◉</span><div><b>Robot & téléphone</b><small>Autorisations, batterie et état d’exécution.</small></div></div><div class="manage-actions"><button data-demo-action="Autorisations">Autorisations</button><button data-demo-action="Batterie">Batterie</button><button data-demo-action="Robot">État Robot</button></div></article>
+        <article class="manage-group"><div class="manage-head"><span class="manage-icon mint">▤</span><div><b>Files & sécurité</b><small>Opérations en attente, preuves et actions sensibles.</small></div></div><div class="manage-actions"><button data-demo-action="File d’attente">File d’attente</button><button data-demo-action="Diagnostic">Diagnostic</button><button data-demo-action="Sécurité">Sécurité</button></div></article>
+      </div>
+      <article class="payment-foundation">
+        <div class="payment-head"><div><p class="eyebrow">B.I.R. PAY · FONDATION</p><h3>Paiement préparé, totalement inactif.</h3></div><span>VERROUILLÉ</span></div>
+        <div class="payment-flow"><div><b>1</b><span>Intention</span></div><i>→</i><div><b>2</b><span>Routeur</span></div><i>→</i><div><b>3</b><span>Adaptateurs</span></div></div>
+        <div class="payment-lock"><b>Aucun connecteur · aucune clé · aucun débit</b><small>Le futur paiement restera séparé du moteur Blue Magic Engine / USSD.</small></div>
+      </article>
+      <article class="engine-card"><div class="engine-mark">∞</div><div><p class="eyebrow dark">CONTINUITÉ TECHNIQUE</p><b>Powered by Blue Magic Engine</b><small>B.I.R. est la marque visible. Le moteur historique reste inchangé dans ce prototype.</small></div></article>
+    </section>
+  </main>
+
+  <nav class="bottom-nav" aria-label="Navigation B.I.R.">
+    <button data-nav="home" class="active"><span>⌂</span><small>Accueil</small></button>
+    <button data-nav="network"><span>⌁</span><small>Réseau</small></button>
+    <button data-nav="action" class="nav-action"><span>⚡</span><small id="navActionLabel">Action</small></button>
+    <button data-nav="activity"><span>▤</span><small>Activité</small></button>
+    <button data-nav="manage"><span>∞</span><small>Gérer</small></button>
+  </nav>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+<div class="modal" id="demoModal" aria-hidden="true"><div class="modal-card"><div class="modal-bar"></div><div class="modal-icon">∞</div><h3 id="modalTitle">Prototype B.I.R.</h3><p id="modalText">Aucune action réelle.</p><button id="modalClose">COMPRIS</button></div></div>
+<script src="bir.js"></script>
+</body>
+</html>
