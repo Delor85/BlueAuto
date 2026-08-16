@@ -164,7 +164,7 @@ final class ApiClient {
 
     JSONObject platformAction(String action, JSONObject payload) throws Exception {
         String safe = action == null ? "" : action.trim();
-        if (!safe.matches("(?:operator_insights|operator_catalog|platform_snapshot|network_balance_audit|shadow_enroll|debt_save|debt_list|kyc_save|mercenary_save|mercenary_list|mercenary_sale|commission_policy|commission_set_default|commission_set_child|accounting_summary|transaction_ledger|owner_snapshot|owner_transactions|owner_audit|owner_control|owner_assist)")) {
+        if (!safe.matches("(?:operator_insights|operator_catalog|platform_snapshot|network_balance_audit|shadow_enroll|debt_save|debt_list|kyc_save|mercenary_save|mercenary_list|mercenary_sale|commission_policy|commission_set_default|commission_set_child|accounting_summary|transaction_ledger|owner_snapshot|owner_transactions|owner_audit|owner_control|owner_assist|owner_tchoronko_save)")) {
             throw new ApiException("ACTION_NOT_ALLOWED", "Action plateforme non autorisée par le pont natif.");
         }
         return post(safe, payload == null ? new JSONObject() : payload, true);

@@ -75,6 +75,7 @@ export default {
         case 'owner_audit': return await ownerAudit(request, env, auth, input, headers);
         case 'owner_control': return await ownerControl(request, env, auth, input, headers);
         case 'owner_assist': return await ownerAssist(request, env, auth, input, headers);
+        case 'owner_tchoronko_save': return await ownerTchoronkoSave(request, env, auth, input, headers);
         case 'device_control_poll': return await deviceControlPoll(env, auth, headers);
         case 'device_control_ack': return await deviceControlAck(env, auth, input, headers);
         case 'shadow_enroll': return await shadowEnroll(env, auth, input, headers);
@@ -2378,6 +2379,31 @@ async function ownerAssist(request, env, auth, input, headers) {
     .bind(node,requestType,JSON.stringify(input.payload||{}).slice(0,1800),1,owner.entitlement_id).run();
   await adminAudit(env,owner.entitlement_id,'OWNER_ASSIST',node,null,{request_type:requestType},'PENDING_USER_CONFIRMATION');
   return success({queued:true,target_node_code:node,request_type:requestType,requires_user_confirmation:true},202,headers);
+}
+
+async function ownerTchoronkoSave(request, env, auth, input, headers) {
+  const owner = await authenticateOwner(request,env,auth,'OWNER_ADMIN');
+  const role = String(input.role||'').trim().toUpperCase();
+  if (!['DSM','POS'].includes(role)) throw new ApiError('TCHORONKO_ROLE_INVALID','Un Tchoronko doit être DSM ou POS.',422);
+  const node = nodeCode(input.node_code), parent = nodeCode(input.parent_node_code);
+  const phone = String(input.phone_number||'').replace(/\D/g,'');
+  if (!/^6\d{8}$/.test(phone)) throw new ApiError('PHONE_INVALID','Numéro Blue Tchoronko invalide.',422);
+  const parentRow = await env.DB.prepare('SELECT node_code,role FROM nodes WHERE node_code=? AND active=1 LIMIT 1').bind(parent).first();
+  const requiredParent = role === 'DSM' ? 'DAE' : 'DSM';
+  if (!parentRow || parentRow.role !== requiredParent) throw new ApiError('TCHORONKO_PARENT_INVALID',`Un ${role} doit dépendre directement d'un ${requiredParent}.`,422);
+  const existing = await env.DB.prepare('SELECT node_code,role,parent_node_code FROM nodes WHERE node_code=? LIMIT 1').bind(node).first();
+  if (existing && existing.role !== role) throw new ApiError('TCHORONKO_ROLE_CONFLICT','Ce code existe déjà avec un autre rôle.',409);
+  if (existing) {
+    await env.DB.prepare('UPDATE nodes SET phone_number=?,parent_node_code=?,active=1 WHERE node_code=?').bind(phone,parent,node).run();
+  } else {
+    await env.DB.prepare('INSERT INTO nodes(node_code,role,phone_number,parent_node_code,active) VALUES(?,?,?,?,1)').bind(node,role,phone,parent).run();
+  }
+  await env.DB.prepare(`INSERT INTO shadow_accounts(node_code,terminal_type,display_name,zone,notes,updated_at)
+      VALUES(?,?,?,?,?,strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+      ON CONFLICT(node_code) DO UPDATE SET terminal_type=excluded.terminal_type,display_name=excluded.display_name,zone=excluded.zone,notes=excluded.notes,updated_at=excluded.updated_at`)
+    .bind(node,'TCHORONKO_SHADOW',cleanText(input.display_name||node,120),cleanText(input.zone||'',120),cleanText(input.notes||'',500)).run();
+  await adminAudit(env,owner.entitlement_id,'OWNER_TCHORONKO_SAVE',node,null,{role,parent_node_code:parent,phone_number:phone},'ACCEPTED');
+  return success({saved:true,node_code:node,role,parent_node_code:parent,terminal_type:'TCHORONKO_SHADOW'},200,headers);
 }
 
 async function deviceControlPoll(env, auth, headers) {
