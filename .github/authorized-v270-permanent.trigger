@@ -1,0 +1,9 @@
+authorized_sha=c92e62e5f3a22369f99c3c2bfe04592abe18cb16
+certificate_sha256=f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5
+package=com.profitloop.blueauto
+versionCode=51
+versionName=2.7.0
+cloudflare_deploy=forbidden
+d1_mutation=forbidden
+pr4_merge=forbidden
+authorization_scope=permanent_apk_only
