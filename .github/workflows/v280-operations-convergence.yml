@@ -29,7 +29,9 @@ jobs:
           ! grep -R --line-number -E 'wrangler[[:space:]]+deploy|d1[[:space:]].*migrations[[:space:]]+apply' .github/scripts/v280_operations_patch.py .github/workflows/v280-operations-convergence.yml
 
       - name: Apply deterministic v2.8 source patch
-        run: python3 .github/scripts/v280_operations_patch.py
+        run: |
+          python3 .github/scripts/v280_operations_patch.py
+          python3 .github/scripts/v280_test_compat.py
 
       - name: Node.js 22
         uses: actions/setup-node@v4
