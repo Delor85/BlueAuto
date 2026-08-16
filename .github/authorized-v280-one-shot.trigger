@@ -1,0 +1,6 @@
+scope=source-only-v280-one-shot
+base_source=c529a9c35ff29455bd62aa8526a440b4c4dd73d8
+production_worker_deploy=forbidden
+d1_migration=forbidden
+pr4_merge=forbidden
+permanent_signing=forbidden
