@@ -22,10 +22,11 @@ jobs:
         run: |
           set -euo pipefail
           if grep -q 'versionCode 51' app/build.gradle && grep -q 'versionName "2.6.11"' app/build.gradle; then
-            echo "Validated v2.6.11 business source already present; no patch reapplied."
+            echo "Validated v2.6.11 business source already present; no version patch reapplied."
           else
             python3 .github/scripts/v2611_finalize_patch.py
           fi
+          python3 .github/scripts/v2611_shell_patch.py
           git diff --check
 
       - name: Full Worker and historical contracts
@@ -47,6 +48,7 @@ jobs:
           node app/src/test/bir-v269-functional-contract.mjs
           node app/src/test/v2610-control-tower.mjs
           node app/src/test/v2611-finalization-contract.mjs
+          node app/src/test/v2611-shell-contract.mjs
           node --check app/src/main/assets/app.js
           node --check app/src/main/assets/platform-v267.js
           node --check app/src/main/assets/control-tower-v2611.js
@@ -101,5 +103,5 @@ jobs:
             echo "No source changes to persist."
             exit 0
           fi
-          git commit -m "fix: finalize BIR v2.6.11 UX and server capability negotiation [v2611-source]"
+          git commit -m "fix: finalize BIR v2.6.11 full-screen UX [v2611-source]"
           git push origin HEAD:fix/bir-v2-6-11-finalization
