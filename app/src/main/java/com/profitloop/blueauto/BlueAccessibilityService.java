@@ -50,6 +50,8 @@ public class BlueAccessibilityService extends AccessibilityService {
     protected void onServiceConnected() {
         super.onServiceConnected();
         liveInstance = this;
+        AppConfig.prefs(this).edit().putLong("accessibility_connected_at", System.currentTimeMillis()).apply();
+        RobotService.startEnabled(this);
         handler.postDelayed(inspectAgain, 250L);
     }
 
@@ -707,6 +709,14 @@ public class BlueAccessibilityService extends AccessibilityService {
     private static boolean containsAny(String value, String... needles) {
         for (String needle : needles) if (value.contains(needle)) return true;
         return false;
+    }
+
+    static boolean isConnected() {
+        return liveInstance != null;
+    }
+
+    static boolean isOperational(Context context) {
+        return isEnabled(context) && isConnected();
     }
 
     static boolean isEnabled(Context context) {

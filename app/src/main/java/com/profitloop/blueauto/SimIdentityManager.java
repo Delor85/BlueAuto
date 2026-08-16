@@ -39,7 +39,7 @@ final class SimIdentityManager {
         if (savedType.isEmpty() || savedHash.isEmpty()) {
             // A number read directly from Android and equal to the Camtel number is safe to enroll
             // automatically. Hidden-number SIMs need one explicit confirmation in the UI.
-            if ("PHONE".equals(snapshot.identityType)) {
+            if (!snapshot.observedPhone.isEmpty()) {
                 AppConfig.updateSimBinding(context, profileId, snapshot.identityType,
                         snapshot.identityHash);
                 return Verification.ready(snapshot, true);
@@ -50,6 +50,15 @@ final class SimIdentityManager {
                     snapshot);
         }
         if (!savedType.equals(snapshot.identityType) || !savedHash.equals(snapshot.identityHash)) {
+            // v2.6.9 pouvait lier par PHONE puis basculer vers ICCID lorsque certains Android/OEM
+            // cessaient momentanément d’exposer le numéro de ligne. Si le numéro observé correspond
+            // toujours au compte, migrer une seule fois vers l’ICCID stable au lieu d’arrêter le Robot.
+            if ("PHONE".equals(savedType) && "ICCID".equals(snapshot.identityType)
+                    && !snapshot.observedPhone.isEmpty()
+                    && snapshot.observedPhone.equals(lastNine(AppConfig.phoneNumber(context, profileId)))) {
+                AppConfig.updateSimBinding(context, profileId, snapshot.identityType, snapshot.identityHash);
+                return Verification.ready(snapshot, true);
+            }
             return Verification.failure(SIM_CHANGED,
                     "La SIM du slot " + (snapshot.slot + 1)
                             + " n’est plus celle liée à ce Robot.", snapshot);
@@ -126,18 +135,18 @@ final class SimIdentityManager {
 
         String type;
         String rawIdentity;
-        if (!observed.isEmpty()) {
+        // Prefer the physical card identity when Android exposes it. The line number can disappear
+        // between two reads on old/vendor ROMs; using it as primary fingerprint caused false SIM loss.
+        String iccId = safeIccId(info);
+        if (!iccId.isEmpty()) {
+            type = "ICCID";
+            rawIdentity = iccId;
+        } else if (!observed.isEmpty()) {
             type = "PHONE";
             rawIdentity = observed;
         } else {
-            String iccId = safeIccId(info);
-            if (!iccId.isEmpty()) {
-                type = "ICCID";
-                rawIdentity = iccId;
-            } else {
-                type = "SUBSCRIPTION";
-                rawIdentity = String.valueOf(info.getSubscriptionId());
-            }
+            type = "SUBSCRIPTION";
+            rawIdentity = String.valueOf(info.getSubscriptionId());
         }
         return new Snapshot(slot, info, type, sha256(type + ":" + rawIdentity), observed,
                 carrierLabel(info));

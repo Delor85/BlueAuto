@@ -9,6 +9,7 @@
 </head>
 <body>
 <header class="topbar bir-topbar">
+    <button type="button" class="bir-menu-button" data-native-action="manage" aria-label="Ouvrir la gestion">☰</button>
     <div class="bir-brand-lockup">
         <img class="bir-logo-image" src="bir-logo.svg" alt="B.I.R.">
         <div class="bir-brand-copy"><p class="eyebrow">BLUE INFINITY RETAIL</p><h1>B.I.R.</h1><p class="bir-tagline">Rapide. Puissant. Infini.</p></div>
@@ -21,27 +22,35 @@
     </div>
 </header>
 <main>
-    <section class="hero panel">
-        <div><p class="eyebrow">COMPTE ACTIF</p><h2 id="nodeCode">—</h2><p id="nodeMeta" class="muted">Chargement…</p></div>
-        <div id="robotState" class="status-orb">—</div>
-    </section>
-    <section id="fatalNotice" class="notice notice-danger hidden"></section>
+    <article class="bir-balance-card bir-control-tower">
+        <div class="bir-account-line">
+            <div><p class="bir-kicker">COMPTE ACTIF</p><strong id="nodeCode">—</strong><small id="nodeMeta">Chargement…</small></div>
+            <button id="robotState" type="button" class="bir-robot-control" data-native-action="toggle-robot"><b>ROBOT —</b><small>Touchez pour agir</small></button>
+        </div>
+        <div class="bir-main-balance">
+            <p class="bir-kicker"><span class="bir-live-dot"></span> DISPONIBLE MAINTENANT</p>
+            <div><strong id="birCamtelBalance">À actualiser</strong><span>FCFA</span></div>
+            <p id="birBalanceFreshness" class="bir-balance-note">Lecture du solde en cours…</p>
+        </div>
+        <div class="bir-finance-grid">
+            <div><span>Disponible</span><b id="birAvailableBalance">—</b></div>
+            <div><span>Réservé confirmé</span><b id="birReservedBalance">—</b></div>
+            <div><span id="birThirdMetricLabel">Composante commission</span><b id="birThirdMetricValue">—</b></div>
+        </div>
+        <div class="bir-health-grid" id="birRobotHealth">
+            <button type="button" data-native-action="permissions"><b>✓ Autorisations</b><small id="birPermissionState">Contrôler</small></button>
+            <button type="button" data-native-action="toggle-robot"><b>∞ Robot</b><small id="birQuickRobotState">Démarrer / reprendre</small></button>
+            <button type="button" data-native-action="battery-settings"><b>▣ Batterie</b><small>Sans restriction</small></button>
+        </div>
+        <div class="bir-sync-strip"><span id="birSyncState">Tour de contrôle prête.</span><button type="button" data-native-action="synchronize">↻ Synchroniser</button></div>
+    </article>
+    <button id="fatalNotice" type="button" class="notice notice-danger hidden"></button>
     <section id="actionNotice" class="notice notice-danger hidden" role="alert"></section>
     <section id="roleNotice" class="notice hidden"></section>
     <section id="browserNotice" class="notice hidden">Cette interface doit être ouverte dans l’application Android.</section>
+    <article id="birInfoResult" class="bir-info-result hidden"><div><p class="bir-kicker">RÉSULTAT CAMTEL</p><strong id="birInfoResultTitle">Information reçue</strong></div><p id="birInfoResultBody"></p></article>
 
     <section class="module-screen hidden" data-tab-panel="reports">
-        <article class="bir-balance-card">
-            <div class="bir-balance-head">
-                <div><p class="bir-kicker">SOLDE CAMTEL</p><strong id="birCamtelBalance">À actualiser</strong><span>FCFA</span><p id="birBalanceFreshness" class="bir-balance-note">Lecture du solde en cours…</p></div>
-                <div id="birRobotState" class="bir-robot-orb">ROBOT —</div>
-            </div>
-            <div class="bir-finance-grid">
-                <div><span>Disponible</span><b id="birAvailableBalance">—</b></div>
-                <div><span>Réservé confirmé</span><b id="birReservedBalance">—</b></div>
-                <div><span id="birThirdMetricLabel">Composante commission</span><b id="birThirdMetricValue">—</b></div>
-            </div>
-        </article>
         <button type="button" class="bir-priority-action" data-tab-jump="flux">
             <span class="bir-action-infinity">∞</span><span><b id="birRoleActionTitle">ACTION PRIORITAIRE</b><small id="birRoleActionSub">Accédez directement à votre opération principale.</small></span><i>›</i>
         </button>
@@ -90,15 +99,15 @@
     <section class="module-screen" data-tab-panel="flux">
     <section class="grid">
         <article id="requestSupplyCard" class="panel command-card hidden">
-            <p class="eyebrow">ACHAT DE CRÉDIT</p><h3>Demander à mon supérieur</h3>
-            <p class="muted">Le Robot du supérieur approvisionnera votre SIM après deux contrôles.</p>
+            <p class="eyebrow">ACHAT DE CRÉDIT</p><h3 id="requestSupplyTitle">Demander à mon supérieur</h3>
+            <p id="requestSupplyHint" class="muted">Le Robot de votre supérieur direct approvisionnera votre SIM après les contrôles.</p>
             <label for="requestSupplyAmount">Montant (FCFA)</label><input id="requestSupplyAmount" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="9" autocomplete="off" data-digits-only="9" placeholder="Ex. 50000">
             <button type="button" class="transaction-action" data-action="request-supply">Envoyer la demande</button>
         </article>
         <article id="supplyChildCard" class="panel command-card hidden">
             <p class="eyebrow">APPROVISIONNEMENT</p><h3>Recharger un enfant direct</h3>
             <p class="muted">Le serveur résout exclusivement le numéro Camtel officiel de ce nœud.</p>
-            <label for="childNode">Code du DSM/PoS</label><input id="childNode" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" data-uppercase="true" maxlength="64" placeholder="Ex. DSM7 ou POS5">
+            <label id="childNodeLabel" for="childNode">Code enfant direct</label><input id="childNode" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" data-uppercase="true" maxlength="64" placeholder="Code enfant">
             <label for="childAmount">Montant (FCFA)</label><input id="childAmount" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="9" autocomplete="off" data-digits-only="9" placeholder="Ex. 25000">
             <button type="button" class="transaction-action" data-action="supply-child">Programmer la recharge</button>
         </article>
@@ -125,8 +134,8 @@
             <button type="button" class="transaction-action" data-action="transaction-details">Consulter les détails</button>
         </article>
         <article id="childBalanceCard" class="panel command-card hidden">
-            <p class="eyebrow">SUPERVISION ENFANT DIRECT</p><h3>Consulter le solde d’un DSM / PoS</h3>
-            <label for="balanceChildNode">Code du nœud enfant</label><input id="balanceChildNode" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" data-uppercase="true" maxlength="64" placeholder="Ex. DSM7 ou POS5">
+            <p class="eyebrow">SUPERVISION ENFANT DIRECT</p><h3 id="childBalanceTitle">Consulter le solde d’un enfant direct</h3>
+            <label id="balanceChildNodeLabel" for="balanceChildNode">Code enfant direct</label><input id="balanceChildNode" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" data-uppercase="true" maxlength="64" placeholder="Code enfant">
             <button type="button" class="transaction-action" data-action="child-balance">Lire le solde enfant</button>
         </article>
     </section>
@@ -146,10 +155,25 @@
         <article class="panel module-card">
             <p class="eyebrow">LIAISON PHYSIQUE</p>
             <h3>SIM, slot et propriété Robot</h3>
-            <p id="fleetSimStatus" class="muted">Ouvrez ☰ GÉRER pour vérifier ou lier la SIM. Un slot déjà occupé et vérifié reste protégé.</p>
+            <p id="fleetSimStatus" class="muted">La liaison physique protège le bon compte, le bon slot et la bonne SIM.</p>
             <div class="module-actions">
                 <button type="button" class="secondary" data-native-action="accounts">Comptes et slots</button>
                 <button type="button" class="secondary" data-native-action="verify-sim">Vérifier / lier la SIM</button>
+            </div>
+        </article>
+        <article id="commissionControlCard" class="panel module-card hidden">
+            <p class="eyebrow">COMMISSIONS D’APPROVISIONNEMENT</p>
+            <h3 id="commissionControlTitle">Taux de mes enfants directs</h3>
+            <p class="muted" id="commissionControlHint">Le supérieur fixe son taux par défaut et peut personnaliser un enfant direct.</p>
+            <div class="commission-editor">
+                <label for="commission-default">Taux par défaut (%)</label>
+                <div class="inline-edit"><input id="commission-default" type="text" inputmode="decimal" placeholder="Ex. 10"><button id="commission-default-save" type="button">Enregistrer</button></div>
+                <label id="commissionChildLabel" for="commission-child">Enfant direct</label>
+                <input id="commission-child" type="text" data-uppercase="true" autocomplete="off" placeholder="Code enfant">
+                <label for="commission-child-rate">Taux personnalisé (%)</label>
+                <div class="inline-edit"><input id="commission-child-rate" type="text" inputmode="decimal" placeholder="Ex. 9,5"><button id="commission-child-save" type="button">Personnaliser</button></div>
+                <div class="module-actions"><button id="commission-child-default" type="button" class="secondary">Revenir au taux par défaut</button><button id="commission-refresh" type="button" class="secondary">Actualiser les taux</button></div>
+                <div id="commission-list" class="commission-list muted">Lecture des taux…</div>
             </div>
         </article>
         <article class="panel module-card">
@@ -164,7 +188,7 @@
         <article id="childAdminCard" class="panel module-card hidden">
             <p class="eyebrow">MAINTENANCE CAMTEL ENFANT DIRECT</p>
             <h3>PIN, suspension et gel</h3>
-            <label for="adminChildNode">Code du DSM / PoS enfant</label><input id="adminChildNode" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" data-uppercase="true" maxlength="64" placeholder="Ex. DSM7 ou POS5">
+            <label id="adminChildNodeLabel" for="adminChildNode">Code enfant direct</label><input id="adminChildNode" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" data-uppercase="true" maxlength="64" placeholder="Code enfant">
             <div class="module-actions admin-actions">
                 <button type="button" class="secondary" data-action="init-child-pin-reset">Initier reset PIN</button>
                 <button type="button" class="secondary" data-action="suspend-child">Suspendre</button>
@@ -187,7 +211,7 @@
             <p class="muted">Toutes les fonctions historiques restent disponibles : compte actif, slots, SIM, mode Remote/Robot et centre natif Gérer.</p>
             <div class="module-actions">
                 <button type="button" class="secondary" data-native-action="accounts">Comptes et slots</button>
-                <button type="button" class="secondary" data-native-action="verify-sim">Vérifier / lier la SIM</button>
+                <button type="button" class="secondary" data-native-action="synchronize">Synchroniser maintenant</button>
                 <button type="button" class="secondary" data-native-action="manage">Ouvrir le centre Gérer</button>
             </div>
         </article>
@@ -205,8 +229,7 @@
                 <button type="button" class="secondary" data-native-action="pin">3. Enregistrer le PIN local</button>
                 <button type="button" class="secondary" data-native-action="change-pin">Modifier mon PIN Camtel</button>
                 <button type="button" class="secondary" data-native-action="reset-pin">Demander reset PIN</button>
-                <button type="button" class="secondary" data-native-action="manage">Tous les réglages</button>
-                <button type="button" data-native-action="start-robot">Démarrer / reprendre le Robot</button>
+                <button type="button" class="secondary" data-native-action="synchronize">Synchroniser les files</button>
             </div>
             <p class="muted">Le Robot reste déclaré actif après veille/redémarrage. Android garde toutefois le contrôle de l’autorisation Accessibilité : si le système ou l’utilisateur la désactive, Blue Magic conserve les achats/ventes dans la file et demande sa réactivation au lieu de les échouer.</p>
         </article>
@@ -247,6 +270,16 @@
     <button type="button" class="module-tab" data-tab="support"><span class="module-icon">▤</span><span>Activité</span></button>
     <button type="button" class="module-tab" data-tab="config"><span class="module-icon">⚙</span><span>Gérer</span></button>
 </nav>
+<div id="financialConfirmModal" class="bir-modal hidden" role="dialog" aria-modal="true" aria-labelledby="financialConfirmTitle">
+    <div class="bir-modal-card">
+        <p class="bir-kicker">CONFIRMATION 1 SUR 2</p><h2 id="financialConfirmTitle">Transaction Blue</h2>
+        <div id="financialConfirmFacts" class="bir-confirm-facts"></div>
+        <div id="financialRateEditor" class="bir-rate-editor hidden"><label for="financialRateInput">Taux de commission (%)</label><input id="financialRateInput" type="number" min="0" max="50" step="0.01" inputmode="decimal"></div>
+        <p id="financialConfirmAdvice" class="bir-confirm-advice"></p>
+        <p class="bir-confirm-security">Après cette confirmation, le Robot contrôlera à nouveau le destinataire et le montant dans le pop-up Camtel avant d’insérer le PIN.</p>
+        <div class="bir-modal-actions"><button id="financialConfirmCancel" type="button" class="secondary">ANNULER</button><button id="financialConfirmOk" type="button">CONFIRMER</button></div>
+    </div>
+</div>
 <div id="toast" class="toast hidden" role="status"></div>
 <script src="app.js"></script>
   <script src="platform-v267.js"></script>

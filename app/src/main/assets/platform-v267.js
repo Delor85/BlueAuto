@@ -27,10 +27,11 @@
       .replace(/[&<>"']/g, function (character) { return map[character]; });
   }
   function value(id) { var element = byId(id); return element ? element.value : ''; }
+  function rateBps(id) { var raw=String(value(id)||'').replace(',','.').trim(), rate=Number(raw); if(!isFinite(rate)||rate<0||rate>50){alert('Le taux doit être compris entre 0 et 50 %.'); return null;} return Math.round(rate*100); }
   function request(action, payload) {
     var nativeBridge = bridge();
     if (!nativeBridge || !nativeBridge.platformAction) {
-      alert('Cette fonction exige l’APK Blue Magic v2.6.8.');
+      alert('Cette fonction exige B.I.R. / Blue Magic v2.6.10.');
       return;
     }
     nativeBridge.platformAction(action, JSON.stringify(payload || {}));
@@ -73,11 +74,7 @@
       '<p class="small">Le DAE valide ses DSM; le DSM valide ses PoS. La validation initiale est valable 48 h. Un code court est accepté seulement dans sa branche.</p>' +
       '<h4>Validation / pré-enrôlement</h4><input id="shadow-id" placeholder="ID enfant"><input id="shadow-phone" placeholder="SIM 9 chiffres">' +
       '<input id="shadow-name" placeholder="Nom / alias"><input id="shadow-zone" placeholder="Zone"><button id="shadow-save">Activer la liaison</button><hr>' +
-      '<h4>💹 Commissions d’approvisionnement</h4><p class="small">DAE : taux par défaut pour les DSM. DSM : taux par défaut pour les PoS. Une exception enfant remplace seulement ce taux.</p>' +
-      '<input id="commission-default" type="number" step="0.01" placeholder="Taux par défaut %"><button id="commission-default-save">Enregistrer le taux par défaut</button>' +
-      '<input id="commission-child" placeholder="Enfant direct"><input id="commission-child-rate" type="number" step="0.01" placeholder="Taux personnalisé %">' +
-      '<button id="commission-child-save">Personnaliser</button><button id="commission-child-default">Revenir au défaut</button><button id="commission-refresh">Afficher les taux</button>' +
-      '<div id="commission-list" class="small"></div><hr><h4>Créances</h4><input id="debt-node" placeholder="ID débiteur">' +
+      '<h4>Créances</h4><input id="debt-node" placeholder="ID débiteur">' +
       '<input id="debt-amount" type="number" placeholder="Montant avancé"><input id="debt-repaid" type="number" placeholder="Montant remboursé">' +
       '<input id="debt-due" placeholder="Échéance AAAA-MM-JJ"><button id="debt-save">Enregistrer la créance</button><div id="debt-list" class="small"></div></details>');
   }
@@ -107,8 +104,8 @@
   bind('v267-catalog', function () { request('operator_catalog'); });
   bind('shadow-save', function () { request('shadow_enroll', {node_code:value('shadow-id'), phone_number:value('shadow-phone'), display_name:value('shadow-name'), zone:value('shadow-zone')}); });
   bind('commission-refresh', function () { request('commission_policy'); });
-  bind('commission-default-save', function () { request('commission_set_default', {rate_bps:Math.round(Number(value('commission-default') || 0) * 100)}); });
-  bind('commission-child-save', function () { request('commission_set_child', {child_node_code:value('commission-child'), rate_bps:Math.round(Number(value('commission-child-rate') || 0) * 100)}); });
+  bind('commission-default-save', function () { var rate=rateBps('commission-default'); if(rate!==null) request('commission_set_default', {rate_bps:rate}); });
+  bind('commission-child-save', function () { var rate=rateBps('commission-child-rate'); if(rate!==null) request('commission_set_child', {child_node_code:value('commission-child'), rate_bps:rate}); });
   bind('commission-child-default', function () { request('commission_set_child', {child_node_code:value('commission-child'), use_default:true}); });
   bind('debt-save', function () { request('debt_save', {debtor_node_code:value('debt-node'), amount_advanced:value('debt-amount'), amount_repaid:value('debt-repaid'), due_date:value('debt-due')}); });
   bind('kyc-save', function () { request('kyc_save', {legal_name:value('kyc-name'), id_document_number:value('kyc-doc'), document_reference:value('kyc-ref'), zone:value('kyc-zone'), latitude:value('kyc-lat'), longitude:value('kyc-lon')}); });

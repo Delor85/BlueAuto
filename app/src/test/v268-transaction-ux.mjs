@@ -17,6 +17,6 @@ for(const contract of ['actionInFlight','initializeInputErgonomics','fieldIssue'
 if(!ui.includes("Une commande est déjà en préparation")) throw new Error('single-flight user feedback missing');
 if(!ui.includes("submitted.type==='RETAIL_SALE'")) throw new Error('success-only retail cleanup missing');
 if(!html.includes('PILOTAGE & RAPPORTS')||html.includes('ONGLET 1 —')) throw new Error('obsolete numbered report heading remains');
-if(!html.includes('FLOTTE & RÉSEAU')||!html.includes('ROBOT & CONFIGURATION')||!html.includes('SAV & DIAGNOSTIC')) throw new Error('dynamic module headings missing');
+if(!html.includes('FLOTTE & RÉSEAU')||!html.includes('ROBOT & CONFIGURATION')||!html.includes('ACTIVITÉ & SAV')||!html.includes('DIAGNOSTIC RAPIDE')) throw new Error('dynamic module headings missing');
 if(!css.includes('input[aria-invalid="true"]')) throw new Error('field error styling missing');
 console.log('v2.6.8 transaction UX: mobile keyboards, single-flight, focused validation and success cleanup OK');

@@ -1,7 +1,7 @@
 import {parseBlueMessage} from './blue-message.mjs';
 import {CAMTEL_USSD, canonicalCamtelIdentity, parseCamtelIdentity, publicCamtelCatalog} from './camtel-catalog.mjs';
 
-const API_VERSION = '2.6.8-cloudflare';
+const API_VERSION = '2.6.10-cloudflare';
 const ROBOT_LIVE_WINDOW_MINUTES = 15;
 const BALANCE_EVIDENCE_TTL_SECONDS = 3600;
 const REPORT_BALANCE_EVIDENCE_TTL_SECONDS = 14 * 3600;
@@ -585,17 +585,23 @@ async function previewCommand(env, auth, input, headers) {
     values.capacityCheckId = await requireAvailableCapacity(env, auth, input, values);
   }
   const availability = await robotAvailability(env, values.executor);
+  const executorIdentity = await officialStoredIdentity(env, values.executor);
+  const targetIdentity = values.targetNode ? await officialStoredIdentity(env, values.targetNode) : null;
   return success({preview: {
     request_type: requestType,
     executor_node_code: values.executor,
+    executor_official_node_code: executorIdentity.node_code || values.executor,
     executor_phone: values.executorPhone,
     target_node_code: values.targetNode,
+    target_official_node_code: targetIdentity ? (targetIdentity.node_code || values.targetNode) : values.targetNode,
     target_phone: values.targetPhone,
     amount: values.amount,
     requested_base_amount: values.requestedBaseAmount || values.amount,
     commission_rate_bps: Number(values.commissionRateBps || 0),
     commission_amount: Number(values.commissionAmount || 0),
     commission_source: values.commissionSource || '',
+    commission_decider: requestType === 'SUPPLY_CHILD' ? 'REQUESTER_PARENT'
+      : requestType === 'REQUEST_SUPPLY' ? 'SUPERIOR_PARENT' : 'NONE',
     operation: values.commandKind || values.operation,
     requires_pin: Boolean(values.requiresPin),
     dangerous: Boolean(values.requiresConfirmation),
@@ -1025,12 +1031,23 @@ async function resolveCommand(env, auth, input, requestType) {
     if (!child) throw new ApiError('CHILD_NOT_FOUND', 'Ce compte n’est pas un enfant direct actif.', 422);
     const value = amount(input.amount);
     const policy = await commissionRateFor(env, requester, child.node_code);
-    const quote = commissionQuote(value, policy.rate_bps);
+    let chosenRate = policy.rate_bps;
+    let commissionSource = policy.source;
+    if (input.commission_rate_bps !== undefined && input.commission_rate_bps !== null
+        && String(input.commission_rate_bps).trim() !== '') {
+      const oneTimeRate = Number(input.commission_rate_bps);
+      if (!Number.isInteger(oneTimeRate) || oneTimeRate < 0 || oneTimeRate > 5000) {
+        throw new ApiError('INVALID_COMMISSION_RATE', 'Taux de commission de cette transaction invalide.', 422);
+      }
+      chosenRate = oneTimeRate;
+      commissionSource = 'ONE_TIME_PARENT_OVERRIDE';
+    }
+    const quote = commissionQuote(value, chosenRate);
     return {
       executor: requester, executorPhone: auth.phone_number,
       targetNode: child.node_code, targetPhone: child.phone_number, amount: quote.total_amount,
-      requestedBaseAmount: value, commissionRateBps: policy.rate_bps,
-      commissionAmount: quote.commission_amount, commissionSource: policy.source,
+      requestedBaseAmount: value, commissionRateBps: chosenRate,
+      commissionAmount: quote.commission_amount, commissionSource,
       operation: 'DISTRIBUTION_TRANSFER',
       ussd: CAMTEL_USSD.distributionTransfer(child.phone_number, quote.total_amount), requiresPin: 1
     };
@@ -1982,6 +1999,23 @@ async function applyMercenaryTerminal(env, publicId, state) {
 }
 
 
+async function officialStoredIdentity(env, storedNodeCode, guard = 0) {
+  const stored = String(storedNodeCode || '').trim().toUpperCase();
+  if (!stored || guard > 4) return {node_code: stored, parent_node_code: ''};
+  const parsed = parseCamtelIdentity(stored);
+  if (parsed.ok) return parsed;
+  const row = await env.DB.prepare('SELECT node_code, role, parent_node_code FROM nodes WHERE node_code=? LIMIT 1')
+    .bind(stored).first();
+  if (!row) return {node_code: stored, parent_node_code: ''};
+  if (row.role === 'DAE') {
+    const dae = canonicalCamtelIdentity(row.node_code, 'DAE', '');
+    return dae.ok ? dae : {node_code: stored, parent_node_code: ''};
+  }
+  const parent = await officialStoredIdentity(env, row.parent_node_code, guard + 1);
+  const candidate = canonicalCamtelIdentity(row.node_code, row.role, parent.node_code || row.parent_node_code);
+  return candidate.ok ? candidate : {node_code: stored, parent_node_code: row.parent_node_code || ''};
+}
+
 async function networkDashboard(env, auth, headers) {
   const nodes = await env.DB.prepare(
     'WITH RECURSIVE network(node_code) AS (SELECT ? UNION ALL '
@@ -2013,8 +2047,10 @@ async function networkDashboard(env, auth, headers) {
     + "THEN amount ELSE 0 END) AS successful_volume "
     + 'FROM commands WHERE requester_node_code IN (SELECT node_code FROM network)'
   ).bind(auth.node_code).first();
+  const viewerIdentity = await officialStoredIdentity(env, auth.node_code);
   return success({
     generated_at: new Date().toISOString(), root_node_code: auth.node_code,
+    viewer_identity: viewerIdentity,
     nodes: nodes.results.map(row => {
       const balance = row.balance == null ? null : Number(row.balance);
       const reserved = Number(row.reserved_amount || 0);

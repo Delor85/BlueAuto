@@ -378,29 +378,17 @@ public class MainActivity extends Activity {
         LinearLayout page = new LinearLayout(this);
         page.setOrientation(LinearLayout.VERTICAL);
         applyMagicBackground(page);
-        page.setPadding(dp(10), dp(8), dp(10), dp(6));
+        page.setPadding(0, 0, 0, 0);
         nativeStatus = help("");
-        nativeStatus.setTextColor(CYAN);
-        nativeStatus.setTextSize(12);
-        nativeStatus.setPadding(dp(4), 0, dp(4), dp(3));
-        page.addView(nativeStatus);
-
-        LinearLayout compactBar = new LinearLayout(this);
-        compactBar.setOrientation(LinearLayout.HORIZONTAL);
-        Button accounts = actionButton("COMPTES (" + AppConfig.profileCount(this) + ")", GOLD);
-        manageButton = actionButton("☰ GÉRER", VIOLET);
-        compactBar.addView(accounts, weighted());
-        compactBar.addView(manageButton, weighted());
-        page.addView(compactBar);
+        nativeStatus.setVisibility(View.GONE);
+        page.addView(nativeStatus, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0));
+        manageButton = null;
 
         webView = new WebView(this);
         webView.setBackgroundColor(BACKGROUND);
         page.addView(webView, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
         setContentView(page);
-
-        accounts.setOnClickListener(v -> showAccountManager());
-        manageButton.setOnClickListener(v -> setManagementOpen(true));
 
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -447,7 +435,7 @@ public class MainActivity extends Activity {
 
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
-                if (request.isForMainFrame()) nativeStatus.setText("Interface Android intégrée indisponible; relancez Blue Magic.");
+                if (request.isForMainFrame()) { nativeStatus.setVisibility(View.VISIBLE); nativeStatus.setText("Interface Android intégrée indisponible; relancez Blue Magic."); }
             }
 
         });
@@ -500,9 +488,8 @@ public class MainActivity extends Activity {
         Button accounts = managementActionButton("👥 COMPTES (" + AppConfig.profileCount(this) + ")", GOLD);
         Button addAccount = managementActionButton("＋ AJOUTER COMPTE", CYAN);
         addManagementPair(tools, accounts, addAccount);
-        Button verifySim = managementActionButton("🔗 VÉRIFIER / LIER SIM", VIOLET);
         Button repairPairing = managementActionButton("🛠 RÉPARER APPAIRAGE", CYAN);
-        addManagementPair(tools, verifySim, repairPairing);
+        addManagementFull(tools, repairPairing);
         Button switchMode = managementActionButton(AppConfig.isRobotMode(this)
                 ? "↔ PASSER EN REMOTE" : "↔ PASSER EN ROBOT", GOLD);
         addManagementFull(tools, switchMode);
@@ -512,7 +499,6 @@ public class MainActivity extends Activity {
         Button networkPinReset = null;
         Button prepare = null;
         Button battery = null;
-        Button toggle = null;
         if (robotMode) {
             tools.addView(managementSectionTitle("PIN CAMTEL"));
             pinSettings = managementActionButton("🔐 PIN LOCAL", GOLD);
@@ -522,12 +508,9 @@ public class MainActivity extends Activity {
             addManagementFull(tools, networkPinReset);
 
             tools.addView(managementSectionTitle("ROBOT & TÉLÉPHONE"));
-            prepare = managementActionButton("1. AUTORISATIONS", GOLD);
+            prepare = managementActionButton("AUTORISATIONS", GOLD);
             battery = managementActionButton("🔋 BATTERIE SANS RESTRICTION", CYAN);
             addManagementPair(tools, prepare, battery);
-            toggle = managementActionButton(AppConfig.robotEnabled(this)
-                    ? "■ ARRÊTER ROBOT" : "▶ DÉMARRER ROBOT", VIOLET);
-            addManagementFull(tools, toggle);
         }
 
         tools.addView(managementSectionTitle("FILES & SÉCURITÉ"));
@@ -558,7 +541,6 @@ public class MainActivity extends Activity {
 
         accounts.setOnClickListener(v -> { setManagementOpen(false); showAccountManager(); });
         addAccount.setOnClickListener(v -> { setManagementOpen(false); showPairingScreen(true); });
-        verifySim.setOnClickListener(v -> { setManagementOpen(false); confirmAndBindCurrentSim(); });
         repairPairing.setOnClickListener(v -> { setManagementOpen(false); showPairingRepairDialog(); });
         switchMode.setOnClickListener(v -> { setManagementOpen(false); showModeSwitcher(); });
         pendingOperations.setOnClickListener(v -> { setManagementOpen(false); showPendingOperations(); });
@@ -568,13 +550,11 @@ public class MainActivity extends Activity {
             final Button resetButton = networkPinReset;
             final Button permissionButton = prepare;
             final Button batteryButton = battery;
-            final Button toggleButton = toggle;
             pinButton.setOnClickListener(v -> { setManagementOpen(false); showPinEditorDialog(); });
             changeButton.setOnClickListener(v -> { setManagementOpen(false); showOperatorPinChangeDialog(); });
             resetButton.setOnClickListener(v -> { setManagementOpen(false); confirmResetOperatorPin(); });
             permissionButton.setOnClickListener(v -> { setManagementOpen(false); prepareRobotPermissions(); });
             batteryButton.setOnClickListener(v -> { setManagementOpen(false); openBatterySettings(); });
-            toggleButton.setOnClickListener(v -> toggleRobotFromManagement());
         }
 
         managementDialog.show();
@@ -1370,6 +1350,7 @@ public class MainActivity extends Activity {
                 value.put("robot_enabled", AppConfig.robotEnabled(MainActivity.this));
                 value.put("pin_blocked", AppConfig.pinBlocked(MainActivity.this));
                 value.put("accessibility_enabled", BlueAccessibilityService.isEnabled(MainActivity.this));
+                value.put("accessibility_connected", BlueAccessibilityService.isConnected());
                 value.put("pin_configured", SecurePinStore.hasPin(MainActivity.this,
                         AppConfig.profileId(MainActivity.this)));
                 SimIdentityManager.Verification sim = AppConfig.isRobotMode(MainActivity.this)
@@ -1386,7 +1367,7 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void previewCommand(String requestType, String targetNode, String targetPhone,
                                    String amount, String clientRequestId, String capacityCheckId,
-                                   String commandArgument) {
+                                   String commandArgument, String commissionRateBps) {
             new Thread(() -> {
                 try {
                     JSONObject payload = new JSONObject();
@@ -1397,6 +1378,9 @@ public class MainActivity extends Activity {
                     payload.put("client_request_id", validRequestId(clientRequestId));
                     payload.put("capacity_check_id", capacityCheckId == null ? "" : capacityCheckId.trim());
                     payload.put("transaction_id", commandArgument == null ? "" : commandArgument.trim());
+                    if (commissionRateBps != null && !commissionRateBps.trim().isEmpty()) {
+                        payload.put("commission_rate_bps", Integer.parseInt(commissionRateBps.trim()));
+                    }
                     JSONObject data = new ApiClient(MainActivity.this).previewCommand(payload);
                     callback("onCommandPreview", data);
                 } catch (Exception error) {
@@ -1409,7 +1393,7 @@ public class MainActivity extends Activity {
         public void createCommand(String requestType, String targetNode, String targetPhone,
                                   String amount, String clientRequestId,
                                   String confirmationFingerprint, String capacityCheckId,
-                                  String commandArgument) {
+                                  String commandArgument, String commissionRateBps) {
             new Thread(() -> {
                 try {
                     JSONObject payload = new JSONObject();
@@ -1422,6 +1406,9 @@ public class MainActivity extends Activity {
                             ? "" : confirmationFingerprint.trim().toLowerCase(Locale.ROOT));
                     payload.put("capacity_check_id", capacityCheckId == null ? "" : capacityCheckId.trim());
                     payload.put("transaction_id", commandArgument == null ? "" : commandArgument.trim());
+                    if (commissionRateBps != null && !commissionRateBps.trim().isEmpty()) {
+                        payload.put("commission_rate_bps", Integer.parseInt(commissionRateBps.trim()));
+                    }
                     JSONObject data = new ApiClient(MainActivity.this).createCommand(payload);
                     callback("onCommandCreated", data);
                     // Sur un téléphone qui héberge aussi le Robot, supprimer toute attente du
@@ -1526,6 +1513,15 @@ public class MainActivity extends Activity {
             runOnUiThread(() -> {
                 RobotService.stop(MainActivity.this);
                 refreshNativeStatus();
+            });
+        }
+
+        @JavascriptInterface
+        public void synchronizeNow() {
+            runOnUiThread(() -> {
+                RobotService.forceSync(MainActivity.this);
+                if (webView != null) webView.evaluateJavascript("if(window.BlueMagicNative&&window.BlueMagicNative.onLocalSync){window.BlueMagicNative.onLocalSync();}", null);
+                toast("Synchronisation relancée : résultats finaux, files et tableau de bord.");
             });
         }
 

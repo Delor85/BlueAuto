@@ -13,7 +13,13 @@ const ids = [
   'metricFinanceCount', 'reportActivityTitle', 'reportActivityDetail', 'fleetNodeStatus',
   'fleetSimStatus', 'configRobotStatus', 'supportStatus', 'ownBalance', 'balanceFreshness',
   'networkList', 'fleetNetworkTitle', 'fleetNetworkList', 'transactionId',
-  'childBalanceCard', 'balanceChildNode', 'childAdminCard', 'adminChildNode'
+  'childBalanceCard', 'balanceChildNode', 'childAdminCard', 'adminChildNode',
+  'financialConfirmModal', 'financialConfirmTitle', 'financialConfirmFacts', 'financialRateEditor',
+  'financialRateInput', 'financialConfirmAdvice', 'financialConfirmCancel', 'financialConfirmOk',
+  'birInfoResult', 'birInfoResultTitle', 'birInfoResultBody', 'birCamtelBalance',
+  'birAvailableBalance', 'birReservedBalance', 'birThirdMetricLabel', 'birThirdMetricValue',
+  'birBalanceFreshness', 'birAccountRole', 'birAccountNode', 'birAccountPhone', 'birRobotHealth',
+  'birPermissionState', 'birQuickRobotState', 'birSyncState', 'commissionControlCard'
 ];
 
 function element(id = '') {
@@ -69,14 +75,14 @@ const window = {
       return JSON.stringify({
         profile_id: 'pos-test', node_code: 'POS1_DSM1_OU1', role: 'POS', mode: 'REMOTE',
         sim_slot: 0, robot_enabled: false, pin_blocked: false, pin_configured: true,
-        accessibility_enabled: true, sim_verified: true
+        accessibility_enabled: true, accessibility_connected: true, sim_verified: true
       });
     },
     previewCommand(...args) { bridgeCalls.push(['preview', ...args]); },
     createCommand(...args) { bridgeCalls.push(['create', ...args]); },
     getCommandStatus() {}, cancelCommand() {}, setFormEditing() {}, openAccounts() {},
     verifySim() {}, prepareRobotPermissions() {}, openPinSettings() {}, openManagement() {},
-    startRobot() {}, checkServerHealth() {}, loadDashboard() {},
+    startRobot() {}, stopRobot() {}, synchronizeNow() {}, openBatteryOptimizationSettings() {}, checkServerHealth() {}, loadDashboard() {},
     checkPurchaseCapacity(...args) { bridgeCalls.push(['capacity', ...args]); },
     getPurchaseCapacityStatus(...args) { bridgeCalls.push(['capacity-status', ...args]); }
   },
@@ -90,15 +96,15 @@ const localStorage = {
 };
 
 const script = await readFile(new URL('../main/assets/app.js', import.meta.url), 'utf8');
-vm.runInNewContext(script, {window, document, localStorage, Date, Math, JSON, String, Object, isNaN});
+vm.runInNewContext(script, {window, document, localStorage, Date, Math, JSON, String, Object, isNaN, isFinite});
 
-assert.match(tabButtons.find(item => item.tab === 'flux').className, /active/);
-assert.equal(tabPanels.find(item => item.panel === 'flux').className, 'module-screen');
-tabButtons.find(item => item.tab === 'reports').onclick();
 assert.match(tabButtons.find(item => item.tab === 'reports').className, /active/);
 assert.equal(tabPanels.find(item => item.panel === 'reports').className, 'module-screen');
-assert.equal(tabPanels.find(item => item.panel === 'flux').className, 'module-screen hidden');
-assert.equal(localStorage.getItem('blue_magic_active_module'), 'reports');
+tabButtons.find(item => item.tab === 'flux').onclick();
+assert.match(tabButtons.find(item => item.tab === 'flux').className, /active/);
+assert.equal(tabPanels.find(item => item.panel === 'flux').className, 'module-screen');
+assert.equal(tabPanels.find(item => item.panel === 'reports').className, 'module-screen hidden');
+assert.equal(localStorage.getItem('bir_active_module_v2610'), 'flux');
 
 elements.get('retailPhone').value = '620550255';
 elements.get('retailAmount').value = '1';
@@ -114,9 +120,10 @@ window.BlueMagicNative.onCommandPreview({preview: {
   executor_phone: '699000003', target_phone: '620550255', amount: 1,
   confirmation_fingerprint: 'f'.repeat(64), robot_ready: true, robot_status: 'ONLINE'
 }});
-assert.match(confirmationText, /FOURNISSEUR : POS1_DSM1_OU1 — 699000003/);
-assert.match(confirmationText, /BÉNÉFICIAIRE : CLIENT — 620550255/);
-assert.match(confirmationText, /MONTANT : 1 FCFA/);
+assert.match(elements.get('financialConfirmFacts').innerHTML, /POS1_DSM1_OU1 — 699000003/);
+assert.match(elements.get('financialConfirmFacts').innerHTML, /CLIENT — 620550255/);
+assert.match(elements.get('financialConfirmFacts').innerHTML, /MONTANT :<\/b> 1 FCFA/);
+elements.get('financialConfirmOk').onclick();
 assert.equal(bridgeCalls.length, 2);
 assert.deepEqual(bridgeCalls[1].slice(0, 5), ['create', 'RETAIL_SALE', '', '620550255', '1']);
 assert.equal(bridgeCalls[1][6], 'f'.repeat(64));
@@ -134,6 +141,7 @@ window.BlueMagicNative.onCommandPreview({preview: {
   executor_phone: '699000003', target_phone: '620550255', amount: 1,
   confirmation_fingerprint: 'e'.repeat(64)
 }});
+elements.get('financialConfirmCancel').onclick();
 assert.equal(bridgeCalls.length, callsBeforeCancel + 1);
 assert.equal(actions.every(item => !item.disabled), true);
 
@@ -167,10 +175,14 @@ window.BlueMagicNative.onPurchaseCapacity({capacity: {
 assert.equal(bridgeCalls.at(-1)[0], 'preview');
 assert.equal(bridgeCalls.at(-1)[6], 'capacity-available-123456');
 window.BlueMagicNative.onCommandPreview({preview: {
+  request_type: 'REQUEST_SUPPLY', commission_decider: 'SUPERIOR_PARENT',
   operation: 'DISTRIBUTION_TRANSFER', executor_node_code: 'DSM1',
   executor_phone: '699000002', target_node_code: 'POS1_DSM1_OU1',
-  target_phone: '699000003', amount: 500, confirmation_fingerprint: 'a'.repeat(64)
+  target_phone: '699000003', requested_base_amount: 500, amount: 500,
+  commission_rate_bps: 0, commission_amount: 0, confirmation_fingerprint: 'a'.repeat(64)
 }});
+assert.match(elements.get('financialConfirmAdvice').textContent, /supérieur direct/);
+elements.get('financialConfirmOk').onclick();
 assert.equal(bridgeCalls.at(-1)[0], 'create');
 assert.equal(bridgeCalls.at(-1)[7], 'capacity-available-123456');
 window.BlueMagicNative.onCommandCreated({command: {public_id: 'capacity-command-123456', state: 'PENDING'}});
@@ -245,8 +257,8 @@ assert.match(manifest, /foregroundServiceType="dataSync\|specialUse"/);
 
 const gradleConfig = await readFile(new URL('../../build.gradle', import.meta.url), 'utf8');
 assert.match(gradleConfig, /minSdk 23/);
-assert.match(gradleConfig, /versionCode 48/);
-assert.match(gradleConfig, /versionName "2\.6\.8"/);
+assert.match(gradleConfig, /versionCode 50/);
+assert.match(gradleConfig, /versionName "2\.6\.10"/);
 assert.match(gradleConfig, /release \{[\s\S]*signingConfig signingConfigs\.pilotDebug/);
 
 const apiClient = await readFile(new URL(
@@ -265,10 +277,11 @@ for (const moduleName of moduleNames) {
   assert.match(html, new RegExp('data-tab-panel="' + moduleName + '"'));
 }
 assert.match(html, /PILOTAGE & RAPPORTS/);
-assert.match(html, /SAV & DIAGNOSTIC/);
+assert.match(html, /ACTIVITÉ & SAV/);
+assert.match(html, /DIAGNOSTIC RAPIDE/);
 assert.match(css, /\.module-tabs\{position:fixed/);
 assert.match(css, /\.module-tab-primary/);
-assert.ok(activity.indexOf('MODIFIER LE PIN CAMTEL') < activity.indexOf('1. AUTORISATIONS'));
+assert.ok(activity.indexOf('MODIFIER LE PIN CAMTEL') < activity.indexOf('AUTORISATIONS'));
 assert.match(activity, /setScrollbarFadingEnabled\(false\)/);
 const unlockActivity = await readFile(new URL(
   '../main/java/com/profitloop/blueauto/SimpleKeyguardAssistActivity.java', import.meta.url), 'utf8');
@@ -320,3 +333,11 @@ assert.match(platformJs, /v267-audit/);
 assert.match(platformJs, /network_balance_audit/);
 
 console.log('Blue Magic v2.6.7 platform extension: UI/modules/message parser wired');
+
+assert.match(html, /id="birCamtelBalance"/);
+assert.match(html, /id="commissionControlCard"/);
+assert.match(html, /id="financialConfirmModal"/);
+assert.match(css, /\.form-editing \.module-tabs\{display:flex!important\}/);
+assert.match(activity, /synchronizeNow\(\)/);
+assert.match(service, /wakeRequested/);
+assert.match(service, /reprise automatique/);

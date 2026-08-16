@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class RobotService extends Service {
     static final String ACTION_START = "com.profitloop.blueauto.START_ROBOT";
     static final String ACTION_WAKE = "com.profitloop.blueauto.WAKE_ROBOTS";
+    static final String ACTION_SYNC = "com.profitloop.blueauto.SYNC_ROBOTS";
     static final String ACTION_STOP = "com.profitloop.blueauto.STOP_ROBOT";
     static final String ACTION_CANCEL = "com.profitloop.blueauto.CANCEL_PENDING";
     static final String ACTION_PIN_SUBMITTED = "com.profitloop.blueauto.PIN_SUBMITTED";
@@ -52,6 +53,7 @@ public class RobotService extends Service {
 
     private ScheduledExecutorService executor;
     private final AtomicBoolean cycleRunning = new AtomicBoolean(false);
+    private final AtomicBoolean wakeRequested = new AtomicBoolean(false);
     private final Map<String, Long> lastHeartbeatByProfile = new HashMap<>();
     private final Map<String, Long> apiRetryAtByProfile = new HashMap<>();
     private final Map<String, Integer> apiFailureCountByProfile = new HashMap<>();
@@ -74,6 +76,11 @@ public class RobotService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         String action = intent == null ? ACTION_WAKE : intent.getAction();
         String profileId = profileId(intent);
+
+        if (ACTION_SYNC.equals(action)) {
+            PendingCommandStore.forceFinalReportRetry(this);
+            wakeRequested.set(true);
+        }
 
         if (ACTION_CANCEL.equals(action)) {
             final String targetProfile = profileId;
@@ -147,7 +154,9 @@ public class RobotService extends Service {
         }
         acquireStandbyWakeLock();
         scheduleWatchdog(this, WATCHDOG_INTERVAL_MS);
-        updateNotification(robotSummary("Surveillance active"));
+        updateNotification(robotSummary(ACTION_SYNC.equals(action)
+                ? "Synchronisation manuelle relancée" : "Surveillance active"));
+        wakeRequested.set(true);
         scheduleCycle(0L);
         return START_STICKY;
     }
@@ -163,7 +172,11 @@ public class RobotService extends Service {
     }
 
     private void runCycle() {
-        if (!cycleRunning.compareAndSet(false, true)) return;
+        if (!cycleRunning.compareAndSet(false, true)) {
+            wakeRequested.set(true);
+            return;
+        }
+        wakeRequested.set(false);
         long nextDelay = AppConfig.IDLE_POLL_MS;
         try {
             List<String> profiles = AppConfig.enabledRobotProfileIds(this);
@@ -272,9 +285,12 @@ public class RobotService extends Service {
                         disableUnsafeRobot(profileId, readiness.message);
                         try {
                             api.heartbeat();
-                            lastHeartbeatByProfile.put(profileId, System.currentTimeMillis());
                         } catch (Exception ignored) {
                         }
+                        // Keep the local Robot logically enabled. The next successful readiness
+                        // check must re-claim the same verified SIM instead of remaining stuck in
+                        // server standby after a transient Android/SIM visibility loss.
+                        lastHeartbeatByProfile.remove(profileId);
                         lastProfileProblem = AppConfig.nodeCode(this, profileId)
                                 + " : " + readiness.message;
                         continue;
@@ -360,6 +376,7 @@ public class RobotService extends Service {
             nextDelay = backoffMs;
         } finally {
             cycleRunning.set(false);
+            if (wakeRequested.getAndSet(false)) nextDelay = Math.min(nextDelay, 250L);
             scheduleCycle(nextDelay);
         }
     }
@@ -458,7 +475,7 @@ public class RobotService extends Service {
             CommandExecutionPolicy.Capability capability = CommandExecutionPolicy.capability(
                     operation,
                     SecurePinStore.hasPin(this, profileId),
-                    BlueAccessibilityService.isEnabled(this),
+                    BlueAccessibilityService.isOperational(this),
                     AppConfig.pinBlocked(this, profileId));
             if (!capability.ready) {
                 if ("ACCESSIBILITY_DISABLED".equals(capability.code)) {
@@ -727,14 +744,16 @@ public class RobotService extends Service {
 
     private void disableUnsafeRobot(String profileId, String reason) {
         if (profileId == null || profileId.isEmpty()) return;
-        AppConfig.setRobotEnabled(this, profileId, false);
+        // Fail closed for command leasing/execution, but do NOT switch off the user’s Robot.
+        // Android/OEMs can briefly hide SIM/permission state; a permanent toggle-off here was the
+        // field regression where a Robot lost its access seconds after validation.
         lastHeartbeatByProfile.remove(profileId);
         try {
             ApiClient.forProfile(this, profileId).heartbeat();
         } catch (Exception ignored) {
         }
         updateNotification(robotSummary(AppConfig.nodeCode(this, profileId)
-                + " arrêté — " + reason));
+                + " en attente — " + reason + " • reprise automatique"));
     }
 
     private void releaseUnexecutedLease(String profileId, JSONObject command, ApiClient api,
@@ -882,6 +901,11 @@ public class RobotService extends Service {
 
     static void startEnabled(Context context) {
         sendServiceAction(context, new Intent(context, RobotService.class).setAction(ACTION_WAKE));
+    }
+
+    static void forceSync(Context context) {
+        PendingCommandStore.forceFinalReportRetry(context);
+        sendServiceAction(context, new Intent(context, RobotService.class).setAction(ACTION_SYNC));
     }
 
     static void scheduleWatchdog(Context context, long delayMs) {

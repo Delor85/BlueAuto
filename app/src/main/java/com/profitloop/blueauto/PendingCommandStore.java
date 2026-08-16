@@ -119,9 +119,22 @@ final class PendingCommandStore {
         if (command == null || !REPORT_PENDING.equals(command.optString("local_state", ""))) return false;
         int retries = Math.max(0, command.optInt("report_retry_count", 0));
         long lastAttempt = command.optLong("last_report_attempt_at", 0L);
-        long multiplier = 1L << Math.min(4, retries);
-        long delay = Math.min(300_000L, 15_000L * multiplier);
+        long multiplier = 1L << Math.min(3, retries);
+        long delay = Math.min(30_000L, 5_000L * multiplier);
         return lastAttempt == 0L || System.currentTimeMillis() - lastAttempt >= delay;
+    }
+
+    static synchronized void forceFinalReportRetry(Context context) {
+        for (String profileId : AppConfig.profileIds(context)) {
+            JSONObject command = get(context, profileId);
+            if (command == null || !REPORT_PENDING.equals(command.optString("local_state", ""))) continue;
+            try {
+                command.put("last_report_attempt_at", 0L);
+                command.put("report_retry_count", 0);
+                save(context, profileId, command);
+            } catch (Exception ignored) {
+            }
+        }
     }
 
     static synchronized void clear(Context context) {

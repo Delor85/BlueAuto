@@ -110,6 +110,19 @@ try {
     confirmation_fingerprint: supplyDsmPreview.data.preview.confirmation_fingerprint
   }, dae.data.device_token);
   assert.equal(supplyDsm.data.command.target_node_code, 'DSM12_CE04');
+  assert.equal(supplyDsmPreview.data.preview.executor_official_node_code, 'CE04');
+  assert.equal(supplyDsmPreview.data.preview.target_official_node_code, 'DSM12_CE04');
+  assert.equal(supplyDsmPreview.data.preview.commission_decider, 'REQUESTER_PARENT');
+
+  const supplyDsmCustom = await request('preview_command', {
+    request_type: 'SUPPLY_CHILD', target_node_code: 'DSM12', amount: '200', commission_rate_bps: 925
+  }, dae.data.device_token);
+  assert.equal(supplyDsmCustom.data.preview.commission_rate_bps, 925);
+  assert.equal(supplyDsmCustom.data.preview.commission_amount, 18);
+  assert.equal(supplyDsmCustom.data.preview.amount, 218);
+  assert.equal(supplyDsmCustom.data.preview.commission_source, 'ONE_TIME_PARENT_OVERRIDE');
+  assert.notEqual(supplyDsmCustom.data.preview.confirmation_fingerprint,
+    supplyDsmPreview.data.preview.confirmation_fingerprint);
 
   const supplyPosPreview = await request('preview_command', {
     request_type: 'SUPPLY_CHILD', target_node_code: 'POS37', amount: '100'
@@ -181,7 +194,19 @@ try {
   assert.equal(supplyPreview.data.preview.commission_rate_bps, 1000);
   assert.equal(supplyPreview.data.preview.commission_amount, 50);
   assert.equal(supplyPreview.data.preview.amount, 550);
+  assert.equal(supplyPreview.data.preview.commission_decider, 'SUPERIOR_PARENT');
+  assert.equal(supplyPreview.data.preview.executor_official_node_code, 'CE04');
+  assert.equal(supplyPreview.data.preview.target_official_node_code, 'DSM12_CE04');
   assert.match(supplyPreview.data.preview.confirmation_fingerprint, /^[a-f0-9]{64}$/);
+  const childCannotOverride = await request('preview_command', {
+    request_type: 'REQUEST_SUPPLY', amount: '500', capacity_check_id: capacity.data.capacity.capacity_check_id,
+    commission_rate_bps: 0
+  }, dsm.data.device_token);
+  assert.equal(childCannotOverride.data.preview.commission_rate_bps, 1000);
+  assert.equal(childCannotOverride.data.preview.amount, 550);
+
+  const dashboardOfficial = await request('network_dashboard', {}, dsm.data.device_token);
+  assert.equal(dashboardOfficial.data.viewer_identity.node_code, 'DSM12_CE04');
 
   const unconfirmed = await requestFailure('create_command', {
     request_type: 'REQUEST_SUPPLY', amount: '500', client_request_id: 'integration-unconfirmed-01',

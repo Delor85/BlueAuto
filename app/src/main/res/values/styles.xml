@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <style name="BlueMagicAppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:colorAccent">#17C9F3</item>
+        <item name="android:navigationBarColor">#F5F8FC</item>
+        <item name="android:statusBarColor">#020815</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
     <style name="BlueMagicTransparentUnlock" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
