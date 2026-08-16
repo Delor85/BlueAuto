@@ -23,6 +23,8 @@
 
     <application
         android:allowBackup="false"
+        android:icon="@drawable/ic_launcher_bir"
+        android:roundIcon="@drawable/ic_launcher_bir"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/BlueMagicAppTheme"
