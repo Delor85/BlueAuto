@@ -1,0 +1,17 @@
+name: v2.6.10 temporary source export
+on:
+  push:
+    branches: [tmp/v2610-source-export-run12]
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Package source snapshot
+        run: |
+          tar -czf /tmp/blueauto-v2610-source.tar.gz --exclude=.git .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: blueauto-v2610-source
+          path: /tmp/blueauto-v2610-source.tar.gz
+          retention-days: 1
