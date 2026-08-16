@@ -161,7 +161,7 @@ jobs:
           disable-animations: true
           script: |
             adb install -r apk/BIR-Blue-Infinity-Retail-v2.7.1-Validation-Ephemeral.apk
-            adb logcat -c
+            adb logcat -c || true
             adb shell am start -W -n com.profitloop.blueauto/.MainActivity
             sleep 3
             adb shell dumpsys activity activities | grep -q 'com.profitloop.blueauto'
