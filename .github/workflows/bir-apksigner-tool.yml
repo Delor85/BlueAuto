@@ -1,0 +1,29 @@
+name: Export Android APK Signer Tool
+
+on:
+  push:
+    branches: [feat/bir-v2-6-9-functional]
+    paths:
+      - '.github/workflows/bir-apksigner-tool.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  export-tool:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Package apksigner only
+        run: |
+          set -euo pipefail
+          build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          mkdir -p /tmp/apksigner-tool/lib
+          cp "$build_tools/apksigner" /tmp/apksigner-tool/apksigner
+          cp "$build_tools/lib/apksigner.jar" /tmp/apksigner-tool/lib/apksigner.jar
+          chmod +x /tmp/apksigner-tool/apksigner
+      - name: Upload signer tool
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apksigner-tool
+          path: /tmp/apksigner-tool
+          if-no-files-found: error
