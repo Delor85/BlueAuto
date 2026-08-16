@@ -1,0 +1,78 @@
+name: BIR v2.8 One-Shot Commission Hardening
+
+on:
+  push:
+    branches: [feat/bir-v2-8-operations-admin]
+    paths: [.github/authorized-v280-one-shot.trigger]
+
+permissions:
+  contents: write
+
+jobs:
+  harden-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout v2.8 branch
+        uses: actions/checkout@v5
+        with:
+          ref: feat/bir-v2-8-operations-admin
+          fetch-depth: 0
+      - name: Prove production stays untouched
+        run: |
+          set -euo pipefail
+          grep -q '^production_worker_deploy=forbidden$' .github/authorized-v280-one-shot.trigger
+          grep -q '^d1_migration=forbidden$' .github/authorized-v280-one-shot.trigger
+          grep -q '^pr4_merge=forbidden$' .github/authorized-v280-one-shot.trigger
+          grep -q '^permanent_signing=forbidden$' .github/authorized-v280-one-shot.trigger
+      - name: Harden one-shot commission lifecycle
+        run: python3 .github/scripts/v280_one_shot_hardening.py
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate contracts
+        run: |
+          set -euo pipefail
+          node app/src/test/finance-flow.mjs
+          node app/src/test/v2610-control-tower.mjs
+          node app/src/test/v2611-finalization-contract.mjs
+          node app/src/test/v270-finalization-contract.mjs
+          node app/src/test/v270-owner-mock-contract.mjs
+          node app/src/test/v271-field-stabilization-contract.mjs
+          node app/src/test/v280-operations-admin-contract.mjs
+          node --check app/src/main/assets/app.js
+          node --check app/src/main/assets/control-tower-v271.js
+          node --check app/src/main/assets/balance-engine-v280.js
+          node --check app/src/main/assets/control-tower-v280.js
+      - name: Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Gradle 8.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+      - name: Prepare ephemeral CI key
+        run: |
+          set -euo pipefail
+          mkdir -p .pilot-signing
+          password="$(openssl rand -hex 32)"
+          echo "::add-mask::$password"
+          keytool -genkeypair -keystore .pilot-signing/debug.keystore -storepass "$password" -alias androiddebugkey -keypass "$password" -dname "CN=BIR v2.8 One Shot Hardened,O=ProfitLoop,C=CM" -keyalg RSA -keysize 2048 -validity 30 -noprompt
+          echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$password" >> "$GITHUB_ENV"
+      - name: Compile Android source
+        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
+      - name: Commit hardened app source
+        run: |
+          set -euo pipefail
+          git config user.name "Delor85"
+          git config user.email "mbolodelorpro@gmail.com"
+          git add app
+          if git diff --cached --quiet; then
+            echo 'No app source changes.'
+          else
+            git commit -m 'fix: make one-shot commission strictly ephemeral [v280-source]'
+            git push origin HEAD:feat/bir-v2-8-operations-admin
+          fi
