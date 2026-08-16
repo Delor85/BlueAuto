@@ -31,6 +31,7 @@ jobs:
       - name: Apply deterministic v2.8 source patch
         run: |
           python3 .github/scripts/v280_operations_patch.py
+          python3 .github/scripts/v280_balance_wire.py
           python3 .github/scripts/v280_test_compat.py
 
       - name: Node.js 22
@@ -69,6 +70,7 @@ jobs:
           node --check app/src/main/assets/app.js
           node --check app/src/main/assets/platform-v267.js
           node --check app/src/main/assets/control-tower-v271.js
+          node --check app/src/main/assets/balance-engine-v280.js
           node --check app/src/main/assets/control-tower-v280.js
 
       - name: Java 17
