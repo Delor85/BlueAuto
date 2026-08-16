@@ -145,6 +145,7 @@
     function clearFieldIssue(input){if(input&&input.removeAttribute){input.removeAttribute('aria-invalid');}}
     function fieldIssue(id,message){var input=byId(id);showToast(message);if(!input){return;}if(input.setAttribute){input.setAttribute('aria-invalid','true');}if(input.scrollIntoView){input.scrollIntoView(true);}window.setTimeout(function(){try{input.focus();}catch(ignored){}},80);}
     function snapshotForm(type){return {type:type,node:byId('childNode')?byId('childNode').value:'',phone:byId('retailPhone')?byId('retailPhone').value:'',requestAmount:byId('requestSupplyAmount')?byId('requestSupplyAmount').value:'',childAmount:byId('childAmount')?byId('childAmount').value:'',retailAmount:byId('retailAmount')?byId('retailAmount').value:'',transactionId:byId('transactionId')?byId('transactionId').value:''};}
+    function clearOneShotCommission(preview){if(preview&&preview.type==='SUPPLY_CHILD'&&window.BIRCommissionPolicy&&window.BIRCommissionPolicy.clearOneShotRate){window.BIRCommissionPolicy.clearOneShotRate(preview.node);}}
     function clearSubmittedFields(submitted){if(!submitted){return;}if(submitted.type==='REQUEST_SUPPLY'&&byId('requestSupplyAmount')&&byId('requestSupplyAmount').value===submitted.requestAmount){byId('requestSupplyAmount').value='';}else if(submitted.type==='SUPPLY_CHILD'){if(byId('childAmount')&&byId('childAmount').value===submitted.childAmount){byId('childAmount').value='';}}else if(submitted.type==='RETAIL_SALE'){if(byId('retailPhone')&&byId('retailPhone').value===submitted.phone){byId('retailPhone').value='';}if(byId('retailAmount')&&byId('retailAmount').value===submitted.retailAmount){byId('retailAmount').value='';}}else if(submitted.type==='TRANSACTION_DETAILS'&&byId('transactionId')&&byId('transactionId').value===submitted.transactionId){byId('transactionId').value='';}}
     function execute(action){
         if(!bridge()){return;}if(actionInFlight){showToast('Une commande est déjà en préparation. Attendez sa confirmation ou son annulation.');return;}var type='',node='',phone='',amount='',argument='';
@@ -217,9 +218,9 @@
     function handlePreview(data){
         var preview,fingerprint;
         if(!pendingPreview){setBusy(false);return;}
-        if(data&&data.error){setBusy(false);pendingPreview=null;showActionError(data);return;}
+        if(data&&data.error){clearOneShotCommission(pendingPreview);setBusy(false);pendingPreview=null;submittedForm=null;showActionError(data);return;}
         preview=data&&data.preview||{};fingerprint=String(preview.confirmation_fingerprint||'');
-        if(!fingerprint){setBusy(false);pendingPreview=null;showActionError({code:'PREVIEW_INCOMPLETE',message:'Le serveur n’a pas certifié les numéros de cette commande.'});return;}
+        if(!fingerprint){clearOneShotCommission(pendingPreview);setBusy(false);pendingPreview=null;submittedForm=null;showActionError({code:'PREVIEW_INCOMPLETE',message:'Le serveur n’a pas certifié les numéros de cette commande.'});return;}
         clearActionError();
         if(pendingPreview.type==='SUPPLY_CHILD'&&typeof pendingPreview.commission_rate_bps==='number'&&!pendingPreview.legacy_commission_mode){
             var expectedBps=Number(pendingPreview.commission_rate_bps||0),serverBps=Number(preview.commission_rate_bps||0);
@@ -237,7 +238,7 @@
         if(preview.robot_ready===false){showActionProgress((preview.robot_status||'ROBOT_OFFLINE')+' — '+(preview.robot_message||'Le Robot ne communique pas encore. La commande peut être mise en attente.'));}
         var decision=confirmFinancial(preview);
         if(decision==='REPREVIEW'){return;}
-        if(!decision){setBusy(false);pendingPreview=null;submittedForm=null;showToast('Commande annulée avant toute composition.');return;}
+        if(!decision){clearOneShotCommission(pendingPreview);setBusy(false);pendingPreview=null;submittedForm=null;showToast('Commande annulée avant toute composition. Le taux ponctuel a été supprimé.');return;}
         showActionProgress('Commande confirmée. Transmission au Robot de la SIM fournisseur…');
         if(pendingPreview.type==='SUPPLY_CHILD'&&typeof pendingPreview.commission_rate_bps==='number'&&!pendingPreview.legacy_commission_mode&&window.AndroidBridge.createCommandWithCommissionRate){
             window.AndroidBridge.createCommandWithCommissionRate(pendingPreview.type,pendingPreview.node,pendingPreview.phone,

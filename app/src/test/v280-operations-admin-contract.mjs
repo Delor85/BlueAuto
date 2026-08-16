@@ -23,6 +23,7 @@ ok(main.includes('owner_admin_workspace')&&main.includes('exitOwnerAdminWorkspac
 ok(main.includes('ownerEnroll("MOCK_OWNER"')&&main.includes('mock_owner_entitled'),'MOCK must bridge to device-bound server entitlement without breaking current production');
 ok(v280.includes('ONE-SHOT > CHILD-SPECIFIC > DEFAULT')&&v280.includes('PERSONNALISÉ > DÉFAUT'),'three-level commission semantics');
 ok(v271.includes('clearOneShotRate')&&app.includes('clearOneShotRate'),'one-shot rate must be consumed after one transaction');
+ok(app.includes('clearOneShotCommission(pendingPreview)')&&app.includes('Le taux ponctuel a été supprimé'),'one-shot rate must also be consumed on cancellation/error and never leak to the next transaction');
 ok(v280.includes('COMPTABILITÉ GÉNÉRALE')&&v280.includes("period==='quarter'")&&worker.includes('accountingSummary'),'day/week/month/quarter/year accounting');
 ok(v280.includes('TCHORONKOS')&&v280.includes('TCHORONKO_SHADOW'),'Tchoronko network support');
 ok(migration.includes('owner_entitlements')&&migration.includes('admin_audit_log')&&migration.includes('device_control_actions')&&migration.includes('admin_assist_requests'),'audited owner-admin data model');
