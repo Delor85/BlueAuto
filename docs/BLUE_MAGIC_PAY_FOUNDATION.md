@@ -1,16 +1,22 @@
-# Blue Magic Pay — fondation NON OPÉRATIONNELLE
+# B.I.R. Pay — fondation NON OPÉRATIONNELLE
 
 Statut : **architecture seulement**. Aucun paiement réel, aucune clé API, aucun secret opérateur, aucun endpoint de collecte et aucun débit ne doit être activé depuis cette branche.
 
+## Architecture de nommage
+
+- produit commercial cible : **B.I.R. — Blue Infinity Retail** ;
+- future couche paiement : **B.I.R. Pay** ;
+- moteur technique actuel : **Blue Magic Engine** tant qu'une migration technique séparée n'est pas décidée.
+
 ## Objectif
 
-Préparer Blue Magic à recevoir plus tard un ou plusieurs moyens de paiement officiels sans coupler ces moyens de paiement au moteur Camtel/USSD déjà stabilisé.
+Préparer B.I.R. à recevoir plus tard un ou plusieurs moyens de paiement officiels sans coupler ces moyens de paiement au moteur Camtel/USSD déjà stabilisé.
 
 Le futur paiement doit rester une brique indépendante :
 
 `Intention de paiement → Routeur → Adaptateur fournisseur → Statut → Rapprochement`
 
-Le cœur Camtel reste :
+Le cœur technique actuel reste :
 
 `Remote → Worker/D1 → Robot → USSD → preuve Camtel`
 
@@ -34,7 +40,7 @@ Aucune de ces méthodes n'est connectée aujourd'hui.
 
 Une future `payment_intent` devra au minimum contenir :
 
-- identifiant public Blue Magic ;
+- identifiant public B.I.R. ;
 - nœud demandeur ;
 - montant et devise ;
 - finalité ;
@@ -47,7 +53,7 @@ Une future `payment_intent` devra au minimum contenir :
 - frais facturés au client ;
 - preuve de rapprochement.
 
-Le PIN Mobile Money, OTP, code secret ou credential utilisateur ne doit jamais être enregistré dans D1 ni journalisé par Blue Magic.
+Le PIN Mobile Money, OTP, code secret ou credential utilisateur ne doit jamais être enregistré dans D1 ni journalisé par B.I.R.
 
 ## États proposés
 
@@ -79,7 +85,7 @@ Ne jamais confondre :
 - solde Camtel / stock de crédit ;
 - solde d'un compte de paiement ;
 - montant en attente de collecte ;
-- commission Blue Magic ;
+- commission B.I.R. ;
 - coût du rail de paiement ;
 - réservation financière Camtel.
 
