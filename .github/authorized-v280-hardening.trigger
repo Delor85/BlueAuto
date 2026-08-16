@@ -1,0 +1,6 @@
+scope=source-only-v280-hardening
+base_source=6ae64f2fa940d5d96a30648f0d731b43be2a0c36
+production_worker_deploy=forbidden
+d1_migration=forbidden
+pr4_merge=forbidden
+permanent_signing=forbidden
