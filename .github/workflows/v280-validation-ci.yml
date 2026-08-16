@@ -46,7 +46,7 @@ jobs:
           grep -q 'android.intent.action.BOOT_COMPLETED' app/src/main/AndroidManifest.xml
           grep -q 'com.profitloop.blueauto.ROBOT_WATCHDOG' app/src/main/AndroidManifest.xml
           grep -q 'RobotService.startEnabled(context)' app/src/main/java/com/profitloop/blueauto/BootReceiver.java
-          grep -q 'RobotService.scheduleWatchdog(context)' app/src/main/java/com/profitloop/blueauto/BootReceiver.java
+          grep -q 'RobotService.scheduleWatchdog(context,' app/src/main/java/com/profitloop/blueauto/BootReceiver.java
           grep -q 'M194,77 C154,26 110,16 71,25' app/src/main/res/drawable/ic_launcher_bir.xml
       - name: Validate D1 migration chain locally only
         run: python3 .github/scripts/v280_schema_smoke.py
