@@ -23,7 +23,7 @@ if needle not in s:
 s = s.replace(needle, compat, 1)
 
 legacy_old = '⚠ Accessibilité désactivée par Android • Robot conservé • achat/vente en attente'
-legacy_new = '⚠ Accessibilité à activer avant achat/vente • désactivée par Android • Robot conservé • file conservée'
+legacy_new = '⚠ Accessibilité à activer avant achat/vente • désactivée par Android • Robot conservé • file conservée • TEST_NUMBER reste direct'
 if legacy_old not in s:
     raise SystemExit('Could not preserve inherited accessibility status wording')
 s = s.replace(legacy_old, legacy_new, 1)
