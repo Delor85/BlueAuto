@@ -6,3 +6,5 @@ production_worker_deploy=forbidden
 d1_migration=forbidden
 pr4_merge=forbidden
 permanent_signing=forbidden
+retry=2
+reason=explicit-platform-tools-adb
