@@ -1,0 +1,8 @@
+candidate_sha=eef53c4bf483ffc2557a57b0715561412f4c7e10
+artifact_id=9291927600
+apk_sha256=8d557602dc7da67b8024a97dd9298a56bc71fadb5fc1178dc544ec8131875c88
+android_api=30
+production_worker_deploy=forbidden
+d1_migration=forbidden
+pr4_merge=forbidden
+permanent_signing=forbidden
