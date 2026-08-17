@@ -27,13 +27,14 @@ jobs:
           grep -q '^pr4_merge=forbidden$' .github/authorized-v281-field-quality.trigger
           grep -q '^permanent_signing=forbidden$' .github/authorized-v281-field-quality.trigger
           python3 .github/scripts/v281_patch_selfheal.py
-          python3 -m py_compile .github/scripts/v281_field_quality_patch.py
+          python3 -m py_compile .github/scripts/v281_field_quality_patch.py .github/scripts/v281_contract_updates.py
 
       - name: Apply deterministic app-only patch
         run: |
           set -euo pipefail
           before_cloudflare="$(git rev-parse HEAD:cloudflare)"
           python3 .github/scripts/v281_field_quality_patch.py
+          python3 .github/scripts/v281_contract_updates.py
           after_cloudflare="$(git rev-parse HEAD:cloudflare)"
           test "$before_cloudflare" = "$after_cloudflare"
           if git diff --name-only | grep -q '^cloudflare/'; then
