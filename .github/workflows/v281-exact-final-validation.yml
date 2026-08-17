@@ -1,0 +1,153 @@
+name: BIR v2.8.1 Exact Final Validation
+
+on:
+  push:
+    branches: [feat/bir-v2-8-operations-admin]
+    paths: [.github/authorized-v281-final-validation.trigger]
+
+permissions:
+  contents: read
+
+jobs:
+  verify-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Checkout exact authorized candidate
+        uses: actions/checkout@v5
+        with:
+          ref: eef53c4bf483ffc2557a57b0715561412f4c7e10
+          fetch-depth: 0
+      - name: Prove exact source and guardrails
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "eef53c4bf483ffc2557a57b0715561412f4c7e10"
+          grep -q '^candidate_sha=eef53c4bf483ffc2557a57b0715561412f4c7e10$' .github/authorized-v281-final-validation.trigger || true
+          grep -q 'applicationId "com.profitloop.blueauto"' app/build.gradle
+          grep -q 'versionCode 54' app/build.gradle
+          grep -q 'versionName "2.8.1"' app/build.gradle
+          test "$(git rev-parse HEAD:cloudflare)" = "$(git rev-parse c969c585a41189ae2c0895e5b528f870dedab677:cloudflare)"
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run all app contracts
+        run: |
+          set -euo pipefail
+          node app/src/test/finance-flow.mjs
+          node app/src/test/v268-field-contract.mjs
+          node app/src/test/v268-responsive-management.mjs
+          node app/src/test/v268-ux-performance.mjs
+          node app/src/test/v268-platform-compat.mjs
+          node app/src/test/v268-transaction-ux.mjs
+          node app/src/test/v268-control-plane.mjs
+          node app/src/test/v268-native-status.mjs
+          node app/src/test/v268-release-hygiene.mjs
+          node app/src/test/bir-v269-functional-contract.mjs
+          node app/src/test/v2610-control-tower.mjs
+          node app/src/test/v2611-finalization-contract.mjs
+          node app/src/test/v2611-shell-contract.mjs
+          node app/src/test/v270-finalization-contract.mjs
+          node app/src/test/v270-owner-mock-contract.mjs
+          node app/src/test/v271-field-stabilization-contract.mjs
+          node app/src/test/v280-operations-admin-contract.mjs
+          node app/src/test/v281-field-quality-contract.mjs
+          node --check app/src/main/assets/app.js
+          node --check app/src/main/assets/control-tower-v271.js
+          node --check app/src/main/assets/balance-engine-v280.js
+          node --check app/src/main/assets/control-tower-v280.js
+      - name: Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Gradle 8.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+      - name: Prepare ephemeral exact-candidate signing key
+        run: |
+          set -euo pipefail
+          mkdir -p .pilot-signing
+          password="$(openssl rand -hex 32)"
+          echo "::add-mask::$password"
+          keytool -genkeypair -keystore .pilot-signing/debug.keystore -storepass "$password" -alias androiddebugkey -keypass "$password" -dname "CN=BIR v2.8.1 Exact Validation,O=ProfitLoop,C=CM" -keyalg RSA -keysize 2048 -validity 30 -noprompt
+          echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$password" >> "$GITHUB_ENV"
+      - name: Compile exact Release candidate
+        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
+      - name: Verify APK identity and integrity
+        run: |
+          set -euo pipefail
+          bt="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          apk=app/build/outputs/apk/release/app-release.apk
+          "$bt/zipalign" -c -v 4 "$apk"
+          "$bt/aapt" dump badging "$apk" | tee /tmp/badging.txt
+          grep -q "package: name='com.profitloop.blueauto' versionCode='54' versionName='2.8.1'" /tmp/badging.txt
+          grep -q "sdkVersion:'23'" /tmp/badging.txt
+          grep -q "targetSdkVersion:'34'" /tmp/badging.txt
+          if grep -q 'application-debuggable' /tmp/badging.txt; then exit 1; fi
+          sha256sum "$apk" | tee /tmp/bir-v281-exact.sha256
+          cat /tmp/bir-v281-exact.sha256 >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload exact ephemeral candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIR-v2.8.1-exact-eef53c4-validation-ephemeral
+          path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 7
+
+  android-smoke:
+    needs: verify-build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - api: 23
+            arch: x86
+            profile: Nexus 5
+            label: Android-6
+          - api: 26
+            arch: x86_64
+            profile: Nexus 5
+            label: Android-8
+          - api: 30
+            arch: x86_64
+            profile: Nexus 6
+            label: Android-11
+    name: ${{ matrix.label }}-API${{ matrix.api }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Checkout exact candidate for fixtures
+        uses: actions/checkout@v5
+        with:
+          ref: eef53c4bf483ffc2557a57b0715561412f4c7e10
+      - name: Download exact ephemeral candidate
+        uses: actions/download-artifact@v4
+        with:
+          name: BIR-v2.8.1-exact-eef53c4-validation-ephemeral
+          path: /tmp/bir-v281
+      - name: Launch B.I.R. on ${{ matrix.label }}
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: ${{ matrix.arch }}
+          profile: ${{ matrix.profile }}
+          disable-animations: true
+          emulator-boot-timeout: 1200
+          script: |
+            set -eu
+            apk=/tmp/bir-v281/app-release.apk
+            adb install "$apk" | tee /tmp/install.txt
+            grep -q 'Success' /tmp/install.txt
+            adb logcat -c || true
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/start.txt
+            grep -q 'Status: ok' /tmp/start.txt
+            sleep 3
+            adb shell pidof com.profitloop.blueauto
+            adb shell dumpsys package com.profitloop.blueauto | grep -q 'versionName=2.8.1'
+            adb shell dumpsys package com.profitloop.blueauto | grep -q 'versionCode=54'
+            if adb logcat -d -b crash 2>/dev/null | grep -q com.profitloop.blueauto; then
+              adb logcat -d -b crash
+              exit 1
+            fi
