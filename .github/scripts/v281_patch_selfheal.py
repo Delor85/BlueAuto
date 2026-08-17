@@ -22,5 +22,11 @@ if needle not in s:
     raise SystemExit('Could not inject v281 inherited version contract update')
 s = s.replace(needle, compat, 1)
 
+legacy_old = '⚠ Accessibilité désactivée par Android • Robot conservé • achat/vente en attente'
+legacy_new = '⚠ Accessibilité à activer avant achat/vente • désactivée par Android • Robot conservé • file conservée'
+if legacy_old not in s:
+    raise SystemExit('Could not preserve inherited accessibility status wording')
+s = s.replace(legacy_old, legacy_new, 1)
+
 p.write_text(s, encoding='utf-8')
-print('v281 patch script anchors and inherited version contract hardened')
+print('v281 patch script anchors, inherited version and accessibility contracts hardened')
