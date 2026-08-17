@@ -7,5 +7,5 @@ production_worker_deploy=forbidden
 d1_migration=forbidden
 pr4_merge=forbidden
 permanent_signing=forbidden
-retry=3
-workflow_fix=dbb11f1fb5f9d889b324671b43ae0d4eb9f796d6
+retry=4
+workflow_fix=bd11cee7c2e3769dd5e4719b220048d23384a230
