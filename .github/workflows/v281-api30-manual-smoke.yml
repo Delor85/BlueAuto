@@ -44,9 +44,25 @@ jobs:
           set -euo pipefail
           sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
           adb="$sdk/platform-tools/adb"
+          emulator="$sdk/emulator/emulator"
           test -x "$adb"
-          nohup "$sdk/emulator/emulator" -avd bir_api30 -no-window -noaudio -no-boot-anim -gpu swiftshader_indirect -no-snapshot > /tmp/emulator.log 2>&1 &
-          "$adb" wait-for-device
+          test -x "$emulator"
+          accel="off"
+          if [ -e /dev/kvm ]; then
+            sudo chmod 666 /dev/kvm || true
+            if "$emulator" -accel-check 2>&1 | tee /tmp/accel-check.txt | grep -qi 'accel'; then accel="on"; fi
+          fi
+          echo "Using emulator acceleration: $accel"
+          nohup "$emulator" -avd bir_api30 -no-window -noaudio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -accel "$accel" > /tmp/emulator.log 2>&1 &
+          emu_pid=$!
+          "$adb" start-server
+          found=0
+          for i in $(seq 1 120); do
+            if "$adb" devices | grep -q '^emulator-.*device$'; then found=1; break; fi
+            if ! kill -0 "$emu_pid" 2>/dev/null; then echo 'Emulator exited'; cat /tmp/emulator.log; exit 1; fi
+            sleep 2
+          done
+          if [ "$found" != 1 ]; then echo 'Emulator device timeout'; cat /tmp/emulator.log; exit 1; fi
           timeout 600 bash -c 'adb="'"$adb"'"; until [ "$("$adb" shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" = "1" ]; do sleep 2; done'
           "$adb" shell input keyevent 82 || true
           "$adb" install /tmp/bir-v281/app-release.apk | tee /tmp/install.txt
