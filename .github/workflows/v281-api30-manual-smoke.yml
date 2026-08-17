@@ -13,6 +13,8 @@ jobs:
   api30-manual:
     runs-on: ubuntu-24.04
     timeout-minutes: 35
+    env:
+      ANDROID_AVD_HOME: /tmp/bir-avd-home
     steps:
       - name: Download exact eef53 validation artifact through REST
         env:
@@ -35,9 +37,11 @@ jobs:
           set -euo pipefail
           sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
           test -n "$sdk"
+          mkdir -p "$ANDROID_AVD_HOME"
           yes | "$sdk/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
           "$sdk/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "emulator" "system-images;android-30;google_apis;x86_64"
           echo no | "$sdk/cmdline-tools/latest/bin/avdmanager" create avd -f -n bir_api30 -k "system-images;android-30;google_apis;x86_64" --device "Nexus 6"
+          "$sdk/emulator/emulator" -list-avds | grep -q '^bir_api30$'
 
       - name: Boot Android 11 and launch exact B.I.R. candidate
         run: |
