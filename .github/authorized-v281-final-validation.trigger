@@ -1,0 +1,7 @@
+candidate_sha=eef53c4bf483ffc2557a57b0715561412f4c7e10
+scope=exact-ephemeral-validation-only
+android=api23,api26,api30
+production_worker_deploy=forbidden
+d1_migration=forbidden
+pr4_merge=forbidden
+permanent_signing=forbidden
