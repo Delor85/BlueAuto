@@ -43,18 +43,20 @@ jobs:
         run: |
           set -euo pipefail
           sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          adb="$sdk/platform-tools/adb"
+          test -x "$adb"
           nohup "$sdk/emulator/emulator" -avd bir_api30 -no-window -noaudio -no-boot-anim -gpu swiftshader_indirect -no-snapshot > /tmp/emulator.log 2>&1 &
-          adb wait-for-device
-          timeout 600 bash -c 'until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" = "1" ]; do sleep 2; done'
-          adb shell input keyevent 82 || true
-          adb install /tmp/bir-v281/app-release.apk | tee /tmp/install.txt
+          "$adb" wait-for-device
+          timeout 600 bash -c 'adb="'"$adb"'"; until [ "$("$adb" shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" = "1" ]; do sleep 2; done'
+          "$adb" shell input keyevent 82 || true
+          "$adb" install /tmp/bir-v281/app-release.apk | tee /tmp/install.txt
           grep -q 'Success' /tmp/install.txt
-          adb logcat -c || true
-          adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/start.txt
+          "$adb" logcat -c || true
+          "$adb" shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/start.txt
           grep -q 'Status: ok' /tmp/start.txt
           sleep 3
-          adb shell pidof com.profitloop.blueauto
-          adb shell dumpsys package com.profitloop.blueauto | grep -q 'versionName=2.8.1'
-          adb shell dumpsys package com.profitloop.blueauto | grep -q 'versionCode=54'
-          if adb logcat -d -b crash 2>/dev/null | grep -q com.profitloop.blueauto; then adb logcat -d -b crash; exit 1; fi
+          "$adb" shell pidof com.profitloop.blueauto
+          "$adb" shell dumpsys package com.profitloop.blueauto | grep -q 'versionName=2.8.1'
+          "$adb" shell dumpsys package com.profitloop.blueauto | grep -q 'versionCode=54'
+          if "$adb" logcat -d -b crash 2>/dev/null | grep -q com.profitloop.blueauto; then "$adb" logcat -d -b crash; exit 1; fi
           echo 'Android 11/API30 exact eef53 manual smoke: SUCCESS' >> "$GITHUB_STEP_SUMMARY"
