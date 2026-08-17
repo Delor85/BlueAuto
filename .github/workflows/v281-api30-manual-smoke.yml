@@ -1,0 +1,60 @@
+name: BIR v2.8.1 Android 11 Manual Smoke
+
+on:
+  push:
+    branches: [feat/bir-v2-8-operations-admin]
+    paths: [.github/authorized-v281-api30-manual.trigger]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  api30-manual:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Download exact eef53 validation artifact through REST
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/bir-v281
+          curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/Delor85/BlueAuto/actions/artifacts/9291927600/zip \
+            -o /tmp/bir-v281.zip
+          unzip -q /tmp/bir-v281.zip -d /tmp/bir-v281
+          test -f /tmp/bir-v281/app-release.apk
+          echo '8d557602dc7da67b8024a97dd9298a56bc71fadb5fc1178dc544ec8131875c88  /tmp/bir-v281/app-release.apk' | sha256sum -c -
+
+      - name: Prepare Android 11 AVD without external emulator action
+        run: |
+          set -euo pipefail
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          test -n "$sdk"
+          yes | "$sdk/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$sdk/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "emulator" "system-images;android-30;google_apis;x86_64"
+          echo no | "$sdk/cmdline-tools/latest/bin/avdmanager" create avd -f -n bir_api30 -k "system-images;android-30;google_apis;x86_64" --device "Nexus 6"
+
+      - name: Boot Android 11 and launch exact B.I.R. candidate
+        run: |
+          set -euo pipefail
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          nohup "$sdk/emulator/emulator" -avd bir_api30 -no-window -noaudio -no-boot-anim -gpu swiftshader_indirect -no-snapshot > /tmp/emulator.log 2>&1 &
+          adb wait-for-device
+          timeout 600 bash -c 'until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" = "1" ]; do sleep 2; done'
+          adb shell input keyevent 82 || true
+          adb install /tmp/bir-v281/app-release.apk | tee /tmp/install.txt
+          grep -q 'Success' /tmp/install.txt
+          adb logcat -c || true
+          adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/start.txt
+          grep -q 'Status: ok' /tmp/start.txt
+          sleep 3
+          adb shell pidof com.profitloop.blueauto
+          adb shell dumpsys package com.profitloop.blueauto | grep -q 'versionName=2.8.1'
+          adb shell dumpsys package com.profitloop.blueauto | grep -q 'versionCode=54'
+          if adb logcat -d -b crash 2>/dev/null | grep -q com.profitloop.blueauto; then adb logcat -d -b crash; exit 1; fi
+          echo 'Android 11/API30 exact eef53 manual smoke: SUCCESS' >> "$GITHUB_STEP_SUMMARY"
