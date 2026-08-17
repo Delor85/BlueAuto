@@ -50,6 +50,12 @@ public class BlueAccessibilityService extends AccessibilityService {
     protected void onServiceConnected() {
         super.onServiceConnected();
         liveInstance = this;
+        AppConfig.prefs(this).edit()
+                .putString("accessibility_runtime_state_v281", "CONNECTED")
+                .putLong("accessibility_runtime_at_v281", System.currentTimeMillis()).apply();
+        // The permission itself is controlled by Android. Once Android reconnects the already
+        // granted service, wake every local queue immediately instead of waiting for a watchdog.
+        RobotService.forceSync(this);
         handler.postDelayed(inspectAgain, 250L);
     }
 
@@ -747,12 +753,18 @@ public class BlueAccessibilityService extends AccessibilityService {
 
     @Override
     public void onInterrupt() {
+        AppConfig.prefs(this).edit()
+                .putString("accessibility_runtime_state_v281", "INTERRUPTED")
+                .putLong("accessibility_runtime_at_v281", System.currentTimeMillis()).apply();
         resetAutomation();
     }
 
     @Override
     public void onDestroy() {
         if (liveInstance == this) liveInstance = null;
+        AppConfig.prefs(this).edit()
+                .putString("accessibility_runtime_state_v281", "DISCONNECTED")
+                .putLong("accessibility_runtime_at_v281", System.currentTimeMillis()).apply();
         resetAutomation();
         super.onDestroy();
     }

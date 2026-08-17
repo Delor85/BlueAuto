@@ -7,7 +7,7 @@ const css=fs.readFileSync('app/src/main/assets/control-tower-v2611.css','utf8');
 if(!manifest.includes('android:theme="@style/BlueMagicAppTheme"')) throw new Error('BIR app theme not applied');
 if(!styles.includes('Theme.Material.Light.NoActionBar')||!styles.includes('BlueMagicAppTheme')) throw new Error('no-actionbar shell missing');
 if(!main.includes('page.setPadding(0, 0, 0, 0)')) throw new Error('native shell still adds a visible outer gutter');
-if(!main.includes('nativeStatus.setVisibility(View.GONE)')||!main.includes('compactBar.setVisibility(View.GONE)')) throw new Error('duplicate native shell remains visible');
+if(!main.includes('nativeStatus.setVisibility(View.GONE)')) throw new Error('duplicate native status remains visible'); if(!main.includes('Build.VERSION.SDK_INT <= Build.VERSION_CODES.O')||!main.includes('compactBar.addView(manageButton, weighted())')) throw new Error('Android 6/8 native Manage safety bar missing');
 for(const x of ['buildHeaderControls','openManagement','openAccounts','visibilitychange','Toucher pour démarrer']) if(!js.includes(x)) throw new Error('interactive BIR shell missing '+x);
 if(!css.includes('.bir-menu-button{')||!css.includes('.bir-account-chip{cursor:pointer')) throw new Error('header action styling missing');
 console.log('BIR v2.6.11 shell: edge-to-edge, no duplicate native toolbar, functional menu/account and live Robot state OK');

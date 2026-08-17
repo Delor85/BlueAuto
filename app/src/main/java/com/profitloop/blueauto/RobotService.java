@@ -49,6 +49,11 @@ public class RobotService extends Service {
     private static final int WATCHDOG_REQUEST_CODE = 5503;
     private static final long STANDBY_WAKE_MS = 30 * 60_000L;
     private static final long WATCHDOG_INTERVAL_MS = 60_000L;
+    private static final long REMOTE_SNAPSHOT_MS = 15_000L;
+    private static final long REMOTE_HEARTBEAT_MS = 60_000L;
+    private static final long REMOTE_MAX_RETRY_MS = 120_000L;
+    private static final String REMOTE_CACHE_PREFIX = "remote_dashboard_cache_v281_";
+    private static final String REMOTE_CACHE_AT_PREFIX = "remote_dashboard_cache_at_v281_";
     private static final long SIMPLE_UNLOCK_WAIT_MS = 3_500L;
     private static final long SIMPLE_UNLOCK_COOLDOWN_MS = 30_000L;
 
@@ -57,6 +62,7 @@ public class RobotService extends Service {
     private final Map<String, Long> lastHeartbeatByProfile = new HashMap<>();
     private final Map<String, Long> apiRetryAtByProfile = new HashMap<>();
     private final Map<String, Integer> apiFailureCountByProfile = new HashMap<>();
+    private final Map<String, Long> lastRemoteSnapshotByProfile = new HashMap<>();
     private long backoffMs = AppConfig.IDLE_POLL_MS;
     private int roundRobinIndex = 0;
     private PowerManager.WakeLock commandWakeLock;
@@ -232,6 +238,9 @@ public class RobotService extends Service {
                     if (DeviceLockState.isSecurelyLocked(this)) {
                         releaseLockedLease(owner, activeUssd, leasedApi);
                         nextDelay = AppConfig.LOCKED_POLL_MS;
+                    } else if (!accessibilityReadyFor(activeUssd)) {
+                        holdLeaseForAccessibility(owner, activeUssd, leasedApi);
+                        nextDelay = BlueAccessibilityService.isEnabled(this) ? 5_000L : 30_000L;
                     } else if (!DeviceLockState.blocksUssd(this)) {
                         executeCommand(owner, activeUssd, leasedApi);
                         nextDelay = 2_000L;
@@ -336,6 +345,11 @@ public class RobotService extends Service {
                             nextDelay = 1_000L;
                             return;
                         }
+                        if (!accessibilityReadyFor(command)) {
+                            holdLeaseForAccessibility(profileId, command, api);
+                            nextDelay = BlueAccessibilityService.isEnabled(this) ? 5_000L : 30_000L;
+                            return;
+                        }
                         executeCommand(profileId, command, api);
                         nextDelay = 2_000L;
                         backoffMs = AppConfig.IDLE_POLL_MS;
@@ -357,15 +371,18 @@ public class RobotService extends Service {
             }
 
             boolean reportOutstanding = retryDueFinalReports(4);
+            long remoteDelay = observeRemoteProfiles();
+            boolean remoteOutstanding = AppConfig.anyRemoteProfile(this);
             if (profiles.isEmpty()) {
                 releaseStandbyWakeLock();
-                if (!reportOutstanding) stopSelf();
-                nextDelay = reportOutstanding ? 15_000L : AppConfig.IDLE_POLL_MS;
+                if (!reportOutstanding && !remoteOutstanding) stopSelf();
+                long baseDelay = reportOutstanding ? 15_000L : AppConfig.IDLE_POLL_MS;
+                nextDelay = remoteOutstanding ? Math.min(baseDelay, remoteDelay) : baseDelay;
                 return;
             }
 
             backoffMs = AppConfig.IDLE_POLL_MS;
-            nextDelay = reportOutstanding ? 15_000L : AppConfig.IDLE_POLL_MS;
+            nextDelay = Math.min(reportOutstanding ? 15_000L : AppConfig.IDLE_POLL_MS, remoteDelay);
             if (!lastProfileProblem.isEmpty()) {
                 updateNotification(robotSummary("Une SIM signale « " + lastProfileProblem
                         + " »; les autres files continuent"));
@@ -911,8 +928,87 @@ public class RobotService extends Service {
         standbyWakeRenewAt = 0L;
     }
 
+    private boolean accessibilityReadyFor(JSONObject command) {
+        return command == null || !UssdCommandFactory.requiresPin(command)
+                || BlueAccessibilityService.isConnected();
+    }
+
+    private void holdLeaseForAccessibility(String profileId, JSONObject command, ApiClient api) {
+        boolean granted = BlueAccessibilityService.isEnabled(this);
+        String reason = granted
+                ? "Accessibilité Android autorisée mais service en reconnexion; aucune composition financière avant reconnexion."
+                : "Accessibilité Android désactivée; réactivation utilisateur requise avant achat/vente.";
+        releaseUnexecutedLease(profileId, command, api, reason);
+        apiRetryAtByProfile.put(profileId, System.currentTimeMillis() + (granted ? 5_000L : 30_000L));
+        updateNotification(robotSummary(granted
+                ? "Accessibilité en reconnexion — Robot conservé, reprise automatique dès retour du service"
+                : "Accessibilité désactivée — Robot conservé, achat/vente en attente de réactivation"));
+    }
+
+    /**
+     * Read-only Remote observer. Heartbeat keeps the server route fresh; dashboard snapshots
+     * are cached locally so the foreground UI can render immediately without multiplying calls.
+     * No lease_command/create_command/USSD is ever invoked here.
+     */
+    private long observeRemoteProfiles() {
+        List<String> remotes = AppConfig.remoteProfileIds(this);
+        if (remotes.isEmpty()) return Long.MAX_VALUE;
+        long now = System.currentTimeMillis();
+        long nextDue = now + REMOTE_SNAPSHOT_MS;
+        for (String profileId : remotes) {
+            long retryAt = apiRetryAtByProfile.containsKey(profileId)
+                    ? apiRetryAtByProfile.get(profileId) : 0L;
+            if (retryAt > now) {
+                nextDue = Math.min(nextDue, retryAt);
+                continue;
+            }
+            ApiClient api = ApiClient.forProfile(this, profileId);
+            try {
+                long lastHeartbeat = lastHeartbeatByProfile.containsKey(profileId)
+                        ? lastHeartbeatByProfile.get(profileId) : 0L;
+                if (now - lastHeartbeat >= REMOTE_HEARTBEAT_MS) {
+                    api.heartbeat(false);
+                    lastHeartbeatByProfile.put(profileId, now);
+                }
+                long lastSnapshot = lastRemoteSnapshotByProfile.containsKey(profileId)
+                        ? lastRemoteSnapshotByProfile.get(profileId) : 0L;
+                if (now - lastSnapshot >= REMOTE_SNAPSHOT_MS) {
+                    JSONObject dashboard = api.dashboard();
+                    AppConfig.prefs(this).edit()
+                            .putString(REMOTE_CACHE_PREFIX + profileId, dashboard.toString())
+                            .putLong(REMOTE_CACHE_AT_PREFIX + profileId, now).apply();
+                    lastRemoteSnapshotByProfile.put(profileId, now);
+                    updateNotification(robotSummary("Remote synchronisé — "
+                            + AppConfig.nodeCode(this, profileId)));
+                }
+                clearProfileApiFailure(profileId);
+                long hbDue = (lastHeartbeatByProfile.containsKey(profileId)
+                        ? lastHeartbeatByProfile.get(profileId) : now) + REMOTE_HEARTBEAT_MS;
+                long dashDue = (lastRemoteSnapshotByProfile.containsKey(profileId)
+                        ? lastRemoteSnapshotByProfile.get(profileId) : now) + REMOTE_SNAPSHOT_MS;
+                nextDue = Math.min(nextDue, Math.min(hbDue, dashDue));
+            } catch (Exception error) {
+                long failureRetryAt = Math.min(now + REMOTE_MAX_RETRY_MS, markProfileApiFailure(profileId));
+                nextDue = Math.min(nextDue, failureRetryAt);
+                updateNotification(robotSummary("Remote en reprise réseau — "
+                        + AppConfig.nodeCode(this, profileId)));
+            }
+        }
+        return Math.max(1_000L, nextDue - System.currentTimeMillis());
+    }
+
+    static JSONObject cachedRemoteDashboard(Context context, String profileId, long maxAgeMs) {
+        if (profileId == null || profileId.isEmpty()) return null;
+        long at = AppConfig.prefs(context).getLong(REMOTE_CACHE_AT_PREFIX + profileId, 0L);
+        if (at <= 0L || System.currentTimeMillis() - at > Math.max(1_000L, maxAgeMs)) return null;
+        String raw = AppConfig.prefs(context).getString(REMOTE_CACHE_PREFIX + profileId, "");
+        if (raw.isEmpty()) return null;
+        try { return new JSONObject(raw); } catch (Exception ignored) { return null; }
+    }
+
     private boolean hasServiceWork() {
-        return AppConfig.anyRobotEnabled(this) || PendingCommandStore.hasAnyPending(this);
+        return AppConfig.anyRobotEnabled(this) || PendingCommandStore.hasAnyPending(this)
+                || AppConfig.anyRemoteProfile(this);
     }
 
     private void createNotificationChannel() {
@@ -956,7 +1052,8 @@ public class RobotService extends Service {
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         return (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
                 ? new Notification.Builder(this, CHANNEL_ID) : new Notification.Builder(this))
-                .setContentTitle("Blue Magic — " + AppConfig.enabledRobotCount(this) + " Robot(s) actif(s)")
+                .setContentTitle("B.I.R. — " + AppConfig.enabledRobotCount(this) + " Robot(s) • "
+                        + AppConfig.remoteProfileCount(this) + " Remote(s)")
                 .setContentText(text)
                 .setSmallIcon(android.R.drawable.stat_notify_sync)
                 .setOngoing(true)
@@ -965,7 +1062,8 @@ public class RobotService extends Service {
     }
 
     private String robotSummary(String detail) {
-        return AppConfig.enabledRobotCount(this) + " Robot(s) — " + detail;
+        return AppConfig.enabledRobotCount(this) + " Robot(s) • "
+                + AppConfig.remoteProfileCount(this) + " Remote(s) — " + detail;
     }
 
     private void updateNotification(String text) {
@@ -993,7 +1091,7 @@ public class RobotService extends Service {
     }
 
     static void scheduleWatchdog(Context context, long delayMs) {
-        if (!AppConfig.anyRobotEnabled(context)) return;
+        if (!AppConfig.anyRobotEnabled(context) && !AppConfig.anyRemoteProfile(context)) return;
         AlarmManager manager = (AlarmManager) context.getSystemService(ALARM_SERVICE);
         if (manager == null) return;
         Intent intent = new Intent(context, BootReceiver.class)

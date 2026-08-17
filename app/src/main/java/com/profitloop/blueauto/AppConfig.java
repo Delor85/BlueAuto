@@ -272,6 +272,27 @@ final class AppConfig {
         return result;
     }
 
+    static List<String> remoteProfileIds(Context context) {
+        JSONArray all = profiles(context);
+        List<String> result = new ArrayList<>();
+        for (int i = 0; i < all.length(); i++) {
+            JSONObject profile = all.optJSONObject(i);
+            if (profile == null) continue;
+            String id = profile.optString("id", "");
+            if (!id.isEmpty() && "REMOTE".equalsIgnoreCase(profile.optString("device_mode", "REMOTE"))
+                    && isPaired(context, id)) result.add(id);
+        }
+        return result;
+    }
+
+    static boolean anyRemoteProfile(Context context) {
+        return !remoteProfileIds(context).isEmpty();
+    }
+
+    static int remoteProfileCount(Context context) {
+        return remoteProfileIds(context).size();
+    }
+
     static String[] profileLabels(Context context) {
         JSONArray profiles = profiles(context);
         String[] result = new String[profiles.length()];

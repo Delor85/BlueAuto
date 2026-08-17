@@ -67,6 +67,9 @@ public class MainActivity extends Activity {
     private static final String UI_LANGUAGE_KEY = "bir_ui_language_v271";
     private static final String OWNER_ADMIN_WORKSPACE_KEY = "bir_owner_admin_workspace_v280";
     private static final String OWNER_ADMIN_RETURN_PROFILE_KEY = "bir_owner_admin_return_profile_v280";
+    private static final String OWNER_SESSION_LAST_ACTIVITY_KEY = "bir_owner_session_last_activity_v281";
+    private static final long OWNER_SESSION_IDLE_MS = 30L * 60_000L;
+    private static final String ADMIN_PROFILE_ID = "__BIR_OWNER_ADMIN__";
     private static final String MOCK_OWNER_CODE_SHA256 = "207e4a9bca5e4073fa98e767a85bd937a63d9e2f62d2fe5e693360ab2ee3e3cd";
     private static final String MOCK_PROFILE_ID = "__BIR_MOCK_OWNER__";
     private static final String[] MOCK_REGION_CODES = {"AD", "CE", "ES", "EN", "LT", "NO", "NW", "OU", "SU", "SW"};
@@ -157,6 +160,7 @@ public class MainActivity extends Activity {
             return;
         }
         mockSessionAuthorized = true;
+        touchOwnerSession();
         AppConfig.prefs(this).edit()
                 .putString(MOCK_RETURN_PROFILE_KEY, AppConfig.profileId(this))
                 .putBoolean(MOCK_OWNER_ENABLED_KEY, false)
@@ -181,8 +185,50 @@ public class MainActivity extends Activity {
     }
 
     private boolean isOwnerAdminWorkspaceActive() {
-        return adminSessionAuthorized && AppConfig.prefs(this).getBoolean(OWNER_ADMIN_WORKSPACE_KEY, false)
+        return adminSessionAuthorized && !ownerSessionExpired()
+                && AppConfig.prefs(this).getBoolean(OWNER_ADMIN_WORKSPACE_KEY, false)
                 && SecureOwnerStore.has(this, "OWNER_ADMIN");
+    }
+
+    private boolean ownerSessionExpired() {
+        long last = AppConfig.prefs(this).getLong(OWNER_SESSION_LAST_ACTIVITY_KEY, 0L);
+        return last > 0L && System.currentTimeMillis() - last >= OWNER_SESSION_IDLE_MS;
+    }
+
+    private void touchOwnerSession() {
+        AppConfig.prefs(this).edit().putLong(OWNER_SESSION_LAST_ACTIVITY_KEY,
+                System.currentTimeMillis()).apply();
+    }
+
+    private boolean expireOwnerSessionIfIdle() {
+        if (!ownerSessionExpired()) return false;
+        String returnProfile = AppConfig.prefs(this).getString(OWNER_ADMIN_RETURN_PROFILE_KEY, "");
+        if (returnProfile.isEmpty()) {
+            returnProfile = AppConfig.prefs(this).getString(MOCK_RETURN_PROFILE_KEY, "");
+        }
+        boolean hadOwnerSession = mockSessionAuthorized || adminSessionAuthorized
+                || AppConfig.prefs(this).getBoolean(MOCK_WORKSPACE_KEY, false)
+                || AppConfig.prefs(this).getBoolean(OWNER_ADMIN_WORKSPACE_KEY, false);
+        mockSessionAuthorized = false;
+        adminSessionAuthorized = false;
+        AppConfig.prefs(this).edit()
+                .putBoolean(MOCK_WORKSPACE_KEY, false)
+                .putBoolean(OWNER_ADMIN_WORKSPACE_KEY, false)
+                .remove(MOCK_RETURN_PROFILE_KEY)
+                .remove(OWNER_ADMIN_RETURN_PROFILE_KEY)
+                .remove(OWNER_SESSION_LAST_ACTIVITY_KEY).commit();
+        if (!returnProfile.isEmpty()) AppConfig.activateProfile(this, returnProfile);
+        return hadOwnerSession;
+    }
+
+    @Override
+    public void onUserInteraction() {
+        super.onUserInteraction();
+        if (ownerSessionExpired()) {
+            if (expireOwnerSessionIfIdle()) recreate();
+            return;
+        }
+        if (mockSessionAuthorized || adminSessionAuthorized) touchOwnerSession();
     }
 
     private void openOwnerAdminFromPairing(String code, TextView feedback) {
@@ -207,6 +253,7 @@ public class MainActivity extends Activity {
                 String entitlementId = data.optString("entitlement_id", "");
                 SecureOwnerStore.save(this, "OWNER_ADMIN", entitlementId, token);
                 adminSessionAuthorized = true;
+                touchOwnerSession();
                 AppConfig.prefs(this).edit()
                         .putString(OWNER_ADMIN_RETURN_PROFILE_KEY, AppConfig.profileId(this))
                         .putBoolean(OWNER_ADMIN_WORKSPACE_KEY, true).commit();
@@ -293,8 +340,8 @@ public class MainActivity extends Activity {
                 realFields.setVisibility((mock || admin) ? View.GONE : View.VISIBLE);
                 adminActivation.setVisibility((mock || admin) ? View.GONE : (hasPairingSecret() ? View.GONE : View.VISIBLE));
                 feedback.setText(mock
-                        ? ui("Accès propriétaire privé. Le compte MOCK ne sera jamais affiché dans la liste normale des comptes.",
-                                "Private owner access. MOCK will never appear in the normal account list.")
+                        ? ui("Accès propriétaire privé. Après enrôlement, MOCK apparaît dans la liste des comptes avec verrouillage après 30 minutes d’inactivité.",
+                                "Private owner access. Once enrolled, MOCK appears in the account list and locks after 30 minutes of inactivity.")
                         : admin ? ui("Tour de contrôle propriétaire privée. ADMIN n’est pas un rôle Blue et exige un entitlement cryptographique serveur.",
                                 "Private owner control tower. ADMIN is not a Blue role and requires a cryptographic server entitlement.")
                         : ui("Les réglages techniques du serveur sont gérés automatiquement par B.I.R.",
@@ -733,12 +780,17 @@ public class MainActivity extends Activity {
 
         LinearLayout compactBar = new LinearLayout(this);
         compactBar.setOrientation(LinearLayout.HORIZONTAL);
-        Button accounts = actionButton("COMPTES (" + AppConfig.profileCount(this) + ")", GOLD);
-        manageButton = actionButton("☰ GÉRER", VIOLET);
-        compactBar.addView(accounts, weighted());
+        int visibleAccountCount = AppConfig.profileCount(this)
+                + (SecureOwnerStore.has(this, "MOCK_OWNER") ? 1 : 0)
+                + (SecureOwnerStore.has(this, "OWNER_ADMIN") ? 1 : 0);
+        Button accounts = actionButton(ui("COMPTES (" + visibleAccountCount + ")",
+                "ACCOUNTS (" + visibleAccountCount + ")"), GOLD);
+        manageButton = actionButton(ui("☰ GÉRER", "☰ MANAGE"), VIOLET);
         compactBar.addView(manageButton, weighted());
+        compactBar.addView(accounts, weighted());
         page.addView(compactBar);
-        compactBar.setVisibility(View.GONE);
+        compactBar.setVisibility(Build.VERSION.SDK_INT <= Build.VERSION_CODES.O
+                ? View.VISIBLE : View.GONE);
 
         webView = new WebView(this);
         webView.setBackgroundColor(BACKGROUND);
@@ -1290,27 +1342,51 @@ public class MainActivity extends Activity {
     }
 
     private void showAccountManager() {
-        String[] labels = AppConfig.profileLabels(this);
-        String[] ids = AppConfig.profileIds(this);
-        final boolean leavingMock = isMockWorkspaceActive();
+        String[] realLabels = AppConfig.profileLabels(this);
+        String[] realIds = AppConfig.profileIds(this);
+        final List<String> labels = new ArrayList<>();
+        final List<String> ids = new ArrayList<>();
+        for (int i = 0; i < realIds.length; i++) {
+            labels.add(realLabels[i]);
+            ids.add(realIds[i]);
+        }
+        boolean mockKnown = SecureOwnerStore.has(this, "MOCK_OWNER") || mockSessionAuthorized;
+        boolean adminKnown = SecureOwnerStore.has(this, "OWNER_ADMIN") || adminSessionAuthorized;
+        if (mockKnown) {
+            labels.add("MOCK • PROPRIÉTAIRE • " + ((mockSessionAuthorized && !ownerSessionExpired())
+                    ? ui("SESSION ACTIVE", "SESSION ACTIVE") : ui("VERROUILLÉ", "LOCKED")));
+            ids.add(MOCK_PROFILE_ID);
+        }
+        if (adminKnown) {
+            labels.add("ADMIN • PROPRIÉTAIRE • " + ((adminSessionAuthorized && !ownerSessionExpired())
+                    ? ui("SESSION ACTIVE", "SESSION ACTIVE") : ui("VERROUILLÉ", "LOCKED")));
+            ids.add(ADMIN_PROFILE_ID);
+        }
+        final boolean leavingOwnerWorkspace = isMockWorkspaceActive()
+                || AppConfig.prefs(this).getBoolean(OWNER_ADMIN_WORKSPACE_KEY, false);
         AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle(ui("Comptes Blue", "Blue accounts"))
-                .setItems(labels, (ignored, index) -> {
-                    if (index < 0 || index >= ids.length) return;
-                    if (leavingMock) {
-                        mockSessionAuthorized = false;
-                        AppConfig.prefs(this).edit()
-                                .putBoolean(MOCK_WORKSPACE_KEY, false)
-                                .putBoolean(MOCK_OWNER_ENABLED_KEY, false)
-                                .remove(MOCK_RETURN_PROFILE_KEY)
-                                .commit();
+                .setTitle(ui("Tous les comptes B.I.R.", "All B.I.R. accounts"))
+                .setItems(labels.toArray(new String[0]), (ignored, index) -> {
+                    if (index < 0 || index >= ids.size()) return;
+                    String selected = ids.get(index);
+                    if (MOCK_PROFILE_ID.equals(selected)) {
+                        openOwnerVirtualAccount("MOCK_OWNER");
+                        return;
                     }
-                    if (!ids[index].equals(AppConfig.profileId(this))) {
-                        AppConfig.activateProfile(this, ids[index]);
+                    if (ADMIN_PROFILE_ID.equals(selected)) {
+                        openOwnerVirtualAccount("OWNER_ADMIN");
+                        return;
                     }
-                    // Even when this was already the hidden routing profile under MOCK, force a
-                    // real UI rebuild. The old behavior opened only the SIM picker and visually
-                    // trapped the user in MOCK.
+                    // Leaving an owner workspace does NOT destroy its 30-minute authenticated
+                    // session. This makes DAE/DSM/PoS <-> MOCK/ADMIN switching immediate while
+                    // inactivity still forces the code again.
+                    AppConfig.prefs(this).edit()
+                            .putBoolean(MOCK_WORKSPACE_KEY, false)
+                            .putBoolean(OWNER_ADMIN_WORKSPACE_KEY, false)
+                            .remove(MOCK_RETURN_PROFILE_KEY)
+                            .remove(OWNER_ADMIN_RETURN_PROFILE_KEY).commit();
+                    if (!selected.equals(AppConfig.profileId(this))) AppConfig.activateProfile(this, selected);
+                    if (mockSessionAuthorized || adminSessionAuthorized) touchOwnerSession();
                     recreate();
                 })
                 .setPositiveButton(ui("Ajouter / Ouvrir", "Add / Open"), null)
@@ -1322,7 +1398,7 @@ public class MainActivity extends Activity {
                 dialog.dismiss();
                 showPairingScreen(true);
             });
-            if (leavingMock) {
+            if (leavingOwnerWorkspace) {
                 dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setVisibility(View.GONE);
             } else {
                 dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> {
@@ -1337,6 +1413,44 @@ public class MainActivity extends Activity {
                 });
             }
         });
+        dialog.show();
+    }
+
+    private void openOwnerVirtualAccount(String kind) {
+        boolean mock = "MOCK_OWNER".equals(kind);
+        boolean authorized = mock ? mockSessionAuthorized : adminSessionAuthorized;
+        if (authorized && !ownerSessionExpired()) {
+            String returnProfile = AppConfig.profileId(this);
+            AppConfig.prefs(this).edit()
+                    .putString(mock ? MOCK_RETURN_PROFILE_KEY : OWNER_ADMIN_RETURN_PROFILE_KEY, returnProfile)
+                    .putBoolean(MOCK_WORKSPACE_KEY, mock)
+                    .putBoolean(OWNER_ADMIN_WORKSPACE_KEY, !mock).commit();
+            touchOwnerSession();
+            recreate();
+            return;
+        }
+        LinearLayout content = verticalContainer();
+        content.setPadding(dp(16), dp(8), dp(16), dp(8));
+        EditText code = field(mock ? ui("Code privé MOCK", "Private MOCK code")
+                : ui("Code privé ADMIN propriétaire", "Private owner ADMIN code"), "", true);
+        TextView feedback = help(ui("Session propriétaire verrouillée. Le code est requis après 30 minutes d’inactivité.",
+                "Owner session is locked. The code is required after 30 minutes of inactivity."));
+        content.addView(feedback);
+        content.addView(code);
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(mock ? ui("Ouvrir MOCK", "Open MOCK") : ui("Ouvrir ADMIN", "Open ADMIN"))
+                .setView(content)
+                .setPositiveButton(ui("OUVRIR", "OPEN"), null)
+                .setNegativeButton(ui("Annuler", "Cancel"), null)
+                .create();
+        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                .setOnClickListener(v -> {
+                    String value = code.getText().toString().trim();
+                    if (mock) openMockFromPairing(value, feedback);
+                    else openOwnerAdminFromPairing(value, feedback);
+                    code.setText("");
+                    if ((mock && mockSessionAuthorized) || (!mock && adminSessionAuthorized)) dialog.dismiss();
+                }));
         dialog.show();
     }
 
@@ -1827,6 +1941,7 @@ public class MainActivity extends Activity {
         SimIdentityManager.Verification sim = SimIdentityManager.verify(this, profileId);
         boolean robotEnabled = AppConfig.robotEnabled(this);
         boolean accessibility = BlueAccessibilityService.isEnabled(this);
+        boolean accessibilityConnected = BlueAccessibilityService.isConnected();
         if (robotEnabled && !sim.valid) {
             AppConfig.setRobotEnabled(this, false);
             RobotService.stop(this);
@@ -1846,7 +1961,9 @@ public class MainActivity extends Activity {
         } else if (AppConfig.pinBlocked(this)) {
             status.append("\n⛔ PIN BLOQUÉ : corriger avant toute nouvelle transaction");
         } else if (robotEnabled && !accessibility) {
-            status.append("\n⚠ Accessibilité à activer avant achat/vente • TEST_NUMBER reste direct");
+            status.append("\n⚠ Accessibilité à activer avant achat/vente • désactivée par Android • Robot conservé • file conservée • TEST_NUMBER reste direct");
+        } else if (robotEnabled && !accessibilityConnected) {
+            status.append("\n↻ Accessibilité autorisée mais service en reconnexion • reprise automatique");
         } else if (robotEnabled && DeviceLockState.isSecurelyLocked(this)) {
             status.append("\n🔒 Écran sécurisé : déverrouillage humain requis avant USSD");
         } else if (robotEnabled && DeviceLockState.isInsecurelyLocked(this)) {
@@ -1855,15 +1972,19 @@ public class MainActivity extends Activity {
 
         nativeStatus.setText(status.toString());
         nativeStatus.setTextColor((!sim.valid || AppConfig.pinBlocked(this)
-                || (robotEnabled && !accessibility)) ? GOLD : CYAN);
+                || (robotEnabled && (!accessibility || !accessibilityConnected))) ? GOLD : CYAN);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        if (expireOwnerSessionIfIdle()) {
+            recreate();
+            return;
+        }
         applyRobotWindowPolicy();
         RobotService.pollAdministrativeControls(this);
-        if (AppConfig.anyRobotEnabled(this)) {
+        if (AppConfig.anyRobotEnabled(this) || AppConfig.anyRemoteProfile(this)) {
             View root = webView == null ? nativeStatus : webView;
             if (root != null) root.postDelayed(() -> RobotService.startEnabled(this), 250L);
         }
@@ -2077,6 +2198,16 @@ public class MainActivity extends Activity {
         public void loadDashboard() {
             new Thread(() -> {
                 try {
+                    if (!AppConfig.isRobotMode(MainActivity.this)) {
+                        RobotService.startEnabled(MainActivity.this);
+                        JSONObject cached = RobotService.cachedRemoteDashboard(MainActivity.this,
+                                AppConfig.profileId(MainActivity.this), 20_000L);
+                        if (cached != null) {
+                            cached.put("_bir_remote_cache", true);
+                            callback("onDashboard", cached);
+                            return;
+                        }
+                    }
                     callback("onDashboard", new ApiClient(MainActivity.this).dashboard());
                 } catch (Exception error) {
                     callbackError("onDashboard", error);
@@ -2169,9 +2300,9 @@ public class MainActivity extends Activity {
         public void exitOwnerAdminWorkspace() {
             runOnUiThread(() -> {
                 String returnProfile = AppConfig.prefs(MainActivity.this).getString(OWNER_ADMIN_RETURN_PROFILE_KEY, "");
-                adminSessionAuthorized = false;
                 AppConfig.prefs(MainActivity.this).edit().putBoolean(OWNER_ADMIN_WORKSPACE_KEY, false)
                         .remove(OWNER_ADMIN_RETURN_PROFILE_KEY).commit();
+                touchOwnerSession();
                 if (!returnProfile.isEmpty()) AppConfig.activateProfile(MainActivity.this, returnProfile);
                 recreate();
             });
@@ -2181,12 +2312,11 @@ public class MainActivity extends Activity {
         public void exitMockWorkspace() {
             runOnUiThread(() -> {
                 String returnProfile = AppConfig.prefs(MainActivity.this).getString(MOCK_RETURN_PROFILE_KEY, "");
-                mockSessionAuthorized = false;
                 AppConfig.prefs(MainActivity.this).edit()
                         .putBoolean(MOCK_WORKSPACE_KEY, false)
-                        .putBoolean(MOCK_OWNER_ENABLED_KEY, false)
                         .remove(MOCK_RETURN_PROFILE_KEY)
                         .commit();
+                touchOwnerSession();
                 if (!returnProfile.isEmpty()) AppConfig.activateProfile(MainActivity.this, returnProfile);
                 recreate();
             });
