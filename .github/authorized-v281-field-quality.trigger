@@ -1,0 +1,9 @@
+requested_by=user
+scope=app-only-v281-field-quality
+base_branch=feat/bir-v2-8-operations-admin
+base_head_before_trigger=e1650fde9308c434e814084056ad6beae81fafa3
+requirements=accessibility-recovery,remote-observer,android6-8-manage,bilingual-expansion,owner-switching,owner-30m-idle-lock
+production_worker_deploy=forbidden
+d1_migration=forbidden
+pr4_merge=forbidden
+permanent_signing=forbidden
