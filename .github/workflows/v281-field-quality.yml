@@ -26,6 +26,7 @@ jobs:
           grep -q '^d1_migration=forbidden$' .github/authorized-v281-field-quality.trigger
           grep -q '^pr4_merge=forbidden$' .github/authorized-v281-field-quality.trigger
           grep -q '^permanent_signing=forbidden$' .github/authorized-v281-field-quality.trigger
+          python3 .github/scripts/v281_patch_selfheal.py
           python3 -m py_compile .github/scripts/v281_field_quality_patch.py
 
       - name: Apply deterministic app-only patch
