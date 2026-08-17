@@ -22,15 +22,18 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "eef53c4bf483ffc2557a57b0715561412f4c7e10"
-          grep -q '^candidate_sha=eef53c4bf483ffc2557a57b0715561412f4c7e10$' .github/authorized-v281-final-validation.trigger || true
           grep -q 'applicationId "com.profitloop.blueauto"' app/build.gradle
           grep -q 'versionCode 54' app/build.gradle
           grep -q 'versionName "2.8.1"' app/build.gradle
           test "$(git rev-parse HEAD:cloudflare)" = "$(git rev-parse c969c585a41189ae2c0895e5b528f870dedab677:cloudflare)"
-      - name: Node.js 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
+      - name: Prove runner toolchain and install Gradle 8.2 directly
+        run: |
+          set -euo pipefail
+          node --version
+          java -version
+          curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 https://services.gradle.org/distributions/gradle-8.2-bin.zip -o /tmp/gradle-8.2-bin.zip
+          unzip -q /tmp/gradle-8.2-bin.zip -d /tmp
+          echo '/tmp/gradle-8.2/bin' >> "$GITHUB_PATH"
       - name: Run all app contracts
         run: |
           set -euo pipefail
@@ -56,15 +59,6 @@ jobs:
           node --check app/src/main/assets/control-tower-v271.js
           node --check app/src/main/assets/balance-engine-v280.js
           node --check app/src/main/assets/control-tower-v280.js
-      - name: Java 17
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '17'
-      - name: Gradle 8.2
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.2'
       - name: Prepare ephemeral exact-candidate signing key
         run: |
           set -euo pipefail
@@ -118,10 +112,6 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
-      - name: Checkout exact candidate for fixtures
-        uses: actions/checkout@v5
-        with:
-          ref: eef53c4bf483ffc2557a57b0715561412f4c7e10
       - name: Download exact ephemeral candidate
         uses: actions/download-artifact@v4
         with:
