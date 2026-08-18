@@ -1,0 +1,201 @@
+name: BIR v2.9.2 Exact Permanent APK
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ['.github/v292-permanent.trigger']
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: bir-v292-exact-permanent-apk
+  cancel-in-progress: false
+
+env:
+  BIR_V292_SOURCE_SHA: f123e766271511c6270305c5641ab4db93401c99
+  BIR_V292_ARTIFACT_RUN_ID: '32191056591'
+  BIR_V292_TESTED_APK_SHA256: 91098cf886ed946689e0dc5cbda7a3ba981826ef3c61f5fa99c12e694d202c26
+  BIR_PERMANENT_CERT_SHA256: f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5
+  BIR_PRODUCTION_HEALTH_URL: https://blue-magic-api.mbolodelorpro.workers.dev/api?action=health
+
+jobs:
+  exact-permanent-apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    environment: production
+    steps:
+      - name: Checkout exact validated v2.9.2 source
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.BIR_V292_SOURCE_SHA }}
+          fetch-depth: 0
+
+      - name: Prove exact authorization and immutable boundaries
+        env:
+          AUTHORIZED_TRIGGER_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$BIR_V292_SOURCE_SHA"
+          git show "$AUTHORIZED_TRIGGER_SHA:.github/v292-permanent.trigger" > /tmp/bir-v292-permanent-trigger.txt
+          grep -q '^authorization=user-approved-free-premium-2026-08-18$' /tmp/bir-v292-permanent-trigger.txt
+          grep -q '^source_sha=f123e766271511c6270305c5641ab4db93401c99$' /tmp/bir-v292-permanent-trigger.txt
+          grep -q '^tested_run=32191056591$' /tmp/bir-v292-permanent-trigger.txt
+          grep -q '^tested_apk_sha256=91098cf886ed946689e0dc5cbda7a3ba981826ef3c61f5fa99c12e694d202c26$' /tmp/bir-v292-permanent-trigger.txt
+          grep -q '^release=2.9.2$' /tmp/bir-v292-permanent-trigger.txt
+          grep -q '^package=com.profitloop.blueauto$' /tmp/bir-v292-permanent-trigger.txt
+          grep -q '^version_code=57$' /tmp/bir-v292-permanent-trigger.txt
+          grep -q '^rebuild=forbidden$' /tmp/bir-v292-permanent-trigger.txt
+          grep -q '^historical_signer_required=true$' /tmp/bir-v292-permanent-trigger.txt
+          grep -q '^pr4_merge=forbidden$' /tmp/bir-v292-permanent-trigger.txt
+          grep -q 'versionCode 57' app/build.gradle
+          grep -q 'versionName "2.9.2"' app/build.gradle
+          grep -Fq 'new String[]{"REMOTE", "ROBOT"}' app/src/main/java/com/profitloop/blueauto/MainActivity.java
+          ! grep -q 'android.permission.SEND_SMS' app/src/main/AndroidManifest.xml
+
+      - name: Verify live production is exact BIR v2.9.2
+        run: |
+          set -euo pipefail
+          curl --fail --retry 5 --retry-delay 3 --max-time 20 "$BIR_PRODUCTION_HEALTH_URL" -o /tmp/bir-v292-production-before-signing.json
+          node -e "const fs=require('fs');const h=JSON.parse(fs.readFileSync('/tmp/bir-v292-production-before-signing.json','utf8'));if(h.ok!==true||!h.data)throw new Error('invalid health envelope');const d=h.data;if(d.version!=='2.9.2-cloudflare'||d.database!=='online')throw new Error('production mismatch');const c=d.capabilities||{};for(const k of ['premium_for_all','hierarchical_rescue','simple_pilotage','force_sync','offline_sync','bir_relay'])if(c[k]!==true)throw new Error('missing '+k);if(JSON.stringify(c.effective_modes)!==JSON.stringify(['REMOTE','ROBOT']))throw new Error('mode mismatch');"
+
+      - name: Download the exact Android-validated APK
+        uses: actions/download-artifact@v4
+        with:
+          name: BIR-v2.9.2-Free-Premium-Pilotage-Ephemeral
+          path: /tmp/bir-v292-artifact
+          repository: Delor85/BlueAuto
+          run-id: ${{ env.BIR_V292_ARTIFACT_RUN_ID }}
+          github-token: ${{ github.token }}
+
+      - name: Prove tested APK identity before signing
+        run: |
+          set -euo pipefail
+          tested=/tmp/bir-v292-artifact/home/runner/work/BlueAuto/BlueAuto/app/build/outputs/apk/release/app-release.apk
+          test -f "$tested"
+          sha256sum "$tested" | tee /tmp/bir-v292-tested.sha256.txt
+          grep -q "^$BIR_V292_TESTED_APK_SHA256  " /tmp/bir-v292-tested.sha256.txt
+          grep -q '^f123e766271511c6270305c5641ab4db93401c99$' /tmp/bir-v292-artifact/tmp/v292-source-sha.txt
+          cp "$tested" /tmp/BIR-v2.9.2-tested-exact.apk
+
+      - name: Java 17 for historical signer proof
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Load and prove historical permanent signer
+        env:
+          PERMANENT_KEYSTORE_BASE64: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_BASE64 }}
+          PERMANENT_KEYSTORE_PASSWORD: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$PERMANENT_KEYSTORE_BASE64"
+          test -n "$PERMANENT_KEYSTORE_PASSWORD"
+          mkdir -p /tmp/bir-v292-signing
+          printf '%s' "$PERMANENT_KEYSTORE_BASE64" | base64 --decode > /tmp/bir-v292-signing/permanent.keystore
+          actual="$(keytool -list -v -keystore /tmp/bir-v292-signing/permanent.keystore -storepass "$PERMANENT_KEYSTORE_PASSWORD" -alias androiddebugkey | awk '/SHA256:/{gsub(":", "", $2); print tolower($2); exit}')"
+          test "$actual" = "$BIR_PERMANENT_CERT_SHA256"
+          echo "Historical permanent signer certificate: $actual"
+
+      - name: Re-sign exact tested APK without rebuilding
+        env:
+          PERMANENT_KEYSTORE_PASSWORD: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          bt="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          test -x "$bt/apksigner"
+          cp /tmp/BIR-v2.9.2-tested-exact.apk /tmp/BIR-Blue-Infinity-Retail-v2.9.2-vc57-Permanent.apk
+          "$bt/apksigner" sign \
+            --ks /tmp/bir-v292-signing/permanent.keystore \
+            --ks-key-alias androiddebugkey \
+            --ks-pass env:PERMANENT_KEYSTORE_PASSWORD \
+            --key-pass env:PERMANENT_KEYSTORE_PASSWORD \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            --v3-signing-enabled true \
+            /tmp/BIR-Blue-Infinity-Retail-v2.9.2-vc57-Permanent.apk
+          "$bt/zipalign" -c -v 4 /tmp/BIR-Blue-Infinity-Retail-v2.9.2-vc57-Permanent.apk
+
+      - name: Verify permanent identity signer and payload equality
+        run: |
+          set -euo pipefail
+          bt="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          apk=/tmp/BIR-Blue-Infinity-Retail-v2.9.2-vc57-Permanent.apk
+          "$bt/aapt" dump badging "$apk" | tee /tmp/bir-v292-permanent-badging.txt
+          grep -q "package: name='com.profitloop.blueauto' versionCode='57' versionName='2.9.2'" /tmp/bir-v292-permanent-badging.txt
+          if grep -q 'application-debuggable' /tmp/bir-v292-permanent-badging.txt; then exit 1; fi
+          "$bt/apksigner" verify --verbose --print-certs "$apk" | tee /tmp/bir-v292-permanent-signature.txt
+          grep -qi 'Verified using v1 scheme.*true' /tmp/bir-v292-permanent-signature.txt
+          grep -qi 'Verified using v2 scheme.*true' /tmp/bir-v292-permanent-signature.txt
+          grep -qi 'Verified using v3 scheme.*true' /tmp/bir-v292-permanent-signature.txt
+          cert="$(awk -F': ' '/Signer #1 certificate SHA-256 digest:/{print tolower($2); exit}' /tmp/bir-v292-permanent-signature.txt)"
+          test "$cert" = "$BIR_PERMANENT_CERT_SHA256"
+          test "$(grep -c 'Signer #.*certificate DN:' /tmp/bir-v292-permanent-signature.txt)" = "1"
+          python3 - <<'PY'
+          import hashlib, json, zipfile
+          a='/tmp/BIR-v2.9.2-tested-exact.apk'
+          b='/tmp/BIR-Blue-Infinity-Retail-v2.9.2-vc57-Permanent.apk'
+          def payload(path):
+              out={}
+              with zipfile.ZipFile(path) as z:
+                  for n in z.namelist():
+                      u=n.upper()
+                      if u.startswith('META-INF/'):
+                          continue
+                      out[n]=hashlib.sha256(z.read(n)).hexdigest()
+              return out
+          x,y=payload(a),payload(b)
+          added=sorted(set(y)-set(x)); removed=sorted(set(x)-set(y)); changed=sorted(k for k in set(x)&set(y) if x[k]!=y[k])
+          proof={'tested_payload_entries':len(x),'permanent_payload_entries':len(y),'added':added,'removed':removed,'changed':changed}
+          print(json.dumps(proof,indent=2))
+          open('/tmp/bir-v292-payload-comparison.json','w').write(json.dumps(proof,indent=2)+'\n')
+          if added or removed or changed: raise SystemExit('application payload changed while signing')
+          PY
+          sha256sum "$apk" | tee /tmp/bir-v292-permanent.sha256.txt
+          printf '%s\n' "$BIR_V292_SOURCE_SHA" > /tmp/bir-v292-permanent-source.txt
+
+      - name: Create concise permanent release evidence
+        run: |
+          set -euo pipefail
+          {
+            echo 'BIR / Blue Magic v2.9.2 permanent release'
+            echo 'source=f123e766271511c6270305c5641ab4db93401c99'
+            echo 'tested_run=32191056591'
+            echo 'android_matrix_run=32191686889'
+            echo 'production_run=32192700739'
+            echo 'package=com.profitloop.blueauto'
+            echo 'versionName=2.9.2'
+            echo 'versionCode=57'
+            echo 'tested_ephemeral_sha256=91098cf886ed946689e0dc5cbda7a3ba981826ef3c61f5fa99c12e694d202c26'
+            echo "permanent_sha256=$(cut -d' ' -f1 /tmp/bir-v292-permanent.sha256.txt)"
+            echo 'certificate_sha256=f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5'
+            echo 'rebuild=false'
+            echo 'payload_changed=false'
+            echo 'worker=2.9.2-cloudflare'
+            echo 'd1=through-0009-unchanged'
+          } > /tmp/BIR-v2.9.2-Permanent-release-info.txt
+
+      - name: Stage permanent release files
+        run: |
+          set -euo pipefail
+          mkdir -p permanent-release
+          cp /tmp/BIR-Blue-Infinity-Retail-v2.9.2-vc57-Permanent.apk permanent-release/
+          cp /tmp/bir-v292-permanent.sha256.txt permanent-release/BIR-v2.9.2-Permanent.sha256.txt
+          cp /tmp/BIR-v2.9.2-Permanent-release-info.txt permanent-release/
+          {
+            cat /tmp/bir-v292-permanent-badging.txt
+            echo
+            cat /tmp/bir-v292-permanent-signature.txt
+            echo
+            cat /tmp/bir-v292-payload-comparison.json
+          } > permanent-release/BIR-v2.9.2-Permanent-verification.txt
+
+      - name: Upload exact permanent v2.9.2 APK and evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIR-Blue-Infinity-Retail-v2.9.2-vc57-Permanent
+          path: permanent-release/
+          if-no-files-found: error
+          retention-days: 30
