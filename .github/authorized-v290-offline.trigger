@@ -8,3 +8,4 @@ infrastructure_expansion=forbidden
 cloudflare_deploy=forbidden
 d1_migration=forbidden
 pr4_merge=forbidden
+trigger=2026-08-18T12:45:00+01:00
