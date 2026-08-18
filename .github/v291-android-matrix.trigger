@@ -1,0 +1,7 @@
+source_sha=828fddb027309df4cecfccf482c99e6aa83d22e1
+artifact_run_id=32183356624
+apk_sha256=32570e0fa815b7a87634c17cd5a8bae3d1dcb2ac2761a3c7db134460329079c3
+apis=23,26,30
+rebuild=forbidden
+production_mutation=forbidden
+permanent_signing=forbidden
