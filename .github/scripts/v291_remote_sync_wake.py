@@ -6,6 +6,18 @@ def replace_once(path, old, new, label):
     if text.count(old)!=1: raise SystemExit(f'{label}: expected 1 anchor, got {text.count(old)}')
     p.write_text(text.replace(old,new,1),encoding='utf-8')
 
+# Idempotent verifier: if the full patch is already present, only prove its core boundaries.
+worker_now=Path('cloudflare/src/index.js').read_text(encoding='utf-8')
+main_now=Path('app/src/main/java/com/profitloop/blueauto/MainActivity.java').read_text(encoding='utf-8')
+robot_now=Path('app/src/main/java/com/profitloop/blueauto/RobotService.java').read_text(encoding='utf-8')
+api_now=Path('app/src/main/java/com/profitloop/blueauto/ApiClient.java').read_text(encoding='utf-8')
+if ("const API_VERSION = '2.9.1-cloudflare';" in worker_now and "case 'force_sync'" in worker_now
+        and 'async function forceSyncRequest' in worker_now and 'sync_wake_requests' in worker_now
+        and 'requestForceSync(String reason)' in api_now and 'bir-remote-sync-wake' in main_now
+        and 'lease.optBoolean("force_sync", false)' in robot_now):
+    print('BIR v2.9.1 same-node remote sync wake already applied; verification OK')
+    raise SystemExit(0)
+
 # Worker: complete advertised force_sync capability with a same-node, non-financial wake queue.
 replace_once('cloudflare/src/index.js',
 "const API_VERSION = '2.9.0-cloudflare';",
@@ -91,7 +103,8 @@ main_insert="""        @JavascriptInterface
             // It never creates a command and never dials USSD.
             RobotService.forceSync(MainActivity.this);
             final String profileId = AppConfig.profileId(MainActivity.this);
-            if (profileId == null || profileId.isEmpty() || !AppConfig.isRemoteMode(MainActivity.this, profileId)) return;
+            if (profileId == null || profileId.isEmpty()
+                    || !"REMOTE".equals(AppConfig.mode(MainActivity.this, profileId))) return;
             new Thread(() -> {
                 try {
                     ApiClient.forProfile(MainActivity.this, profileId).requestForceSync("REMOTE_SYNC_STALE");
