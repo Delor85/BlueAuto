@@ -1,21 +1,31 @@
-name: BIR v2.9 Robot Offline + Relay Convergence
+name: BIR v2.9 Final Offline Robot + Relay Convergence
 
 on:
   push:
-    branches: [feat/bir-v2-9-robot-offline-relay]
+    branches: [feat/bir-v2-9-final-convergence]
+    paths:
+      - '.github/workflows/v290-robot-offline-relay.yml'
+      - '.github/authorized-v290-robot-offline-relay.trigger'
+      - '.github/scripts/v290_robot_offline_relay.py'
+      - '.github/scripts/v290_patch_selfheal.py'
+      - '.github/scripts/v290_final_convergence.py'
 
 permissions:
   contents: write
+
+concurrency:
+  group: bir-v290-final-convergence
+  cancel-in-progress: false
 
 jobs:
   converge-and-validate:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
-      - name: Checkout exact v2.9 branch
+      - name: Checkout exact v2.9 convergence branch
         uses: actions/checkout@v5
         with:
-          ref: feat/bir-v2-9-robot-offline-relay
+          ref: feat/bir-v2-9-final-convergence
           fetch-depth: 0
 
       - name: Prove authorization boundaries
@@ -29,13 +39,14 @@ jobs:
           grep -q '^sms_fallback=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
           grep -q '^capacity_expansion_deploy=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
           python3 .github/scripts/v290_patch_selfheal.py
-          python3 -m py_compile .github/scripts/v290_robot_offline_relay.py
+          python3 -m py_compile .github/scripts/v290_robot_offline_relay.py .github/scripts/v290_final_convergence.py
 
-      - name: Apply deterministic additive patch
+      - name: Apply deterministic additive v2.9 patch
         run: |
           set -euo pipefail
           before_cloudflare="$(git rev-parse HEAD:cloudflare)"
           python3 .github/scripts/v290_robot_offline_relay.py
+          python3 .github/scripts/v290_final_convergence.py
           after_cloudflare="$(git rev-parse HEAD:cloudflare)"
           test "$before_cloudflare" = "$after_cloudflare"
           if git diff --name-only | grep -q '^cloudflare/'; then
@@ -45,9 +56,13 @@ jobs:
           grep -q 'versionCode 55' app/build.gradle
           grep -q 'versionName "2.9.0"' app/build.gradle
           grep -q 'applicationId "com.profitloop.blueauto"' app/build.gradle
+          grep -q 'new String[]{"REMOTE", "ROBOT"}' app/src/main/java/com/profitloop/blueauto/MainActivity.java
           ! grep -q 'new String\[\].*HYBRID' app/src/main/java/com/profitloop/blueauto/MainActivity.java
+          ! grep -q 'SEND_SMS' app/src/main/AndroidManifest.xml
+          grep -q 'BluetoothSocket' app/src/main/java/com/profitloop/blueauto/BirRelayManager.java
+          grep -q 'RelayIdentityStore.sign' app/src/main/java/com/profitloop/blueauto/OfflineSyncManager.java
 
-      - name: Commit candidate app source for traceability
+      - name: Commit exact candidate app source for traceability
         run: |
           set -euo pipefail
           git config user.name "Delor85"
@@ -56,8 +71,8 @@ jobs:
           if git diff --cached --quiet; then
             echo 'No app source changes to commit.'
           else
-            git commit -m 'feat: BIR v2.9 Robot offline-first, resilient execution and local Relay [v290-candidate]'
-            git push origin HEAD:feat/bir-v2-9-robot-offline-relay
+            git commit -m 'feat: BIR v2.9 final Robot offline-first and signed nearby Relay [v290-candidate]'
+            git push origin HEAD:feat/bir-v2-9-final-convergence
           fi
 
       - name: Node.js 22
@@ -126,10 +141,12 @@ jobs:
           if grep -q 'application-debuggable' /tmp/badging.txt; then exit 1; fi
           sha256sum "$apk" | tee /tmp/bir-v290-validation.sha256
 
-      - name: Upload ephemeral validation APK
+      - name: Upload ephemeral validation APK and hash
         uses: actions/upload-artifact@v4
         with:
-          name: BIR-v2.9.0-robot-offline-relay-validation-ephemeral
-          path: app/build/outputs/apk/release/app-release.apk
+          name: BIR-v2.9.0-final-validation-ephemeral
+          path: |
+            app/build/outputs/apk/release/app-release.apk
+            /tmp/bir-v290-validation.sha256
           if-no-files-found: error
           retention-days: 7
