@@ -39,7 +39,7 @@ jobs:
           grep -q '^permanent_signing=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
           grep -q '^financial_command_over_relay=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
           python3 .github/scripts/v290_ops_dashboard_selfheal.py
-          python3 -m py_compile .github/scripts/v290_patch_selfheal.py .github/scripts/v290_robot_offline_relay.py .github/scripts/v290_final_convergence.py .github/scripts/v290_server_offline_relay_patch.py .github/scripts/v290_restore_inherited_tests.py .github/scripts/v290_ops_dashboard_selfheal.py .github/scripts/v290_ops_dashboard.py
+          python3 -m py_compile .github/scripts/v290_patch_selfheal.py .github/scripts/v290_robot_offline_relay.py .github/scripts/v290_final_convergence.py .github/scripts/v290_server_offline_relay_patch.py .github/scripts/v290_restore_inherited_tests.py .github/scripts/v290_ops_dashboard_selfheal.py .github/scripts/v290_ops_dashboard.py .github/scripts/v290_test_schema.py
 
       - name: Generate exact additive Android and Worker source
         run: |
@@ -127,6 +127,7 @@ jobs:
           password="$(openssl rand -hex 32)"
           echo "::add-mask::$password"
           keytool -genkeypair -keystore .pilot-signing/debug.keystore -storepass "$password" -alias androiddebugkey -keypass "$password" -dname "CN=BIR v2.9 Validation,O=ProfitLoop,C=CM" -keyalg RSA -keysize 2048 -validity 30 -noprompt
+          export BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD="$password"
           echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$password" >> "$GITHUB_ENV"
           gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
           bt="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
@@ -142,7 +143,7 @@ jobs:
           set -euo pipefail
           git config user.name "Delor85"
           git config user.email "mbolodelorpro@gmail.com"
-          git add app cloudflare/src/index.js cloudflare/migrations/0007_offline_events_and_bir_relay.sql cloudflare/migrations/0008_v290_free_ops_cockpit.sql docs/BIR_V290_REPRISE_ET_DECISIONS.md
+          git add app cloudflare/src/index.js cloudflare/test/integration.mjs cloudflare/migrations/0007_offline_events_and_bir_relay.sql cloudflare/migrations/0008_v290_free_ops_cockpit.sql docs/BIR_V290_REPRISE_ET_DECISIONS.md
           if ! git diff --cached --quiet; then
             git commit -m 'feat: BIR v2.9 validated free hierarchical operations cockpit [no-prod]'
             git push origin HEAD:feat/bir-v2-9-final-convergence
