@@ -65,7 +65,7 @@ jobs:
       - name: Validate runtime and build production config
         working-directory: cloudflare
         env:
-          BLUE_MAGIC_D1_DATABASE_ID: ${{ secrets.BLUE_MAGIC_D1_DATABASE_ID }}
+          CLOUDFLARE_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
         run: |
           set -euo pipefail
           npm ci
@@ -74,34 +74,36 @@ jobs:
           node --check src/index.js
           node --check src/production-v280.js
           node scripts/prepare-production-config.mjs
-          grep -q '"main": "src/production-v280.js"' wrangler.production.json
-          grep -q '"keep_vars": true' wrangler.production.json
-          npx wrangler deploy --dry-run --config wrangler.production.json
+          grep -q '"main": "src/production-v280.js"' wrangler.production.jsonc
+          grep -q '"keep_vars": true' wrangler.production.jsonc
+          npx wrangler deploy --dry-run --config wrangler.production.jsonc
 
       - name: Inspect remote D1 migration state and current Worker
         working-directory: cloudflare
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
         run: |
           set -euo pipefail
-          npx wrangler d1 migrations list blue-magic --remote --config wrangler.production.json | tee /tmp/bir-v290-migrations-before.txt
+          npx wrangler d1 migrations list blue-magic --remote --config wrangler.production.jsonc | tee /tmp/bir-v290-migrations-before.txt
           if grep -Eiq '000[1-6][^0-9]' /tmp/bir-v290-migrations-before.txt; then
             echo '::error::Historical D1 migration 0001-0006 unexpectedly appears pending. Refusing production activation.'
             exit 1
           fi
-          npx wrangler deployments status --config wrangler.production.json --json | tee /tmp/bir-v290-deployment-before.json
+          npx wrangler deployments status --config wrangler.production.jsonc --json | tee /tmp/bir-v290-deployment-before.json
 
       - name: Apply additive D1 migrations 0007 and 0008
         working-directory: cloudflare
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
         run: |
           set -euo pipefail
-          npx wrangler d1 migrations apply blue-magic --remote --config wrangler.production.json
-          npx wrangler d1 migrations list blue-magic --remote --config wrangler.production.json | tee /tmp/bir-v290-migrations-after.txt
-          npx wrangler d1 execute blue-magic --remote --config wrangler.production.json --command "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('offline_events','relay_identities','ops_escalations') ORDER BY name" | tee /tmp/bir-v290-schema-proof.txt
+          npx wrangler d1 migrations apply blue-magic --remote --config wrangler.production.jsonc
+          npx wrangler d1 migrations list blue-magic --remote --config wrangler.production.jsonc | tee /tmp/bir-v290-migrations-after.txt
+          npx wrangler d1 execute blue-magic --remote --config wrangler.production.jsonc --command "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('offline_events','relay_identities','ops_escalations') ORDER BY name" | tee /tmp/bir-v290-schema-proof.txt
           grep -q 'offline_events' /tmp/bir-v290-schema-proof.txt
           grep -q 'relay_identities' /tmp/bir-v290-schema-proof.txt
           grep -q 'ops_escalations' /tmp/bir-v290-schema-proof.txt
@@ -111,9 +113,10 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
         run: |
           set -euo pipefail
-          npx wrangler deploy --config wrangler.production.json
+          npx wrangler deploy --config wrangler.production.jsonc
 
       - name: Verify production health and v2.9 capabilities
         id: health
@@ -133,11 +136,12 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
           BLUE_MAGIC_HEALTH_URL: ${{ secrets.BLUE_MAGIC_HEALTH_URL }}
         run: |
           set -euo pipefail
           echo 'BIR v2.9 health verification failed after deploy; rolling Worker back to the previous version.'
-          npx wrangler rollback --config wrangler.production.json --message 'Automatic rollback: BIR v2.9 production health gate failed'
+          npx wrangler rollback --config wrangler.production.jsonc --message 'Automatic rollback: BIR v2.9 production health gate failed'
           sleep 5
           curl --fail --retry 5 --retry-delay 3 --max-time 20 "$BLUE_MAGIC_HEALTH_URL" -o /tmp/bir-v290-health-after-rollback.json
           cat /tmp/bir-v290-health-after-rollback.json
