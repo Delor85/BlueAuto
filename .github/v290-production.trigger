@@ -1,0 +1,9 @@
+authorization=approved-by-user-2026-08-18
+source_sha=9752441af955dc9b4643802234fb2484afadf11f
+release=2.9.0
+scope=production-worker-plus-additive-d1-0007-0008
+modes=REMOTE,ROBOT
+sms_fallback=forbidden
+capacity_expansion=forbidden
+pr4_merge=forbidden
+permanent_apk_signing=separate-gate-after-production-health
