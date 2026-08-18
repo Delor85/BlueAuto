@@ -9,4 +9,4 @@ worker_deploy=forbidden
 d1_migration=forbidden
 permanent_signing=forbidden
 pr4_merge=forbidden
-attempt=6-release-hygiene-fixture
+attempt=7-v28-v29-compat-guards
