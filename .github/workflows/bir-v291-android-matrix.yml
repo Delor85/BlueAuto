@@ -1,0 +1,103 @@
+name: BIR v2.9.1 Android 6 8 11 Exact APK
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ['.github/v291-android-matrix.trigger']
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: bir-v291-android-matrix
+  cancel-in-progress: false
+
+env:
+  BIR_V291_SOURCE_SHA: 828fddb027309df4cecfccf482c99e6aa83d22e1
+  BIR_V291_ARTIFACT_RUN_ID: '32183356624'
+  BIR_V291_APK_SHA256: 32570e0fa815b7a87634c17cd5a8bae3d1dcb2ac2761a3c7db134460329079c3
+
+jobs:
+  prove-exact-artifact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact validated source
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.BIR_V291_SOURCE_SHA }}
+      - name: Download exact already-built v2.9.1 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: BIR-v2.9.1-Field-Recovery-Ephemeral
+          path: /tmp/bir-v291
+          repository: Delor85/BlueAuto
+          run-id: ${{ env.BIR_V291_ARTIFACT_RUN_ID }}
+          github-token: ${{ github.token }}
+      - name: Prove immutable binary identity
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$BIR_V291_SOURCE_SHA"
+          sha256sum /tmp/bir-v291/home/runner/work/BlueAuto/BlueAuto/app/build/outputs/apk/release/app-release.apk | tee /tmp/v291-matrix.sha256
+          grep -q "^$BIR_V291_APK_SHA256  " /tmp/v291-matrix.sha256
+          grep -q '^828fddb027309df4cecfccf482c99e6aa83d22e1$' /tmp/bir-v291/tmp/v291-source-sha.txt
+          grep -q "package: name='com.profitloop.blueauto' versionCode='56' versionName='2.9.1'" /tmp/bir-v291/tmp/v291-badging.txt
+          ! grep -q 'android.permission.SEND_SMS' app/src/main/AndroidManifest.xml
+          grep -Fq 'new String[]{"REMOTE", "ROBOT"}' app/src/main/java/com/profitloop/blueauto/MainActivity.java
+
+  android-smoke:
+    name: Android ${{ matrix.label }} exact v2.9.1 APK
+    needs: prove-exact-artifact
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - api: 23
+            arch: x86
+            profile: Nexus 5
+            label: 6/API23
+          - api: 26
+            arch: x86_64
+            profile: Nexus 5
+            label: 8/API26
+          - api: 30
+            arch: x86_64
+            profile: Nexus 6
+            label: 11/API30
+    steps:
+      - name: Download the exact same validated Release APK
+        uses: actions/download-artifact@v4
+        with:
+          name: BIR-v2.9.1-Field-Recovery-Ephemeral
+          path: /tmp/bir-v291
+          repository: Delor85/BlueAuto
+          run-id: ${{ env.BIR_V291_ARTIFACT_RUN_ID }}
+          github-token: ${{ github.token }}
+
+      - name: Install launch restart and crash-check exact binary
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: ${{ matrix.arch }}
+          profile: ${{ matrix.profile }}
+          disable-animations: true
+          script: |
+            sha256sum /tmp/bir-v291/home/runner/work/BlueAuto/BlueAuto/app/build/outputs/apk/release/app-release.apk | grep 32570e0fa815b7a87634c17cd5a8bae3d1dcb2ac2761a3c7db134460329079c3
+            adb shell getprop ro.build.version.sdk
+            adb install -r /tmp/bir-v291/home/runner/work/BlueAuto/BlueAuto/app/build/outputs/apk/release/app-release.apk | tee /tmp/install.txt
+            grep -q 'Success' /tmp/install.txt
+            adb logcat -c || true
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/start1.txt
+            grep -q 'Status: ok' /tmp/start1.txt
+            sleep 2
+            adb shell ps | grep com.profitloop.blueauto
+            adb shell am force-stop com.profitloop.blueauto
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/start2.txt
+            grep -q 'Status: ok' /tmp/start2.txt
+            sleep 2
+            adb shell ps | grep com.profitloop.blueauto
+            adb logcat -d -b crash > /tmp/bir-crash.txt || true
+            ! grep -q com.profitloop.blueauto /tmp/bir-crash.txt
