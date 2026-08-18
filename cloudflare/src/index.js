@@ -71,6 +71,7 @@ export default {
         case 'ops_escalate': return await opsEscalate(env, auth, input, headers);
         case 'ops_resolve': return await opsResolve(env, auth, input, headers);
         case 'owner_ops_cockpit': return await ownerOpsCockpit(request, env, auth, headers);
+        case 'owner_ops_resolve': return await ownerOpsResolve(request, env, auth, input, headers);
         case 'commission_policy': return await commissionPolicy(env, auth, headers);
         case 'commission_set_default': return await commissionSetDefault(env, auth, input, headers);
         case 'commission_set_child': return await commissionSetChild(env, auth, input, headers);
@@ -1794,9 +1795,11 @@ async function openEscalationsFor(env, auth) {
   return (rows.results||[]).map(x=>({...x,can_resolve:x.assigned_to===auth.node_code,routing_label:'Assigné à '+x.assigned_to}));
 }
 async function continuitySummary(env, scopeNode) {
-  const events = await env.DB.prepare("WITH RECURSIVE tree(node_code) AS (SELECT ? UNION ALL SELECT n.node_code FROM nodes n JOIN tree p ON n.parent_node_code=p.node_code WHERE n.active=1) SELECT received_via,COUNT(*) AS c FROM offline_events e JOIN tree t ON t.node_code=e.source_node_code GROUP BY received_via").bind(scopeNode).all();
+  const events = await env.DB.prepare("WITH RECURSIVE tree(node_code) AS (SELECT ? UNION ALL SELECT n.node_code FROM nodes n JOIN tree p ON n.parent_node_code=p.node_code WHERE n.active=1) SELECT received_via,COUNT(*) AS c FROM offline_events e JOIN tree t ON t.node_code=e.source_node_code WHERE e.received_at>=strftime('%Y-%m-%dT%H:%M:%fZ','now','-24 hours') GROUP BY received_via").bind(scopeNode).all();
+  const pending = await env.DB.prepare("WITH RECURSIVE tree(node_code) AS (SELECT ? UNION ALL SELECT n.node_code FROM nodes n JOIN tree p ON n.parent_node_code=p.node_code WHERE n.active=1) SELECT COALESCE(SUM(d.offline_pending_events),0) AS pending FROM devices d JOIN tree t ON t.node_code=d.node_code WHERE d.active=1").bind(scopeNode).first();
   let direct=0,relay=0; for (const row of events.results||[]) {if(row.received_via==='BIR_RELAY')relay+=Number(row.c||0);else direct+=Number(row.c||0);}
-  return {direct,relay,total:direct+relay,rate:direct+relay?100:null};
+  const total=direct+relay, pendingReported=Number(pending?.pending||0), denominator=total+pendingReported;
+  return {direct,relay,total,pending_reported:pendingReported,window_hours:24,rate:denominator?Math.round(total*1000/denominator)/10:null};
 }
 async function forecastSummary(env, scopeNode) {
   const row = await env.DB.prepare("WITH RECURSIVE tree(node_code) AS (SELECT ? UNION ALL SELECT n.node_code FROM nodes n JOIN tree p ON n.parent_node_code=p.node_code WHERE n.active=1) SELECT COALESCE(SUM(CASE WHEN c.state='SUCCEEDED' AND c.operation IN ('DISTRIBUTION_TRANSFER','RETAIL_TRANSFER') THEN c.amount ELSE 0 END),0) AS outflow FROM commands c JOIN tree t ON t.node_code=c.executor_node_code WHERE c.created_at>=strftime('%Y-%m-%dT%H:%M:%fZ','now','-7 days')").bind(scopeNode).first();
@@ -1820,7 +1823,7 @@ async function opsCockpit(env, auth, headers) {
   const severities=health.map(x=>x.severity).concat(escalations.map(x=>x.severity)); const rank={OK:1,INFO:1,WARN:2,HOT:3,CRITICAL:4}; let max='OK'; for(const x of severities)if((rank[x]||1)>(rank[max]||1))max=x;
   const tx=await env.DB.prepare("WITH RECURSIVE tree(node_code) AS (SELECT ? UNION ALL SELECT n.node_code FROM nodes n JOIN tree p ON n.parent_node_code=p.node_code WHERE n.active=1) SELECT COUNT(*) AS c,COALESCE(SUM(commission_amount),0) AS commission FROM commands c JOIN tree t ON t.node_code=c.executor_node_code WHERE c.created_at>=strftime('%Y-%m-%dT%H:%M:%fZ','now','-7 days') AND c.state='SUCCEEDED'").bind(auth.node_code).first();
   return success({generated_at:new Date().toISOString(),scope_role:auth.role,scope_node_code:auth.node_code,nodes,escalations,
-    summary:{healthy_robots:healthy,robot_count:robots,sync_rate_percent:continuity.rate,max_severity:max,next_action:escalations.length?`Traitez d’abord ${escalations[0].target_node_code} — ${escalations[0].severity}.`:(max==='HOT'||max==='CRITICAL'?'Un nœud silencieux ou critique demande votre attention.':'Rien d’urgent. Continuez normalement.'),continuity_source:'SERVER_CONFIRMED_ONLY'},
+    summary:{healthy_robots:healthy,robot_count:robots,sync_rate_percent:continuity.rate,sync_confirmed_events:continuity.total,pending_events_last_reported:continuity.pending_reported,sync_window_hours:continuity.window_hours,max_severity:max,next_action:escalations.length?`Traitez d’abord ${escalations[0].target_node_code} — ${escalations[0].severity}.`:(max==='HOT'||max==='CRITICAL'?'Un nœud silencieux ou critique demande votre attention.':'Rien d’urgent. Continuez normalement.'),continuity_source:'SERVER_CONFIRMED_ONLY'},
     forecast,audit:{proof_count:continuity.total,direct_events:continuity.direct,relay_events:continuity.relay},commission:{last7d_commission:Number(tx?.commission||0)},rescue:{attention_count:health.filter(x=>x.severity!=='OK').length+escalations.length}},200,headers);
 }
 async function opsEscalate(env, auth, input, headers) {
@@ -1843,9 +1846,26 @@ async function opsResolve(env, auth, input, headers) {
 async function ownerOpsCockpit(request, env, auth, headers) {
   const owner=await authenticateOwnerAny(request,env,auth);const nodes=(await env.DB.prepare("SELECT n.node_code,n.role,n.parent_node_code,d.robot_enabled,d.sim_verified,d.offline_pending_events,d.accessibility_enabled,d.accessibility_connected,d.battery_percent,d.last_seen_at,d.last_telemetry_at FROM nodes n LEFT JOIN devices d ON d.device_id=(SELECT d2.device_id FROM devices d2 WHERE d2.node_code=n.node_code AND d2.active=1 ORDER BY d2.robot_enabled DESC,d2.last_seen_at DESC LIMIT 1) WHERE n.active=1 ORDER BY n.role,n.node_code").all()).results||[];
   const health=nodes.map(r=>({...r,...healthView(r)})), dae=health.filter(x=>x.role==='DAE').map(d=>{const desc=health.filter(x=>x.node_code===d.node_code||x.parent_node_code===d.node_code||health.some(m=>m.role==='DSM'&&m.parent_node_code===d.node_code&&x.parent_node_code===m.node_code));return {node_code:d.node_code,label:d.node_code,severity:desc.some(x=>x.severity==='CRITICAL')?'CRITICAL':desc.some(x=>x.severity==='HOT')?'HOT':desc.some(x=>x.severity==='WARN')?'WARN':'OK',action_hint:`${desc.length} nœud(s) dans ce réseau DAE. Les PoS restent gérés par leurs DSM.`,scope_note:'Vue région/nationale agrégée',can_escalate:false};});
-  const open=await env.DB.prepare("SELECT * FROM ops_escalations WHERE state='OPEN' AND assigned_to='ADMIN' ORDER BY created_at DESC LIMIT 200").all();const continuity=await env.DB.prepare("SELECT received_via,COUNT(*) AS c FROM offline_events GROUP BY received_via").all();let direct=0,relay=0;for(const x of continuity.results||[]){if(x.received_via==='BIR_RELAY')relay+=Number(x.c||0);else direct+=Number(x.c||0);}const tx=await env.DB.prepare("SELECT COALESCE(SUM(commission_amount),0) AS commission FROM commands WHERE state='SUCCEEDED' AND created_at>=strftime('%Y-%m-%dT%H:%M:%fZ','now','-7 days')").first();const alerts=health.filter(x=>x.severity!=='OK');
+  const open=await env.DB.prepare("SELECT * FROM ops_escalations WHERE state='OPEN' AND assigned_to='ADMIN' ORDER BY created_at DESC LIMIT 200").all();
+  const continuity=await env.DB.prepare("SELECT received_via,COUNT(*) AS c FROM offline_events WHERE received_at>=strftime('%Y-%m-%dT%H:%M:%fZ','now','-24 hours') GROUP BY received_via").all();
+  let direct=0,relay=0;for(const x of continuity.results||[]){if(x.received_via==='BIR_RELAY')relay+=Number(x.c||0);else direct+=Number(x.c||0);}
+  const pendingRow=await env.DB.prepare("SELECT COALESCE(SUM(offline_pending_events),0) AS pending FROM devices WHERE active=1").first();
+  const pendingReported=Number(pendingRow?.pending||0), confirmed=direct+relay, continuityDenominator=confirmed+pendingReported;
+  const syncRate=continuityDenominator?Math.round(confirmed*1000/continuityDenominator)/10:null;
+  const tx=await env.DB.prepare("SELECT COALESCE(SUM(commission_amount),0) AS commission FROM commands WHERE state='SUCCEEDED' AND created_at>=strftime('%Y-%m-%dT%H:%M:%fZ','now','-7 days')").first();const alerts=health.filter(x=>x.severity!=='OK');
   await adminAudit(env,owner.entitlement_id,'OWNER_OPS_COCKPIT',null,auth.device_id,{nodes:nodes.length,alerts:alerts.length},'READ');
-  return success({generated_at:new Date().toISOString(),scope_role:owner.kind,groups:dae,escalations:(open.results||[]).map(x=>({...x,can_resolve:false,routing_label:'Escalade DAE → ADMIN'})),summary:{healthy_robots:health.filter(x=>x.robot_enabled&&!x.telemetry_stale&&x.severity==='OK').length,robot_count:health.filter(x=>x.device_id).length,sync_rate_percent:direct+relay?100:null,max_severity:alerts.some(x=>x.severity==='CRITICAL')?'CRITICAL':alerts.some(x=>x.severity==='HOT')?'HOT':alerts.length?'WARN':'OK',next_action:(open.results||[]).length?`${(open.results||[]).length} escalade(s) DAE à examiner.`:alerts.length?`${alerts.length} nœud(s) à surveiller; laissez DSM/DAE traiter leur périmètre.`:'Rien d’urgent au niveau national.',continuity_source:'SERVER_CONFIRMED_ONLY'},forecast:{days_cover:null,message:'Prévision détaillée disponible par DAE'},audit:{proof_count:direct+relay,direct_events:direct,relay_events:relay},commission:{last7d_commission:Number(tx?.commission||0)},rescue:{attention_count:alerts.length+(open.results||[]).length}},200,headers);
+  return success({generated_at:new Date().toISOString(),scope_role:owner.kind,groups:dae,escalations:(open.results||[]).map(x=>({...x,can_resolve:true,routing_label:'Escalade DAE → ADMIN'})),summary:{healthy_robots:health.filter(x=>x.robot_enabled&&!x.telemetry_stale&&x.severity==='OK').length,robot_count:health.filter(x=>x.device_id).length,sync_rate_percent:syncRate,sync_confirmed_events:confirmed,pending_events_last_reported:pendingReported,sync_window_hours:24,max_severity:alerts.some(x=>x.severity==='CRITICAL')?'CRITICAL':alerts.some(x=>x.severity==='HOT')?'HOT':alerts.length?'WARN':'OK',next_action:(open.results||[]).length?`${(open.results||[]).length} escalade(s) DAE à examiner.`:alerts.length?`${alerts.length} nœud(s) à surveiller; laissez DSM/DAE traiter leur périmètre.`:'Rien d’urgent au niveau national.',continuity_source:'SERVER_CONFIRMED_ONLY'},forecast:{days_cover:null,message:'Prévision détaillée disponible par DAE'},audit:{proof_count:direct+relay,direct_events:direct,relay_events:relay},commission:{last7d_commission:Number(tx?.commission||0)},rescue:{attention_count:alerts.length+(open.results||[]).length}},200,headers);
+}
+
+async function ownerOpsResolve(request, env, auth, input, headers) {
+  const owner=await authenticateOwnerAny(request,env,auth);
+  const id=String(input.escalation_id||'').trim();
+  if(!id)throw new ApiError('ESCALATION_ID_REQUIRED','Identifiant d’escalade requis.',422);
+  const row=await env.DB.prepare("SELECT * FROM ops_escalations WHERE public_id=? AND state='OPEN' AND assigned_to='ADMIN'").bind(id).first();
+  if(!row)throw new ApiError('ESCALATION_NOT_FOUND','Escalade ADMIN introuvable ou déjà clôturée.',404);
+  await env.DB.prepare("UPDATE ops_escalations SET state='RESOLVED',resolved_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE public_id=? AND state='OPEN' AND assigned_to='ADMIN'").bind(id).run();
+  await adminAudit(env,owner.entitlement_id,'OWNER_OPS_RESOLVE',row.target_node_code,auth.device_id,{escalation_id:id,raised_by_node_code:row.raised_by_node_code,severity:row.severity},'ACCEPTED');
+  return success({public_id:id,state:'RESOLVED',target_node_code:row.target_node_code},200,headers);
 }
 
 

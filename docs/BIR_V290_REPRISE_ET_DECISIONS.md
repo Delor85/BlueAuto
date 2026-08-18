@@ -156,3 +156,11 @@ Pendant la validation Android, ces changements ne doivent pas muter Cloudflare p
 - Le PIN Blue reste exclusivement dans le stockage sécurisé Android du Robot. Aucun endpoint, Relay, dashboard, ADMIN ou SUPERADMIN ne peut obtenir sa valeur en clair.
 - Academy Offline et API Business sont explicitement hors périmètre de la v2.9.
 - Les files offline non joignables ne sont jamais inventées : le cockpit distingue télémétrie confirmée et dernier état connu.
+
+
+## Finition cockpit 2.9 — taux honnête et résolution Admin
+- Le taux Continuity/Relay porte sur une fenêtre de 24 h et utilise les événements offline confirmés par le serveur plus les événements encore en attente selon la dernière télémétrie connue des appareils.
+- Le cockpit affiche simultanément le nombre confirmé et le nombre en attente ; aucune valeur 100 % n’est inventée lorsque le dénominateur est inconnu.
+- ADMIN / SUPER-ADMIN peuvent clôturer une escalade DAE → ADMIN via `owner_ops_resolve`, avec audit propriétaire.
+- La hiérarchie PoS → DSM → DAE → ADMIN reste inchangée ; cette finition ne donne aucun droit DAE direct supplémentaire sur les PoS.
+- Aucun PIN Blue, mot de passe, secret ou jeton n’est ajouté aux données du cockpit ou aux événements Relay.

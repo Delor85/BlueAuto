@@ -7,12 +7,16 @@ must(!ops.includes('Academy Offline')&&!ops.includes('API Business'),'Academy/AP
 must(main.includes('SUPERADMIN')&&main.includes('SUPER_ADMIN_WORKSPACE_KEY')&&main.includes('SecureOwnerStore.has(this, "SUPER_ADMIN")'),'SuperAdmin account missing');
 must(main.includes('value.put("pin_configured"')&&!main.includes('value.put("pin_value"')&&!main.includes('value.put("operator_pin"'),'PIN must never be bridged');
 must(worker.includes("authenticateOwner(request,env,auth,'SUPER_ADMIN')"),'sensitive owner control not SuperAdmin-only');
-must(worker.includes("case 'ops_cockpit'")&&worker.includes("case 'owner_ops_cockpit'")&&worker.includes('opsEscalate'),'ops API missing');
+must(worker.includes("case 'ops_cockpit'")&&worker.includes("case 'owner_ops_cockpit'")&&worker.includes("case 'owner_ops_resolve'")&&worker.includes('opsEscalate')&&worker.includes('ownerOpsResolve'),'ops API missing');
 must(worker.includes("if(auth.role==='POS')")&&worker.includes("else if(auth.role==='DSM')")&&worker.includes("else if(auth.role==='DAE')"),'hierarchy ladder missing');
 must(worker.includes("assigned='ADMIN'")&&worker.includes('resolveDirectChild'),'no-skip escalation ladder missing');
 must(worker.includes('rejectSensitiveRemotePayload')&&worker.includes('REMOTE_SECRET_FORBIDDEN'),'remote secret rejection missing');
 for(const x of ['offline_pending_events','accessibility_enabled','accessibility_connected','battery_percent','ops_escalations'])must(mig.includes(x),'migration missing '+x);
 must(!/DROP\s+TABLE|DELETE\s+FROM/i.test(mig),'destructive migration forbidden');
 must(!manifest.includes('SEND_SMS'),'SMS fallback forbidden');
-must(api.includes('ops_cockpit')&&api.includes('owner_ops_cockpit'),'native allowlist missing');
+must(api.includes('ops_cockpit')&&api.includes('owner_ops_cockpit')&&api.includes('owner_ops_resolve'),'native allowlist missing');
+must(ops.includes("c.owner_admin_workspace?'owner_ops_resolve':'ops_resolve'"),'owner escalation resolve routing missing');
+must(worker.includes('pending_events_last_reported')&&worker.includes('sync_confirmed_events')&&worker.includes("'-24 hours'"),'honest 24h continuity KPI missing');
+must(!worker.includes('sync_rate_percent:direct+relay?100:null'),'misleading hard-coded 100% continuity KPI forbidden');
+must(worker.includes("can_resolve:true,routing_label:'Escalade DAE → ADMIN'"),'Admin must be able to resolve DAE escalations');
 console.log('BIR v2.9 free hierarchical operations cockpit contract: OK');
