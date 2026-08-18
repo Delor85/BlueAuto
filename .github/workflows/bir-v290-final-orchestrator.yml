@@ -54,6 +54,8 @@ jobs:
             python3 .github/scripts/v290_server_offline_relay_patch.py
             python3 .github/scripts/v290_ops_dashboard.py
           fi
+          python3 -m py_compile .github/scripts/v290_ops_quality_finish.py
+          python3 .github/scripts/v290_ops_quality_finish.py
           grep -q 'versionCode 55' app/build.gradle
           grep -q 'versionName "2.9.0"' app/build.gradle
           grep -q 'applicationId "com.profitloop.blueauto"' app/build.gradle
@@ -64,12 +66,15 @@ jobs:
           grep -q 'BluetoothSocket' app/src/main/java/com/profitloop/blueauto/BirRelayManager.java
           grep -q 'RelayIdentityStore.sign' app/src/main/java/com/profitloop/blueauto/OfflineSyncManager.java
           grep -q 'DAE PRO — GRATUIT EN v2.9' app/src/main/assets/control-tower-v290-ops.js
+          grep -q 'owner_ops_resolve' app/src/main/assets/control-tower-v290-ops.js
           grep -q 'SUPERADMIN' app/src/main/java/com/profitloop/blueauto/MainActivity.java
           grep -q "const API_VERSION = '2.9.0-cloudflare'" cloudflare/src/index.js
           grep -q "case 'sync_local_events'" cloudflare/src/index.js
           grep -q "case 'relay_sync'" cloudflare/src/index.js
           grep -q "case 'ops_cockpit'" cloudflare/src/index.js
           grep -q "case 'owner_ops_cockpit'" cloudflare/src/index.js
+          grep -q "case 'owner_ops_resolve'" cloudflare/src/index.js
+          grep -q 'pending_events_last_reported' cloudflare/src/index.js
           grep -q 'CREATE TABLE IF NOT EXISTS offline_events' cloudflare/migrations/0007_offline_events_and_bir_relay.sql
           grep -q 'CREATE TABLE IF NOT EXISTS ops_escalations' cloudflare/migrations/0008_v290_free_ops_cockpit.sql
           ! grep -Eiq 'DROP[[:space:]]+TABLE|DELETE[[:space:]]+FROM[[:space:]]+(commands|nodes|devices)' cloudflare/migrations/0007_offline_events_and_bir_relay.sql
@@ -150,7 +155,7 @@ jobs:
           git config user.email "mbolodelorpro@gmail.com"
           git add app cloudflare/src/index.js cloudflare/test/integration.mjs cloudflare/migrations/0007_offline_events_and_bir_relay.sql cloudflare/migrations/0008_v290_free_ops_cockpit.sql docs/BIR_V290_REPRISE_ET_DECISIONS.md
           if ! git diff --cached --quiet; then
-            git commit -m 'feat: BIR v2.9 validated free hierarchical operations cockpit [no-prod]'
+            git commit -m 'feat: BIR v2.9 validated operations quality finish [no-prod]'
             git push origin HEAD:feat/bir-v2-9-final-convergence
           fi
           git rev-parse HEAD | tee BIR-v2.9-source-sha.txt
