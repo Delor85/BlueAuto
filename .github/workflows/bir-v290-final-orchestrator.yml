@@ -50,8 +50,8 @@ jobs:
           grep -q 'versionCode 55' app/build.gradle
           grep -q 'versionName "2.9.0"' app/build.gradle
           grep -q 'applicationId "com.profitloop.blueauto"' app/build.gradle
-          grep -q 'new String[]{"REMOTE", "ROBOT"}' app/src/main/java/com/profitloop/blueauto/MainActivity.java
-          ! grep -q 'new String\[\].*HYBRID' app/src/main/java/com/profitloop/blueauto/MainActivity.java
+          grep -Fq 'new String[]{"REMOTE", "ROBOT"}' app/src/main/java/com/profitloop/blueauto/MainActivity.java
+          ! grep -Eq 'new String\[\].*HYBRID' app/src/main/java/com/profitloop/blueauto/MainActivity.java
           ! grep -q 'SEND_SMS' app/src/main/AndroidManifest.xml
           grep -q 'WifiP2pManager' app/src/main/java/com/profitloop/blueauto/BirRelayManager.java
           grep -q 'BluetoothSocket' app/src/main/java/com/profitloop/blueauto/BirRelayManager.java
