@@ -1,5 +1,6 @@
 (function(){
 'use strict';
+// LEGACY_CONTRACT_COMPAT_ONLY: DAE PRO — GRATUIT EN v2.9
 function id(x){return document.getElementById(x);}function bridge(){return typeof window.AndroidBridge==='undefined'?null:window.AndroidBridge;}function cfg(){try{return JSON.parse((bridge()&&bridge().getConfiguration&&bridge().getConfiguration())||'{}');}catch(e){return {};}}function upper(v){return String(v||'').toUpperCase();}function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}function money(v){var n=Number(v);return isFinite(n)?String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,' ')+' F':'—';}
 var c=cfg(),last=null,lang='fr';try{lang=bridge()&&bridge().getUiLanguage&&bridge().getUiLanguage()==='en'?'en':'fr';}catch(e){}function t(fr,en){return lang==='en'?en:fr;}function req(a,p){var b=bridge();if(b&&b.platformAction)b.platformAction(a,JSON.stringify(p||{}));}
 function level(n){n=upper(n);return n==='CRITICAL'?4:n==='HOT'?3:n==='WARN'?2:1;}function badge(sev){var s=upper(sev||'OK');return '<span class="v290ops-badge '+s.toLowerCase()+'">'+esc(s)+'</span>';}
