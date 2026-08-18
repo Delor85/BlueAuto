@@ -1,0 +1,154 @@
+name: BIR v2.9.1 Production Activation
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ['.github/v291-production.trigger']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bir-v291-production-activation
+  cancel-in-progress: false
+
+env:
+  BIR_V291_SOURCE_SHA: 828fddb027309df4cecfccf482c99e6aa83d22e1
+  BIR_PRODUCTION_HEALTH_URL: https://blue-magic-api.mbolodelorpro.workers.dev/api?action=health
+
+jobs:
+  activate-production:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: production
+    steps:
+      - name: Checkout exact validated v2.9.1 source
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.BIR_V291_SOURCE_SHA }}
+          fetch-depth: 0
+
+      - name: Prove authorization exact source and non-destructive scope
+        env:
+          AUTHORIZED_TRIGGER_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$BIR_V291_SOURCE_SHA"
+          git show "$AUTHORIZED_TRIGGER_SHA:.github/v291-production.trigger" > /tmp/bir-v291-production-trigger.txt
+          grep -q '^authorization=approved-field-correction-2026-08-18$' /tmp/bir-v291-production-trigger.txt
+          grep -q '^source_sha=828fddb027309df4cecfccf482c99e6aa83d22e1$' /tmp/bir-v291-production-trigger.txt
+          grep -q '^release=2.9.1$' /tmp/bir-v291-production-trigger.txt
+          grep -q '^scope=worker-2.9.1-plus-additive-d1-0009$' /tmp/bir-v291-production-trigger.txt
+          grep -q '^modes=REMOTE,ROBOT$' /tmp/bir-v291-production-trigger.txt
+          grep -q '^financial_fake_wake=forbidden$' /tmp/bir-v291-production-trigger.txt
+          grep -q '^sms_fallback=forbidden$' /tmp/bir-v291-production-trigger.txt
+          grep -q '^capacity_expansion=forbidden$' /tmp/bir-v291-production-trigger.txt
+          grep -q '^pr4_merge=forbidden$' /tmp/bir-v291-production-trigger.txt
+          grep -q 'versionCode 56' app/build.gradle
+          grep -q 'versionName "2.9.1"' app/build.gradle
+          grep -Fq 'new String[]{"REMOTE", "ROBOT"}' app/src/main/java/com/profitloop/blueauto/MainActivity.java
+          ! grep -q 'SEND_SMS' app/src/main/AndroidManifest.xml
+          grep -q "const API_VERSION = '2.9.1-cloudflare'" cloudflare/src/index.js
+          grep -q "case 'force_sync'" cloudflare/src/index.js
+          grep -q 'async function forceSyncRequest' cloudflare/src/index.js
+          grep -q 'CREATE TABLE IF NOT EXISTS sync_wake_requests' cloudflare/migrations/0009_remote_sync_wake.sql
+          ! grep -Eiq 'DROP[[:space:]]+TABLE|DELETE[[:space:]]+FROM' cloudflare/migrations/0009_remote_sync_wake.sql
+
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate runtime and production config
+        working-directory: cloudflare
+        env:
+          CLOUDFLARE_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
+        run: |
+          set -euo pipefail
+          npm ci
+          npm audit --omit=dev --audit-level=high
+          npm run check
+          node --check src/index.js
+          node --check src/production-v280.js
+          node scripts/prepare-production-config.mjs
+          grep -q '"main": "src/production-v280.js"' wrangler.production.jsonc
+          grep -q '"keep_vars": true' wrangler.production.jsonc
+          npx wrangler deploy --dry-run --config wrangler.production.jsonc
+
+      - name: Inspect D1 and current Worker before mutation
+        working-directory: cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
+        run: |
+          set -euo pipefail
+          npx wrangler d1 migrations list blue-magic --remote --config wrangler.production.jsonc | tee /tmp/bir-v291-migrations-before.txt
+          if grep -Eiq '000[1-8][^0-9]' /tmp/bir-v291-migrations-before.txt; then
+            echo '::error::Historical D1 migration 0001-0008 unexpectedly appears pending. Refusing v2.9.1 activation.'
+            exit 1
+          fi
+          npx wrangler deployments status --config wrangler.production.jsonc --json | tee /tmp/bir-v291-deployment-before.json
+
+      - name: Apply additive D1 migration 0009 and verify schema
+        working-directory: cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
+        run: |
+          set -euo pipefail
+          npx wrangler d1 migrations apply blue-magic --remote --config wrangler.production.jsonc
+          npx wrangler d1 migrations list blue-magic --remote --config wrangler.production.jsonc | tee /tmp/bir-v291-migrations-after.txt
+          npx wrangler d1 execute blue-magic --remote --config wrangler.production.jsonc --command "SELECT name FROM sqlite_master WHERE type='table' AND name='sync_wake_requests'" | tee /tmp/bir-v291-schema-proof.txt
+          grep -q 'sync_wake_requests' /tmp/bir-v291-schema-proof.txt
+
+      - name: Deploy exact BIR v2.9.1 Worker
+        working-directory: cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
+        run: |
+          set -euo pipefail
+          npx wrangler deploy --config wrangler.production.jsonc
+
+      - name: Verify production v2.9.1 health
+        id: health
+        working-directory: cloudflare
+        run: |
+          set -euo pipefail
+          curl --fail --retry 5 --retry-delay 3 --max-time 20 "$BIR_PRODUCTION_HEALTH_URL" -o /tmp/bir-v291-health.json
+          cat /tmp/bir-v291-health.json
+          node -e "const fs=require('fs');const h=JSON.parse(fs.readFileSync('/tmp/bir-v291-health.json','utf8'));if(h.ok!==true||!h.data)throw new Error('invalid health envelope');const d=h.data;if(d.version!=='2.9.1-cloudflare')throw new Error('production version mismatch: '+d.version);if(d.database!=='online')throw new Error('production D1 offline');const c=d.capabilities||{};for(const k of ['force_sync','offline_sync','bir_relay','free_ops_cockpit','dae_pro_free','region_national_ops_free','super_admin'])if(c[k]!==true)throw new Error('missing capability '+k);if(JSON.stringify(c.effective_modes)!==JSON.stringify(['REMOTE','ROBOT']))throw new Error('effective modes mismatch');console.log('BIR v2.9.1 production health OK');"
+
+      - name: Roll back Worker automatically if health fails
+        if: ${{ failure() && steps.health.outcome == 'failure' }}
+        working-directory: cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
+        run: |
+          set -euo pipefail
+          echo 'BIR v2.9.1 health verification failed after deploy; rolling Worker back.'
+          npx wrangler rollback --config wrangler.production.jsonc --message 'Automatic rollback: BIR v2.9.1 production health gate failed'
+          sleep 5
+          curl --fail --retry 5 --retry-delay 3 --max-time 20 "$BIR_PRODUCTION_HEALTH_URL" -o /tmp/bir-v291-health-after-rollback.json
+          cat /tmp/bir-v291-health-after-rollback.json
+
+      - name: Publish activation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIR-v2.9.1-production-activation-evidence
+          path: |
+            /tmp/bir-v291-production-trigger.txt
+            /tmp/bir-v291-migrations-before.txt
+            /tmp/bir-v291-migrations-after.txt
+            /tmp/bir-v291-schema-proof.txt
+            /tmp/bir-v291-deployment-before.json
+            /tmp/bir-v291-health.json
+            /tmp/bir-v291-health-after-rollback.json
+          if-no-files-found: warn
+          retention-days: 30
