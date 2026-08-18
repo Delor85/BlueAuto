@@ -1,0 +1,70 @@
+name: BIR v2.9 Offline Robot Convergence
+
+on:
+  push:
+    branches: [feat/bir-v2-9-offline-robot]
+    paths: [.github/authorized-v290-offline.trigger]
+
+permissions:
+  contents: write
+
+jobs:
+  converge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/bir-v2-9-offline-robot
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Apply approved v2.9 app-only patch
+        run: python3 .github/scripts/v290_offline_robot_patch.py
+      - name: Prove scope and no server/infrastructure mutation
+        run: |
+          set -euo pipefail
+          git diff --exit-code HEAD -- cloudflare
+          grep -q 'versionCode 55' app/build.gradle
+          grep -q 'versionName "2.9.0"' app/build.gradle
+          ! grep -R 'value="HYBRID"' app/src/main || false
+          node app/src/test/v290-offline-robot-contract.mjs
+      - name: Run all JavaScript source contracts
+        run: |
+          set -euo pipefail
+          for f in app/src/test/*.mjs; do echo "== $f =="; node "$f"; done
+      - name: Compile and assemble exact Release
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew --no-daemon clean :app:compileReleaseJavaWithJavac :app:assembleRelease
+      - name: Basic APK identity
+        run: |
+          set -euo pipefail
+          APK=app/build/outputs/apk/release/app-release-unsigned.apk
+          test -f "$APK"
+          AAPT="$(find "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/build-tools" -name aapt -type f | sort -V | tail -1)"
+          "$AAPT" dump badging "$APK" | tee /tmp/badging.txt
+          grep -q "package: name='com.profitloop.blueauto' versionCode='55' versionName='2.9.0'" /tmp/badging.txt
+          sha256sum "$APK"
+      - name: Commit exact source only after tests
+        run: |
+          set -euo pipefail
+          git config user.name 'Delor85'
+          git config user.email 'mbolodelorpro@gmail.com'
+          git add app
+          if git diff --cached --quiet; then echo 'No source changes to commit'; exit 0; fi
+          git commit -m 'feat: BIR v2.9 offline-first Robot and nearby Relay [v290-source]'
+          git push origin HEAD:feat/bir-v2-9-offline-robot
+          echo "SOURCE_SHA=$(git rev-parse HEAD)" | tee /tmp/source-sha.txt
+      - name: Upload validation APK and source SHA
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIR-v2.9.0-offline-robot-validation-ephemeral
+          path: |
+            app/build/outputs/apk/release/app-release-unsigned.apk
+            /tmp/source-sha.txt
+          if-no-files-found: error
+          retention-days: 7
