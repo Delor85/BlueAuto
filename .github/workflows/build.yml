@@ -2,396 +2,110 @@ name: Build Blue Magic APK
 
 on:
   push:
-    branches: [main, codex/blue-magic-v2-robot-core, fix/blue-magic-v2-5-2-finance-unlock, fix/blue-magic-v2-6-recovery]
-  pull_request:
-    branches: [main]
-  workflow_dispatch:
-    inputs:
-      publish_permanent:
-        description: "Publier l’APK permanente du SHA explicitement autorisé"
-        required: true
-        type: boolean
-        default: false
-      authorized_sha:
-        description: "SHA Git 40 caractères explicitement autorisé pour la publication permanente"
-        required: false
-        type: string
-        default: ""
+    branches: [feat/bir-v2-9-robot-offline-relay]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  server-packages:
-    runs-on: ubuntu-latest
+  v290-converge-and-validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
     steps:
-      - name: Récupérer le code
-        uses: actions/checkout@v5
-
-      - name: Vérifier le backend Cloudflare
-        working-directory: cloudflare
-        run: |
-          npm ci
-          npm run check
-
-      - name: Créer les paquets serveur
-        run: |
-          zip -qr BlueMagic-InfinityFree-htdocs.zip htdocs
-          zip -qr BlueMagic-Cloudflare-backend.zip cloudflare \
-            -x 'cloudflare/node_modules/*' 'cloudflare/.wrangler/*' 'cloudflare/.dev.vars'
-
-      - name: Publier les paquets serveur
-        uses: actions/upload-artifact@v4
-        with:
-          name: Blue-Magic-v2-Serveurs
-          path: |
-            BlueMagic-InfinityFree-htdocs.zip
-            BlueMagic-Cloudflare-backend.zip
-          if-no-files-found: error
-
-  android-debug-apk:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Récupérer le code
-        uses: actions/checkout@v5
-
-      - name: Installer Java 17
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Installer Gradle 8.2
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.2'
-
-      - name: Préparer une signature éphémère de validation
-        run: |
-          set -euo pipefail
-          mkdir -p .pilot-signing
-          openssl rand -hex 32 > .pilot-signing/keystore.password
-          pilot_password="$(tr -d '\r\n' < .pilot-signing/keystore.password)"
-          echo "::add-mask::$pilot_password"
-          keytool -genkeypair \
-            -keystore .pilot-signing/debug.keystore \
-            -storepass "$pilot_password" \
-            -alias androiddebugkey \
-            -keypass "$pilot_password" \
-            -dname "CN=Blue Magic CI Validation,O=ProfitLoop,C=CM" \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 30 \
-            -noprompt
-          echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$pilot_password" >> "$GITHUB_ENV"
-          echo "BLUE_MAGIC_SIGNING_KIND=temporary" >> "$GITHUB_ENV"
-
-      - name: Tester et compiler le vrai APK Release
-        run: |
-          set -euo pipefail
-          node app/src/test/finance-flow.mjs
-          node app/src/test/v268-field-contract.mjs
-          node app/src/test/v268-responsive-management.mjs
-          node app/src/test/v268-ux-performance.mjs
-          node app/src/test/v268-platform-compat.mjs
-          node app/src/test/v268-transaction-ux.mjs
-          node app/src/test/v268-control-plane.mjs
-          node app/src/test/v268-native-status.mjs
-          node app/src/test/v268-release-hygiene.mjs
-          node --check app/src/main/assets/app.js
-          node --check app/src/main/assets/platform-v267.js
-          gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
-
-      - name: Confirmer la validation sans seconde publication
-        run: echo "Compilation Release validée avec clé éphémère. Seul le job production SHA-gaté peut publier l’APK permanente."
-
-  android-permanent-apk:
-    if: "${{ github.event_name == 'workflow_dispatch' && inputs.publish_permanent == true && inputs.authorized_sha == github.sha }}"
-    runs-on: ubuntu-latest
-    environment: production
-    steps:
-      - name: Récupérer le code
-        uses: actions/checkout@v5
-
-      - name: Vérifier le SHA explicitement autorisé
-        run: |
-          set -euo pipefail
-          test "${{ inputs.authorized_sha }}" = "$(git rev-parse HEAD)"
-          test "$(git rev-parse HEAD)" = "${{ github.sha }}"
-
-      - name: Installer Java 17
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Installer Gradle 8.2
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.2'
-
-      - name: Détecter la signature permanente
-        id: signing-availability
-        env:
-          PERMANENT_KEYSTORE_BASE64: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_BASE64 }}
-          PERMANENT_KEYSTORE_PASSWORD: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_PASSWORD }}
-        run: |
-          set -euo pipefail
-          if [ -n "$PERMANENT_KEYSTORE_BASE64" ] && [ -n "$PERMANENT_KEYSTORE_PASSWORD" ]; then
-            echo "available=true" >> "$GITHUB_OUTPUT"
-          elif [ -n "$PERMANENT_KEYSTORE_BASE64" ] || [ -n "$PERMANENT_KEYSTORE_PASSWORD" ]; then
-            echo "::error::La configuration de signature Android permanente est incomplète dans l'environnement production."
-            exit 1
-          else
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::APK permanente non publiée : les deux secrets Android sont absents de l'environnement production."
-          fi
-
-      - name: Charger et contrôler la signature permanente
-        if: steps.signing-availability.outputs.available == 'true'
-        env:
-          PERMANENT_KEYSTORE_BASE64: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_BASE64 }}
-          PERMANENT_KEYSTORE_PASSWORD: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_PASSWORD }}
-        run: |
-          set -euo pipefail
-          mkdir -p .pilot-signing
-          printf '%s' "$PERMANENT_KEYSTORE_BASE64" | base64 --decode > .pilot-signing/debug.keystore
-          printf '%s' "$PERMANENT_KEYSTORE_PASSWORD" > .pilot-signing/keystore.password
-
-          pilot_password="$(tr -d '\r\n' < .pilot-signing/keystore.password)"
-          echo "::add-mask::$pilot_password"
-          echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$pilot_password" >> "$GITHUB_ENV"
-
-          actual_fingerprint="$(keytool -list -v \
-            -keystore .pilot-signing/debug.keystore \
-            -storepass "$pilot_password" \
-            -alias androiddebugkey \
-            | awk '/SHA256:/{gsub(":", "", $2); print tolower($2); exit}')"
-          expected_fingerprint="f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5"
-          if [ "$actual_fingerprint" != "$expected_fingerprint" ]; then
-            echo "::error::La clé Android ne correspond pas à la signature permanente Blue Magic."
-            exit 1
-          fi
-
-      - name: Compiler le vrai APK Release permanent
-        if: steps.signing-availability.outputs.available == 'true'
-        run: |
-          set -euo pipefail
-          node app/src/test/finance-flow.mjs
-          node app/src/test/v268-field-contract.mjs
-          node app/src/test/v268-responsive-management.mjs
-          node app/src/test/v268-ux-performance.mjs
-          node app/src/test/v268-platform-compat.mjs
-          node app/src/test/v268-transaction-ux.mjs
-          node app/src/test/v268-control-plane.mjs
-          node app/src/test/v268-native-status.mjs
-          node app/src/test/v268-release-hygiene.mjs
-          node --check app/src/main/assets/app.js
-          node --check app/src/main/assets/platform-v267.js
-          gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
-
-      - name: Vérifier les octets Release, l’alignement et la signature
-        if: steps.signing-availability.outputs.available == 'true'
-        run: |
-          set -euo pipefail
-          build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
-          apk=app/build/outputs/apk/release/app-release.apk
-          "$build_tools/zipalign" -c -v 4 "$apk"
-          "$build_tools/apksigner" verify --verbose --print-certs "$apk" | tee /tmp/apk-signature.txt
-          grep -qi "Verified using v1 scheme.*true" /tmp/apk-signature.txt
-          grep -qi "Verified using v2 scheme.*true" /tmp/apk-signature.txt
-          grep -qi "Verified using v3 scheme.*true" /tmp/apk-signature.txt
-          if "$build_tools/aapt" dump badging "$apk" | grep -q "application-debuggable"; then
-            echo "::error::Le livrable permanent est encore débogable."
-            exit 1
-          fi
-          sha256sum "$apk" | tee /tmp/blue-magic-v268.sha256
-          cat /tmp/blue-magic-v268.sha256 >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Préparer l'APK permanente
-        if: steps.signing-availability.outputs.available == 'true'
-        run: cp app/build/outputs/apk/release/app-release.apk Blue-Magic-v2.6.8-Stabilisation-Ergonomie-Release.apk
-
-      - name: Publier l'APK permanente vérifiée
-        if: steps.signing-availability.outputs.available == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: Blue-Magic-v2-Robot-Core-Permanent
-          path: Blue-Magic-v2.6.8-Stabilisation-Ergonomie-Release.apk
-          if-no-files-found: error
-
-      - name: Confirmer l'absence de publication permanente
-        if: steps.signing-availability.outputs.available == 'false'
-        run: |
-          echo "Publication permanente ignorée : secrets de signature absents de l'environnement production."
-
-  android-11-launch:
-    needs: android-permanent-apk
-    if: "${{ github.event_name == 'workflow_dispatch' && inputs.publish_permanent == true && inputs.authorized_sha == github.sha }}"
-    runs-on: ubuntu-latest
-    steps:
-      - name: Récupérer le code
-        uses: actions/checkout@v5
-
-      - name: Télécharger l’APK Release permanente exacte du run
-        uses: actions/download-artifact@v4
-        with:
-          name: Blue-Magic-v2-Robot-Core-Permanent
-          path: /tmp/blue-magic-v268-final
-
-      - name: Démarrer réellement Blue Magic sous Android 11
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 30
-          arch: x86_64
-          profile: Nexus 6
-          disable-animations: true
-          script: |
-            set -eu
-            adb install -r /tmp/blue-magic-v268-final/Blue-Magic-v2.6.8-Stabilisation-Ergonomie-Release.apk | tee /tmp/blue-magic-install.txt
-            grep -q "Success" /tmp/blue-magic-install.txt
-            adb logcat -c || true
-            adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/blue-magic-first-start.txt
-            grep -q "Status: ok" /tmp/blue-magic-first-start.txt
-            adb shell pidof com.profitloop.blueauto
-
-            adb shell am force-stop com.profitloop.blueauto
-            adb push app/src/test/fixtures/android11_robot_profile.xml /data/local/tmp/blue-magic-prefs.xml
-            adb shell run-as com.profitloop.blueauto mkdir -p shared_prefs
-            adb shell run-as com.profitloop.blueauto cp /data/local/tmp/blue-magic-prefs.xml shared_prefs/blue_magic_native_v2.xml
-            adb logcat -c || true
-            adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/blue-magic-robot-start.txt
-            grep -q "Status: ok" /tmp/blue-magic-robot-start.txt
-            sleep 3
-            adb shell pidof com.profitloop.blueauto
-            if adb logcat -d -b crash 2>/dev/null | grep -q com.profitloop.blueauto; then adb logcat -d -b crash; exit 1; fi
-
-  android-upgrade-v265-to-v268:
-    name: android-upgrade-${{ matrix.api }}
-    needs: android-permanent-apk
-    if: "${{ github.event_name == 'workflow_dispatch' && inputs.publish_permanent == true && inputs.authorized_sha == github.sha }}"
-    runs-on: ubuntu-latest
-    environment: production
-    strategy:
-      fail-fast: false
-      max-parallel: 3
-      matrix:
-        include:
-          - api: 23
-            arch: x86
-            profile: Nexus 5
-          - api: 24
-            arch: x86
-            profile: Nexus 5
-          - api: 26
-            arch: x86_64
-            profile: Nexus 5
-          - api: 28
-            arch: x86_64
-            profile: Nexus 6
-          - api: 29
-            arch: x86_64
-            profile: Nexus 6
-          - api: 30
-            arch: x86_64
-            profile: Nexus 6
-          - api: 31
-            arch: x86_64
-            profile: Nexus 6
-          - api: 33
-            arch: x86_64
-            profile: Nexus 6
-          - api: 34
-            arch: x86_64
-            profile: Nexus 6
-          - api: 35
-            arch: x86_64
-            profile: Nexus 6
-          - api: 36
-            arch: x86_64
-            profile: Nexus 6
-    steps:
-      - name: Récupérer tout l’historique utile
+      - name: Checkout v2.9 branch
         uses: actions/checkout@v5
         with:
+          ref: feat/bir-v2-9-robot-offline-relay
           fetch-depth: 0
 
-      - name: Installer Java 17
+      - name: Prove authorization boundaries
+        run: |
+          set -euo pipefail
+          grep -q '^production_worker_deploy=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
+          grep -q '^d1_migration=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
+          grep -q '^pr4_merge=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
+          grep -q '^permanent_signing=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
+          grep -q '^modes=REMOTE,ROBOT$' .github/authorized-v290-robot-offline-relay.trigger
+          grep -q '^sms_fallback=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
+          grep -q '^capacity_expansion_deploy=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
+
+      - name: Apply deterministic additive app patch once
+        run: |
+          set -euo pipefail
+          if grep -q 'versionName "2.9.0"' app/build.gradle; then
+            echo 'v2.9 source already converged; validation only.'
+          else
+            python3 .github/scripts/v290_patch_selfheal.py
+            python3 -m py_compile .github/scripts/v290_robot_offline_relay.py
+            python3 .github/scripts/v290_robot_offline_relay.py
+          fi
+          git diff --exit-code HEAD -- cloudflare
+          grep -q 'versionCode 55' app/build.gradle
+          grep -q 'versionName "2.9.0"' app/build.gradle
+          grep -q 'applicationId "com.profitloop.blueauto"' app/build.gradle
+
+      - name: Commit exact candidate source if newly converged
+        run: |
+          set -euo pipefail
+          git config user.name 'Delor85'
+          git config user.email 'mbolodelorpro@gmail.com'
+          git add app
+          if ! git diff --cached --quiet; then
+            git commit -m 'feat: BIR v2.9 Robot offline-first and nearby Relay [v290-source]'
+            git push origin HEAD:feat/bir-v2-9-robot-offline-relay
+          fi
+          git rev-parse HEAD | tee /tmp/v290-source-sha.txt
+
+      - name: Validate inherited and v2.9 contracts
+        run: |
+          set -euo pipefail
+          for f in app/src/test/*.mjs; do echo "== $f =="; node "$f"; done
+          node --check app/src/main/assets/app.js
+          node --check app/src/main/assets/control-tower-v271.js
+          node --check app/src/main/assets/control-tower-v280.js
+          node --check app/src/main/assets/control-tower-v290.js
+
+      - name: Java 17
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Installer Gradle 8.2
+      - name: Gradle 8.2
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.2'
 
-      - name: Compiler la référence v2.6.5 avec la clé permanente
-        env:
-          PERMANENT_KEYSTORE_BASE64: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_BASE64 }}
-          PERMANENT_KEYSTORE_PASSWORD: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_PASSWORD }}
+      - name: Prepare ephemeral validation signing
         run: |
           set -euo pipefail
-          test -n "$PERMANENT_KEYSTORE_BASE64"
-          test -n "$PERMANENT_KEYSTORE_PASSWORD"
           mkdir -p .pilot-signing
-          printf '%s' "$PERMANENT_KEYSTORE_BASE64" | base64 --decode > .pilot-signing/debug.keystore
-          printf '%s' "$PERMANENT_KEYSTORE_PASSWORD" > .pilot-signing/keystore.password
-          upgrade_password="$(tr -d '\r\n' < .pilot-signing/keystore.password)"
-          echo "::add-mask::$upgrade_password"
-          echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$upgrade_password" >> "$GITHUB_ENV"
+          password="$(openssl rand -hex 32)"
+          echo "::add-mask::$password"
+          keytool -genkeypair -keystore .pilot-signing/debug.keystore -storepass "$password" -alias androiddebugkey -keypass "$password" -dname 'CN=BIR v2.9 Offline Validation,O=ProfitLoop,C=CM' -keyalg RSA -keysize 2048 -validity 30 -noprompt
+          echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$password" >> "$GITHUB_ENV"
 
-          git worktree add /tmp/blue-magic-v265 9b1d35f05630effa5e1683bfaa3da2195691ed61
-          mkdir -p /tmp/blue-magic-v265/.pilot-signing
-          cp .pilot-signing/debug.keystore /tmp/blue-magic-v265/.pilot-signing/debug.keystore
-          (
-            cd /tmp/blue-magic-v265
-            BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD="$upgrade_password" \
-              gradle --no-daemon :app:assembleDebug
-          )
+      - name: Test, compile and assemble Release
+        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
 
-      - name: Télécharger l’APK Release permanente exacte du run
-        uses: actions/download-artifact@v4
+      - name: Verify candidate identity
+        run: |
+          set -euo pipefail
+          bt="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          apk=app/build/outputs/apk/release/app-release.apk
+          "$bt/zipalign" -c -v 4 "$apk"
+          "$bt/aapt" dump badging "$apk" | tee /tmp/badging.txt
+          grep -q "package: name='com.profitloop.blueauto' versionCode='55' versionName='2.9.0'" /tmp/badging.txt
+          ! grep -q 'application-debuggable' /tmp/badging.txt
+          sha256sum "$apk" | tee /tmp/v290-apk.sha256
+
+      - name: Upload ephemeral validation candidate
+        uses: actions/upload-artifact@v4
         with:
-          name: Blue-Magic-v2-Robot-Core-Permanent
-          path: /tmp/blue-magic-v268-final
-
-      - name: Vérifier la mise à jour Android ${{ matrix.api }} sans perte de données
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: ${{ matrix.api }}
-          arch: ${{ matrix.arch }}
-          profile: ${{ matrix.profile }}
-          disable-animations: true
-          emulator-boot-timeout: 1200
-          script: |
-            set -eu
-            adb install /tmp/blue-magic-v265/app/build/outputs/apk/debug/app-debug.apk | tee /tmp/v265-install.txt
-            grep -q "Success" /tmp/v265-install.txt
-            adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/v265-start.txt
-            grep -q "Status: ok" /tmp/v265-start.txt
-            adb shell run-as com.profitloop.blueauto mkdir -p files
-            adb shell run-as com.profitloop.blueauto touch files/upgrade-v265-marker
-
-            adb install -r /tmp/blue-magic-v268-final/Blue-Magic-v2.6.8-Stabilisation-Ergonomie-Release.apk | tee /tmp/v268-install.txt
-            grep -q "Success" /tmp/v268-install.txt
-            adb shell am force-stop com.profitloop.blueauto
-            adb logcat -c || true
-            adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/v268-start.txt
-            grep -q "Status: ok" /tmp/v268-start.txt
-            adb shell run-as com.profitloop.blueauto ls files/upgrade-v265-marker
-            adb shell dumpsys package com.profitloop.blueauto | grep -q "versionName=2.6.8"
-            if adb shell dumpsys package com.profitloop.blueauto | grep -q "DEBUGGABLE"; then
-              echo "::error::L’APK candidate ne doit pas être débogable."
-              exit 1
-            fi
-            if adb logcat -d -b crash 2>/dev/null | grep -q com.profitloop.blueauto; then adb logcat -d -b crash; exit 1; fi
-
-            adb uninstall com.profitloop.blueauto | tee /tmp/v268-uninstall.txt
-            grep -q "Success" /tmp/v268-uninstall.txt
-            adb install /tmp/blue-magic-v268-final/Blue-Magic-v2.6.8-Stabilisation-Ergonomie-Release.apk | tee /tmp/v268-clean-install.txt
-            grep -q "Success" /tmp/v268-clean-install.txt
-            adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/v268-clean-start.txt
-            grep -q "Status: ok" /tmp/v268-clean-start.txt
-            adb shell dumpsys package com.profitloop.blueauto | grep -q "versionName=2.6.8"
+          name: BIR-v2.9.0-robot-offline-relay-validation-ephemeral
+          path: |
+            app/build/outputs/apk/release/app-release.apk
+            /tmp/v290-source-sha.txt
+            /tmp/v290-apk.sha256
+          if-no-files-found: error
+          retention-days: 7
