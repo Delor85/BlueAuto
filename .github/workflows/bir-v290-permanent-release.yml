@@ -15,6 +15,7 @@ concurrency:
 env:
   BIR_V290_SOURCE_SHA: 9752441af955dc9b4643802234fb2484afadf11f
   BIR_PERMANENT_CERT_SHA256: f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5
+  BIR_PRODUCTION_HEALTH_URL: https://blue-magic-api.mbolodelorpro.workers.dev/api?action=health
 
 jobs:
   permanent-apk:
@@ -28,16 +29,32 @@ jobs:
           ref: ${{ env.BIR_V290_SOURCE_SHA }}
           fetch-depth: 0
 
-      - name: Prove exact release scope
+      - name: Prove exact release scope and authorization
+        env:
+          AUTHORIZED_TRIGGER_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$BIR_V290_SOURCE_SHA"
+          git show "$AUTHORIZED_TRIGGER_SHA:.github/v290-permanent.trigger" > /tmp/bir-v290-permanent-trigger.txt
+          grep -q '^authorization=approved-by-user-2026-08-18$' /tmp/bir-v290-permanent-trigger.txt
+          grep -q '^source_sha=9752441af955dc9b4643802234fb2484afadf11f$' /tmp/bir-v290-permanent-trigger.txt
+          grep -q '^release=2.9.0$' /tmp/bir-v290-permanent-trigger.txt
+          grep -q '^production_run=32166944802$' /tmp/bir-v290-permanent-trigger.txt
+          grep -q '^package=com.profitloop.blueauto$' /tmp/bir-v290-permanent-trigger.txt
+          grep -q '^version_code=55$' /tmp/bir-v290-permanent-trigger.txt
+          grep -q '^historical_signer_required=true$' /tmp/bir-v290-permanent-trigger.txt
+          grep -q '^pr4_merge=forbidden$' /tmp/bir-v290-permanent-trigger.txt
           grep -q 'applicationId "com.profitloop.blueauto"' app/build.gradle
           grep -q 'versionCode 55' app/build.gradle
           grep -q 'versionName "2.9.0"' app/build.gradle
           grep -Fq 'new String[]{"REMOTE", "ROBOT"}' app/src/main/java/com/profitloop/blueauto/MainActivity.java
           ! grep -q 'SEND_SMS' app/src/main/AndroidManifest.xml
-          test "${{ vars.BLUE_MAGIC_PRODUCTION_CONFIRM }}" = "BLUE_MAGIC_PRODUCTION"
+
+      - name: Verify live production is exact BIR v2.9 before signing
+        run: |
+          set -euo pipefail
+          curl --fail --retry 5 --retry-delay 3 --max-time 20 "$BIR_PRODUCTION_HEALTH_URL" -o /tmp/bir-v290-production-before-signing.json
+          node -e "const fs=require('fs');const h=JSON.parse(fs.readFileSync('/tmp/bir-v290-production-before-signing.json','utf8'));if(h.ok!==true||!h.data)throw new Error('invalid production health envelope');const d=h.data;if(d.version!=='2.9.0-cloudflare'||d.database!=='online')throw new Error('BIR v2.9 production is not ready for permanent signing');const c=d.capabilities||{};for(const k of ['offline_sync','bir_relay','free_ops_cockpit','dae_pro_free','region_national_ops_free','super_admin'])if(c[k]!==true)throw new Error('missing production capability '+k);if(JSON.stringify(c.effective_modes)!==JSON.stringify(['REMOTE','ROBOT']))throw new Error('effective modes mismatch');console.log('Live BIR v2.9 production gate OK');"
 
       - name: Java 17 and Gradle 8.2
         uses: actions/setup-java@v5
@@ -123,5 +140,7 @@ jobs:
             /tmp/bir-v290-permanent-source.txt
             /tmp/bir-v290-permanent-badging.txt
             /tmp/bir-v290-permanent-signature.txt
+            /tmp/bir-v290-production-before-signing.json
+            /tmp/bir-v290-permanent-trigger.txt
           if-no-files-found: error
           retention-days: 30
