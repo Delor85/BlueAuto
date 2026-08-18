@@ -15,6 +15,14 @@ s = replace_once(s, 'versionCode 56', 'versionCode 57', 'versionCode')
 s = replace_once(s, 'versionName "2.9.1"', 'versionName "2.9.2"', 'versionName')
 p.write_text(s)
 
+# Native API identity and allow-list for the new non-financial pilotage action.
+p = Path('app/src/main/java/com/profitloop/blueauto/ApiClient.java')
+s = p.read_text()
+s = s.replace('payload.put("app_version", "2.9.1");', 'payload.put("app_version", "2.9.2");')
+if '|ops_assist|' not in s:
+    s = replace_once(s, '|ops_cockpit|ops_escalate|', '|ops_cockpit|ops_assist|ops_escalate|', 'native ops_assist allow-list')
+p.write_text(s)
+
 # Load the additive dashboard without disturbing the existing UI.
 p = Path('app/src/main/assets/index.html')
 s = p.read_text()
