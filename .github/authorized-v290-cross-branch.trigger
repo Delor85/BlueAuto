@@ -1,0 +1,7 @@
+target_branch=feat/bir-v2-9-robot-offline-relay
+base_source=eef53c4bf483ffc2557a57b0715561412f4c7e10
+production_worker_deploy=forbidden
+d1_migration=forbidden
+capacity_expansion_deploy=forbidden
+pr4_merge=forbidden
+permanent_signing=forbidden
