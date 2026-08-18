@@ -1,0 +1,28 @@
+import fs from 'node:fs';
+const read=p=>fs.readFileSync(p,'utf8');
+const must=(v,m)=>{if(!v)throw new Error('v2.9.1 remote sync wake: '+m)};
+const worker=read('cloudflare/src/index.js');
+const migration=read('cloudflare/migrations/0009_remote_sync_wake.sql');
+const api=read('app/src/main/java/com/profitloop/blueauto/ApiClient.java');
+const main=read('app/src/main/java/com/profitloop/blueauto/MainActivity.java');
+const robot=read('app/src/main/java/com/profitloop/blueauto/RobotService.java');
+const manifest=read('app/src/main/AndroidManifest.xml');
+
+must(worker.includes("const API_VERSION = '2.9.1-cloudflare'"),'Worker version missing');
+must(worker.includes("case 'force_sync': return await forceSyncRequest"),'force_sync route missing');
+must(worker.includes("auth.mode !== 'REMOTE'"),'force_sync must be Remote-only');
+must(worker.includes('node_code=?')&&worker.includes('requested_by_device_id'),'wake must be same-node/device-authenticated');
+must(worker.includes("mode IN ('ROBOT','HYBRID')")&&worker.includes('robot_enabled=1')&&worker.includes('sim_verified=1'),'wake target must be active verified Robot');
+must(worker.includes('duplicate_safe:true')&&worker.includes("state='PENDING'"),'wake deduplication missing');
+must(worker.includes("return success({available:false,force_sync:true"),'existing lease poll must carry wake without creating a command');
+must(!worker.match(/forceSyncRequest[\s\S]{0,2500}(INSERT INTO commands|createCommand|previewCommand|ussd_code)/),'force_sync must not create financial/USSD commands');
+must(migration.includes('CREATE TABLE IF NOT EXISTS sync_wake_requests'),'additive wake table missing');
+must(!/DROP\s+TABLE|DELETE\s+FROM/i.test(migration),'wake migration must be additive only');
+must(!/pin|password|secret|token/i.test(migration.replace(/requested_by_device_id/g,'')),'wake schema must not store sensitive values');
+must(api.includes('JSONObject requestForceSync(String reason)')&&api.includes('postControl("force_sync"'),'Android force_sync API missing');
+must(main.includes('"REMOTE".equals(AppConfig.mode(MainActivity.this, profileId))'),'only a Remote profile may ask server wake');
+must(main.includes('new Thread(() ->')&&main.includes('bir-remote-sync-wake'),'remote wake must not block WebView/UI thread');
+must(robot.includes('lease.optBoolean("force_sync", false)')&&robot.includes('Auto-Réveil distant reçu'),'Robot wake consumption missing');
+must(robot.includes('OfflineSyncManager.syncSome(this, 25);')&&robot.includes('retryDueFinalReports(8);'),'Robot wake must drain safe outbox/final reports');
+must(!manifest.includes('android.permission.SEND_SMS'),'SMS fallback remains forbidden');
+console.log('BIR v2.9.1 same-node Remote→Robot non-financial wake contract OK');
