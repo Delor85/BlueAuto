@@ -1,0 +1,149 @@
+name: BIR v2.9 Final Convergence Orchestrator
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/bir-v290-final-orchestrator.yml']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bir-v290-final-orchestrator
+  cancel-in-progress: false
+
+jobs:
+  converge-validate-publish-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - name: Checkout protected v2.9 convergence branch
+        uses: actions/checkout@v5
+        with:
+          ref: feat/bir-v2-9-final-convergence
+          fetch-depth: 0
+
+      - name: Prove immutable safety boundaries
+        run: |
+          set -euo pipefail
+          grep -q '^base_permanent_source=eef53c4bf483ffc2557a57b0715561412f4c7e10$' .github/authorized-v290-robot-offline-relay.trigger
+          grep -q '^modes=REMOTE,ROBOT$' .github/authorized-v290-robot-offline-relay.trigger
+          grep -q '^sms_fallback=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
+          grep -q '^production_worker_deploy=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
+          grep -q '^d1_migration=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
+          grep -q '^capacity_expansion_deploy=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
+          grep -q '^pr4_merge=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
+          grep -q '^permanent_signing=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
+          grep -q '^financial_command_over_relay=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
+          python3 -m py_compile .github/scripts/v290_patch_selfheal.py .github/scripts/v290_robot_offline_relay.py .github/scripts/v290_final_convergence.py .github/scripts/v290_server_offline_relay_patch.py
+
+      - name: Generate exact additive Android and Worker source
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/v290_patch_selfheal.py
+          python3 .github/scripts/v290_robot_offline_relay.py
+          python3 .github/scripts/v290_final_convergence.py
+          python3 .github/scripts/v290_server_offline_relay_patch.py
+          grep -q 'versionCode 55' app/build.gradle
+          grep -q 'versionName "2.9.0"' app/build.gradle
+          grep -q 'applicationId "com.profitloop.blueauto"' app/build.gradle
+          grep -q 'new String[]{"REMOTE", "ROBOT"}' app/src/main/java/com/profitloop/blueauto/MainActivity.java
+          ! grep -q 'new String\[\].*HYBRID' app/src/main/java/com/profitloop/blueauto/MainActivity.java
+          ! grep -q 'SEND_SMS' app/src/main/AndroidManifest.xml
+          grep -q 'WifiP2pManager' app/src/main/java/com/profitloop/blueauto/BirRelayManager.java
+          grep -q 'BluetoothSocket' app/src/main/java/com/profitloop/blueauto/BirRelayManager.java
+          grep -q 'RelayIdentityStore.sign' app/src/main/java/com/profitloop/blueauto/OfflineSyncManager.java
+          grep -q "const API_VERSION = '2.9.0-cloudflare'" cloudflare/src/index.js
+          grep -q "case 'sync_local_events'" cloudflare/src/index.js
+          grep -q "case 'relay_sync'" cloudflare/src/index.js
+          grep -q 'CREATE TABLE IF NOT EXISTS offline_events' cloudflare/migrations/0007_offline_events_and_bir_relay.sql
+          ! grep -Eiq 'DROP[[:space:]]+TABLE|DELETE[[:space:]]+FROM[[:space:]]+(commands|nodes|devices)' cloudflare/migrations/0007_offline_events_and_bir_relay.sql
+
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate Android inherited and v2.9 contracts
+        run: |
+          set -euo pipefail
+          node app/src/test/finance-flow.mjs
+          node app/src/test/v268-field-contract.mjs
+          node app/src/test/v268-responsive-management.mjs
+          node app/src/test/v268-ux-performance.mjs
+          node app/src/test/v268-platform-compat.mjs
+          node app/src/test/v268-transaction-ux.mjs
+          node app/src/test/v268-control-plane.mjs
+          node app/src/test/v268-native-status.mjs
+          node app/src/test/v268-release-hygiene.mjs
+          node app/src/test/bir-v269-functional-contract.mjs
+          node app/src/test/v2610-control-tower.mjs
+          node app/src/test/v2611-finalization-contract.mjs
+          node app/src/test/v2611-shell-contract.mjs
+          node app/src/test/v270-finalization-contract.mjs
+          node app/src/test/v270-owner-mock-contract.mjs
+          node app/src/test/v271-field-stabilization-contract.mjs
+          node app/src/test/v280-operations-admin-contract.mjs
+          node app/src/test/v281-field-quality-contract.mjs
+          node app/src/test/v290-robot-offline-relay-contract.mjs
+          node --check app/src/main/assets/app.js
+          node --check app/src/main/assets/control-tower-v290.js
+
+      - name: Validate Worker source without production access
+        working-directory: cloudflare
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run check
+          node --check src/index.js
+          npx wrangler deploy --dry-run --config wrangler.jsonc
+
+      - name: Java 17 and Gradle 8.2
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+
+      - name: Build ephemeral v2.9 Release candidate
+        run: |
+          set -euo pipefail
+          mkdir -p .pilot-signing
+          password="$(openssl rand -hex 32)"
+          echo "::add-mask::$password"
+          keytool -genkeypair -keystore .pilot-signing/debug.keystore -storepass "$password" -alias androiddebugkey -keypass "$password" -dname "CN=BIR v2.9 Validation,O=ProfitLoop,C=CM" -keyalg RSA -keysize 2048 -validity 30 -noprompt
+          echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$password" >> "$GITHUB_ENV"
+          gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
+          bt="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          apk=app/build/outputs/apk/release/app-release.apk
+          "$bt/zipalign" -c -v 4 "$apk"
+          "$bt/aapt" dump badging "$apk" | tee BIR-v2.9-badging.txt
+          grep -q "package: name='com.profitloop.blueauto' versionCode='55' versionName='2.9.0'" BIR-v2.9-badging.txt
+          if grep -q 'application-debuggable' BIR-v2.9-badging.txt; then exit 1; fi
+          sha256sum "$apk" | tee BIR-v2.9-validation.sha256.txt
+
+      - name: Publish only validated source to v2.9 branch
+        run: |
+          set -euo pipefail
+          git config user.name "Delor85"
+          git config user.email "mbolodelorpro@gmail.com"
+          git add app cloudflare/src/index.js cloudflare/migrations/0007_offline_events_and_bir_relay.sql
+          if ! git diff --cached --quiet; then
+            git commit -m 'feat: BIR v2.9 validated offline-first Robot and signed nearby Relay [no-prod]'
+            git push origin HEAD:feat/bir-v2-9-final-convergence
+          fi
+          git rev-parse HEAD | tee BIR-v2.9-source-sha.txt
+
+      - name: Upload ephemeral validation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIR-v2.9.0-final-validation-ephemeral
+          path: |
+            app/build/outputs/apk/release/app-release.apk
+            BIR-v2.9-badging.txt
+            BIR-v2.9-validation.sha256.txt
+            BIR-v2.9-source-sha.txt
+          if-no-files-found: error
+          retention-days: 7
