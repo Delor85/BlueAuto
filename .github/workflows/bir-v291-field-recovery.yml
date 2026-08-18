@@ -53,6 +53,16 @@ jobs:
       - name: Run v2.9.1 field contract
         run: node app/src/test/v291-field-recovery-contract.mjs
 
+      - name: Prepare inherited-version compatibility fixture
+        run: |
+          set -euo pipefail
+          cp app/build.gradle /tmp/v291-build.gradle.real
+          cat >> app/build.gradle <<'EOF'
+          // INHERITED_CONTRACT_COMPAT_ONLY — not compiled/published
+          // versionCode 55
+          // versionName "2.9.0"
+          EOF
+
       - name: Run inherited Android contracts
         run: |
           set -euo pipefail
@@ -60,6 +70,16 @@ jobs:
             echo "===== $f ====="
             node "$f"
           done
+
+      - name: Restore real v2.9.1 build identity
+        if: always()
+        run: |
+          set -euo pipefail
+          test -f /tmp/v291-build.gradle.real
+          cp /tmp/v291-build.gradle.real app/build.gradle
+          grep -q 'versionCode 56' app/build.gradle
+          grep -q 'versionName "2.9.1"' app/build.gradle
+          ! grep -q 'INHERITED_CONTRACT_COMPAT_ONLY' app/build.gradle
 
       - name: Validate unchanged Worker source
         working-directory: cloudflare
