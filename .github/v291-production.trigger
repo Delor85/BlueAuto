@@ -1,0 +1,9 @@
+authorization=approved-field-correction-2026-08-18
+source_sha=828fddb027309df4cecfccf482c99e6aa83d22e1
+release=2.9.1
+scope=worker-2.9.1-plus-additive-d1-0009
+modes=REMOTE,ROBOT
+financial_fake_wake=forbidden
+sms_fallback=forbidden
+capacity_expansion=forbidden
+pr4_merge=forbidden
