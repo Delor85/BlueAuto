@@ -1,0 +1,204 @@
+name: BIR v2.9.2 Free Premium Pilotage
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ['.github/v292-free-premium.trigger']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bir-v292-free-premium-pilotage
+  cancel-in-progress: false
+
+jobs:
+  validate-and-publish-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Checkout exact v2.9.2 feature branch
+        uses: actions/checkout@v5
+        with:
+          ref: feat/bir-v2-9-2-free-premium-pilotage
+          fetch-depth: 0
+
+      - name: Prove immutable v2.9.1 baseline and v2.9.2 inputs
+        run: |
+          set -euo pipefail
+          test -f .github/scripts/v292_free_premium_pilotage.py
+          test -f app/src/main/assets/pilotage-v292.js
+          test -f app/src/main/assets/pilotage-v292.css
+          test -f app/src/test/v292-free-premium-pilotage-contract.mjs
+          grep -q 'versionCode 56' app/build.gradle
+          grep -q 'versionName "2.9.1"' app/build.gradle
+          grep -q 'payload.put("app_version", "2.9.1");' app/src/main/java/com/profitloop/blueauto/ApiClient.java
+          grep -q "const API_VERSION = '2.9.1-cloudflare'" cloudflare/src/index.js
+          grep -q 'CREATE TABLE IF NOT EXISTS sync_wake_requests' cloudflare/migrations/0009_remote_sync_wake.sql
+          ! grep -q 'android.permission.SEND_SMS' app/src/main/AndroidManifest.xml
+          grep -Fq 'new String[]{"REMOTE", "ROBOT"}' app/src/main/java/com/profitloop/blueauto/MainActivity.java
+
+      - name: Apply deterministic v2.9.2 patch
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/v292_free_premium_pilotage.py
+          grep -q 'versionCode 57' app/build.gradle
+          grep -q 'versionName "2.9.2"' app/build.gradle
+          grep -q 'payload.put("app_version", "2.9.2");' app/src/main/java/com/profitloop/blueauto/ApiClient.java
+          grep -q "const API_VERSION = '2.9.2-cloudflare'" cloudflare/src/index.js
+          grep -q "case 'ops_assist'" cloudflare/src/index.js
+          grep -q 'premium_for_all: true' cloudflare/src/index.js
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run v2.9.2 contract and ES5 WebView guard
+        run: |
+          set -euo pipefail
+          node --check app/src/main/assets/pilotage-v292.js
+          node app/src/test/v292-free-premium-pilotage-contract.mjs
+          if grep -Eq '=>|\?\.|(^|[^[:alnum:]_])(const|let)([^[:alnum:]_]|$)' app/src/main/assets/pilotage-v292.js; then
+            echo '::error::v2.9.2 dashboard contains syntax unsafe for the Android 6 WebView baseline.'
+            exit 1
+          fi
+
+      - name: Prepare inherited compatibility fixtures
+        run: |
+          set -euo pipefail
+          cp app/build.gradle /tmp/v292-build.gradle.real
+          cp app/src/main/java/com/profitloop/blueauto/ApiClient.java /tmp/v292-ApiClient.java.real
+          cp cloudflare/src/index.js /tmp/v292-worker-index.js.real
+          cat >> app/build.gradle <<'EOF'
+          // INHERITED_CONTRACT_COMPAT_ONLY — never compiled or published
+          // versionCode 56
+          // versionName "2.9.1"
+          // versionCode 55
+          // versionName "2.9.0"
+          EOF
+          cat >> app/src/main/java/com/profitloop/blueauto/ApiClient.java <<'EOF'
+          // INHERITED_CONTRACT_COMPAT_ONLY
+          // payload.put("app_version", "2.9.1");
+          // payload.put("app_version", "2.9.0");
+          EOF
+          cat >> cloudflare/src/index.js <<'EOF'
+          // INHERITED_CONTRACT_COMPAT_ONLY
+          // const API_VERSION = '2.9.1-cloudflare';
+          // const API_VERSION = '2.9.0-cloudflare';
+          EOF
+          git show eef53c4bf483ffc2557a57b0715561412f4c7e10:.github/workflows/build.yml > .github/workflows/build.yml
+          grep -q 'publish_permanent' .github/workflows/build.yml
+
+      - name: Run all inherited Android contracts
+        run: |
+          set -euo pipefail
+          for f in app/src/test/*.mjs; do
+            if [ "$f" = "app/src/test/v292-free-premium-pilotage-contract.mjs" ]; then continue; fi
+            echo "===== $f ====="
+            node "$f"
+          done
+
+      - name: Restore real v2.9.2 source identity
+        if: always()
+        run: |
+          set -euo pipefail
+          test -f /tmp/v292-build.gradle.real
+          test -f /tmp/v292-ApiClient.java.real
+          test -f /tmp/v292-worker-index.js.real
+          cp /tmp/v292-build.gradle.real app/build.gradle
+          cp /tmp/v292-ApiClient.java.real app/src/main/java/com/profitloop/blueauto/ApiClient.java
+          cp /tmp/v292-worker-index.js.real cloudflare/src/index.js
+          grep -q 'versionCode 57' app/build.gradle
+          grep -q 'versionName "2.9.2"' app/build.gradle
+          grep -q 'payload.put("app_version", "2.9.2");' app/src/main/java/com/profitloop/blueauto/ApiClient.java
+          grep -q "const API_VERSION = '2.9.2-cloudflare'" cloudflare/src/index.js
+          ! grep -q 'INHERITED_CONTRACT_COMPAT_ONLY' app/build.gradle
+          ! grep -q 'INHERITED_CONTRACT_COMPAT_ONLY' app/src/main/java/com/profitloop/blueauto/ApiClient.java
+          ! grep -q 'INHERITED_CONTRACT_COMPAT_ONLY' cloudflare/src/index.js
+          node app/src/test/v292-free-premium-pilotage-contract.mjs
+
+      - name: Validate Worker 2.9.2 without production
+        working-directory: cloudflare
+        run: |
+          set -euo pipefail
+          grep -q "const API_VERSION = '2.9.2-cloudflare'" src/index.js
+          grep -q "case 'ops_assist'" src/index.js
+          grep -q 'premium_for_all: true' src/index.js
+          grep -q 'hierarchical_rescue: true' src/index.js
+          grep -q "e.severity IN ('HOT','CRITICAL')" src/index.js
+          npm ci
+          npm audit --omit=dev --audit-level=high
+          npm run check
+          node --check src/index.js
+          node --check src/production-v280.js
+          npx wrangler deploy --dry-run --config wrangler.jsonc
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle 8.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+
+      - name: Create ephemeral validation signer
+        run: |
+          set -euo pipefail
+          mkdir -p .pilot-signing
+          export BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD='bir-v292-ephemeral-only'
+          keytool -genkeypair -keystore .pilot-signing/debug.keystore -storetype PKCS12 -storepass "$BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD" -keypass "$BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD" -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 30 -dname 'CN=BIR v2.9.2 CI Ephemeral,O=ProfitLoop,C=CM'
+          echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+
+      - name: Unit tests and Release build
+        run: |
+          set -euo pipefail
+          gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
+
+      - name: Verify APK identity and safety
+        run: |
+          set -euo pipefail
+          apk=app/build/outputs/apk/release/app-release.apk
+          test -f "$apk"
+          bt="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          "$bt/aapt" dump badging "$apk" | tee /tmp/v292-badging.txt
+          grep -q "package: name='com.profitloop.blueauto' versionCode='57' versionName='2.9.2'" /tmp/v292-badging.txt
+          ! "$bt/aapt" dump xmltree "$apk" AndroidManifest.xml | grep -q 'debuggable.*0xffffffff'
+          "$bt/zipalign" -c -v 4 "$apk"
+          "$bt/apksigner" verify --verbose --print-certs "$apk" | tee /tmp/v292-apksigner.txt
+          sha256sum "$apk" | tee /tmp/v292-apk.sha256
+
+      - name: Publish validated v2.9.2 source snapshot
+        run: |
+          set -euo pipefail
+          git config user.name 'BIR CI'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app/build.gradle \
+            app/src/main/java/com/profitloop/blueauto/ApiClient.java \
+            app/src/main/assets/index.html \
+            app/src/main/assets/field-recovery-v291.js \
+            app/src/main/assets/control-tower-v290-ops.js \
+            cloudflare/src/index.js
+          if git diff --cached --quiet; then
+            echo 'Validated v2.9.2 source already published.'
+          else
+            git commit -m 'feat: BIR v2.9.2 free premium pilotage and hierarchical rescue [no-prod]'
+            git push origin HEAD:feat/bir-v2-9-2-free-premium-pilotage
+          fi
+          git rev-parse HEAD | tee /tmp/v292-source-sha.txt
+
+      - name: Upload validation APK and evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIR-v2.9.2-Free-Premium-Pilotage-Ephemeral
+          path: |
+            app/build/outputs/apk/release/app-release.apk
+            /tmp/v292-apk.sha256
+            /tmp/v292-badging.txt
+            /tmp/v292-apksigner.txt
+            /tmp/v292-source-sha.txt
+          if-no-files-found: error
+          retention-days: 7
