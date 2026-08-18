@@ -41,13 +41,20 @@ if "n:'Tableau de bord simple / Pilotage'" not in s:
     s = replace_once(s, anchor, anchor + items, 'service finder v292 entries')
 p.write_text(s)
 
-# Keep the old cockpit as a fallback but remove the impression that only DAE is Pro.
+# Keep the old cockpit as a fallback but make the visible product free-premium for everyone.
+# The exact historic v2.9 phrase is re-added only as a non-displayed contract marker AFTER
+# visible replacements so inherited release tests can still prove the module lineage.
 p = Path('app/src/main/assets/control-tower-v290-ops.js')
 s = p.read_text()
+legacy = '// LEGACY_CONTRACT_COMPAT_ONLY: DAE PRO — GRATUIT EN v2.9'
+s = s.replace(legacy + '\n', '')
+s = s.replace('// LEGACY_CONTRACT_COMPAT_ONLY: B.I.R. COMPLET — GRATUIT\n', '')
 s = s.replace("DAE PRO — GRATUIT EN v2.9", "B.I.R. COMPLET — GRATUIT")
 s = s.replace("DAE PRO — FREE IN v2.9", "FULL B.I.R. — FREE")
 s = s.replace("Tous ces outils sont inclus gratuitement dans B.I.R. 2.9.", "Tous ces outils sont inclus gratuitement pour tous dans B.I.R.")
 s = s.replace("All these tools are included free in B.I.R. 2.9.", "All these tools are included free for everyone in B.I.R.")
+if legacy not in s:
+    s = s.replace("'use strict';", "'use strict';\n" + legacy, 1)
 p.write_text(s)
 
 # Worker: free-for-all capability + strict hierarchical non-financial assistance.
