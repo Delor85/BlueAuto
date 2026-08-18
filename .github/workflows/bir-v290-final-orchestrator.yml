@@ -38,7 +38,8 @@ jobs:
           grep -q '^pr4_merge=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
           grep -q '^permanent_signing=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
           grep -q '^financial_command_over_relay=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
-          python3 -m py_compile .github/scripts/v290_patch_selfheal.py .github/scripts/v290_robot_offline_relay.py .github/scripts/v290_final_convergence.py .github/scripts/v290_server_offline_relay_patch.py .github/scripts/v290_restore_inherited_tests.py .github/scripts/v290_ops_dashboard.py
+          python3 .github/scripts/v290_ops_dashboard_selfheal.py
+          python3 -m py_compile .github/scripts/v290_patch_selfheal.py .github/scripts/v290_robot_offline_relay.py .github/scripts/v290_final_convergence.py .github/scripts/v290_server_offline_relay_patch.py .github/scripts/v290_restore_inherited_tests.py .github/scripts/v290_ops_dashboard_selfheal.py .github/scripts/v290_ops_dashboard.py
 
       - name: Generate exact additive Android and Worker source
         run: |
