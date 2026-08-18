@@ -2262,6 +2262,16 @@ public class MainActivity extends Activity {
             // Silent, non-financial control-plane wake used by the field self-healing layer.
             // It never creates a command and never dials USSD.
             RobotService.forceSync(MainActivity.this);
+            final String profileId = AppConfig.profileId(MainActivity.this);
+            if (profileId == null || profileId.isEmpty()
+                    || !"REMOTE".equals(AppConfig.mode(MainActivity.this, profileId))) return;
+            new Thread(() -> {
+                try {
+                    ApiClient.forProfile(MainActivity.this, profileId).requestForceSync("REMOTE_SYNC_STALE");
+                } catch (Exception ignored) {
+                    // Local recovery remains active; older Worker/migration stages stay compatible.
+                }
+            }, "bir-remote-sync-wake").start();
         }
 
         @JavascriptInterface

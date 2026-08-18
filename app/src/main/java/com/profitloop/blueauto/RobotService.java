@@ -332,6 +332,19 @@ public class RobotService extends Service {
                     maybeQueueNightlyNetworkAudit(profileId, api);
                     JSONObject lease = api.leaseCommand();
                     clearProfileApiFailure(profileId);
+                    if (lease.optBoolean("force_sync", false)) {
+                        apiRetryAtByProfile.remove(profileId);
+                        lastHeartbeatByProfile.remove(profileId);
+                        OfflineSyncManager.syncSome(this, 25);
+                        retryDueFinalReports(8);
+                        try {
+                            api.heartbeat(false);
+                            lastHeartbeatByProfile.put(profileId, System.currentTimeMillis());
+                        } catch (Exception ignored) {}
+                        updateNotification(robotSummary("Auto-Réveil distant reçu — synchronisation reprise"));
+                        nextDelay = 500L;
+                        continue;
+                    }
                     if (lease.optBoolean("available", false)) {
                         JSONObject command = lease.optJSONObject("command");
                         if (command == null) throw new IllegalStateException("Commande louée absente.");

@@ -85,6 +85,12 @@ final class ApiClient {
         return postControl("lease_command", new JSONObject(), true);
     }
 
+    JSONObject requestForceSync(String reason) throws Exception {
+        JSONObject payload = new JSONObject();
+        payload.put("reason", reason == null ? "REMOTE_SYNC_STALE" : trim(reason, 80));
+        return postControl("force_sync", payload, true);
+    }
+
     JSONObject releaseCommand(JSONObject command, String reason) throws Exception {
         JSONObject payload = new JSONObject();
         payload.put("command_id", command.optString("public_id", ""));
