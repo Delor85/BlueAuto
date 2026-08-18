@@ -882,16 +882,35 @@ public class MainActivity extends Activity {
 
             @Override
             public boolean onJsPrompt(WebView view, String url, String message, String defaultValue, JsPromptResult result) {
+                final String promptMessage = message == null ? "" : message;
+                final String normalizedPrompt = promptMessage.toLowerCase(Locale.ROOT);
+                final boolean commissionPrompt = normalizedPrompt.contains("commission")
+                        || normalizedPrompt.contains("taux") || normalizedPrompt.contains("rate");
+                final boolean supportPrompt = normalizedPrompt.contains("décrivez très simplement")
+                        || normalizedPrompt.contains("decrivez tres simplement")
+                        || normalizedPrompt.contains("describe the problem")
+                        || normalizedPrompt.contains("secours") || normalizedPrompt.contains("sav");
                 final EditText input = new EditText(MainActivity.this);
-                input.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+                if (commissionPrompt) {
+                    input.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+                    input.setSelectAllOnFocus(true);
+                } else {
+                    input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+                            | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+                    input.setMinLines(3);
+                    input.setMaxLines(6);
+                    input.setSingleLine(false);
+                }
                 input.setText(defaultValue == null ? "" : defaultValue);
-                input.setSelectAllOnFocus(true);
                 int pad = dp(18); input.setPadding(pad, dp(8), pad, dp(8));
                 new AlertDialog.Builder(MainActivity.this)
-                        .setTitle("Taux de commission")
-                        .setMessage(message)
+                        .setTitle(commissionPrompt ? "Taux de commission"
+                                : supportPrompt ? "Secours / SAV" : "Saisie B.I.R.")
+                        .setMessage(promptMessage)
                         .setView(input)
-                        .setPositiveButton("VALIDER LE TAUX", (dialog, which) -> result.confirm(input.getText().toString().trim()))
+                        .setPositiveButton(commissionPrompt ? "VALIDER LE TAUX"
+                                : supportPrompt ? "ENVOYER" : "VALIDER",
+                                (dialog, which) -> result.confirm(input.getText().toString().trim()))
                         .setNegativeButton("ANNULER", (dialog, which) -> result.cancel())
                         .setOnCancelListener(dialog -> result.cancel())
                         .show();
@@ -2239,6 +2258,13 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void kickSynchronization() {
+            // Silent, non-financial control-plane wake used by the field self-healing layer.
+            // It never creates a command and never dials USSD.
+            RobotService.forceSync(MainActivity.this);
+        }
+
+        @JavascriptInterface
         public void checkPurchaseCapacity(String amount, String clientRequestId) {
             if (mockDirectNetworkBlocked()) {
                 callbackError("onPurchaseCapacity", new SecurityException(
@@ -2281,7 +2307,7 @@ public class MainActivity extends Activity {
                     if (!AppConfig.isRobotMode(MainActivity.this)) {
                         RobotService.startEnabled(MainActivity.this);
                         JSONObject cached = RobotService.cachedRemoteDashboard(MainActivity.this,
-                                AppConfig.profileId(MainActivity.this), 20_000L);
+                                AppConfig.profileId(MainActivity.this), 6_000L);
                         if (cached != null) {
                             cached.put("_bir_remote_cache", true);
                             callback("onDashboard", cached);

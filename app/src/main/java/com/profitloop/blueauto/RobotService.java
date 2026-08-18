@@ -49,9 +49,9 @@ public class RobotService extends Service {
     private static final int WATCHDOG_REQUEST_CODE = 5503;
     private static final long STANDBY_WAKE_MS = 30 * 60_000L;
     private static final long WATCHDOG_INTERVAL_MS = 60_000L;
-    private static final long REMOTE_SNAPSHOT_MS = 15_000L;
-    private static final long REMOTE_HEARTBEAT_MS = 60_000L;
-    private static final long REMOTE_MAX_RETRY_MS = 120_000L;
+    private static final long REMOTE_SNAPSHOT_MS = 5_000L;
+    private static final long REMOTE_HEARTBEAT_MS = 20_000L;
+    private static final long REMOTE_MAX_RETRY_MS = 30_000L;
     private static final String REMOTE_CACHE_PREFIX = "remote_dashboard_cache_v281_";
     private static final String REMOTE_CACHE_AT_PREFIX = "remote_dashboard_cache_at_v281_";
     private static final long SIMPLE_UNLOCK_WAIT_MS = 3_500L;
@@ -142,9 +142,15 @@ public class RobotService extends Service {
             apiRetryAtByProfile.clear();
             apiFailureCountByProfile.clear();
             lastHeartbeatByProfile.clear();
+            lastRemoteSnapshotByProfile.clear();
             backoffMs = 250L;
-            updateNotification(robotSummary("Synchronisation forcée de tous les comptes"));
+            updateNotification(robotSummary("Auto-Réveil — reprise immédiate de la synchronisation"));
+            executor.execute(() -> {
+                OfflineSyncManager.syncSome(this, 25);
+                retryDueFinalReports(8);
+            });
             scheduleCycle(0L);
+            scheduleWatchdog(this, 5_000L);
             return START_STICKY;
         }
 

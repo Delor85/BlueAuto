@@ -19,10 +19,10 @@ function proof(){return parse(localStorage.getItem(PROOF_KEY)||'null',null);}
 function journal(){return parse(localStorage.getItem(JOURNAL_KEY)||'[]',[]);}
 function movement(entry){
   if(!entry||upper(entry.state)!=='SUCCEEDED')return 0;
-  var op=upper(entry.op),target=upper(entry.target),node=upper(configuration.node_code),amount=num(entry.amount);
-  if(!amount)return 0;
+  var op=upper(entry.op),target=upper(entry.target),node=upper(configuration.node_code),amount=num(entry.amount),base=num(entry.base||entry.amount),commission=num(entry.commission),total=(base||amount)+commission;
+  if(!amount&&!base)return 0;
   if(op.indexOf('RETAIL')>=0||op==='RETAIL_SALE')return -amount;
-  if(op.indexOf('DISTRIBUTION')>=0||op==='SUPPLY_CHILD'||op==='REQUEST_SUPPLY')return target===node?amount:-amount;
+  if(op.indexOf('DISTRIBUTION')>=0||op==='SUPPLY_CHILD'||op==='REQUEST_SUPPLY')return target===node?(base||amount):-(commission>0?total:amount);
   return 0;
 }
 function isUncertain(entry,baseTs){
@@ -46,7 +46,7 @@ function recompute(){
   else{state={quality:age<=FINANCE_FRESH_MS?'CERTIFIED':'RECALCULATED',reason:age<=FINANCE_FRESH_MS?'RECENT_CERTIFIED_PROOF':'CERTIFIED_PROOF_NO_LATER_MOVEMENT',balance:num(p.balance),base_balance:num(p.balance),delta:0,movements:0,reusable:true,proof_at:baseTs,updated_at:new Date().toISOString()};}
   localStorage.setItem(STATE_KEY,JSON.stringify(state));render(state);return state;
 }
-function render(s){var card=document.getElementById('birBalanceFreshness'),own=document.getElementById('ownBalance'),main=document.getElementById('birCamtelBalance');if(!s)return;if(s.balance!==null&&s.reusable){if(own)own.textContent=money(s.balance)+' FCFA';if(main)main.textContent=money(s.balance);}if(card){if(s.quality==='CERTIFIED')card.textContent='Preuve Blue certifiée • aucune interrogation USSD nécessaire';else if(s.quality==='RECALCULATED')card.textContent='Solde recalculé • preuve certifiée + '+String(s.movements||0)+' mouvement(s) confirmé(s)';else card.textContent='Solde à rapprocher • une nouvelle preuve Blue sera requise avant finance';}}
+function render(s){var card=document.getElementById('birBalanceFreshness'),own=document.getElementById('ownBalance'),main=document.getElementById('birCamtelBalance'),label;if(!s)return;if(s.balance!==null){label=(s.reusable?'':'≈ ')+money(s.balance);if(own)own.textContent=label+' FCFA';if(main)main.textContent=label;}if(card){if(s.quality==='CERTIFIED')card.textContent='Preuve Blue certifiée • aucune interrogation USSD nécessaire';else if(s.quality==='RECALCULATED')card.textContent='Solde recalculé • preuve certifiée + '+String(s.movements||0)+' mouvement(s) confirmé(s)';else card.textContent='≈ Estimation B.I.R. à rapprocher • ne pas la confondre avec un solde Blue certifié';}}
 function get(){return parse(localStorage.getItem(STATE_KEY)||'null',null)||recompute();}
 function shouldRecertify(){var s=get();return !s||s.reusable!==true||s.quality==='UNCERTAIN';}
 window.BIREventBalanceV280={recompute:recompute,get:get,shouldRecertify:shouldRecertify};
