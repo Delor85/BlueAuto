@@ -9,4 +9,4 @@ worker_deploy=forbidden
 d1_migration=forbidden
 permanent_signing=forbidden
 pr4_merge=forbidden
-attempt=8-same-node-remote-wake
+attempt=9-scoped-remote-wake-contract
