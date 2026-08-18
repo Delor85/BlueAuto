@@ -41,7 +41,7 @@ jobs:
           grep -q '^scope=worker-2.9.1-plus-additive-d1-0009$' /tmp/bir-v291-production-trigger.txt
           grep -q '^modes=REMOTE,ROBOT$' /tmp/bir-v291-production-trigger.txt
           grep -q '^financial_fake_wake=forbidden$' /tmp/bir-v291-production-trigger.txt
-          grep -q '^sms_fallback=forbidden$' /tmp/bir-v291-production-trigger.txt
+          grep -q '^sms_fallback=forbidden$' /tmp/bir-v291-production.trigger.txt 2>/dev/null || grep -q '^sms_fallback=forbidden$' /tmp/bir-v291-production-trigger.txt
           grep -q '^capacity_expansion=forbidden$' /tmp/bir-v291-production-trigger.txt
           grep -q '^pr4_merge=forbidden$' /tmp/bir-v291-production-trigger.txt
           grep -q 'versionCode 56' app/build.gradle
@@ -111,16 +111,28 @@ jobs:
           CLOUDFLARE_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
         run: |
           set -euo pipefail
-          npx wrangler deploy --config wrangler.production.jsonc
+          npx wrangler deploy --config wrangler.production.jsonc | tee /tmp/bir-v291-deploy.txt
+          npx wrangler deployments status --config wrangler.production.jsonc --json | tee /tmp/bir-v291-deployment-after.json
 
-      - name: Verify production v2.9.1 health
+      - name: Verify production v2.9.1 health after propagation
         id: health
         working-directory: cloudflare
         run: |
           set -euo pipefail
-          curl --fail --retry 5 --retry-delay 3 --max-time 20 "$BIR_PRODUCTION_HEALTH_URL" -o /tmp/bir-v291-health.json
-          cat /tmp/bir-v291-health.json
-          node -e "const fs=require('fs');const h=JSON.parse(fs.readFileSync('/tmp/bir-v291-health.json','utf8'));if(h.ok!==true||!h.data)throw new Error('invalid health envelope');const d=h.data;if(d.version!=='2.9.1-cloudflare')throw new Error('production version mismatch: '+d.version);if(d.database!=='online')throw new Error('production D1 offline');const c=d.capabilities||{};for(const k of ['force_sync','offline_sync','bir_relay','free_ops_cockpit','dae_pro_free','region_national_ops_free','super_admin'])if(c[k]!==true)throw new Error('missing capability '+k);if(JSON.stringify(c.effective_modes)!==JSON.stringify(['REMOTE','ROBOT']))throw new Error('effective modes mismatch');console.log('BIR v2.9.1 production health OK');"
+          rm -f /tmp/bir-v291-health.json /tmp/bir-v291-health-attempts.txt
+          for attempt in $(seq 1 15); do
+            echo "health attempt $attempt/15" | tee -a /tmp/bir-v291-health-attempts.txt
+            if curl --fail --max-time 20 "$BIR_PRODUCTION_HEALTH_URL" -o /tmp/bir-v291-health.json; then
+              cat /tmp/bir-v291-health.json | tee -a /tmp/bir-v291-health-attempts.txt
+              if node -e "const fs=require('fs');const h=JSON.parse(fs.readFileSync('/tmp/bir-v291-health.json','utf8'));if(h.ok!==true||!h.data)process.exit(2);const d=h.data;if(d.version!=='2.9.1-cloudflare')process.exit(3);if(d.database!=='online')process.exit(4);const c=d.capabilities||{};for(const k of ['force_sync','offline_sync','bir_relay','free_ops_cockpit','dae_pro_free','region_national_ops_free','super_admin'])if(c[k]!==true)process.exit(5);if(JSON.stringify(c.effective_modes)!==JSON.stringify(['REMOTE','ROBOT']))process.exit(6);"; then
+                echo 'BIR v2.9.1 production health OK after propagation.'
+                exit 0
+              fi
+            fi
+            sleep 4
+          done
+          echo '::error::BIR v2.9.1 did not become healthy within the propagation window.'
+          exit 1
 
       - name: Roll back Worker automatically if health fails
         if: ${{ failure() && steps.health.outcome == 'failure' }}
@@ -131,7 +143,7 @@ jobs:
           CLOUDFLARE_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
         run: |
           set -euo pipefail
-          echo 'BIR v2.9.1 health verification failed after deploy; rolling Worker back.'
+          echo 'BIR v2.9.1 health verification failed after propagation window; rolling Worker back.'
           npx wrangler rollback --config wrangler.production.jsonc --message 'Automatic rollback: BIR v2.9.1 production health gate failed'
           sleep 5
           curl --fail --retry 5 --retry-delay 3 --max-time 20 "$BIR_PRODUCTION_HEALTH_URL" -o /tmp/bir-v291-health-after-rollback.json
@@ -148,7 +160,10 @@ jobs:
             /tmp/bir-v291-migrations-after.txt
             /tmp/bir-v291-schema-proof.txt
             /tmp/bir-v291-deployment-before.json
+            /tmp/bir-v291-deployment-after.json
+            /tmp/bir-v291-deploy.txt
             /tmp/bir-v291-health.json
+            /tmp/bir-v291-health-attempts.txt
             /tmp/bir-v291-health-after-rollback.json
           if-no-files-found: warn
           retention-days: 30
