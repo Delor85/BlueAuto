@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  BIR_V290_SOURCE_SHA: a4c17661dcf6c4d088e1aee208cfae6bff793bd6
+  BIR_V290_SOURCE_SHA: a43e425e03f9a428359c388fc63b1ddb0b1825ba
 
 jobs:
   build-exact-candidate:
@@ -36,6 +36,8 @@ jobs:
           grep -q 'versionName "2.9.0"' app/build.gradle
           grep -Fq 'new String[]{"REMOTE", "ROBOT"}' app/src/main/java/com/profitloop/blueauto/MainActivity.java
           ! grep -q 'SEND_SMS' app/src/main/AndroidManifest.xml
+          grep -q 'owner_ops_resolve' app/src/main/assets/control-tower-v290-ops.js
+          grep -q 'pending_events_last_reported' cloudflare/src/index.js
 
       - uses: actions/setup-java@v5
         with:
@@ -115,9 +117,10 @@ jobs:
           profile: ${{ matrix.profile }}
           disable-animations: true
           script: |
-            set -euo pipefail
+            set -eu
             apk=/tmp/bir-v290/app-release.apk
             sha256sum "$apk"
+            adb shell getprop ro.build.version.sdk
             adb install -r "$apk" | tee /tmp/install.txt
             grep -q 'Success' /tmp/install.txt
             adb logcat -c || true
