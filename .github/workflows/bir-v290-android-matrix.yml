@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  BIR_V290_SOURCE_SHA: a43e425e03f9a428359c388fc63b1ddb0b1825ba
+  BIR_V290_SOURCE_SHA: 9752441af955dc9b4643802234fb2484afadf11f
 
 jobs:
   build-exact-candidate:
@@ -38,6 +38,7 @@ jobs:
           ! grep -q 'SEND_SMS' app/src/main/AndroidManifest.xml
           grep -q 'owner_ops_resolve' app/src/main/assets/control-tower-v290-ops.js
           grep -q 'pending_events_last_reported' cloudflare/src/index.js
+          grep -q "kind === 'SUPER_ADMIN'" cloudflare/src/production-v280.js
 
       - uses: actions/setup-java@v5
         with:
@@ -117,23 +118,19 @@ jobs:
           profile: ${{ matrix.profile }}
           disable-animations: true
           script: |
-            set -eu
-            apk=/tmp/bir-v290/app-release.apk
-            sha256sum "$apk"
+            sha256sum /tmp/bir-v290/app-release.apk
             adb shell getprop ro.build.version.sdk
-            adb install -r "$apk" | tee /tmp/install.txt
+            adb install -r /tmp/bir-v290/app-release.apk | tee /tmp/install.txt
             grep -q 'Success' /tmp/install.txt
             adb logcat -c || true
             adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/start1.txt
             grep -q 'Status: ok' /tmp/start1.txt
             sleep 2
-            adb shell pidof com.profitloop.blueauto
+            adb shell ps | grep com.profitloop.blueauto
             adb shell am force-stop com.profitloop.blueauto
             adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/start2.txt
             grep -q 'Status: ok' /tmp/start2.txt
             sleep 2
-            adb shell pidof com.profitloop.blueauto
-            if adb logcat -d -b crash 2>/dev/null | grep -q com.profitloop.blueauto; then
-              adb logcat -d -b crash
-              exit 1
-            fi
+            adb shell ps | grep com.profitloop.blueauto
+            adb logcat -d -b crash > /tmp/bir-crash.txt || true
+            ! grep -q com.profitloop.blueauto /tmp/bir-crash.txt
