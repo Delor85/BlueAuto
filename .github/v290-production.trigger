@@ -7,4 +7,4 @@ sms_fallback=forbidden
 capacity_expansion=forbidden
 pr4_merge=forbidden
 permanent_apk_signing=separate-gate-after-production-health
-attempt=3-cloudflare-config
+attempt=4-canonical-health
