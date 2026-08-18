@@ -11,7 +11,7 @@ const cfg=read('app/src/main/java/com/profitloop/blueauto/AppConfig.java');
 const sim=read('app/src/main/java/com/profitloop/blueauto/SimIdentityManager.java');
 const simRx=read('app/src/main/java/com/profitloop/blueauto/SimStateReceiver.java');
 const robot=read('app/src/main/java/com/profitloop/blueauto/RobotService.java');
-ok((gradle.includes('versionCode 52')||gradle.includes('versionCode 53')||gradle.includes('versionCode 54'))&&(gradle.includes('versionName \"2.7.1\"')||gradle.includes('versionName \"2.8.0\"')||gradle.includes('versionName \"2.8.1\"')),'v2.7.1+ identity');
+ok((gradle.includes('versionCode 52')||gradle.includes('versionCode 53')||gradle.includes('versionCode 54')||gradle.includes('versionCode 55'))&&(gradle.includes('versionName \"2.7.1\"')||gradle.includes('versionName \"2.8.0\"')||gradle.includes('versionName \"2.8.1\"')||gradle.includes('versionName \"2.9.0\"')),'v2.7.1+ identity');
 ok(main.includes('Identifiant Blue')&&main.includes('"MOCK".equals(node)')&&main.includes('Code privé MOCK'),'MOCK only through add/open form');
 ok(main.includes('MOCK_PROFILE_ID.equals(selected)')&&main.includes('ADMIN_PROFILE_ID.equals(selected)'),'enrolled MOCK/ADMIN must be selectable alongside normal accounts');
 ok(main.includes('OWNER_SESSION_IDLE_MS = 30L * 60_000L')&&main.includes('expireOwnerSessionIfIdle'),'owner sessions must re-lock after bounded inactivity');

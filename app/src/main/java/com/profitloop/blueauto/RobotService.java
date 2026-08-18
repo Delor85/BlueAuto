@@ -194,6 +194,8 @@ public class RobotService extends Service {
         try {
             List<String> profiles = AppConfig.enabledRobotProfileIds(this);
             if (!profiles.isEmpty()) acquireStandbyWakeLock();
+            // Synchronization is secondary to execution: failures here never block local USSD.
+            OfflineSyncManager.syncSome(this, 4);
             List<JSONObject> activeCommands = PendingCommandStore.getActiveUssdCommands(this);
             // A lease captured before a SIM was removed must be returned to the server before it can
             // block the correct Robot. Once dialing may have started we fail closed as UNKNOWN.
@@ -203,8 +205,12 @@ public class RobotService extends Service {
                 if (readiness.ready) continue;
                 String state = active.optString("local_state", PendingCommandStore.LEASED);
                 if (PendingCommandStore.LEASED.equals(state)) {
-                    releaseUnexecutedLease(owner, active, ApiClient.forProfile(this, owner),
-                            readiness.message);
+                    if (active.optBoolean("local_origin", false)) {
+                        if (readiness.hardFailure) finishCommand(owner, false, "LOCAL_ROBOT_NOT_READY", readiness.message, "");
+                        else handleRobotNotReady(owner, readiness);
+                    } else {
+                        releaseUnexecutedLease(owner, active, ApiClient.forProfile(this, owner), readiness.message);
+                    }
                 } else {
                     finishCommand(owner, false, "SIM_LOST_DURING_COMMAND",
                             readiness.message + " La transaction doit être vérifiée avant toute reprise.", "");
@@ -219,6 +225,7 @@ public class RobotService extends Service {
                     String conflictProfile = conflict.optString("local_profile_id", "");
                     if (PendingCommandStore.LEASED.equals(
                             conflict.optString("local_state", PendingCommandStore.LEASED))) {
+                        if (conflict.optBoolean("local_origin", false)) continue;
                         releaseUnexecutedLease(conflictProfile, conflict,
                                 ApiClient.forProfile(this, conflictProfile),
                                 "Une autre session USSD utilise déjà ce téléphone.");
@@ -234,7 +241,7 @@ public class RobotService extends Service {
                 String owner = activeUssd.optString("local_profile_id", "");
                 String localState = activeUssd.optString("local_state", PendingCommandStore.LEASED);
                 if (PendingCommandStore.LEASED.equals(localState)) {
-                    ApiClient leasedApi = ApiClient.forProfile(this, owner);
+                    ApiClient leasedApi = activeUssd.optBoolean("local_origin", false) ? null : ApiClient.forProfile(this, owner);
                     if (DeviceLockState.isSecurelyLocked(this)) {
                         releaseLockedLease(owner, activeUssd, leasedApi);
                         nextDelay = AppConfig.LOCKED_POLL_MS;
@@ -327,6 +334,9 @@ public class RobotService extends Service {
                         command.put("leased_at", System.currentTimeMillis());
                         command.put("state_changed_at", System.currentTimeMillis());
                         PendingCommandStore.save(this, profileId, command);
+                        try { JSONObject received = new JSONObject(command.toString()); received.remove("lease_token");
+                            LocalEventStore.append(this, profileId, command.optString("public_id"), "REMOTE_ORDER_RECEIVED", received);
+                        } catch (Exception ignored) {}
                         roundRobinIndex = (index + 1) % count;
                         if (DeviceLockState.blocksUssd(this)) {
                             if (DeviceLockState.isSecurelyLocked(this)
@@ -577,15 +587,16 @@ public class RobotService extends Service {
             acquireCommandWakeLock();
             try {
                 PendingCommandStore.updateState(this, profileId, PendingCommandStore.DIALING);
-                api.sendEvent(command, "DIALING", "Composition USSD déclenchée sur le Robot déverrouillé.", "");
+                if (api != null) {
+                    // This single fence is intentionally kept: it prevents another Robot from
+                    // re-leasing a transaction after physical USSD may have started.
+                    api.sendEvent(command, "DIALING", "Composition USSD déclenchée sur le Robot.", "");
+                }
                 updateNotification("Commande " + AppConfig.nodeCode(this, profileId) + " en cours");
 
                 String next = requiresPin ? PendingCommandStore.AWAITING_PIN
                         : PendingCommandStore.AWAITING_RESULT;
                 PendingCommandStore.updateState(this, profileId, next);
-                api.sendEvent(command, next, requiresPin
-                        ? "En attente de la fenêtre de confirmation PIN."
-                        : "Commande directe avec PIN local déjà composé; attente du résultat opérateur.", "");
                 SimCallManager.placeUssdCall(this, ussd, profileId);
                 if (requiresPin) BlueAccessibilityService.kick(this);
             } catch (SecurityException permissionError) {
@@ -606,15 +617,12 @@ public class RobotService extends Service {
         JSONObject command = PendingCommandStore.get(this, profileId);
         if (command == null) return;
         try {
-            ApiClient api = ApiClient.forProfile(this, profileId);
-            api.sendEvent(command, state, message, "");
             if ("PIN_SUBMITTED".equals(state)) {
                 PendingCommandStore.updateState(this, profileId, PendingCommandStore.AWAITING_RESULT);
-                api.sendEvent(command, "AWAITING_RESULT",
-                        "Validation envoyée; attente confirmation Blue.", "");
             }
-        } catch (Exception ignored) {
-        }
+            JSONObject progress = new JSONObject(); progress.put("state", state); progress.put("message", message == null ? "" : message);
+            LocalEventStore.append(this, profileId, command.optString("public_id"), "LOCAL_PROGRESS", progress);
+        } catch (Exception ignored) {}
     }
 
     private void finishCommand(String profileId, boolean success, String errorCode,
@@ -635,6 +643,26 @@ public class RobotService extends Service {
             state = "UNKNOWN";
         } else {
             state = "FAILED";
+        }
+
+        boolean localOrigin = command.optBoolean("local_origin", false);
+        if (localOrigin) {
+            try {
+                JSONObject result = new JSONObject(command.toString());
+                result.remove("lease_token"); result.put("state", state); result.put("error_code", code);
+                result.put("result_message", message == null ? "" : message);
+                result.put("operator_transaction_id", transactionId == null ? "" : transactionId);
+                result.put("completed_at_ms", System.currentTimeMillis());
+                LocalEventStore.append(this, profileId, command.optString("public_id"), "LOCAL_COMMAND_RESULT", result);
+            } catch (Exception ignored) {}
+            if (success && "MODIFY_PIN_LOCAL".equals(UssdCommandFactory.operation(command))) {
+                try { PendingPinChangeStore.commit(this, profileId); } catch (Exception ignored) {}
+            }
+            PendingCommandStore.clear(this, profileId);
+            lastCommandFinishedAt = System.currentTimeMillis(); releaseCommandWakeLock(); BlueAccessibilityService.kick(this);
+            executor.execute(() -> OfflineSyncManager.syncProfile(this, profileId, 8));
+            updateNotification(success ? "Commande locale réussie — synchronisation asynchrone" : "Commande locale terminée — preuve conservée");
+            scheduleCycle(1_000L); return;
         }
 
         boolean reported = false;
@@ -778,6 +806,11 @@ public class RobotService extends Service {
 
     private void releaseLockedLease(String profileId, JSONObject command, ApiClient api) {
         boolean secure = DeviceLockState.isSecurelyLocked(this);
+        if (command != null && command.optBoolean("local_origin", false)) {
+            releaseCommandWakeLock();
+            updateNotification(robotSummary(secure ? "Écran sécurisé — commande locale conservée jusqu’au déverrouillage humain" : "Écran verrouillé — commande locale conservée et reprise automatique"));
+            scheduleWatchdog(this, 15_000L); return;
+        }
         String reason = secure
                 ? "Écran protégé par un verrou sécurisé. Déverrouillage humain obligatoire."
                 : "Le verrou simple n’a pas pu être libéré proprement lors de la tentative ponctuelle.";
@@ -844,8 +877,12 @@ public class RobotService extends Service {
 
     private void releaseUnexecutedLease(String profileId, JSONObject command, ApiClient api,
                                         String reason) {
+        if (command != null && command.optBoolean("local_origin", false)) {
+            updateNotification(robotSummary("Commande locale conservée — " + reason));
+            scheduleWatchdog(this, 15_000L); return;
+        }
         try {
-            api.releaseCommand(command, "Robot non éligible avant composition : " + reason);
+            if (api != null) api.releaseCommand(command, "Robot non éligible avant composition : " + reason);
         } catch (Exception ignored) {
             // Le lease serveur expirera sans DIALING; il pourra alors être repris sans double débit.
         }
@@ -935,6 +972,10 @@ public class RobotService extends Service {
 
     private void holdLeaseForAccessibility(String profileId, JSONObject command, ApiClient api) {
         boolean granted = BlueAccessibilityService.isEnabled(this);
+        if (command != null && command.optBoolean("local_origin", false)) {
+            updateNotification(robotSummary(granted ? "Accessibilité autorisée, service Android en reconnexion — commande locale conservée" : "Accessibilité désactivée par Android/utilisateur — commande locale conservée, réactivation requise"));
+            scheduleWatchdog(this, granted ? 5_000L : 30_000L); return;
+        }
         String reason = granted
                 ? "Accessibilité Android autorisée mais service en reconnexion; aucune composition financière avant reconnexion."
                 : "Accessibilité Android désactivée; réactivation utilisateur requise avant achat/vente.";

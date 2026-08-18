@@ -3,6 +3,7 @@ package com.profitloop.blueauto;
 import android.content.Context;
 import android.os.Build;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
@@ -61,7 +62,7 @@ final class ApiClient {
         SimIdentityManager.Verification sim = SimIdentityManager.verify(context, targetProfile);
         boolean locallyEnabled = AppConfig.robotEnabled(context, targetProfile);
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.8.1");
+        payload.put("app_version", "2.9.0");
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
         payload.put("robot_enabled", locallyEnabled && sim.valid);
@@ -69,6 +70,14 @@ final class ApiClient {
         payload.put("sim_verified", sim.valid);
         payload.put("sim_fingerprint", sim.attestation());
         payload.put("sim_slot", Math.max(0, AppConfig.simSlot(context, targetProfile)));
+        payload.put("offline_pending_events", LocalEventStore.pendingCount(context));
+        payload.put("accessibility_enabled", BlueAccessibilityService.isEnabled(context));
+        payload.put("accessibility_connected", BlueAccessibilityService.isConnected());
+        try {
+            android.os.BatteryManager battery = (android.os.BatteryManager) context.getSystemService(Context.BATTERY_SERVICE);
+            int level = battery == null ? -1 : battery.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY);
+            if (level >= 0 && level <= 100) payload.put("battery_percent", level);
+        } catch (Exception ignored) {}
         return postControl("heartbeat", payload, true);
     }
 
@@ -104,7 +113,7 @@ final class ApiClient {
     JSONObject activateRobot(SimIdentityManager.Verification sim, int simSlot,
                              boolean replaceVerifiedSameSimRobot) throws Exception {
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.8.1");
+        payload.put("app_version", "2.9.0");
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
         payload.put("sim_verified", sim.valid);
@@ -138,6 +147,16 @@ final class ApiClient {
         return post("record_operator_message", payload, true);
     }
 
+    JSONObject syncLocalEvents(JSONArray events) throws Exception {
+        JSONObject payload = new JSONObject();
+        payload.put("events", events == null ? new JSONArray() : events);
+        return postControl("sync_local_events", payload, true);
+    }
+
+    JSONObject relaySync(JSONObject envelope) throws Exception {
+        return postControl("relay_sync", envelope == null ? new JSONObject() : envelope, true);
+    }
+
     ApiClient withOwnerToken(String token) {
         this.ownerTokenOverride = token == null ? "" : token.trim();
         return this;
@@ -164,7 +183,7 @@ final class ApiClient {
 
     JSONObject platformAction(String action, JSONObject payload) throws Exception {
         String safe = action == null ? "" : action.trim();
-        if (!safe.matches("(?:operator_insights|operator_catalog|platform_snapshot|network_balance_audit|shadow_enroll|debt_save|debt_list|kyc_save|mercenary_save|mercenary_list|mercenary_sale|commission_policy|commission_set_default|commission_set_child|accounting_summary|transaction_ledger|owner_snapshot|owner_transactions|owner_audit|owner_control|owner_assist|owner_tchoronko_save)")) {
+        if (!safe.matches("(?:operator_insights|operator_catalog|platform_snapshot|network_balance_audit|shadow_enroll|debt_save|debt_list|kyc_save|mercenary_save|mercenary_list|mercenary_sale|commission_policy|commission_set_default|commission_set_child|accounting_summary|transaction_ledger|ops_cockpit|ops_escalate|ops_resolve|owner_ops_cockpit|owner_snapshot|owner_transactions|owner_audit|owner_control|owner_assist|owner_tchoronko_save)")) {
             throw new ApiException("ACTION_NOT_ALLOWED", "Action plateforme non autorisée par le pont natif.");
         }
         return post(safe, payload == null ? new JSONObject() : payload, true);

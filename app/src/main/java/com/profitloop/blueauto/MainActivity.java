@@ -66,6 +66,7 @@ public class MainActivity extends Activity {
     private static final String MOCK_RETURN_PROFILE_KEY = "bir_mock_return_profile_v271";
     private static final String UI_LANGUAGE_KEY = "bir_ui_language_v271";
     private static final String OWNER_ADMIN_WORKSPACE_KEY = "bir_owner_admin_workspace_v280";
+    private static final String SUPER_ADMIN_WORKSPACE_KEY = "bir_super_admin_workspace_v290";
     private static final String OWNER_ADMIN_RETURN_PROFILE_KEY = "bir_owner_admin_return_profile_v280";
     private static final String OWNER_SESSION_LAST_ACTIVITY_KEY = "bir_owner_session_last_activity_v281";
     private static final long OWNER_SESSION_IDLE_MS = 30L * 60_000L;
@@ -82,6 +83,7 @@ public class MainActivity extends Activity {
     private volatile boolean robotStartInProgress;
     private static boolean mockSessionAuthorized;
     private static boolean adminSessionAuthorized;
+    private static boolean superAdminSessionAuthorized;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -190,6 +192,13 @@ public class MainActivity extends Activity {
                 && SecureOwnerStore.has(this, "OWNER_ADMIN");
     }
 
+    private boolean isSuperAdminWorkspaceActive() {
+        return superAdminSessionAuthorized && !ownerSessionExpired()
+                && AppConfig.prefs(this).getBoolean(OWNER_ADMIN_WORKSPACE_KEY, false)
+                && AppConfig.prefs(this).getBoolean(SUPER_ADMIN_WORKSPACE_KEY, false)
+                && SecureOwnerStore.has(this, "SUPER_ADMIN");
+    }
+
     private boolean ownerSessionExpired() {
         long last = AppConfig.prefs(this).getLong(OWNER_SESSION_LAST_ACTIVITY_KEY, 0L);
         return last > 0L && System.currentTimeMillis() - last >= OWNER_SESSION_IDLE_MS;
@@ -206,14 +215,17 @@ public class MainActivity extends Activity {
         if (returnProfile.isEmpty()) {
             returnProfile = AppConfig.prefs(this).getString(MOCK_RETURN_PROFILE_KEY, "");
         }
-        boolean hadOwnerSession = mockSessionAuthorized || adminSessionAuthorized
+        boolean hadOwnerSession = mockSessionAuthorized || adminSessionAuthorized || superAdminSessionAuthorized
                 || AppConfig.prefs(this).getBoolean(MOCK_WORKSPACE_KEY, false)
-                || AppConfig.prefs(this).getBoolean(OWNER_ADMIN_WORKSPACE_KEY, false);
+                || AppConfig.prefs(this).getBoolean(OWNER_ADMIN_WORKSPACE_KEY, false)
+                || AppConfig.prefs(this).getBoolean(SUPER_ADMIN_WORKSPACE_KEY, false);
         mockSessionAuthorized = false;
         adminSessionAuthorized = false;
+        superAdminSessionAuthorized = false;
         AppConfig.prefs(this).edit()
                 .putBoolean(MOCK_WORKSPACE_KEY, false)
                 .putBoolean(OWNER_ADMIN_WORKSPACE_KEY, false)
+                .putBoolean(SUPER_ADMIN_WORKSPACE_KEY, false)
                 .remove(MOCK_RETURN_PROFILE_KEY)
                 .remove(OWNER_ADMIN_RETURN_PROFILE_KEY)
                 .remove(OWNER_SESSION_LAST_ACTIVITY_KEY).commit();
@@ -228,7 +240,7 @@ public class MainActivity extends Activity {
             if (expireOwnerSessionIfIdle()) recreate();
             return;
         }
-        if (mockSessionAuthorized || adminSessionAuthorized) touchOwnerSession();
+        if (mockSessionAuthorized || adminSessionAuthorized || superAdminSessionAuthorized) touchOwnerSession();
     }
 
     private void openOwnerAdminFromPairing(String code, TextView feedback) {
@@ -269,6 +281,42 @@ public class MainActivity extends Activity {
         }, "BIR-OwnerAdminEnroll-v280").start();
     }
 
+    private void openSuperAdminFromPairing(String code, TextView feedback) {
+        if (!AppConfig.hasProfiles(this)) {
+            feedback.setText(ui("Ajoutez d’abord au moins un compte Blue réel sur ce téléphone.",
+                    "Add at least one real Blue account on this phone first."));
+            feedback.setTextColor(Color.rgb(255, 139, 152)); return;
+        }
+        if (!SecureOwnerStore.has(this, "OWNER_ADMIN")) {
+            feedback.setText(ui("Activez d’abord ADMIN sur ce même téléphone. SUPER-ADMIN est une promotion unique d’un ADMIN déjà autorisé.",
+                    "Activate ADMIN on this same phone first. SUPER-ADMIN is a unique promotion of an already authorized ADMIN."));
+            feedback.setTextColor(GOLD); return;
+        }
+        if (code == null || code.trim().length() < 24) {
+            feedback.setText(ui("Code SUPER-ADMIN incomplet.", "Incomplete SUPER-ADMIN code."));
+            feedback.setTextColor(Color.rgb(255, 139, 152)); return;
+        }
+        feedback.setTextColor(CYAN);
+        feedback.setText(ui("Vérification de l’unique entitlement SUPER-ADMIN…", "Checking the unique SUPER-ADMIN entitlement…"));
+        new Thread(() -> {
+            try {
+                JSONObject data = new ApiClient(this).ownerEnroll("SUPER_ADMIN", code.trim());
+                String token = data.optString("owner_token", "");
+                String entitlementId = data.optString("entitlement_id", "");
+                SecureOwnerStore.save(this, "SUPER_ADMIN", entitlementId, token);
+                superAdminSessionAuthorized = true; adminSessionAuthorized = false; touchOwnerSession();
+                AppConfig.prefs(this).edit()
+                        .putString(OWNER_ADMIN_RETURN_PROFILE_KEY, AppConfig.profileId(this))
+                        .putBoolean(OWNER_ADMIN_WORKSPACE_KEY, true)
+                        .putBoolean(SUPER_ADMIN_WORKSPACE_KEY, true).commit();
+                runOnUiThread(this::recreate);
+            } catch (Exception error) {
+                runOnUiThread(() -> { feedback.setTextColor(Color.rgb(255, 139, 152));
+                    feedback.setText(ui("SUPER-ADMIN non activé : ", "SUPER-ADMIN not enabled: ") + readable(error)); });
+            }
+        }, "BIR-SuperAdminEnroll-v290").start();
+    }
+
     private void showPairingScreen(boolean addingAccount) {
         disposeWebView();
         ScrollView scroll = new ScrollView(this);
@@ -280,14 +328,14 @@ public class MainActivity extends Activity {
         form.addView(help(ui("Renseignez seulement votre identité Blue et le mode de ce téléphone.",
                 "Enter only your Blue identity and this phone’s operating mode.")));
 
-        EditText nodeCode = field(ui("Identifiant Blue (ex. OU3, DSM7_OU3, POS16_DSM7_OU3) — ou MOCK / ADMIN",
-                "Blue ID (e.g. OU3, DSM7_OU3, POS16_DSM7_OU3) — or MOCK / ADMIN"), "", false);
+        EditText nodeCode = field(ui("Identifiant Blue (ex. OU3, DSM7_OU3, POS16_DSM7_OU3) — ou MOCK / ADMIN / SUPERADMIN",
+                "Blue ID (e.g. OU3, DSM7_OU3, POS16_DSM7_OU3) — or MOCK / ADMIN / SUPERADMIN"), "", false);
         form.addView(nodeCode);
 
         EditText mockCode = field(ui("Code privé MOCK", "Private MOCK code"), "", true);
         mockCode.setVisibility(View.GONE);
         form.addView(mockCode);
-        EditText adminCode = field(ui("Code privé ADMIN propriétaire", "Private owner ADMIN code"), "", true);
+        EditText adminCode = field(ui("Code privé ADMIN / SUPER-ADMIN propriétaire", "Private owner ADMIN / SUPER-ADMIN code"), "", true);
         adminCode.setVisibility(View.GONE);
         form.addView(adminCode);
 
@@ -334,7 +382,7 @@ public class MainActivity extends Activity {
             public void afterTextChanged(android.text.Editable value) {
                 String requested = value.toString().trim();
                 boolean mock = "MOCK".equalsIgnoreCase(requested);
-                boolean admin = "ADMIN".equalsIgnoreCase(requested);
+                boolean admin = "ADMIN".equalsIgnoreCase(requested) || "SUPERADMIN".equalsIgnoreCase(requested);
                 mockCode.setVisibility(mock ? View.VISIBLE : View.GONE);
                 adminCode.setVisibility(admin ? View.VISIBLE : View.GONE);
                 realFields.setVisibility((mock || admin) ? View.GONE : View.VISIBLE);
@@ -365,6 +413,10 @@ public class MainActivity extends Activity {
             }
             if ("ADMIN".equals(node)) {
                 openOwnerAdminFromPairing(adminCode.getText().toString().trim(), feedback);
+                return;
+            }
+            if ("SUPERADMIN".equals(node)) {
+                openSuperAdminFromPairing(adminCode.getText().toString().trim(), feedback);
                 return;
             }
             if (!node.matches("[A-Z0-9/_-]{3,64}")) {
@@ -1169,10 +1221,7 @@ public class MainActivity extends Activity {
     private void queueLocalMaintenance(String requestType, String confirmation) {
         new Thread(() -> {
             try {
-                JSONObject payload = new JSONObject();
-                payload.put("request_type", requestType);
-                payload.put("client_request_id", "local_" + UUID.randomUUID().toString().replace("-", ""));
-                new ApiClient(this).createCommand(payload);
+                OfflineRobotEngine.queueMaintenance(this, requestType);
                 RobotService.startEnabled(this);
                 runOnUiThread(() -> toast(confirmation));
             } catch (Exception error) {
@@ -1386,7 +1435,7 @@ public class MainActivity extends Activity {
                             .remove(MOCK_RETURN_PROFILE_KEY)
                             .remove(OWNER_ADMIN_RETURN_PROFILE_KEY).commit();
                     if (!selected.equals(AppConfig.profileId(this))) AppConfig.activateProfile(this, selected);
-                    if (mockSessionAuthorized || adminSessionAuthorized) touchOwnerSession();
+                    if (mockSessionAuthorized || adminSessionAuthorized || superAdminSessionAuthorized) touchOwnerSession();
                     recreate();
                 })
                 .setPositiveButton(ui("Ajouter / Ouvrir", "Add / Open"), null)
@@ -1432,7 +1481,7 @@ public class MainActivity extends Activity {
         LinearLayout content = verticalContainer();
         content.setPadding(dp(16), dp(8), dp(16), dp(8));
         EditText code = field(mock ? ui("Code privé MOCK", "Private MOCK code")
-                : ui("Code privé ADMIN propriétaire", "Private owner ADMIN code"), "", true);
+                : ui("Code privé ADMIN / SUPER-ADMIN propriétaire", "Private owner ADMIN / SUPER-ADMIN code"), "", true);
         TextView feedback = help(ui("Session propriétaire verrouillée. Le code est requis après 30 minutes d’inactivité.",
                 "Owner session is locked. The code is required after 30 minutes of inactivity."));
         content.addView(feedback);
@@ -2039,8 +2088,11 @@ public class MainActivity extends Activity {
                         AppConfig.profileId(MainActivity.this)) : null;
                 value.put("sim_verified", sim == null || sim.valid);
                 value.put("sim_status", sim == null ? "NOT_REQUIRED" : sim.code);
-                value.put("owner_admin_workspace", isOwnerAdminWorkspaceActive());
+                value.put("owner_admin_workspace", isOwnerAdminWorkspaceActive() || isSuperAdminWorkspaceActive());
+                value.put("super_admin_workspace", isSuperAdminWorkspaceActive());
                 value.put("mock_owner_server_entitled", SecureOwnerStore.has(MainActivity.this, "MOCK_OWNER"));
+                value.put("offline_pending_events", LocalEventStore.pendingCount(MainActivity.this));
+                value.put("robot_offline_capable", AppConfig.isRobotMode(MainActivity.this));
                 return value.toString();
             } catch (Exception ignored) {
                 return "{}";
@@ -2061,7 +2113,14 @@ public class MainActivity extends Activity {
                     payload.put("client_request_id", validRequestId(clientRequestId));
                     payload.put("capacity_check_id", capacityCheckId == null ? "" : capacityCheckId.trim());
                     payload.put("transaction_id", commandArgument == null ? "" : commandArgument.trim());
-                    JSONObject data = new ApiClient(MainActivity.this).previewCommand(payload);
+                    JSONObject data;
+                    if (OfflineRobotEngine.canRunHere(MainActivity.this, requestType)) {
+                        data = OfflineRobotEngine.preview(MainActivity.this, requestType, targetNode, targetPhone,
+                                amount, commandArgument, 0);
+                    } else {
+                        data = new ApiClient(MainActivity.this).previewCommand(payload);
+                        OfflineDirectoryStore.ingestPreview(MainActivity.this, AppConfig.profileId(MainActivity.this), data);
+                    }
                     callback("onCommandPreview", data);
                 } catch (Exception error) {
                     callbackError("onCommandPreview", error);
@@ -2084,7 +2143,15 @@ public class MainActivity extends Activity {
                     payload.put("capacity_check_id", capacityCheckId == null ? "" : capacityCheckId.trim());
                     payload.put("transaction_id", commandArgument == null ? "" : commandArgument.trim());
                     payload.put("commission_rate_bps", commissionRateBps);
-                    callback("onCommandPreview", new ApiClient(MainActivity.this).previewCommand(payload));
+                    JSONObject data;
+                    if (OfflineRobotEngine.canRunHere(MainActivity.this, requestType)) {
+                        data = OfflineRobotEngine.preview(MainActivity.this, requestType, targetNode, targetPhone,
+                                amount, commandArgument, commissionRateBps);
+                    } else {
+                        data = new ApiClient(MainActivity.this).previewCommand(payload);
+                        OfflineDirectoryStore.ingestPreview(MainActivity.this, AppConfig.profileId(MainActivity.this), data);
+                    }
+                    callback("onCommandPreview", data);
                 } catch (Exception error) { callbackError("onCommandPreview", error); }
             }).start();
         }
@@ -2111,7 +2178,13 @@ public class MainActivity extends Activity {
                             ? "" : confirmationFingerprint.trim().toLowerCase(Locale.ROOT));
                     payload.put("capacity_check_id", capacityCheckId == null ? "" : capacityCheckId.trim());
                     payload.put("transaction_id", commandArgument == null ? "" : commandArgument.trim());
-                    JSONObject data = new ApiClient(MainActivity.this).createCommand(payload);
+                    JSONObject data;
+                    if (OfflineRobotEngine.canRunHere(MainActivity.this, requestType)) {
+                        data = OfflineRobotEngine.queue(MainActivity.this, requestType, targetNode, targetPhone, amount,
+                                commandArgument, 0, confirmationFingerprint);
+                    } else {
+                        data = new ApiClient(MainActivity.this).createCommand(payload);
+                    }
                     callback("onCommandCreated", data);
                     // Sur un téléphone qui héberge aussi le Robot, supprimer toute attente du
                     // watchdog et déclencher immédiatement un cycle après la création.
@@ -2146,7 +2219,14 @@ public class MainActivity extends Activity {
                     payload.put("capacity_check_id", capacityCheckId == null ? "" : capacityCheckId.trim());
                     payload.put("transaction_id", commandArgument == null ? "" : commandArgument.trim());
                     payload.put("commission_rate_bps", commissionRateBps);
-                    callback("onCommandCreated", new ApiClient(MainActivity.this).createCommand(payload));
+                    JSONObject data;
+                    if (OfflineRobotEngine.canRunHere(MainActivity.this, requestType)) {
+                        data = OfflineRobotEngine.queue(MainActivity.this, requestType, targetNode, targetPhone, amount,
+                                commandArgument, commissionRateBps, confirmationFingerprint);
+                    } else {
+                        data = new ApiClient(MainActivity.this).createCommand(payload);
+                    }
+                    callback("onCommandCreated", data);
                     if (AppConfig.anyRobotEnabled(MainActivity.this)) RobotService.startEnabled(MainActivity.this);
                 } catch (Exception error) { callbackError("onCommandCreated", error); }
             }).start();
@@ -2297,10 +2377,14 @@ public class MainActivity extends Activity {
         public boolean isOwnerAdminWorkspace() { return isOwnerAdminWorkspaceActive(); }
 
         @JavascriptInterface
+        public boolean isSuperAdminWorkspace() { return isSuperAdminWorkspaceActive(); }
+
+        @JavascriptInterface
         public void exitOwnerAdminWorkspace() {
             runOnUiThread(() -> {
                 String returnProfile = AppConfig.prefs(MainActivity.this).getString(OWNER_ADMIN_RETURN_PROFILE_KEY, "");
                 AppConfig.prefs(MainActivity.this).edit().putBoolean(OWNER_ADMIN_WORKSPACE_KEY, false)
+                        .putBoolean(SUPER_ADMIN_WORKSPACE_KEY, false)
                         .remove(OWNER_ADMIN_RETURN_PROFILE_KEY).commit();
                 touchOwnerSession();
                 if (!returnProfile.isEmpty()) AppConfig.activateProfile(MainActivity.this, returnProfile);
@@ -2394,9 +2478,11 @@ public class MainActivity extends Activity {
                             ? new JSONObject() : new JSONObject(payloadJson);
                     ApiClient client = new ApiClient(MainActivity.this);
                     if (normalizedAction.startsWith("owner_")) {
-                        if (!isOwnerAdminWorkspaceActive()) throw new SecurityException("Compte ADMIN propriétaire requis.");
-                        String ownerToken = SecureOwnerStore.token(MainActivity.this, "OWNER_ADMIN");
-                        if (ownerToken.isEmpty()) throw new SecurityException("Entitlement ADMIN absent ou illisible.");
+                        boolean superAdmin = isSuperAdminWorkspaceActive();
+                        if (!superAdmin && !isOwnerAdminWorkspaceActive()) throw new SecurityException("Compte ADMIN / SUPER-ADMIN requis.");
+                        String ownerKind = superAdmin ? "SUPER_ADMIN" : "OWNER_ADMIN";
+                        String ownerToken = SecureOwnerStore.token(MainActivity.this, ownerKind);
+                        if (ownerToken.isEmpty()) throw new SecurityException("Entitlement propriétaire absent ou illisible.");
                         client.withOwnerToken(ownerToken);
                     }
                     if (isMockWorkspaceActive() && normalizedAction.startsWith("mercenary_")) {
@@ -2439,6 +2525,37 @@ public class MainActivity extends Activity {
                     toast("Commande Sandbox lancée sur la SIM sélectionnée. Lisez le retour Blue dans la fenêtre Téléphone.");
                 } catch (Exception error) { toast("Sandbox refusée : " + readable(error)); }
             });
+        }
+
+        @JavascriptInterface
+        public String getOfflineStatus() {
+            try {
+                JSONObject data = new JSONObject();
+                data.put("pending_events", LocalEventStore.pendingCount(MainActivity.this));
+                data.put("relay_permissions", BirRelayManager.permissionsReady(MainActivity.this));
+                data.put("mode", AppConfig.displayMode(AppConfig.mode(MainActivity.this)));
+                return data.toString();
+            } catch (Exception ignored) { return "{}"; }
+        }
+
+        @JavascriptInterface
+        public void startBirRelay() {
+            runOnUiThread(() -> {
+                if (!BirRelayManager.permissionsReady(MainActivity.this)) {
+                    requestPermissions(BirRelayManager.permissions(), 559);
+                    toast(ui("Accordez l’autorisation Appareils à proximité puis touchez de nouveau B.I.R. Relay.",
+                            "Grant Nearby devices permission, then tap B.I.R. Relay again."));
+                    return;
+                }
+                toast(BirRelayManager.start(MainActivity.this));
+            });
+        }
+
+        @JavascriptInterface
+        public void syncOfflineNow() {
+            new Thread(() -> { OfflineSyncManager.syncSome(MainActivity.this, 25);
+                runOnUiThread(() -> toast(ui("Synchronisation locale relancée.", "Local synchronization restarted.")));
+            }, "BIR-OfflineSync-v290").start();
         }
 
         @JavascriptInterface

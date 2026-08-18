@@ -201,12 +201,18 @@ final class AppConfig {
 
     static String mode(Context context) {
         JSONObject profile = activeProfile(context);
-        return profile == null ? "REMOTE" : profile.optString("device_mode", "REMOTE");
+        return effectiveMode(profile == null ? "REMOTE" : profile.optString("device_mode", "REMOTE"));
     }
 
     static String mode(Context context, String profileId) {
         JSONObject profile = profile(context, profileId);
-        return profile == null ? "REMOTE" : profile.optString("device_mode", "REMOTE");
+        return effectiveMode(profile == null ? "REMOTE" : profile.optString("device_mode", "REMOTE"));
+    }
+
+    private static String effectiveMode(String raw) {
+        String value = raw == null ? "REMOTE" : raw.trim().toUpperCase(Locale.ROOT);
+        if ("HYBRID".equals(value)) return "ROBOT"; // legacy data only
+        return "ROBOT".equals(value) ? "ROBOT" : "REMOTE";
     }
 
     static synchronized boolean updateMode(Context context, String profileId, String mode) {
@@ -523,19 +529,13 @@ final class AppConfig {
         return editor.commit();
     }
 
-    static boolean isRobotMode(Context context) {
-        String value = mode(context);
-        return "ROBOT".equals(value) || "HYBRID".equals(value);
-    }
+    static boolean isRobotMode(Context context) { return "ROBOT".equals(mode(context)); }
 
     static boolean isRobotMode(Context context, String profileId) {
-        String value = mode(context, profileId);
-        return "ROBOT".equals(value) || "HYBRID".equals(value);
+        return "ROBOT".equals(mode(context, profileId));
     }
 
-    static String displayMode(String mode) {
-        return "HYBRID".equals(mode) ? "ROBOT" : mode;
-    }
+    static String displayMode(String mode) { return effectiveMode(mode); }
 
     static boolean robotEnabled(Context context) {
         return robotEnabled(context, profileId(context));

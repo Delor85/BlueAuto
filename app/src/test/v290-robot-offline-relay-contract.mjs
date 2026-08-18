@@ -1,0 +1,22 @@
+import fs from 'node:fs';
+function text(p){return fs.readFileSync(p,'utf8')}
+const gradle=text('app/build.gradle'),main=text('app/src/main/java/com/profitloop/blueauto/MainActivity.java'),robot=text('app/src/main/java/com/profitloop/blueauto/RobotService.java'),manifest=text('app/src/main/AndroidManifest.xml'),index=text('app/src/main/assets/index.html'),v290=text('app/src/main/assets/control-tower-v290.js'),offline=text('app/src/main/java/com/profitloop/blueauto/OfflineRobotEngine.java'),relay=text('app/src/main/java/com/profitloop/blueauto/BirRelayManager.java');
+const must=(ok,msg)=>{if(!ok)throw new Error(msg)};
+must(gradle.includes('versionCode 55')&&gradle.includes('versionName "2.9.0"'),'v2.9 identity missing');
+must(gradle.includes('applicationId "com.profitloop.blueauto"'),'historical package changed');
+must(main.includes('new String[]{"REMOTE", "ROBOT"}'),'exact two modes must remain');
+must(text('app/src/main/java/com/profitloop/blueauto/AppConfig.java').includes('if ("HYBRID".equals(value)) return "ROBOT"; // legacy data only'),'legacy mode must collapse to ROBOT');
+must(!main.includes('new String[]{"REMOTE", "ROBOT", "HYBRID"}'),'HYBRID mode reintroduced');
+must(offline.includes('"REQUEST_SUPPLY".equals(t))return false'),'REQUEST_SUPPLY must stay online-dependent');
+must(offline.includes('"SUPPLY_CHILD"')&&offline.includes('"RETAIL_SALE"')&&offline.includes('"CHECK_BALANCE"'),'local Robot coverage incomplete');
+must(robot.includes('local_origin')&&robot.includes('OfflineSyncManager.syncSome'),'offline queue not wired');
+must(robot.includes('single fence is intentionally kept'),'server idempotence fence missing');
+must(relay.includes('WifiP2pManager')&&relay.includes('BluetoothSocket')&&relay.includes('BIR_RELAY_1'),'B.I.R. Relay Wi-Fi Direct/Bluetooth transport missing');
+must(!manifest.includes('SEND_SMS'),'SMS fallback is forbidden');
+must(text('app/src/main/java/com/profitloop/blueauto/OfflineSyncManager.java').includes('RelayIdentityStore.sign')&&text('app/src/main/java/com/profitloop/blueauto/OfflineSyncManager.java').includes('validRelayEnvelope'),'signed Relay envelope verification missing');
+must(index.includes('control-tower-v290.js'),'v2.9 overlay missing');
+must(v290.includes('SOLDE RÉEL HORS COMMISSION')&&v290.includes('Commission au taux par défaut')&&v290.includes('Solde global réel'),'DAE/DSM three-part balance missing');
+must(v290.includes('lastRenderedNet'),'three-part balance must accept live total refreshes');
+must(v290.includes("if(role==='POS'){if(grid)grid.style.display='none'"),'PoS single balance guard missing');
+must(fs.existsSync('app/src/main/res/values-en/strings.xml'),'native EN resources missing');
+console.log('BIR v2.9 Robot offline + Relay contract: OK');

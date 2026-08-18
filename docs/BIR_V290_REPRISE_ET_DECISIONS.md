@@ -146,3 +146,13 @@ Pendant la validation Android, ces changements ne doivent pas muter Cloudflare p
 ### Bloc de reprise à copier dans un nouveau chat
 
 `BLUE MAGIC / B.I.R. — REPRISE. Lis d'abord le dernier document docs/BIR_V290_REPRISE_ET_DECISIONS.md puis vérifie GitHub, GitHub Actions, Cloudflare/D1 et les artefacts. Ne pars jamais de main si une branche de release plus récente existe. Ne modifie rien avant d'avoir identifié la dernière APK permanente, son SHA source, les versions Worker/D1 et les gates non terminés. Deux modes effectifs seulement REMOTE/ROBOT; aucun SMS fallback; B.I.R. Relay Wi‑Fi Direct/Bluetooth événements seulement; pas d'expansion nationale maintenant; aucune régression de v2.8.1.`
+
+
+## Décisions produit gratuites v2.9 — 18 août 2026
+- DAE Pro, Continuity/Relay, Fleet Health, Audit & Proof, Rescue/SAV, Treasury Forecast et Smart Commission sont inclus gratuitement dès la v2.9.
+- Région Control et National Ops sont réservés au compte ADMIN.
+- SUPERADMIN est un entitlement unique, promu depuis un ADMIN déjà autorisé sur le même appareil ; il est seul à recevoir les contrôles techniques sensibles.
+- Hiérarchie opérationnelle : PoS → DSM d'abord ; DSM → DAE en escalade ; DAE → ADMIN pour les cas de son DSM. Le DAE ne micro-gère pas les PoS hors escalade.
+- Le PIN Blue reste exclusivement dans le stockage sécurisé Android du Robot. Aucun endpoint, Relay, dashboard, ADMIN ou SUPERADMIN ne peut obtenir sa valeur en clair.
+- Academy Offline et API Business sont explicitement hors périmètre de la v2.9.
+- Les files offline non joignables ne sont jamais inventées : le cockpit distingue télémétrie confirmée et dernier état connu.

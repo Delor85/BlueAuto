@@ -14,11 +14,17 @@ final class UssdCommandFactory {
     static String buildAndValidate(Context context, String profileId, JSONObject command) throws Exception {
         String commandId = string(command, "public_id");
         String leaseToken = string(command, "lease_token");
-        if (!commandId.matches("[A-Za-z0-9_-]{16,80}")) {
-            throw new SecurityException("Identifiant de commande serveur invalide.");
-        }
-        if (!leaseToken.matches("[a-fA-F0-9]{32,128}")) {
-            throw new SecurityException("Jeton de réservation serveur invalide.");
+        boolean localOrigin = command.optBoolean("local_origin", false);
+        if (localOrigin) {
+            if (!commandId.matches("local_[A-Za-z0-9]{16,80}"))
+                throw new SecurityException("Identifiant de commande locale invalide.");
+            if (!leaseToken.matches("[a-fA-F0-9]{32,128}"))
+                throw new SecurityException("Jeton anti-doublon local invalide.");
+        } else {
+            if (!commandId.matches("[A-Za-z0-9_-]{16,80}"))
+                throw new SecurityException("Identifiant de commande serveur invalide.");
+            if (!leaseToken.matches("[a-fA-F0-9]{32,128}"))
+                throw new SecurityException("Jeton de réservation serveur invalide.");
         }
 
         String expectedExecutor = AppConfig.nodeCode(context, profileId);

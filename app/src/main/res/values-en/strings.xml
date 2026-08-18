@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">B.I.R.</string>
+    <string name="accessibility_service_name">B.I.R. Robot Accessibility</string>
+    <string name="accessibility_service_description">Checks the Blue USSD confirmation, enters the PIN stored locally on the phone and captures the operator result. The PIN is never sent to the server.</string>
+</resources>

@@ -45,7 +45,7 @@ export default {
       const input = request.method === 'POST' ? await readJson(request) : {};
       if (action === 'health') {
         await env.DB.prepare('SELECT 1 AS online').first();
-        return success({service: 'blue-magic-api', version: API_VERSION, database: 'online', capabilities: {commissions: true, commission_override: true, remote_results: true, force_sync: true, network_audit: true, owner_admin: true, owner_mock_entitlement: true, accounting: true, tchoronko: true, event_balance: true, offline_sync: true, bir_relay: true, effective_modes: ['REMOTE','ROBOT']}}, 200, headers);
+        return success({service: 'blue-magic-api', version: API_VERSION, database: 'online', capabilities: {commissions: true, commission_override: true, remote_results: true, force_sync: true, network_audit: true, owner_admin: true, super_admin: true, free_ops_cockpit: true, dae_pro_free: true, region_national_ops_free: true, owner_mock_entitlement: true, accounting: true, tchoronko: true, event_balance: true, offline_sync: true, bir_relay: true, effective_modes: ['REMOTE','ROBOT']}}, 200, headers);
       }
       if (action === 'pair_device') return await pairDevice(env, input, headers);
 
@@ -67,6 +67,10 @@ export default {
         case 'relay_register': return await relayRegister(env, auth, input, headers);
         case 'relay_sync': return await relaySync(env, auth, input, headers);
         case 'platform_snapshot': return await platformSnapshot(env, auth, headers);
+        case 'ops_cockpit': return await opsCockpit(env, auth, headers);
+        case 'ops_escalate': return await opsEscalate(env, auth, input, headers);
+        case 'ops_resolve': return await opsResolve(env, auth, input, headers);
+        case 'owner_ops_cockpit': return await ownerOpsCockpit(request, env, auth, headers);
         case 'commission_policy': return await commissionPolicy(env, auth, headers);
         case 'commission_set_default': return await commissionSetDefault(env, auth, input, headers);
         case 'commission_set_child': return await commissionSetChild(env, auth, input, headers);
@@ -298,7 +302,9 @@ async function heartbeat(env, auth, input, headers) {
   await env.DB.prepare(
     "UPDATE devices SET last_seen_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), robot_enabled = ?, "
     + 'sim_verified = ?, sim_fingerprint = ?, sim_slot = ?, '
-    + 'app_version = ?, android_version = ?, device_model = ? WHERE device_id = ?'
+    + 'app_version = ?, android_version = ?, device_model = ?, offline_pending_events = ?, '
+    + 'accessibility_enabled = ?, accessibility_connected = ?, battery_percent = ?, '
+    + "last_telemetry_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE device_id = ?"
   ).bind(
     robotEnabled ? 1 : 0,
     simVerified ? 1 : 0,
@@ -307,6 +313,10 @@ async function heartbeat(env, auth, input, headers) {
     cleanText(input.app_version, 40),
     cleanText(input.android_version, 40),
     cleanText(input.device_model, 160),
+    Math.max(0, Math.min(100000, Number(input.offline_pending_events || 0))),
+    input.accessibility_enabled === true ? 1 : 0,
+    input.accessibility_connected === true ? 1 : 0,
+    input.battery_percent == null ? null : Math.max(0, Math.min(100, Number(input.battery_percent))),
     auth.device_id
   ).run();
   return success({
@@ -1753,6 +1763,92 @@ async function platformSnapshot(env, auth, headers) {
     debts: debts.results || [], mercenary}, 200, headers);
 }
 
+async function cockpitRows(env, scopeNode) {
+  const rows = await env.DB.prepare(
+    "WITH RECURSIVE tree(node_code) AS (SELECT ? UNION ALL SELECT n.node_code FROM nodes n JOIN tree p ON n.parent_node_code=p.node_code WHERE n.active=1) " +
+    "SELECT n.node_code,n.role,n.parent_node_code,n.default_commission_bps,b.balance,b.balance_quality,b.observed_at, " +
+    "d.device_id,d.robot_enabled,d.sim_verified,d.offline_pending_events,d.accessibility_enabled,d.accessibility_connected,d.battery_percent,d.last_seen_at,d.last_telemetry_at " +
+    "FROM tree t JOIN nodes n ON n.node_code=t.node_code LEFT JOIN account_balances b ON b.node_code=n.node_code " +
+    "LEFT JOIN devices d ON d.device_id=(SELECT d2.device_id FROM devices d2 WHERE d2.node_code=n.node_code AND d2.active=1 ORDER BY d2.robot_enabled DESC,d2.last_seen_at DESC LIMIT 1) ORDER BY n.role,n.node_code")
+    .bind(scopeNode).all();
+  return rows.results || [];
+}
+function healthView(row) {
+  const last = row.last_telemetry_at || row.last_seen_at || '';
+  const age = last ? Math.max(0, Date.now()-Date.parse(last)) : Infinity;
+  const stale = age > 15*60*1000;
+  let severity='OK', message='Robot prêt';
+  if (!row.device_id) {severity='CRITICAL';message='Aucun appareil actif connu';}
+  else if (stale) {severity='HOT';message='Nœud silencieux : dernier état connu ancien';}
+  else if (row.robot_enabled && (!row.sim_verified || !row.accessibility_enabled || !row.accessibility_connected)) {severity='WARN';message='Robot à vérifier : SIM ou Accessibilité';}
+  else if (row.battery_percent != null && Number(row.battery_percent) < 15) {severity='WARN';message='Batterie faible';}
+  return {severity,message,telemetry_freshness: stale ? 'DERNIER ÉTAT CONNU — '+last : 'CONFIRMÉ SERVEUR — '+last,
+    robot_enabled:Boolean(row.robot_enabled),sim_verified:Boolean(row.sim_verified),accessibility_enabled:Boolean(row.accessibility_enabled),
+    accessibility_connected:Boolean(row.accessibility_connected),battery_percent:row.battery_percent == null ? null:Number(row.battery_percent),
+    offline_pending_events_last_reported:Number(row.offline_pending_events||0),telemetry_stale:stale};
+}
+async function openEscalationsFor(env, auth) {
+  let assigned = auth.role === 'POS' ? auth.node_code : auth.node_code;
+  const rows = await env.DB.prepare("SELECT * FROM ops_escalations WHERE state='OPEN' AND (assigned_to=? OR raised_by_node_code=? OR target_node_code=?) ORDER BY CASE severity WHEN 'CRITICAL' THEN 4 WHEN 'HOT' THEN 3 WHEN 'WARN' THEN 2 ELSE 1 END DESC,created_at DESC LIMIT 100")
+    .bind(assigned,auth.node_code,auth.node_code).all();
+  return (rows.results||[]).map(x=>({...x,can_resolve:x.assigned_to===auth.node_code,routing_label:'Assigné à '+x.assigned_to}));
+}
+async function continuitySummary(env, scopeNode) {
+  const events = await env.DB.prepare("WITH RECURSIVE tree(node_code) AS (SELECT ? UNION ALL SELECT n.node_code FROM nodes n JOIN tree p ON n.parent_node_code=p.node_code WHERE n.active=1) SELECT received_via,COUNT(*) AS c FROM offline_events e JOIN tree t ON t.node_code=e.source_node_code GROUP BY received_via").bind(scopeNode).all();
+  let direct=0,relay=0; for (const row of events.results||[]) {if(row.received_via==='BIR_RELAY')relay+=Number(row.c||0);else direct+=Number(row.c||0);}
+  return {direct,relay,total:direct+relay,rate:direct+relay?100:null};
+}
+async function forecastSummary(env, scopeNode) {
+  const row = await env.DB.prepare("WITH RECURSIVE tree(node_code) AS (SELECT ? UNION ALL SELECT n.node_code FROM nodes n JOIN tree p ON n.parent_node_code=p.node_code WHERE n.active=1) SELECT COALESCE(SUM(CASE WHEN c.state='SUCCEEDED' AND c.operation IN ('DISTRIBUTION_TRANSFER','RETAIL_TRANSFER') THEN c.amount ELSE 0 END),0) AS outflow FROM commands c JOIN tree t ON t.node_code=c.executor_node_code WHERE c.created_at>=strftime('%Y-%m-%dT%H:%M:%fZ','now','-7 days')").bind(scopeNode).first();
+  const b = await env.DB.prepare('SELECT balance FROM account_balances WHERE node_code=?').bind(scopeNode).first();
+  const daily=Number(row?.outflow||0)/7, balance=b?.balance==null?null:Number(b.balance), days=balance==null||daily<=0?null:Math.round(balance/daily*10)/10;
+  return {days_cover:days,message:days==null?'Données insuffisantes':days<1?'Rupture probable : approvisionnement urgent':days<3?'Stock à surveiller':'Couverture de stock confortable'};
+}
+async function opsCockpit(env, auth, headers) {
+  const all = await cockpitRows(env,auth.node_code), health=all.map(r=>({...r,...healthView(r)}));
+  const escalations=await openEscalationsFor(env,auth), continuity=await continuitySummary(env,auth.node_code), forecast=await forecastSummary(env,auth.node_code);
+  let nodes=[];
+  if(auth.role==='POS') nodes=health.filter(x=>x.node_code===auth.node_code).map(x=>({...x,can_escalate:true,action_hint:'Si un blocage persiste, signalez-le à votre DSM.'}));
+  else if(auth.role==='DSM') nodes=health.filter(x=>x.node_code===auth.node_code||x.parent_node_code===auth.node_code).map(x=>({...x,can_escalate:x.role==='POS',action_hint:x.role==='POS'?'Ce PoS relève directement de vous. Traitez-le ici; escaladez seulement si nécessaire.':'Votre compte DSM.'}));
+  else if(auth.role==='DAE') {
+    const dsms=health.filter(x=>x.parent_node_code===auth.node_code&&x.role==='DSM');
+    nodes=dsms.map(d=>{const children=health.filter(x=>x.parent_node_code===d.node_code&&x.role==='POS');const hot=children.filter(x=>['HOT','CRITICAL'].includes(x.severity)).length;return {...d,pos_count:children.length,pos_attention:hot,can_escalate:false,action_hint:hot?`${hot} PoS à suivre par ${d.node_code}; intervenez via votre DSM si le cas est escaladé.`:'Ce DSM gère ses PoS; aucune intervention DAE requise.'};});
+    const escalatedPos=new Set(escalations.filter(e=>e.assigned_to===auth.node_code).map(e=>e.target_node_code));
+    for(const pos of health.filter(x=>x.role==='POS'&&escalatedPos.has(x.node_code))) nodes.push({...pos,can_escalate:false,action_hint:'Détail visible car le DSM a demandé votre secours.'});
+  }
+  const healthy=health.filter(x=>x.robot_enabled&&!x.telemetry_stale&&x.severity==='OK').length, robots=health.filter(x=>x.device_id).length;
+  const severities=health.map(x=>x.severity).concat(escalations.map(x=>x.severity)); const rank={OK:1,INFO:1,WARN:2,HOT:3,CRITICAL:4}; let max='OK'; for(const x of severities)if((rank[x]||1)>(rank[max]||1))max=x;
+  const tx=await env.DB.prepare("WITH RECURSIVE tree(node_code) AS (SELECT ? UNION ALL SELECT n.node_code FROM nodes n JOIN tree p ON n.parent_node_code=p.node_code WHERE n.active=1) SELECT COUNT(*) AS c,COALESCE(SUM(commission_amount),0) AS commission FROM commands c JOIN tree t ON t.node_code=c.executor_node_code WHERE c.created_at>=strftime('%Y-%m-%dT%H:%M:%fZ','now','-7 days') AND c.state='SUCCEEDED'").bind(auth.node_code).first();
+  return success({generated_at:new Date().toISOString(),scope_role:auth.role,scope_node_code:auth.node_code,nodes,escalations,
+    summary:{healthy_robots:healthy,robot_count:robots,sync_rate_percent:continuity.rate,max_severity:max,next_action:escalations.length?`Traitez d’abord ${escalations[0].target_node_code} — ${escalations[0].severity}.`:(max==='HOT'||max==='CRITICAL'?'Un nœud silencieux ou critique demande votre attention.':'Rien d’urgent. Continuez normalement.'),continuity_source:'SERVER_CONFIRMED_ONLY'},
+    forecast,audit:{proof_count:continuity.total,direct_events:continuity.direct,relay_events:continuity.relay},commission:{last7d_commission:Number(tx?.commission||0)},rescue:{attention_count:health.filter(x=>x.severity!=='OK').length+escalations.length}},200,headers);
+}
+async function opsEscalate(env, auth, input, headers) {
+  const target=nodeCode(input.target_node_code||auth.node_code), severity=String(input.severity||'WARN').toUpperCase();
+  if(!['INFO','WARN','HOT','CRITICAL'].includes(severity))throw new ApiError('ESCALATION_SEVERITY_INVALID','Sévérité invalide.',422);
+  let assigned='';
+  if(auth.role==='POS') {if(target!==auth.node_code)throw new ApiError('ESCALATION_SCOPE','Un PoS ne signale que son propre problème.',403);assigned=auth.parent_node_code;}
+  else if(auth.role==='DSM') {const child=await resolveDirectChild(env,auth.node_code,target,'POS');if(!child)throw new ApiError('ESCALATION_SCOPE','Le DSM ne peut escalader qu’un de ses PoS directs.',403);assigned=auth.parent_node_code;}
+  else if(auth.role==='DAE') {const child=await resolveDirectChild(env,auth.node_code,target,'DSM');if(!child)throw new ApiError('ESCALATION_SCOPE','Le DAE ne peut escalader qu’un DSM direct.',403);assigned='ADMIN';}
+  else throw new ApiError('ESCALATION_SCOPE','Rôle non autorisé.',403);
+  const publicId=crypto.randomUUID();await env.DB.prepare('INSERT INTO ops_escalations(public_id,raised_by_node_code,target_node_code,assigned_to,severity,kind,message) VALUES(?,?,?,?,?,?,?)')
+    .bind(publicId,auth.node_code,target,assigned,severity,cleanText(input.kind||'ASSISTANCE',80),cleanText(input.message,600)).run();
+  return success({public_id:publicId,target_node_code:target,assigned_to:assigned,severity,state:'OPEN'},201,headers);
+}
+async function opsResolve(env, auth, input, headers) {
+  const id=String(input.escalation_id||'').trim();const row=await env.DB.prepare("SELECT * FROM ops_escalations WHERE public_id=? AND state='OPEN'").bind(id).first();
+  if(!row)throw new ApiError('ESCALATION_NOT_FOUND','Escalade introuvable.',404);if(row.assigned_to!==auth.node_code)throw new ApiError('ESCALATION_NOT_ASSIGNED','Seul le niveau actuellement responsable peut clôturer ce cas.',403);
+  await env.DB.prepare("UPDATE ops_escalations SET state='RESOLVED',resolved_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE public_id=?").bind(id).run();return success({public_id:id,state:'RESOLVED'},200,headers);
+}
+async function ownerOpsCockpit(request, env, auth, headers) {
+  const owner=await authenticateOwnerAny(request,env,auth);const nodes=(await env.DB.prepare("SELECT n.node_code,n.role,n.parent_node_code,d.robot_enabled,d.sim_verified,d.offline_pending_events,d.accessibility_enabled,d.accessibility_connected,d.battery_percent,d.last_seen_at,d.last_telemetry_at FROM nodes n LEFT JOIN devices d ON d.device_id=(SELECT d2.device_id FROM devices d2 WHERE d2.node_code=n.node_code AND d2.active=1 ORDER BY d2.robot_enabled DESC,d2.last_seen_at DESC LIMIT 1) WHERE n.active=1 ORDER BY n.role,n.node_code").all()).results||[];
+  const health=nodes.map(r=>({...r,...healthView(r)})), dae=health.filter(x=>x.role==='DAE').map(d=>{const desc=health.filter(x=>x.node_code===d.node_code||x.parent_node_code===d.node_code||health.some(m=>m.role==='DSM'&&m.parent_node_code===d.node_code&&x.parent_node_code===m.node_code));return {node_code:d.node_code,label:d.node_code,severity:desc.some(x=>x.severity==='CRITICAL')?'CRITICAL':desc.some(x=>x.severity==='HOT')?'HOT':desc.some(x=>x.severity==='WARN')?'WARN':'OK',action_hint:`${desc.length} nœud(s) dans ce réseau DAE. Les PoS restent gérés par leurs DSM.`,scope_note:'Vue région/nationale agrégée',can_escalate:false};});
+  const open=await env.DB.prepare("SELECT * FROM ops_escalations WHERE state='OPEN' AND assigned_to='ADMIN' ORDER BY created_at DESC LIMIT 200").all();const continuity=await env.DB.prepare("SELECT received_via,COUNT(*) AS c FROM offline_events GROUP BY received_via").all();let direct=0,relay=0;for(const x of continuity.results||[]){if(x.received_via==='BIR_RELAY')relay+=Number(x.c||0);else direct+=Number(x.c||0);}const tx=await env.DB.prepare("SELECT COALESCE(SUM(commission_amount),0) AS commission FROM commands WHERE state='SUCCEEDED' AND created_at>=strftime('%Y-%m-%dT%H:%M:%fZ','now','-7 days')").first();const alerts=health.filter(x=>x.severity!=='OK');
+  await adminAudit(env,owner.entitlement_id,'OWNER_OPS_COCKPIT',null,auth.device_id,{nodes:nodes.length,alerts:alerts.length},'READ');
+  return success({generated_at:new Date().toISOString(),scope_role:owner.kind,groups:dae,escalations:(open.results||[]).map(x=>({...x,can_resolve:false,routing_label:'Escalade DAE → ADMIN'})),summary:{healthy_robots:health.filter(x=>x.robot_enabled&&!x.telemetry_stale&&x.severity==='OK').length,robot_count:health.filter(x=>x.device_id).length,sync_rate_percent:direct+relay?100:null,max_severity:alerts.some(x=>x.severity==='CRITICAL')?'CRITICAL':alerts.some(x=>x.severity==='HOT')?'HOT':alerts.length?'WARN':'OK',next_action:(open.results||[]).length?`${(open.results||[]).length} escalade(s) DAE à examiner.`:alerts.length?`${alerts.length} nœud(s) à surveiller; laissez DSM/DAE traiter leur périmètre.`:'Rien d’urgent au niveau national.',continuity_source:'SERVER_CONFIRMED_ONLY'},forecast:{days_cover:null,message:'Prévision détaillée disponible par DAE'},audit:{proof_count:direct+relay,direct_events:direct,relay_events:relay},commission:{last7d_commission:Number(tx?.commission||0)},rescue:{attention_count:alerts.length+(open.results||[]).length}},200,headers);
+}
+
+
 async function shadowEnroll(env, auth, input, headers) {
   if (!['DAE','DSM'].includes(auth.role)) {
     throw new ApiError('REQUEST_NOT_ALLOWED', 'Seul un DAE/DSM peut valider un enfant direct.', 403);
@@ -2248,11 +2344,18 @@ class ApiError extends Error {
 // ---- B.I.R. v2.8 source-only owner/admin + accounting layer -----------------
 async function ownerEnroll(request, env, auth, input, headers) {
   const kind = String(input.kind || '').trim().toUpperCase();
-  if (!['OWNER_ADMIN','MOCK_OWNER'].includes(kind)) throw new ApiError('OWNER_KIND_INVALID','Entitlement propriétaire invalide.',422);
-  const expected = String(kind === 'OWNER_ADMIN' ? env.OWNER_ADMIN_SECRET || '' : env.MOCK_OWNER_SECRET || '');
+  if (!['OWNER_ADMIN','MOCK_OWNER','SUPER_ADMIN'].includes(kind)) throw new ApiError('OWNER_KIND_INVALID','Entitlement propriétaire invalide.',422);
+  const expected = String(kind === 'MOCK_OWNER' ? env.MOCK_OWNER_SECRET || '' : env.OWNER_ADMIN_SECRET || '');
   const provided = String(input.owner_code || '');
   if (expected.length < 32) throw new ApiError('OWNER_CAPABILITY_DISABLED','Entitlement propriétaire non activé sur ce serveur.',503);
   if (!constantTimeEqual(expected, provided)) throw new ApiError('OWNER_ENROLL_DENIED','Code propriétaire incorrect.',403);
+  if (kind === 'SUPER_ADMIN') {
+    const admin = await env.DB.prepare("SELECT entitlement_id FROM owner_entitlements WHERE kind='OWNER_ADMIN' AND bound_device_id=? AND active=1 LIMIT 1").bind(auth.device_id).first();
+    if (!admin) throw new ApiError('SUPER_ADMIN_REQUIRES_ADMIN','Activez d’abord ADMIN sur ce même appareil.',403);
+    const existingSuper = await env.DB.prepare("SELECT entitlement_id,bound_device_id FROM owner_entitlements WHERE kind='SUPER_ADMIN' AND active=1 LIMIT 1").first();
+    if (existingSuper && existingSuper.bound_device_id !== auth.device_id) throw new ApiError('SUPER_ADMIN_ALREADY_ASSIGNED','Le SUPER-ADMIN unique est déjà lié à un autre appareil.',409);
+  }
+
   const token = randomHex(32), tokenHash = await sha256(token), entitlementId = crypto.randomUUID();
   const existing = await env.DB.prepare('SELECT entitlement_id FROM owner_entitlements WHERE kind=? AND bound_device_id=? LIMIT 1').bind(kind,auth.device_id).first();
   if (existing) {
@@ -2278,6 +2381,22 @@ async function authenticateOwner(request, env, auth, requiredKind='OWNER_ADMIN')
   await env.DB.prepare("UPDATE owner_entitlements SET last_seen_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE entitlement_id=?")
     .bind(row.entitlement_id).run();
   return row;
+}
+
+async function authenticateOwnerAny(request, env, auth, kinds=['OWNER_ADMIN','SUPER_ADMIN']) {
+  const token = String(request.headers.get('X-Owner-Token') || '').trim();
+  if (!token) throw new ApiError('OWNER_AUTH_REQUIRED','Jeton propriétaire requis.',401);
+  const row = await env.DB.prepare('SELECT entitlement_id,kind,bound_device_id,active FROM owner_entitlements WHERE token_hash=? LIMIT 1')
+    .bind(await sha256(token)).first();
+  if (!row || !row.active || row.bound_device_id !== auth.device_id || !kinds.includes(row.kind))
+    throw new ApiError('OWNER_AUTH_INVALID','Entitlement propriétaire invalide pour cet appareil.',403);
+  await env.DB.prepare("UPDATE owner_entitlements SET last_seen_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE entitlement_id=?").bind(row.entitlement_id).run();
+  return row;
+}
+function rejectSensitiveRemotePayload(input) {
+  const raw = JSON.stringify(input || {}).toLowerCase();
+  if (/\"[^\"]*(?:pin|password|secret|token)[^\"]*\"\s*:/.test(raw))
+    throw new ApiError('REMOTE_SECRET_FORBIDDEN','Aucun PIN, mot de passe, secret ou jeton ne peut être transmis par une action distante.',422);
 }
 
 async function adminAudit(env, entitlementId, action, targetNode, targetDevice, payload, outcome='ACCEPTED') {
@@ -2327,7 +2446,7 @@ async function transactionLedger(env, auth, input, headers) {
 }
 
 async function ownerSnapshot(request, env, auth, headers) {
-  const owner = await authenticateOwner(request,env,auth,'OWNER_ADMIN');
+  const owner = await authenticateOwnerAny(request,env,auth);
   const nodes = await env.DB.prepare(
     'SELECT n.node_code,n.role,n.phone_number,n.parent_node_code,n.active,n.created_at,n.default_commission_bps,b.balance,b.balance_quality,b.evidence_kind,b.observed_at,b.operator_event_at,s.terminal_type,s.display_name,s.zone ' +
     'FROM nodes n LEFT JOIN account_balances b ON b.node_code=n.node_code LEFT JOIN shadow_accounts s ON s.node_code=n.node_code ORDER BY n.role,n.node_code').all();
@@ -2343,7 +2462,7 @@ async function ownerSnapshot(request, env, auth, headers) {
 }
 
 async function ownerTransactions(request, env, auth, input, headers) {
-  const owner = await authenticateOwner(request,env,auth,'OWNER_ADMIN');
+  const owner = await authenticateOwnerAny(request,env,auth);
   const limit = Math.max(1,Math.min(2000,Number(input.limit||500)));
   const rows = await env.DB.prepare('SELECT public_id,requester_node_code,executor_node_code,target_node_code,operation,target_phone,amount,requested_base_amount,commission_rate_bps,commission_amount,state,operator_transaction_id,created_at,completed_at,updated_at FROM commands ORDER BY id DESC LIMIT ?').bind(limit).all();
   await adminAudit(env,owner.entitlement_id,'OWNER_TRANSACTIONS',null,auth.device_id,{limit},'READ');
@@ -2351,7 +2470,7 @@ async function ownerTransactions(request, env, auth, input, headers) {
 }
 
 async function ownerAudit(request, env, auth, input, headers) {
-  const owner = await authenticateOwner(request,env,auth,'OWNER_ADMIN');
+  const owner = await authenticateOwnerAny(request,env,auth);
   const limit = Math.max(1,Math.min(1000,Number(input.limit||300)));
   const rows = await env.DB.prepare('SELECT id,entitlement_id,action,target_node_code,target_device_id,outcome,created_at FROM admin_audit_log ORDER BY id DESC LIMIT ?').bind(limit).all();
   await adminAudit(env,owner.entitlement_id,'OWNER_AUDIT_READ',null,auth.device_id,{limit},'READ');
@@ -2359,7 +2478,8 @@ async function ownerAudit(request, env, auth, input, headers) {
 }
 
 async function ownerControl(request, env, auth, input, headers) {
-  const owner = await authenticateOwner(request,env,auth,'OWNER_ADMIN');
+  rejectSensitiveRemotePayload(input);
+  const owner = await authenticateOwner(request,env,auth,'SUPER_ADMIN');
   const action = String(input.action||'').trim().toUpperCase();
   if (!['START_ROBOT','STOP_ROBOT','SET_REMOTE','SET_ROBOT','SYNC_NOW','CANCEL_PENDING'].includes(action)) throw new ApiError('ADMIN_ACTION_INVALID','Action de contrôle invalide.',422);
   let deviceId=String(input.target_device_id||'').trim(), node=String(input.target_node_code||'').trim().toUpperCase(), target=null;
@@ -2373,7 +2493,8 @@ async function ownerControl(request, env, auth, input, headers) {
 }
 
 async function ownerAssist(request, env, auth, input, headers) {
-  const owner = await authenticateOwner(request,env,auth,'OWNER_ADMIN');
+  rejectSensitiveRemotePayload(input);
+  const owner = await authenticateOwnerAny(request,env,auth);
   const node = nodeCode(input.target_node_code), requestType=String(input.request_type||'').trim().toUpperCase();
   const exists=await env.DB.prepare('SELECT node_code FROM nodes WHERE node_code=? LIMIT 1').bind(node).first();
   if(!exists) throw new ApiError('ADMIN_TARGET_NOT_FOUND','Utilisateur cible introuvable.',404);
@@ -2385,7 +2506,8 @@ async function ownerAssist(request, env, auth, input, headers) {
 }
 
 async function ownerTchoronkoSave(request, env, auth, input, headers) {
-  const owner = await authenticateOwner(request,env,auth,'OWNER_ADMIN');
+  rejectSensitiveRemotePayload(input);
+  const owner = await authenticateOwner(request,env,auth,'SUPER_ADMIN');
   const role = String(input.role||'').trim().toUpperCase();
   if (!['DSM','POS'].includes(role)) throw new ApiError('TCHORONKO_ROLE_INVALID','Un Tchoronko doit être DSM ou POS.',422);
   const node = nodeCode(input.node_code), parent = nodeCode(input.parent_node_code);

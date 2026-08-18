@@ -16,9 +16,10 @@ try {
   const db = await mf.getD1Database('DB');
   for (const migration of ['0001_initial.sql', '0002_robot_sim_attestation.sql',
     '0003_balance_preflight_and_modules.sql', '0004_blue_message_intelligence_and_modules.sql',
-    '0005_commission_policies_and_financial_quotes.sql']) {
+    '0005_commission_policies_and_financial_quotes.sql', '0006_owner_admin_control_and_audit.sql',
+    '0007_offline_events_and_bir_relay.sql', '0008_v290_free_ops_cockpit.sql']) {
     const schema = await readFile(new URL(`../migrations/${migration}`, import.meta.url), 'utf8');
-    for (const statement of schema.split(';').map(value => value.trim()).filter(Boolean)) {
+    for (const statement of schema.split(';').map(value => value.replace(/^--.*$/gm, '').trim()).filter(Boolean)) {
       await db.prepare(statement).run();
     }
   }
