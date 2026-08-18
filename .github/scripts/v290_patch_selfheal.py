@@ -21,7 +21,7 @@ s=s.replace('''for(int i=0;i<items.length();i++){JSONObject e=items.optJSONObjec
 
 # Effective application modes are exactly REMOTE and ROBOT. Legacy HYBRID data is interpreted as ROBOT only for migration compatibility.
 marker="# ---------------------------------------------------------------------------\n# UssdCommandFactory: preserve strict server validation"
-block=r'''# ---------------------------------------------------------------------------
+block=r"""# ---------------------------------------------------------------------------
 # Two effective modes only. A legacy HYBRID value from older builds is migrated
 # transparently to ROBOT and is never exposed as a third selectable mode.
 # ---------------------------------------------------------------------------
@@ -34,7 +34,7 @@ s=once(s,
 '''    static boolean isRobotMode(Context context) { return "ROBOT".equals(mode(context)); }\n\n    static boolean isRobotMode(Context context, String profileId) {\n        return "ROBOT".equals(mode(context, profileId));\n    }\n\n    static String displayMode(String mode) { return effectiveMode(mode); }''','robot mode strict')
 write(p,s)
 
-'''
+"""
 if marker in s and 'two effective modes' not in s:
     s=s.replace(marker,block+marker,1)
 
