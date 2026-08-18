@@ -1,0 +1,3 @@
+purpose=export-official-android-build-tools-for-local-signing
+source_sha=9752441af955dc9b4643802234fb2484afadf11f
+private_signing_material=forbidden-in-actions
