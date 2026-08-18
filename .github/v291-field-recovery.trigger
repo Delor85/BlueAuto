@@ -9,4 +9,4 @@ worker_deploy=forbidden
 d1_migration=forbidden
 permanent_signing=forbidden
 pr4_merge=forbidden
-attempt=2-inherited-version-guard-only
+attempt=3-legacy-metadata-fixture
