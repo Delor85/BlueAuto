@@ -56,7 +56,7 @@ jobs:
       - name: Run v2.9.1 field contract
         run: node app/src/test/v291-field-recovery-contract.mjs
 
-      - name: Prepare inherited-version compatibility fixture
+      - name: Prepare inherited compatibility fixtures
         run: |
           set -euo pipefail
           cp app/build.gradle /tmp/v291-build.gradle.real
@@ -65,6 +65,8 @@ jobs:
           // versionCode 55
           // versionName "2.9.0"
           EOF
+          git show eef53c4bf483ffc2557a57b0715561412f4c7e10:.github/workflows/build.yml > .github/workflows/build.yml
+          grep -q 'publish_permanent' .github/workflows/build.yml
 
       - name: Run inherited Android contracts
         run: |
