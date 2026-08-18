@@ -23,7 +23,9 @@ must(robot.includes('lastRemoteSnapshotByProfile.clear();'),'force sync must inv
 must(robot.includes('OfflineSyncManager.syncSome(this, 25);')&&robot.includes('retryDueFinalReports(8);'),'force sync must drain safe outbox/final reports');
 const force=robot.slice(robot.indexOf('if (ACTION_FORCE_SYNC.equals(action))'),robot.indexOf('if (ACTION_CONTROL_POLL.equals(action))'));
 must(force&&!/createCommand|placeUssdCall|previewCommand|checkPurchaseCapacity/.test(force),'Auto-Reveil must never simulate a financial/USSD command');
-must(app.includes('now-dashboardLoadedAt<5000')&&app.includes('scheduleDashboardPoll();},5000);'),'foreground dashboard must refresh at 5s cadence');
+must(app.includes('now-dashboardLoadedAt<5000'),'foreground dashboard freshness gate must accept rapid explicit refresh');
+must(app.includes('scheduleDashboardPoll();},60000);'),'normal dashboard polling must remain economical at 60s');
+must(field.includes('staleAfterMs=12000')&&field.includes('setInterval(function()')&&field.includes('},5000);'),'fast recovery must be adaptive/event-staleness driven');
 must(app.includes('window.AndroidBridge.kickSynchronization()'),'command lifecycle must wake synchronization');
 must(balance.includes('commission>0?total:amount'),'predictive supply balance must account for commission debit');
 must(balance.includes('≈ Estimation B.I.R. à rapprocher'),'uncertain balance must be visibly qualified');
@@ -32,4 +34,4 @@ must(field.includes('silentPulse')&&!field.includes('SEND_SMS'),'self-healing mu
 must(index.includes('field-recovery-v291.css')&&index.includes('field-recovery-v291.js'),'v2.9.1 assets not wired');
 must(!manifest.includes('android.permission.SEND_SMS'),'SMS fallback permission forbidden');
 must(main.includes('new String[]{"REMOTE", "ROBOT"}')||main.includes('spinner(new String[]{"REMOTE", "ROBOT"})'),'only REMOTE/ROBOT must remain selectable');
-console.log('BIR v2.9.1 field recovery: sync, balance, Secours, search and safety contract OK');
+console.log('BIR v2.9.1 field recovery: adaptive sync, balance, Secours, search and safety contract OK');
