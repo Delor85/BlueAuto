@@ -7,6 +7,9 @@ const api=read('app/src/main/java/com/profitloop/blueauto/ApiClient.java');
 const main=read('app/src/main/java/com/profitloop/blueauto/MainActivity.java');
 const robot=read('app/src/main/java/com/profitloop/blueauto/RobotService.java');
 const manifest=read('app/src/main/AndroidManifest.xml');
+const forceStart=worker.indexOf('async function forceSyncRequest');
+const forceEnd=worker.indexOf('async function ownerAssist',forceStart);
+const forceBody=forceStart>=0&&forceEnd>forceStart?worker.slice(forceStart,forceEnd):'';
 
 must(worker.includes("const API_VERSION = '2.9.1-cloudflare'"),'Worker version missing');
 must(worker.includes("case 'force_sync': return await forceSyncRequest"),'force_sync route missing');
@@ -15,7 +18,7 @@ must(worker.includes('node_code=?')&&worker.includes('requested_by_device_id'),'
 must(worker.includes("mode IN ('ROBOT','HYBRID')")&&worker.includes('robot_enabled=1')&&worker.includes('sim_verified=1'),'wake target must be active verified Robot');
 must(worker.includes('duplicate_safe:true')&&worker.includes("state='PENDING'"),'wake deduplication missing');
 must(worker.includes("return success({available:false,force_sync:true"),'existing lease poll must carry wake without creating a command');
-must(!worker.match(/forceSyncRequest[\s\S]{0,2500}(INSERT INTO commands|createCommand|previewCommand|ussd_code)/),'force_sync must not create financial/USSD commands');
+must(forceBody&& !/(INSERT INTO commands|createCommand|previewCommand|ussd_code)/.test(forceBody),'force_sync must not create financial/USSD commands');
 must(migration.includes('CREATE TABLE IF NOT EXISTS sync_wake_requests'),'additive wake table missing');
 must(!/DROP\s+TABLE|DELETE\s+FROM/i.test(migration),'wake migration must be additive only');
 must(!/pin|password|secret|token/i.test(migration.replace(/requested_by_device_id/g,'')),'wake schema must not store sensitive values');
