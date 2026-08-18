@@ -1,0 +1,143 @@
+name: BIR v2.9.1 Field Recovery
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ['.github/v291-field-recovery.trigger']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bir-v291-field-recovery
+  cancel-in-progress: false
+
+jobs:
+  validate-and-publish-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Checkout v2.9.1 recovery branch
+        uses: actions/checkout@v5
+        with:
+          ref: fix/bir-v2-9-1-field-recovery
+          fetch-depth: 0
+
+      - name: Prove immutable safety baseline
+        run: |
+          set -euo pipefail
+          test -f .github/scripts/v291_field_recovery.py
+          test -f app/src/test/v291-field-recovery-contract.mjs
+          test -f app/src/main/assets/field-recovery-v291.js
+          test -f app/src/main/assets/field-recovery-v291.css
+          ! grep -q 'android.permission.SEND_SMS' app/src/main/AndroidManifest.xml
+          grep -Fq 'new String[]{"REMOTE", "ROBOT"}' app/src/main/java/com/profitloop/blueauto/MainActivity.java
+          grep -q "applicationId \"com.profitloop.blueauto\"" app/build.gradle
+
+      - name: Apply deterministic v2.9.1 patch once
+        run: |
+          set -euo pipefail
+          if grep -q 'versionCode 56' app/build.gradle && grep -q 'versionName "2.9.1"' app/build.gradle; then
+            echo 'v2.9.1 source already generated; validating as-is.'
+          else
+            grep -q 'versionCode 55' app/build.gradle
+            grep -q 'versionName "2.9.0"' app/build.gradle
+            python3 .github/scripts/v291_field_recovery.py
+          fi
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run v2.9.1 field contract
+        run: node app/src/test/v291-field-recovery-contract.mjs
+
+      - name: Run inherited Android contracts
+        run: |
+          set -euo pipefail
+          for f in app/src/test/*.mjs; do
+            echo "===== $f ====="
+            node "$f"
+          done
+
+      - name: Validate unchanged Worker source
+        working-directory: cloudflare
+        run: |
+          set -euo pipefail
+          npm ci
+          npm audit --omit=dev --audit-level=high
+          npm run check
+          node --check src/index.js
+          node --check src/production-v280.js
+          npx wrangler deploy --dry-run --config wrangler.jsonc
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle 8.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+
+      - name: Create ephemeral validation signer
+        run: |
+          set -euo pipefail
+          mkdir -p .pilot-signing
+          export BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD='bir-v291-ephemeral-only'
+          keytool -genkeypair -keystore .pilot-signing/debug.keystore -storetype PKCS12 -storepass "$BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD" -keypass "$BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD" -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 30 -dname 'CN=BIR v2.9.1 CI Ephemeral,O=ProfitLoop,C=CM'
+          echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+
+      - name: Unit tests and Release build
+        run: |
+          set -euo pipefail
+          gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
+
+      - name: Verify APK identity and safety
+        run: |
+          set -euo pipefail
+          apk=app/build/outputs/apk/release/app-release.apk
+          test -f "$apk"
+          bt="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          "$bt/aapt" dump badging "$apk" | tee /tmp/v291-badging.txt
+          grep -q "package: name='com.profitloop.blueauto' versionCode='56' versionName='2.9.1'" /tmp/v291-badging.txt
+          ! "$bt/aapt" dump xmltree "$apk" AndroidManifest.xml | grep -q 'debuggable.*0xffffffff'
+          "$bt/zipalign" -c -v 4 "$apk"
+          "$bt/apksigner" verify --verbose --print-certs "$apk" | tee /tmp/v291-apksigner.txt
+          sha256sum "$apk" | tee /tmp/v291-apk.sha256
+
+      - name: Publish validated v2.9.1 source snapshot
+        run: |
+          set -euo pipefail
+          git config user.name 'BIR CI'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app/build.gradle \
+            app/src/main/java/com/profitloop/blueauto/MainActivity.java \
+            app/src/main/java/com/profitloop/blueauto/RobotService.java \
+            app/src/main/java/com/profitloop/blueauto/ApiClient.java \
+            app/src/main/assets/app.js \
+            app/src/main/assets/balance-engine-v280.js \
+            app/src/main/assets/index.html
+          if git diff --cached --quiet; then
+            echo 'Validated source already published.'
+          else
+            git commit -m 'fix: BIR v2.9.1 field sync balance secours and service search [no-prod]'
+            git push origin HEAD:fix/bir-v2-9-1-field-recovery
+          fi
+          git rev-parse HEAD | tee /tmp/v291-source-sha.txt
+
+      - name: Upload validation APK and evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIR-v2.9.1-Field-Recovery-Ephemeral
+          path: |
+            app/build/outputs/apk/release/app-release.apk
+            /tmp/v291-apk.sha256
+            /tmp/v291-badging.txt
+            /tmp/v291-apksigner.txt
+            /tmp/v291-source-sha.txt
+          if-no-files-found: error
+          retention-days: 7
