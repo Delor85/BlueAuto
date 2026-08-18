@@ -1,0 +1,11 @@
+authorization=approved-field-correction-2026-08-18
+source_branch=fix/bir-v2-9-1-field-recovery
+base_release=2.9.0-code55
+candidate=2.9.1-code56
+scope=android-field-sync-balance-secours-search-no-prod
+financial_fake_wake=forbidden
+sms_fallback=forbidden
+worker_deploy=forbidden
+d1_migration=forbidden
+permanent_signing=forbidden
+pr4_merge=forbidden
