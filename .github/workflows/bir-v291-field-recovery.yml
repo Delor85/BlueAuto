@@ -29,32 +29,39 @@ jobs:
           test -f .github/scripts/v291_field_recovery.py
           test -f .github/scripts/v291_preserve_adaptive_poll.py
           test -f .github/scripts/v291_apply_field_recovery.py
+          test -f .github/scripts/v291_remote_sync_wake.py
           test -f app/src/test/v291-field-recovery-contract.mjs
+          test -f app/src/test/v291-remote-sync-wake-contract.mjs
+          test -f cloudflare/migrations/0009_remote_sync_wake.sql
           test -f app/src/main/assets/field-recovery-v291.js
           test -f app/src/main/assets/field-recovery-v291.css
           ! grep -q 'android.permission.SEND_SMS' app/src/main/AndroidManifest.xml
           grep -Fq 'new String[]{"REMOTE", "ROBOT"}' app/src/main/java/com/profitloop/blueauto/MainActivity.java
           grep -q "applicationId \"com.profitloop.blueauto\"" app/build.gradle
+          ! grep -Eiq 'DROP[[:space:]]+TABLE|DELETE[[:space:]]+FROM' cloudflare/migrations/0009_remote_sync_wake.sql
 
-      - name: Apply deterministic v2.9.1 patch once
+      - name: Apply deterministic v2.9.1 field patches once
         run: |
           set -euo pipefail
           if grep -q 'versionCode 56' app/build.gradle && grep -q 'versionName "2.9.1"' app/build.gradle; then
-            echo 'v2.9.1 source already generated; validating as-is.'
+            echo 'Base v2.9.1 source already generated; preserving adaptive cadence.'
             python3 .github/scripts/v291_preserve_adaptive_poll.py
           else
             grep -q 'versionCode 55' app/build.gradle
             grep -q 'versionName "2.9.0"' app/build.gradle
             python3 .github/scripts/v291_apply_field_recovery.py
           fi
+          python3 .github/scripts/v291_remote_sync_wake.py
 
       - name: Setup Node 22
         uses: actions/setup-node@v4
         with:
           node-version: '22'
 
-      - name: Run v2.9.1 field contract
-        run: node app/src/test/v291-field-recovery-contract.mjs
+      - name: Run v2.9.1 safety contracts
+        run: |
+          node app/src/test/v291-field-recovery-contract.mjs
+          node app/src/test/v291-remote-sync-wake-contract.mjs
 
       - name: Prepare inherited compatibility fixtures
         run: |
@@ -86,10 +93,13 @@ jobs:
           grep -q 'versionName "2.9.1"' app/build.gradle
           ! grep -q 'INHERITED_CONTRACT_COMPAT_ONLY' app/build.gradle
 
-      - name: Validate unchanged Worker source
+      - name: Validate Worker 2.9.1 source and D1 migration 0009 without production
         working-directory: cloudflare
         run: |
           set -euo pipefail
+          grep -q "const API_VERSION = '2.9.1-cloudflare'" src/index.js
+          grep -q "case 'force_sync'" src/index.js
+          grep -q 'sync_wake_requests' migrations/0009_remote_sync_wake.sql
           npm ci
           npm audit --omit=dev --audit-level=high
           npm run check
@@ -145,11 +155,13 @@ jobs:
             app/src/main/java/com/profitloop/blueauto/ApiClient.java \
             app/src/main/assets/app.js \
             app/src/main/assets/balance-engine-v280.js \
-            app/src/main/assets/index.html
+            app/src/main/assets/index.html \
+            cloudflare/src/index.js \
+            cloudflare/migrations/0009_remote_sync_wake.sql
           if git diff --cached --quiet; then
-            echo 'Validated source already published.'
+            echo 'Validated v2.9.1 source already published.'
           else
-            git commit -m 'fix: BIR v2.9.1 field sync balance secours and service search [no-prod]'
+            git commit -m 'fix: BIR v2.9.1 field recovery and same-node remote wake [no-prod]'
             git push origin HEAD:fix/bir-v2-9-1-field-recovery
           fi
           git rev-parse HEAD | tee /tmp/v291-source-sha.txt
