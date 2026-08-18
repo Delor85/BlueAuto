@@ -39,8 +39,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$BIR_V292_SOURCE_SHA"
-          apk=/tmp/bir-v292/home/runner/work/BlueAuto/BlueAuto/app/build/outputs/apk/release/app-release.apk
-          sha256sum "$apk" | tee /tmp/v292-matrix.sha256
+          sha256sum /tmp/bir-v292/home/runner/work/BlueAuto/BlueAuto/app/build/outputs/apk/release/app-release.apk | tee /tmp/v292-matrix.sha256
           grep -q "^$BIR_V292_APK_SHA256  " /tmp/v292-matrix.sha256
           grep -q '^f123e766271511c6270305c5641ab4db93401c99$' /tmp/bir-v292/tmp/v292-source-sha.txt
           grep -q "package: name='com.profitloop.blueauto' versionCode='57' versionName='2.9.2'" /tmp/bir-v292/tmp/v292-badging.txt
@@ -88,10 +87,9 @@ jobs:
           profile: ${{ matrix.profile }}
           disable-animations: true
           script: |
-            apk=/tmp/bir-v292/home/runner/work/BlueAuto/BlueAuto/app/build/outputs/apk/release/app-release.apk
-            sha256sum "$apk" | grep 91098cf886ed946689e0dc5cbda7a3ba981826ef3c61f5fa99c12e694d202c26
+            sha256sum /tmp/bir-v292/home/runner/work/BlueAuto/BlueAuto/app/build/outputs/apk/release/app-release.apk | grep 91098cf886ed946689e0dc5cbda7a3ba981826ef3c61f5fa99c12e694d202c26
             adb shell getprop ro.build.version.sdk
-            adb install -r "$apk" | tee /tmp/install.txt
+            adb install -r /tmp/bir-v292/home/runner/work/BlueAuto/BlueAuto/app/build/outputs/apk/release/app-release.apk | tee /tmp/install.txt
             grep -q 'Success' /tmp/install.txt
             adb logcat -c || true
             adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/start1.txt
