@@ -1,0 +1,125 @@
+name: BIR v2.9 Production Activation
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ['.github/v290-production.trigger']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bir-v290-production-activation
+  cancel-in-progress: false
+
+env:
+  BIR_V290_SOURCE_SHA: 9752441af955dc9b4643802234fb2484afadf11f
+
+jobs:
+  activate-production:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: production
+    steps:
+      - name: Checkout exact approved v2.9 source
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.BIR_V290_SOURCE_SHA }}
+          fetch-depth: 0
+
+      - name: Prove exact source and non-destructive scope
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$BIR_V290_SOURCE_SHA"
+          grep -q 'versionCode 55' app/build.gradle
+          grep -q 'versionName "2.9.0"' app/build.gradle
+          grep -Fq 'new String[]{"REMOTE", "ROBOT"}' app/src/main/java/com/profitloop/blueauto/MainActivity.java
+          ! grep -q 'SEND_SMS' app/src/main/AndroidManifest.xml
+          grep -q "const API_VERSION = '2.9.0-cloudflare'" cloudflare/src/index.js
+          grep -q "kind === 'SUPER_ADMIN'" cloudflare/src/production-v280.js
+          grep -q "case 'sync_local_events'" cloudflare/src/index.js
+          grep -q "case 'relay_sync'" cloudflare/src/index.js
+          grep -q "case 'ops_cockpit'" cloudflare/src/index.js
+          grep -q "case 'owner_ops_resolve'" cloudflare/src/index.js
+          grep -q 'CREATE TABLE IF NOT EXISTS offline_events' cloudflare/migrations/0007_offline_events_and_bir_relay.sql
+          grep -q 'CREATE TABLE IF NOT EXISTS ops_escalations' cloudflare/migrations/0008_v290_free_ops_cockpit.sql
+          ! grep -Eiq 'DROP[[:space:]]+TABLE|DELETE[[:space:]]+FROM' cloudflare/migrations/0007_offline_events_and_bir_relay.sql
+          ! grep -Eiq 'DROP[[:space:]]+TABLE|DELETE[[:space:]]+FROM' cloudflare/migrations/0008_v290_free_ops_cockpit.sql
+          test "${{ vars.BLUE_MAGIC_PRODUCTION_CONFIRM }}" = "BLUE_MAGIC_PRODUCTION"
+
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate runtime and build production config
+        working-directory: cloudflare
+        env:
+          BLUE_MAGIC_D1_DATABASE_ID: ${{ secrets.BLUE_MAGIC_D1_DATABASE_ID }}
+        run: |
+          set -euo pipefail
+          npm ci
+          npm audit --omit=dev --audit-level=high
+          npm run check
+          node --check src/index.js
+          node --check src/production-v280.js
+          node scripts/prepare-production-config.mjs
+          grep -q '"main": "src/production-v280.js"' wrangler.production.json
+          grep -q '"keep_vars": true' wrangler.production.json
+          npx wrangler deploy --dry-run --config wrangler.production.json
+
+      - name: Inspect remote D1 migration state
+        working-directory: cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          npx wrangler d1 migrations list blue-magic --remote --config wrangler.production.json | tee /tmp/bir-v290-migrations-before.txt
+
+      - name: Apply additive D1 migrations 0007 and 0008
+        working-directory: cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          npx wrangler d1 migrations apply blue-magic --remote --config wrangler.production.json
+          npx wrangler d1 migrations list blue-magic --remote --config wrangler.production.json | tee /tmp/bir-v290-migrations-after.txt
+          npx wrangler d1 execute blue-magic --remote --config wrangler.production.json --command "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('offline_events','relay_identities','ops_escalations') ORDER BY name" | tee /tmp/bir-v290-schema-proof.txt
+          grep -q 'offline_events' /tmp/bir-v290-schema-proof.txt
+          grep -q 'relay_identities' /tmp/bir-v290-schema-proof.txt
+          grep -q 'ops_escalations' /tmp/bir-v290-schema-proof.txt
+
+      - name: Deploy exact BIR v2.9 Worker
+        working-directory: cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          npx wrangler deploy --config wrangler.production.json
+
+      - name: Verify production health and v2.9 capabilities
+        working-directory: cloudflare
+        env:
+          BLUE_MAGIC_HEALTH_URL: ${{ secrets.BLUE_MAGIC_HEALTH_URL }}
+        run: |
+          set -euo pipefail
+          test -n "$BLUE_MAGIC_HEALTH_URL"
+          curl --fail --retry 5 --retry-delay 3 --max-time 20 "$BLUE_MAGIC_HEALTH_URL" -o /tmp/bir-v290-health.json
+          cat /tmp/bir-v290-health.json
+          node -e "const fs=require('fs');const h=JSON.parse(fs.readFileSync('/tmp/bir-v290-health.json','utf8'));if(h.api_version!=='2.9.0-cloudflare')throw new Error('production api_version mismatch: '+h.api_version);const c=h.capabilities||{};for(const k of ['offline_sync','bir_relay','free_ops_cockpit','dae_pro_free','region_national_ops_free','super_admin'])if(c[k]!==true)throw new Error('missing capability '+k);if(JSON.stringify(c.effective_modes)!==JSON.stringify(['REMOTE','ROBOT']))throw new Error('effective modes mismatch');console.log('BIR v2.9 production health OK');"
+
+      - name: Publish activation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIR-v2.9-production-activation-evidence
+          path: |
+            /tmp/bir-v290-migrations-before.txt
+            /tmp/bir-v290-migrations-after.txt
+            /tmp/bir-v290-schema-proof.txt
+            /tmp/bir-v290-health.json
+          if-no-files-found: warn
+          retention-days: 30
