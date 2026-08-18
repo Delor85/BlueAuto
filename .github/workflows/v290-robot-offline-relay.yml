@@ -3,7 +3,6 @@ name: BIR v2.9 Robot Offline + Relay Convergence
 on:
   push:
     branches: [feat/bir-v2-9-robot-offline-relay]
-    paths: [.github/authorized-v290-robot-offline-relay.trigger]
 
 permissions:
   contents: write
