@@ -1,0 +1,40 @@
+name: BIR v2.9 Export Android Build Tools
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ['.github/v290-android-tools.trigger']
+
+permissions:
+  contents: read
+
+jobs:
+  export-tools:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Select installed official Android Build Tools
+        run: |
+          set -euo pipefail
+          bt="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          test -x "$bt/zipalign"
+          test -x "$bt/aapt"
+          test -x "$bt/apksigner"
+          test -f "$bt/lib/apksigner.jar"
+          printf '%s\n' "$bt" > /tmp/build-tools-path.txt
+          basename "$bt" > /tmp/build-tools-version.txt
+          mkdir -p /tmp/bir-android-build-tools
+          cp -a "$bt/apksigner" "$bt/zipalign" "$bt/aapt" "$bt/lib" /tmp/bir-android-build-tools/
+          if [ -d "$bt/lib64" ]; then cp -a "$bt/lib64" /tmp/bir-android-build-tools/; fi
+          sha256sum /tmp/bir-android-build-tools/apksigner /tmp/bir-android-build-tools/zipalign /tmp/bir-android-build-tools/aapt /tmp/bir-android-build-tools/lib/apksigner.jar | tee /tmp/bir-android-build-tools.sha256
+
+      - name: Upload official Android Build Tools subset
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIR-v2.9-Official-Android-Build-Tools
+          path: |
+            /tmp/bir-android-build-tools
+            /tmp/build-tools-version.txt
+            /tmp/bir-android-build-tools.sha256
+          if-no-files-found: error
+          retention-days: 1
