@@ -9,3 +9,4 @@ pr4_merge=forbidden
 permanent_signing=forbidden
 relay=wifi-direct-nearby-events-only
 financial_command_over_relay=forbidden
+attempt=2
