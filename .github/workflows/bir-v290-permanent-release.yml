@@ -1,0 +1,127 @@
+name: BIR v2.9 Permanent APK Release
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ['.github/v290-permanent.trigger']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bir-v290-permanent-release
+  cancel-in-progress: false
+
+env:
+  BIR_V290_SOURCE_SHA: 9752441af955dc9b4643802234fb2484afadf11f
+  BIR_PERMANENT_CERT_SHA256: f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5
+
+jobs:
+  permanent-apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    environment: production
+    steps:
+      - name: Checkout exact final v2.9 source
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.BIR_V290_SOURCE_SHA }}
+          fetch-depth: 0
+
+      - name: Prove exact release scope
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$BIR_V290_SOURCE_SHA"
+          grep -q 'applicationId "com.profitloop.blueauto"' app/build.gradle
+          grep -q 'versionCode 55' app/build.gradle
+          grep -q 'versionName "2.9.0"' app/build.gradle
+          grep -Fq 'new String[]{"REMOTE", "ROBOT"}' app/src/main/java/com/profitloop/blueauto/MainActivity.java
+          ! grep -q 'SEND_SMS' app/src/main/AndroidManifest.xml
+          test "${{ vars.BLUE_MAGIC_PRODUCTION_CONFIRM }}" = "BLUE_MAGIC_PRODUCTION"
+
+      - name: Java 17 and Gradle 8.2
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+
+      - name: Load and prove historical permanent signer
+        env:
+          PERMANENT_KEYSTORE_BASE64: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_BASE64 }}
+          PERMANENT_KEYSTORE_PASSWORD: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$PERMANENT_KEYSTORE_BASE64"
+          test -n "$PERMANENT_KEYSTORE_PASSWORD"
+          mkdir -p .pilot-signing
+          printf '%s' "$PERMANENT_KEYSTORE_BASE64" | base64 --decode > .pilot-signing/debug.keystore
+          printf '%s' "$PERMANENT_KEYSTORE_PASSWORD" > .pilot-signing/keystore.password
+          password="$(tr -d '\r\n' < .pilot-signing/keystore.password)"
+          echo "::add-mask::$password"
+          actual="$(keytool -list -v -keystore .pilot-signing/debug.keystore -storepass "$password" -alias androiddebugkey | awk '/SHA256:/{gsub(":", "", $2); print tolower($2); exit}')"
+          test "$actual" = "$BIR_PERMANENT_CERT_SHA256"
+          export BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD="$password"
+          echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$password" >> "$GITHUB_ENV"
+
+      - name: Re-run release contracts and build permanent APK
+        run: |
+          set -euo pipefail
+          node app/src/test/finance-flow.mjs
+          node app/src/test/v268-field-contract.mjs
+          node app/src/test/v268-responsive-management.mjs
+          node app/src/test/v268-ux-performance.mjs
+          node app/src/test/v268-platform-compat.mjs
+          node app/src/test/v268-transaction-ux.mjs
+          node app/src/test/v268-control-plane.mjs
+          node app/src/test/v268-native-status.mjs
+          node app/src/test/bir-v269-functional-contract.mjs
+          node app/src/test/v2610-control-tower.mjs
+          node app/src/test/v2611-finalization-contract.mjs
+          node app/src/test/v2611-shell-contract.mjs
+          node app/src/test/v270-finalization-contract.mjs
+          node app/src/test/v270-owner-mock-contract.mjs
+          node app/src/test/v271-field-stabilization-contract.mjs
+          node app/src/test/v280-operations-admin-contract.mjs
+          node app/src/test/v281-field-quality-contract.mjs
+          node app/src/test/v290-robot-offline-relay-contract.mjs
+          node app/src/test/v290-free-ops-contract.mjs
+          node --check app/src/main/assets/app.js
+          node --check app/src/main/assets/control-tower-v290.js
+          node --check app/src/main/assets/control-tower-v290-ops.js
+          gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
+
+      - name: Verify permanent APK identity signature and packaging
+        run: |
+          set -euo pipefail
+          bt="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          apk=app/build/outputs/apk/release/app-release.apk
+          "$bt/zipalign" -c -v 4 "$apk"
+          "$bt/aapt" dump badging "$apk" | tee /tmp/bir-v290-permanent-badging.txt
+          grep -q "package: name='com.profitloop.blueauto' versionCode='55' versionName='2.9.0'" /tmp/bir-v290-permanent-badging.txt
+          if grep -q 'application-debuggable' /tmp/bir-v290-permanent-badging.txt; then exit 1; fi
+          "$bt/apksigner" verify --verbose --print-certs "$apk" | tee /tmp/bir-v290-permanent-signature.txt
+          grep -qi 'Verified using v1 scheme.*true' /tmp/bir-v290-permanent-signature.txt
+          grep -qi 'Verified using v2 scheme.*true' /tmp/bir-v290-permanent-signature.txt
+          grep -qi 'Verified using v3 scheme.*true' /tmp/bir-v290-permanent-signature.txt
+          cert="$(awk -F': ' '/Signer #1 certificate SHA-256 digest:/{print tolower($2); exit}' /tmp/bir-v290-permanent-signature.txt)"
+          test "$cert" = "$BIR_PERMANENT_CERT_SHA256"
+          test "$(grep -c 'Signer #.*certificate DN:' /tmp/bir-v290-permanent-signature.txt)" = "1"
+          sha256sum "$apk" | tee /tmp/bir-v290-permanent.sha256.txt
+          cp "$apk" BIR-Blue-Infinity-Retail-v2.9.0-vc55-Permanent.apk
+          printf '%s\n' "$BIR_V290_SOURCE_SHA" > /tmp/bir-v290-permanent-source.txt
+
+      - name: Upload permanent v2.9 APK and verification evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIR-Blue-Infinity-Retail-v2.9.0-vc55-Permanent
+          path: |
+            BIR-Blue-Infinity-Retail-v2.9.0-vc55-Permanent.apk
+            /tmp/bir-v290-permanent.sha256.txt
+            /tmp/bir-v290-permanent-source.txt
+            /tmp/bir-v290-permanent-badging.txt
+            /tmp/bir-v290-permanent-signature.txt
+          if-no-files-found: error
+          retention-days: 30
