@@ -11,7 +11,7 @@ permissions:
 jobs:
   converge-and-validate:
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 45
     steps:
       - name: Checkout exact v2.9 branch
         uses: actions/checkout@v5
@@ -47,6 +47,19 @@ jobs:
           grep -q 'versionName "2.9.0"' app/build.gradle
           grep -q 'applicationId "com.profitloop.blueauto"' app/build.gradle
           ! grep -q 'new String\[\].*HYBRID' app/src/main/java/com/profitloop/blueauto/MainActivity.java
+
+      - name: Commit candidate app source for traceability
+        run: |
+          set -euo pipefail
+          git config user.name "Delor85"
+          git config user.email "mbolodelorpro@gmail.com"
+          git add app
+          if git diff --cached --quiet; then
+            echo 'No app source changes to commit.'
+          else
+            git commit -m 'feat: BIR v2.9 Robot offline-first, resilient execution and local Relay [v290-candidate]'
+            git push origin HEAD:feat/bir-v2-9-robot-offline-relay
+          fi
 
       - name: Node.js 22
         uses: actions/setup-node@v4
@@ -121,16 +134,3 @@ jobs:
           path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 7
-
-      - name: Commit only validated app source
-        run: |
-          set -euo pipefail
-          git config user.name "Delor85"
-          git config user.email "mbolodelorpro@gmail.com"
-          git add app
-          if git diff --cached --quiet; then
-            echo 'No app source changes to commit.'
-          else
-            git commit -m 'feat: BIR v2.9 Robot offline-first, resilient execution and local Relay [v290-source]'
-            git push origin HEAD:feat/bir-v2-9-robot-offline-relay
-          fi
