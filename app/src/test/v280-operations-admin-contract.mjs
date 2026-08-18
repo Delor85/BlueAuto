@@ -29,7 +29,7 @@ ok(v280.includes('TCHORONKOS')&&v280.includes('TCHORONKO_SHADOW'),'Tchoronko net
 ok(migration.includes('owner_entitlements')&&migration.includes('admin_audit_log')&&migration.includes('device_control_actions')&&migration.includes('admin_assist_requests'),'audited owner-admin data model');
 ok(worker.includes("case 'owner_snapshot'")&&worker.includes("case 'owner_control'")&&worker.includes("case 'owner_assist'")&&worker.includes('authenticateOwner'),'server owner control source');
 ok(worker.includes("case 'owner_tchoronko_save'")&&worker.includes('ownerTchoronkoSave')&&v280.includes('v280AdminTchoronko'),'ADMIN must manage Tchoronkos with audited strict hierarchy');
-ok((worker.includes("const API_VERSION = '2.8.0-cloudflare'")||worker.includes("const API_VERSION = '2.9.0-cloudflare'"))&&worker.includes('owner_admin: true')&&worker.includes('event_balance: true'),'v2.8 Worker source metadata and capabilities');
+ok((worker.includes("const API_VERSION = '2.8.0-cloudflare'")||worker.includes("const API_VERSION = '2.9.0-cloudflare'")||worker.includes("const API_VERSION = '2.9.1-cloudflare'"))&&worker.includes('owner_admin: true')&&worker.includes('event_balance: true'),'v2.8+ Worker source metadata and capabilities');
 ok(!worker.includes('b.available_balance')&&!worker.includes('b.reserved_amount'),'owner snapshot must query only real account_balances columns');
 ok(robot.includes('ACTION_CONTROL_POLL')&&robot.includes('START_ROBOT')&&robot.includes('STOP_ROBOT')&&boot.includes('pollAdministrativeControls'),'remote control application path');
 ok(worker.includes('requires_user_confirmation:true')||worker.includes('requires_user_confirmation:true'),'admin assistance must require user confirmation');
