@@ -1,0 +1,7 @@
+run=1
+source_sha=f123e766271511c6270305c5641ab4db93401c99
+apk_sha256=91098cf886ed946689e0dc5cbda7a3ba981826ef3c61f5fa99c12e694d202c26
+apis=23,26,30
+rebuild=forbidden
+production=forbidden
+permanent_signing=forbidden
