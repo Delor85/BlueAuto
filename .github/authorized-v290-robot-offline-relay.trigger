@@ -1,0 +1,11 @@
+scope=BIR-v2.9-Robot-offline-first-and-Relay
+base_permanent_source=eef53c4bf483ffc2557a57b0715561412f4c7e10
+modes=REMOTE,ROBOT
+sms_fallback=forbidden
+production_worker_deploy=forbidden
+d1_migration=forbidden
+capacity_expansion_deploy=forbidden
+pr4_merge=forbidden
+permanent_signing=forbidden
+relay=wifi-direct-nearby-events-only
+financial_command_over_relay=forbidden
