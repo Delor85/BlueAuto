@@ -38,17 +38,21 @@ jobs:
           grep -q '^pr4_merge=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
           grep -q '^permanent_signing=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
           grep -q '^financial_command_over_relay=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
-          python3 .github/scripts/v290_ops_dashboard_selfheal.py
-          python3 -m py_compile .github/scripts/v290_patch_selfheal.py .github/scripts/v290_robot_offline_relay.py .github/scripts/v290_final_convergence.py .github/scripts/v290_server_offline_relay_patch.py .github/scripts/v290_restore_inherited_tests.py .github/scripts/v290_ops_dashboard_selfheal.py .github/scripts/v290_ops_dashboard.py .github/scripts/v290_test_schema.py
 
-      - name: Generate exact additive Android and Worker source
+      - name: Verify or generate exact additive v2.9 source
         run: |
           set -euo pipefail
-          python3 .github/scripts/v290_patch_selfheal.py
-          python3 .github/scripts/v290_robot_offline_relay.py
-          python3 .github/scripts/v290_final_convergence.py
-          python3 .github/scripts/v290_server_offline_relay_patch.py
-          python3 .github/scripts/v290_ops_dashboard.py
+          if grep -q 'versionCode 55' app/build.gradle && grep -q 'versionName "2.9.0"' app/build.gradle && test -f app/src/main/assets/control-tower-v290-ops.js && test -f cloudflare/migrations/0008_v290_free_ops_cockpit.sql; then
+            echo 'Published BIR v2.9 source detected: validate in place; do not regenerate from v2.8.1.'
+          else
+            python3 .github/scripts/v290_ops_dashboard_selfheal.py
+            python3 -m py_compile .github/scripts/v290_patch_selfheal.py .github/scripts/v290_robot_offline_relay.py .github/scripts/v290_final_convergence.py .github/scripts/v290_server_offline_relay_patch.py .github/scripts/v290_restore_inherited_tests.py .github/scripts/v290_ops_dashboard_selfheal.py .github/scripts/v290_ops_dashboard.py .github/scripts/v290_test_schema.py
+            python3 .github/scripts/v290_patch_selfheal.py
+            python3 .github/scripts/v290_robot_offline_relay.py
+            python3 .github/scripts/v290_final_convergence.py
+            python3 .github/scripts/v290_server_offline_relay_patch.py
+            python3 .github/scripts/v290_ops_dashboard.py
+          fi
           grep -q 'versionCode 55' app/build.gradle
           grep -q 'versionName "2.9.0"' app/build.gradle
           grep -q 'applicationId "com.profitloop.blueauto"' app/build.gradle
