@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 const t=p=>fs.readFileSync(p,'utf8'), must=(v,m)=>{if(!v)throw new Error(m)};
-const main=t('app/src/main/java/com/profitloop/blueauto/MainActivity.java'),api=t('app/src/main/java/com/profitloop/blueauto/ApiClient.java'),html=t('app/src/main/assets/index.html'),ops=t('app/src/main/assets/control-tower-v290-ops.js'),worker=t('cloudflare/src/index.js'),mig=t('cloudflare/migrations/0008_v290_free_ops_cockpit.sql'),manifest=t('app/src/main/AndroidManifest.xml');
+const main=t('app/src/main/java/com/profitloop/blueauto/MainActivity.java'),api=t('app/src/main/java/com/profitloop/blueauto/ApiClient.java'),html=t('app/src/main/assets/index.html'),ops=t('app/src/main/assets/control-tower-v290-ops.js'),worker=t('cloudflare/src/index.js'),production=t('cloudflare/src/production-v280.js'),mig=t('cloudflare/migrations/0008_v290_free_ops_cockpit.sql'),manifest=t('app/src/main/AndroidManifest.xml');
 must(html.includes('control-tower-v290-ops.js')&&html.includes('control-tower-v290-ops.css'),'free ops cockpit not loaded');
 for(const x of ['DAE PRO — GRATUIT EN v2.9','RÉGION CONTROL & NATIONAL OPS','SUPER-ADMIN','MES PoS — JE RÈGLE D’ABORD'])must(ops.includes(x),'missing UX contract '+x);
 must(!ops.includes('Academy Offline')&&!ops.includes('API Business'),'Academy/API Business must remain out of v2.9 cockpit');
@@ -11,6 +11,8 @@ must(worker.includes("case 'ops_cockpit'")&&worker.includes("case 'owner_ops_coc
 must(worker.includes("if(auth.role==='POS')")&&worker.includes("else if(auth.role==='DSM')")&&worker.includes("else if(auth.role==='DAE')"),'hierarchy ladder missing');
 must(worker.includes("assigned='ADMIN'")&&worker.includes('resolveDirectChild'),'no-skip escalation ladder missing');
 must(worker.includes('rejectSensitiveRemotePayload')&&worker.includes('REMOTE_SECRET_FORBIDDEN'),'remote secret rejection missing');
+must(production.includes("(kind === 'OWNER_ADMIN' || kind === 'SUPER_ADMIN') ? 'OWNER_ADMIN_SECRET'")&&production.includes("(kind === 'OWNER_ADMIN' || kind === 'SUPER_ADMIN')\n      ? OWNER_ADMIN_BOOTSTRAP_SHA256"),'production SuperAdmin bootstrap continuity missing');
+must(!production.includes('SUPER_ADMIN_BOOTSTRAP_SHA256'),'v2.9 must not introduce a second recoverable SuperAdmin bootstrap secret');
 for(const x of ['offline_pending_events','accessibility_enabled','accessibility_connected','battery_percent','ops_escalations'])must(mig.includes(x),'migration missing '+x);
 must(!/DROP\s+TABLE|DELETE\s+FROM/i.test(mig),'destructive migration forbidden');
 must(!manifest.includes('SEND_SMS'),'SMS fallback forbidden');
