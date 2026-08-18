@@ -1,0 +1,9 @@
+authorization=user-approved-free-premium-2026-08-18
+source_sha=f123e766271511c6270305c5641ab4db93401c99
+release=2.9.2
+scope=worker-2.9.2-no-d1-change
+modes=REMOTE,ROBOT
+premium_for_all=free
+financial_assist=forbidden
+sms_fallback=forbidden
+pr4_merge=forbidden
