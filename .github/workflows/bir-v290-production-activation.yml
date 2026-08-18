@@ -14,6 +14,7 @@ concurrency:
 
 env:
   BIR_V290_SOURCE_SHA: 9752441af955dc9b4643802234fb2484afadf11f
+  BIR_PRODUCTION_HEALTH_URL: https://blue-magic-api.mbolodelorpro.workers.dev/api?action=health
 
 jobs:
   activate-production:
@@ -121,12 +122,9 @@ jobs:
       - name: Verify production health and v2.9 capabilities
         id: health
         working-directory: cloudflare
-        env:
-          BLUE_MAGIC_HEALTH_URL: ${{ secrets.BLUE_MAGIC_HEALTH_URL }}
         run: |
           set -euo pipefail
-          test -n "$BLUE_MAGIC_HEALTH_URL"
-          curl --fail --retry 5 --retry-delay 3 --max-time 20 "$BLUE_MAGIC_HEALTH_URL" -o /tmp/bir-v290-health.json
+          curl --fail --retry 5 --retry-delay 3 --max-time 20 "$BIR_PRODUCTION_HEALTH_URL" -o /tmp/bir-v290-health.json
           cat /tmp/bir-v290-health.json
           node -e "const fs=require('fs');const h=JSON.parse(fs.readFileSync('/tmp/bir-v290-health.json','utf8'));if(h.ok!==true||!h.data)throw new Error('invalid health envelope');const d=h.data;if(d.version!=='2.9.0-cloudflare')throw new Error('production version mismatch: '+d.version);if(d.database!=='online')throw new Error('production D1 offline');const c=d.capabilities||{};for(const k of ['offline_sync','bir_relay','free_ops_cockpit','dae_pro_free','region_national_ops_free','super_admin'])if(c[k]!==true)throw new Error('missing capability '+k);if(JSON.stringify(c.effective_modes)!==JSON.stringify(['REMOTE','ROBOT']))throw new Error('effective modes mismatch');console.log('BIR v2.9 production health OK');"
 
@@ -137,13 +135,12 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
-          BLUE_MAGIC_HEALTH_URL: ${{ secrets.BLUE_MAGIC_HEALTH_URL }}
         run: |
           set -euo pipefail
           echo 'BIR v2.9 health verification failed after deploy; rolling Worker back to the previous version.'
           npx wrangler rollback --config wrangler.production.jsonc --message 'Automatic rollback: BIR v2.9 production health gate failed'
           sleep 5
-          curl --fail --retry 5 --retry-delay 3 --max-time 20 "$BLUE_MAGIC_HEALTH_URL" -o /tmp/bir-v290-health-after-rollback.json
+          curl --fail --retry 5 --retry-delay 3 --max-time 20 "$BIR_PRODUCTION_HEALTH_URL" -o /tmp/bir-v290-health-after-rollback.json
           cat /tmp/bir-v290-health-after-rollback.json
 
       - name: Publish activation evidence
