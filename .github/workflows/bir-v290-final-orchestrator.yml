@@ -55,7 +55,11 @@ jobs:
             python3 .github/scripts/v290_ops_dashboard.py
           fi
           python3 -m py_compile .github/scripts/v290_ops_quality_finish.py
-          python3 .github/scripts/v290_ops_quality_finish.py
+          if grep -q "async function ownerOpsResolve" cloudflare/src/index.js && grep -q 'pending_events_last_reported' cloudflare/src/index.js && grep -q 'owner_ops_resolve' app/src/main/assets/control-tower-v290-ops.js; then
+            echo 'BIR v2.9 operations quality finish already present; validate in place.'
+          else
+            python3 .github/scripts/v290_ops_quality_finish.py
+          fi
           grep -q 'versionCode 55' app/build.gradle
           grep -q 'versionName "2.9.0"' app/build.gradle
           grep -q 'applicationId "com.profitloop.blueauto"' app/build.gradle
