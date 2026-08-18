@@ -1,0 +1,10 @@
+authorization=user-approved-free-premium-2026-08-18
+source_sha=f123e766271511c6270305c5641ab4db93401c99
+tested_run=32191056591
+tested_apk_sha256=91098cf886ed946689e0dc5cbda7a3ba981826ef3c61f5fa99c12e694d202c26
+release=2.9.2
+package=com.profitloop.blueauto
+version_code=57
+rebuild=forbidden
+historical_signer_required=true
+pr4_merge=forbidden
