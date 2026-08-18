@@ -10,23 +10,25 @@ build_path = '.github/workflows/build.yml'
 build = subprocess.check_output(['git', 'show', f'{BASE}:{build_path}'], cwd=ROOT, text=True)
 (ROOT / build_path).write_text(build, encoding='utf-8')
 
-# Preserve the complete v2.8.1 finance contract and extend only its release identity allowance.
+# Preserve the complete v2.8.1 finance contract and widen only its release identity assertions.
 path = 'app/src/test/finance-flow.mjs'
 original = subprocess.check_output(['git', 'show', f'{BASE}:{path}'], cwd=ROOT, text=True)
-old_code = r'/versionCode (?:51|52|53|54)/'
-new_code = r'/versionCode (?:51|52|53|54|55)/'
-old_name = r'/versionName \"(?:2\\.7\\.(?:0|1)|2\\.8\\.(?:0|1))\"/'
-new_name = r'/versionName \"(?:2\\.7\\.(?:0|1)|2\\.8\\.(?:0|1)|2\\.9\\.0)\"/'
-if original.count(old_code) != 1 or original.count(old_name) != 1:
-    raise SystemExit('Unexpected v2.8.1 finance-flow release anchors')
+old_code = 'assert.match(gradleConfig, /versionCode (?:51|52|53|54)/);'
+new_code = 'assert.match(gradleConfig, /versionCode (?:51|52|53|54|55)/);'
+old_name = r'''assert.match(gradleConfig, /versionName "(?:2\.7\.(?:0|1)|2\.8\.(?:0|1))"/);'''
+new_name = r'''assert.match(gradleConfig, /versionName "(?:2\.7\.(?:0|1)|2\.8\.(?:0|1)|2\.9\.0)"/);'''
+if original.count(old_code) != 1:
+    raise SystemExit('Unexpected v2.8.1 finance-flow versionCode anchor')
+if original.count(old_name) != 1:
+    raise SystemExit('Unexpected v2.8.1 finance-flow versionName anchor')
 updated = original.replace(old_code, new_code, 1).replace(old_name, new_name, 1)
 (ROOT / path).write_text(updated, encoding='utf-8')
 
-# Preserve the historical v2.6.9 functional contract and widen only its version gate.
+# Preserve the historical v2.6.9 functional contract and widen only its version identity check.
 path = 'app/src/test/bir-v269-functional-contract.mjs'
 original = subprocess.check_output(['git', 'show', f'{BASE}:{path}'], cwd=ROOT, text=True)
-old = "if(!(gradle.includes('versionCode 52')||gradle.includes('versionCode 53')||gradle.includes('versionCode 54'))||!(gradle.includes('versionName \\\"2.7.1\\\"')||gradle.includes('versionName \\\"2.8.0\\\"')||gradle.includes('versionName \\\"2.8.1\\\"'))) throw new Error('version mismatch');"
-new = "if(!(gradle.includes('versionCode 52')||gradle.includes('versionCode 53')||gradle.includes('versionCode 54')||gradle.includes('versionCode 55'))||!(gradle.includes('versionName \\\"2.7.1\\\"')||gradle.includes('versionName \\\"2.8.0\\\"')||gradle.includes('versionName \\\"2.8.1\\\"')||gradle.includes('versionName \\\"2.9.0\\\"'))) throw new Error('version mismatch');"
+old = r'''if(!(gradle.includes('versionCode 52')||gradle.includes('versionCode 53')||gradle.includes('versionCode 54'))||!(gradle.includes('versionName \"2.7.1\"')||gradle.includes('versionName \"2.8.0\"')||gradle.includes('versionName \"2.8.1\"'))) throw new Error('version mismatch');'''
+new = r'''if(!(gradle.includes('versionCode 52')||gradle.includes('versionCode 53')||gradle.includes('versionCode 54')||gradle.includes('versionCode 55'))||!(gradle.includes('versionName \"2.7.1\"')||gradle.includes('versionName \"2.8.0\"')||gradle.includes('versionName \"2.8.1\"')||gradle.includes('versionName \"2.9.0\"'))) throw new Error('version mismatch');'''
 if original.count(old) != 1:
     raise SystemExit('Unexpected v2.6.9 functional version anchor')
 (ROOT / path).write_text(original.replace(old, new, 1), encoding='utf-8')
