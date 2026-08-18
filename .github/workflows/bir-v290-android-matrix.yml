@@ -118,9 +118,9 @@ jobs:
           profile: ${{ matrix.profile }}
           disable-animations: true
           script: |
-            sha256sum /tmp/bir-v290/app-release.apk
+            sha256sum /tmp/bir-v290/app/build/outputs/apk/release/app-release.apk
             adb shell getprop ro.build.version.sdk
-            adb install -r /tmp/bir-v290/app-release.apk | tee /tmp/install.txt
+            adb install -r /tmp/bir-v290/app/build/outputs/apk/release/app-release.apk | tee /tmp/install.txt
             grep -q 'Success' /tmp/install.txt
             adb logcat -c || true
             adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/start1.txt
