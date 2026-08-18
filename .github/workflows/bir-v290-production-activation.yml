@@ -109,7 +109,7 @@ jobs:
           test -n "$BLUE_MAGIC_HEALTH_URL"
           curl --fail --retry 5 --retry-delay 3 --max-time 20 "$BLUE_MAGIC_HEALTH_URL" -o /tmp/bir-v290-health.json
           cat /tmp/bir-v290-health.json
-          node -e "const fs=require('fs');const h=JSON.parse(fs.readFileSync('/tmp/bir-v290-health.json','utf8'));if(h.api_version!=='2.9.0-cloudflare')throw new Error('production api_version mismatch: '+h.api_version);const c=h.capabilities||{};for(const k of ['offline_sync','bir_relay','free_ops_cockpit','dae_pro_free','region_national_ops_free','super_admin'])if(c[k]!==true)throw new Error('missing capability '+k);if(JSON.stringify(c.effective_modes)!==JSON.stringify(['REMOTE','ROBOT']))throw new Error('effective modes mismatch');console.log('BIR v2.9 production health OK');"
+          node -e "const fs=require('fs');const h=JSON.parse(fs.readFileSync('/tmp/bir-v290-health.json','utf8'));if(h.ok!==true||!h.data)throw new Error('invalid health envelope');const d=h.data;if(d.version!=='2.9.0-cloudflare')throw new Error('production version mismatch: '+d.version);if(d.database!=='online')throw new Error('production D1 offline');const c=d.capabilities||{};for(const k of ['offline_sync','bir_relay','free_ops_cockpit','dae_pro_free','region_national_ops_free','super_admin'])if(c[k]!==true)throw new Error('missing capability '+k);if(JSON.stringify(c.effective_modes)!==JSON.stringify(['REMOTE','ROBOT']))throw new Error('effective modes mismatch');console.log('BIR v2.9 production health OK');"
 
       - name: Publish activation evidence
         if: always()
