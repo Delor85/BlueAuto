@@ -37,7 +37,11 @@ export default {
 
     const kind = String(input.kind || '').trim().toUpperCase();
     const ownerCode = String(input.owner_code || '');
-    const secretName = kind === 'OWNER_ADMIN' ? 'OWNER_ADMIN_SECRET'
+    // SUPER_ADMIN is a promotion of an already-bound OWNER_ADMIN on the same device.
+    // It intentionally reuses the same strong owner secret/bootstrap proof so v2.9
+    // does not introduce a second recoverable secret. The inner worker still enforces
+    // uniqueness and the pre-existing OWNER_ADMIN entitlement before promotion.
+    const secretName = (kind === 'OWNER_ADMIN' || kind === 'SUPER_ADMIN') ? 'OWNER_ADMIN_SECRET'
       : kind === 'MOCK_OWNER' ? 'MOCK_OWNER_SECRET' : '';
     const configuredSecret = secretName ? String(env[secretName] || '') : '';
 
@@ -48,7 +52,7 @@ export default {
       return worker.fetch(request, env, ctx);
     }
 
-    const expectedHash = kind === 'OWNER_ADMIN'
+    const expectedHash = (kind === 'OWNER_ADMIN' || kind === 'SUPER_ADMIN')
       ? OWNER_ADMIN_BOOTSTRAP_SHA256 : MOCK_OWNER_BOOTSTRAP_SHA256;
     const providedHash = await sha256(ownerCode);
     if (!constantTimeEqual(expectedHash, providedHash)) {
