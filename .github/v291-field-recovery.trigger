@@ -9,4 +9,4 @@ worker_deploy=forbidden
 d1_migration=forbidden
 permanent_signing=forbidden
 pr4_merge=forbidden
-attempt=3-legacy-metadata-fixture
+attempt=4-adaptive-poll-no-regression
