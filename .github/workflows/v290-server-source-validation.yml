@@ -1,0 +1,75 @@
+name: BIR v2.9 Server Source Validation - No Production Mutation
+
+on:
+  push:
+    branches: [feat/bir-v2-9-final-convergence]
+    paths:
+      - '.github/workflows/v290-server-source-validation.yml'
+      - '.github/scripts/v290_server_offline_relay_patch.py'
+      - 'cloudflare/migrations/0007_offline_events_and_bir_relay.sql'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bir-v290-server-source-validation
+  cancel-in-progress: false
+
+jobs:
+  validate-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: feat/bir-v2-9-final-convergence
+          fetch-depth: 0
+
+      - name: Prove production is untouched by this gate
+        run: |
+          set -euo pipefail
+          grep -q '^production_worker_deploy=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
+          grep -q '^d1_migration=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
+          grep -q '^sms_fallback=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
+          python3 -m py_compile .github/scripts/v290_server_offline_relay_patch.py
+          before_app="$(git rev-parse HEAD:app)"
+          python3 .github/scripts/v290_server_offline_relay_patch.py
+          after_app="$(git rev-parse HEAD:app)"
+          test "$before_app" = "$after_app"
+          grep -q "const API_VERSION = '2.9.0-cloudflare'" cloudflare/src/index.js
+          grep -q "case 'sync_local_events'" cloudflare/src/index.js
+          grep -q "case 'relay_register'" cloudflare/src/index.js
+          grep -q "case 'relay_sync'" cloudflare/src/index.js
+          grep -q 'CREATE TABLE IF NOT EXISTS offline_events' cloudflare/migrations/0007_offline_events_and_bir_relay.sql
+          grep -q 'CREATE TABLE IF NOT EXISTS relay_identities' cloudflare/migrations/0007_offline_events_and_bir_relay.sql
+          ! grep -Eiq 'DROP[[:space:]]+TABLE|DELETE[[:space:]]+FROM[[:space:]]+(commands|nodes|devices)' cloudflare/migrations/0007_offline_events_and_bir_relay.sql
+
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: cloudflare/package-lock.json
+
+      - name: Validate Worker contracts and migration chain locally
+        working-directory: cloudflare
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run check
+          node --check src/index.js
+          (cd .. && python3 .github/scripts/v280_schema_smoke.py)
+          npx wrangler deploy --dry-run --config wrangler.jsonc
+
+      - name: Commit exact validated v2.9 server source
+        run: |
+          set -euo pipefail
+          git config user.name "Delor85"
+          git config user.email "mbolodelorpro@gmail.com"
+          git add cloudflare/src/index.js cloudflare/migrations/0007_offline_events_and_bir_relay.sql
+          if git diff --cached --quiet; then
+            echo 'No server source changes to commit.'
+          else
+            git commit -m 'feat: BIR v2.9 offline event sync and signed Relay server source [no-deploy]'
+            git push origin HEAD:feat/bir-v2-9-final-convergence
+          fi
