@@ -7,3 +7,4 @@ financial_fake_wake=forbidden
 sms_fallback=forbidden
 capacity_expansion=forbidden
 pr4_merge=forbidden
+attempt=2-health-propagation-aware
