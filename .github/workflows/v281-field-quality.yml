@@ -3,13 +3,16 @@ name: BIR v2.8.1 Field Quality Convergence
 on:
   push:
     branches: [feat/bir-v2-8-operations-admin]
-    paths: [.github/authorized-v281-field-quality.trigger]
+    paths:
+      - .github/authorized-v281-field-quality.trigger
+      - .github/authorized-v290-cross-branch.trigger
 
 permissions:
   contents: write
 
 jobs:
   converge-and-validate:
+    if: ${{ !contains(github.event.head_commit.message, '[v290-dispatch]') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
@@ -129,4 +132,132 @@ jobs:
           else
             git commit -m 'fix: BIR v2.8.1 field permanence, Remote observer and owner switching [v281-source]'
             git push origin HEAD:feat/bir-v2-8-operations-admin
+          fi
+
+  v290-dispatch:
+    if: ${{ contains(github.event.head_commit.message, '[v290-dispatch]') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact v2.9 branch
+        uses: actions/checkout@v5
+        with:
+          ref: feat/bir-v2-9-robot-offline-relay
+          fetch-depth: 0
+
+      - name: Prove v2.9 authorization boundaries and self-heal generator
+        run: |
+          set -euo pipefail
+          grep -q '^modes=REMOTE,ROBOT$' .github/authorized-v290-robot-offline-relay.trigger
+          grep -q '^sms_fallback=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
+          grep -q '^production_worker_deploy=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
+          grep -q '^d1_migration=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
+          grep -q '^capacity_expansion_deploy=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
+          grep -q '^pr4_merge=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
+          grep -q '^permanent_signing=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
+          grep -q '^financial_command_over_relay=forbidden$' .github/authorized-v290-robot-offline-relay.trigger
+          python3 .github/scripts/v290_patch_selfheal.py
+          python3 -m py_compile .github/scripts/v290_robot_offline_relay.py
+
+      - name: Apply v2.9 app-only patch and prove no infrastructure mutation
+        run: |
+          set -euo pipefail
+          before_cloudflare="$(git rev-parse HEAD:cloudflare)"
+          python3 .github/scripts/v290_robot_offline_relay.py
+          after_cloudflare="$(git rev-parse HEAD:cloudflare)"
+          test "$before_cloudflare" = "$after_cloudflare"
+          if git diff --name-only | grep -q '^cloudflare/'; then
+            echo '::error::Cloudflare/D1 changes are forbidden in this app convergence gate.'
+            exit 1
+          fi
+          grep -q 'versionCode 55' app/build.gradle
+          grep -q 'versionName "2.9.0"' app/build.gradle
+          grep -q 'applicationId "com.profitloop.blueauto"' app/build.gradle
+
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate all inherited and v2.9 contracts
+        run: |
+          set -euo pipefail
+          node app/src/test/finance-flow.mjs
+          node app/src/test/v268-field-contract.mjs
+          node app/src/test/v268-responsive-management.mjs
+          node app/src/test/v268-ux-performance.mjs
+          node app/src/test/v268-platform-compat.mjs
+          node app/src/test/v268-transaction-ux.mjs
+          node app/src/test/v268-control-plane.mjs
+          node app/src/test/v268-native-status.mjs
+          node app/src/test/v268-release-hygiene.mjs
+          node app/src/test/bir-v269-functional-contract.mjs
+          node app/src/test/v2610-control-tower.mjs
+          node app/src/test/v2611-finalization-contract.mjs
+          node app/src/test/v2611-shell-contract.mjs
+          node app/src/test/v270-finalization-contract.mjs
+          node app/src/test/v270-owner-mock-contract.mjs
+          node app/src/test/v271-field-stabilization-contract.mjs
+          node app/src/test/v280-operations-admin-contract.mjs
+          node app/src/test/v281-field-quality-contract.mjs
+          node app/src/test/v290-robot-offline-relay-contract.mjs
+          node --check app/src/main/assets/app.js
+          node --check app/src/main/assets/control-tower-v271.js
+          node --check app/src/main/assets/balance-engine-v280.js
+          node --check app/src/main/assets/control-tower-v280.js
+          node --check app/src/main/assets/control-tower-v290.js
+
+      - name: Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Gradle 8.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+
+      - name: Prepare ephemeral validation signing key
+        run: |
+          set -euo pipefail
+          mkdir -p .pilot-signing
+          password="$(openssl rand -hex 32)"
+          echo "::add-mask::$password"
+          keytool -genkeypair -keystore .pilot-signing/debug.keystore -storepass "$password" -alias androiddebugkey -keypass "$password" -dname "CN=BIR v2.9 Robot Offline Validation,O=ProfitLoop,C=CM" -keyalg RSA -keysize 2048 -validity 30 -noprompt
+          echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$password" >> "$GITHUB_ENV"
+
+      - name: Compile and unit-test Android
+        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
+
+      - name: Verify v2.9 candidate identity
+        run: |
+          set -euo pipefail
+          bt="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          apk=app/build/outputs/apk/release/app-release.apk
+          "$bt/zipalign" -c -v 4 "$apk"
+          "$bt/aapt" dump badging "$apk" | tee /tmp/badging.txt
+          grep -q "package: name='com.profitloop.blueauto' versionCode='55' versionName='2.9.0'" /tmp/badging.txt
+          if grep -q 'application-debuggable' /tmp/badging.txt; then exit 1; fi
+          sha256sum "$apk" | tee /tmp/bir-v290-validation.sha256
+
+      - name: Upload ephemeral v2.9 validation APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIR-v2.9.0-robot-offline-relay-validation-ephemeral
+          path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Commit only validated v2.9 app source
+        run: |
+          set -euo pipefail
+          git config user.name "Delor85"
+          git config user.email "mbolodelorpro@gmail.com"
+          git add app
+          if git diff --cached --quiet; then
+            echo 'No app source changes to commit.'
+          else
+            git commit -m 'feat: BIR v2.9 Robot offline-first, resilient execution and B.I.R. Relay [v290-source]'
+            git push origin HEAD:feat/bir-v2-9-robot-offline-relay
           fi
