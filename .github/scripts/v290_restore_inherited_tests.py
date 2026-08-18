@@ -15,11 +15,20 @@ path = 'app/src/test/finance-flow.mjs'
 original = subprocess.check_output(['git', 'show', f'{BASE}:{path}'], cwd=ROOT, text=True)
 old_code = r'/versionCode (?:51|52|53|54)/'
 new_code = r'/versionCode (?:51|52|53|54|55)/'
-old_name = r'/versionName "(?:2\.7\.(?:0|1)|2\.8\.(?:0|1))"/'
-new_name = r'/versionName "(?:2\.7\.(?:0|1)|2\.8\.(?:0|1)|2\.9\.0)"/'
+old_name = r'/versionName \"(?:2\\.7\\.(?:0|1)|2\\.8\\.(?:0|1))\"/'
+new_name = r'/versionName \"(?:2\\.7\\.(?:0|1)|2\\.8\\.(?:0|1)|2\\.9\\.0)\"/'
 if original.count(old_code) != 1 or original.count(old_name) != 1:
     raise SystemExit('Unexpected v2.8.1 finance-flow release anchors')
 updated = original.replace(old_code, new_code, 1).replace(old_name, new_name, 1)
 (ROOT / path).write_text(updated, encoding='utf-8')
 
-print('Inherited v2.8.1 finance/release hygiene restored; only v2.9/code55 allowance added')
+# Preserve the historical v2.6.9 functional contract and widen only its version gate.
+path = 'app/src/test/bir-v269-functional-contract.mjs'
+original = subprocess.check_output(['git', 'show', f'{BASE}:{path}'], cwd=ROOT, text=True)
+old = "if(!(gradle.includes('versionCode 52')||gradle.includes('versionCode 53')||gradle.includes('versionCode 54'))||!(gradle.includes('versionName \\\"2.7.1\\\"')||gradle.includes('versionName \\\"2.8.0\\\"')||gradle.includes('versionName \\\"2.8.1\\\"'))) throw new Error('version mismatch');"
+new = "if(!(gradle.includes('versionCode 52')||gradle.includes('versionCode 53')||gradle.includes('versionCode 54')||gradle.includes('versionCode 55'))||!(gradle.includes('versionName \\\"2.7.1\\\"')||gradle.includes('versionName \\\"2.8.0\\\"')||gradle.includes('versionName \\\"2.8.1\\\"')||gradle.includes('versionName \\\"2.9.0\\\"'))) throw new Error('version mismatch');"
+if original.count(old) != 1:
+    raise SystemExit('Unexpected v2.6.9 functional version anchor')
+(ROOT / path).write_text(original.replace(old, new, 1), encoding='utf-8')
+
+print('Inherited v2.8.1 finance/release hygiene and v2.6.9 functional contract restored; only v2.9/code55 allowance added')
