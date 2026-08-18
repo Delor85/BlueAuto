@@ -1,7 +1,7 @@
 import {parseBlueMessage} from './blue-message.mjs';
 import {CAMTEL_USSD, canonicalCamtelIdentity, parseCamtelIdentity, publicCamtelCatalog} from './camtel-catalog.mjs';
 
-const API_VERSION = '2.9.1-cloudflare';
+const API_VERSION = '2.9.2-cloudflare';
 const ROBOT_LIVE_WINDOW_MINUTES = 15;
 const BALANCE_EVIDENCE_TTL_SECONDS = 3600;
 const REPORT_BALANCE_EVIDENCE_TTL_SECONDS = 14 * 3600;
@@ -45,7 +45,7 @@ export default {
       const input = request.method === 'POST' ? await readJson(request) : {};
       if (action === 'health') {
         await env.DB.prepare('SELECT 1 AS online').first();
-        return success({service: 'blue-magic-api', version: API_VERSION, database: 'online', capabilities: {commissions: true, commission_override: true, remote_results: true, force_sync: true, network_audit: true, owner_admin: true, super_admin: true, free_ops_cockpit: true, dae_pro_free: true, region_national_ops_free: true, owner_mock_entitlement: true, accounting: true, tchoronko: true, event_balance: true, offline_sync: true, bir_relay: true, effective_modes: ['REMOTE','ROBOT']}}, 200, headers);
+        return success({service: 'blue-magic-api', version: API_VERSION, database: 'online', capabilities: {commissions: true, commission_override: true, remote_results: true, force_sync: true, network_audit: true, owner_admin: true, super_admin: true, free_ops_cockpit: true, premium_for_all: true, hierarchical_rescue: true, simple_pilotage: true, dae_pro_free: true, region_national_ops_free: true, owner_mock_entitlement: true, accounting: true, tchoronko: true, event_balance: true, offline_sync: true, bir_relay: true, effective_modes: ['REMOTE','ROBOT']}}, 200, headers);
       }
       if (action === 'pair_device') return await pairDevice(env, input, headers);
 
@@ -69,6 +69,7 @@ export default {
         case 'relay_sync': return await relaySync(env, auth, input, headers);
         case 'platform_snapshot': return await platformSnapshot(env, auth, headers);
         case 'ops_cockpit': return await opsCockpit(env, auth, headers);
+        case 'ops_assist': return await opsAssist(env, auth, input, headers);
         case 'ops_escalate': return await opsEscalate(env, auth, input, headers);
         case 'ops_resolve': return await opsResolve(env, auth, input, headers);
         case 'owner_ops_cockpit': return await ownerOpsCockpit(request, env, auth, headers);
@@ -1840,6 +1841,55 @@ async function opsCockpit(env, auth, headers) {
     summary:{healthy_robots:healthy,robot_count:robots,sync_rate_percent:continuity.rate,sync_confirmed_events:continuity.total,pending_events_last_reported:continuity.pending_reported,sync_window_hours:continuity.window_hours,max_severity:max,next_action:escalations.length?`Traitez d’abord ${escalations[0].target_node_code} — ${escalations[0].severity}.`:(max==='HOT'||max==='CRITICAL'?'Un nœud silencieux ou critique demande votre attention.':'Rien d’urgent. Continuez normalement.'),continuity_source:'SERVER_CONFIRMED_ONLY'},
     forecast,audit:{proof_count:continuity.total,direct_events:continuity.direct,relay_events:continuity.relay},commission:{last7d_commission:Number(tx?.commission||0)},rescue:{attention_count:health.filter(x=>x.severity!=='OK').length+escalations.length}},200,headers);
 }
+
+async function queueOpsSyncWake(env, targetNode, requestedByDeviceId, reason) {
+  await env.DB.prepare("UPDATE sync_wake_requests SET state='EXPIRED' WHERE node_code=? AND state='PENDING' AND created_at<strftime('%Y-%m-%dT%H:%M:%fZ','now','-10 minutes')")
+    .bind(targetNode).run();
+  const robot = await env.DB.prepare("SELECT device_id,last_seen_at FROM devices WHERE node_code=? AND active=1 AND robot_enabled=1 AND sim_verified=1 AND mode IN ('ROBOT','HYBRID') ORDER BY last_seen_at DESC LIMIT 1")
+    .bind(targetNode).first();
+  if (!robot) return {queued:false,node_code:targetNode,reason:'NO_ACTIVE_ROBOT'};
+  const pending = await env.DB.prepare("SELECT id,created_at FROM sync_wake_requests WHERE node_code=? AND state='PENDING' ORDER BY id DESC LIMIT 1")
+    .bind(targetNode).first();
+  if (pending) return {queued:true,duplicate_safe:true,wake_id:pending.id,node_code:targetNode,robot_device_id:robot.device_id};
+  const result = await env.DB.prepare("INSERT INTO sync_wake_requests(node_code,requested_by_device_id,reason) VALUES(?,?,?)")
+    .bind(targetNode,requestedByDeviceId,cleanText(reason||'OPS_ASSIST_SYNC',80)||'OPS_ASSIST_SYNC').run();
+  return {queued:true,duplicate_safe:false,wake_id:Number(result.meta?.last_row_id||0),node_code:targetNode,robot_device_id:robot.device_id};
+}
+
+async function opsAssist(env, auth, input, headers) {
+  rejectSensitiveRemotePayload(input || {});
+  const action = String(input.action || 'WAKE_SYNC').trim().toUpperCase();
+  if (action !== 'WAKE_SYNC') throw new ApiError('OPS_ASSIST_ACTION_INVALID','Seule la réparation de synchronisation non financière est autorisée ici.',422);
+  const target = nodeCode(input.target_node_code || auth.node_code);
+  let relation = '';
+  if (auth.role === 'POS') {
+    if (target !== auth.node_code) throw new ApiError('OPS_ASSIST_SCOPE','Un PoS ne répare que son propre compte.',403);
+    relation = 'SELF';
+  } else if (auth.role === 'DSM') {
+    const child = await resolveDirectChild(env, auth.node_code, target, 'POS');
+    if (!child) throw new ApiError('OPS_ASSIST_SCOPE','Le DSM aide uniquement un PoS direct.',403);
+    relation = 'DSM_TO_DIRECT_POS';
+  } else if (auth.role === 'DAE') {
+    const dsm = await resolveDirectChild(env, auth.node_code, target, 'DSM');
+    if (dsm) {
+      relation = 'DAE_TO_DIRECT_DSM';
+    } else {
+      const escalated = await env.DB.prepare(
+        "SELECT e.target_node_code,n.parent_node_code FROM ops_escalations e " +
+        "JOIN nodes n ON n.node_code=e.target_node_code JOIN nodes p ON p.node_code=n.parent_node_code " +
+        "WHERE e.state='OPEN' AND e.assigned_to=? AND e.target_node_code=? " +
+        "AND e.severity IN ('HOT','CRITICAL') AND n.role='POS' AND p.role='DSM' AND p.parent_node_code=? LIMIT 1")
+        .bind(auth.node_code,target,auth.node_code).first();
+      if (!escalated) throw new ApiError('OPS_ASSIST_SCOPE','Le DAE aide ses DSM; un PoS exige une escalade HOT/CRITICAL du DSM.',403);
+      relation = 'DAE_EXCEPTION_ESCALATED_POS';
+    }
+  } else {
+    throw new ApiError('OPS_ASSIST_SCOPE','Rôle non autorisé pour cette aide.',403);
+  }
+  const queued = await queueOpsSyncWake(env,target,auth.device_id,input.reason||'PILOTAGE_V292');
+  return success({...queued,assist_relation:relation,non_financial:true},queued.queued?202:200,headers);
+}
+
 async function opsEscalate(env, auth, input, headers) {
   const target=nodeCode(input.target_node_code||auth.node_code), severity=String(input.severity||'WARN').toUpperCase();
   if(!['INFO','WARN','HOT','CRITICAL'].includes(severity))throw new ApiError('ESCALATION_SEVERITY_INVALID','Sévérité invalide.',422);

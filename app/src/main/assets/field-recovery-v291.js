@@ -10,6 +10,11 @@ function silentPulse(reason,force){var now=Date.now(),b=bridge();if(!b)return fa
 function manualPulse(){silentPulse('reprise manuelle demandée',true);window.setTimeout(function(){var b=bridge();try{if(b&&b.syncOfflineNow)b.syncOfflineNow();}catch(e){}},250);}
 function routeElement(el){if(!el)return;var panel=el;while(panel&&panel!==document.body&&!(panel.getAttribute&&panel.getAttribute('data-tab-panel'))){panel=panel.parentNode;}if(panel&&panel.getAttribute){var tab=panel.getAttribute('data-tab-panel'),nav=document.querySelector('button[data-tab="'+tab+'"]');if(nav&&nav.click)nav.click();}window.setTimeout(function(){try{if(el.open!==undefined&&String(el.tagName).toUpperCase()==='DETAILS')el.open=true;if(el.scrollIntoView)el.scrollIntoView(true);if(el.focus)el.focus();}catch(e){}},120);}
 function serviceIndex(){return [
+{n:'Tableau de bord simple / Pilotage',k:'tableau bord pilotage premium gratuit aujourd hui aider prevision gerer reseau',s:'#v292Pilot'},
+{n:'Continuité / Relay',k:'continuite relay synchronisation wifi bluetooth offline',s:'button[data-v292-tool="continuity"]'},
+{n:'Files en attente',k:'file attente backlog evenement synchroniser bloquer',s:'button[data-v292-tool="queues"]'},
+{n:'Santé Robots',k:'sante robot accessibilite batterie sim silencieux',s:'button[data-v292-tool="health"]'},
+{n:'Business Health',k:'business health score qualite reseau disponibilite performance',s:'button[data-v292-tool="score"]'},
 {n:'Solde & preuve Blue',k:'solde balance preuve actualiser verifier argent stock',s:'button[data-action="check-balance"]'},
 {n:'Mes 5 dernières transactions',k:'historique transaction preuve audit cinq dernier',s:'button[data-action="last-transactions"]'},
 {n:'Détail transaction',k:'detail transaction identifiant preuve blue',s:'button[data-action="transaction-details"]'},
