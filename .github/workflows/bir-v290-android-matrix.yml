@@ -1,0 +1,136 @@
+name: BIR v2.9 Android 6 8 11 Exact APK
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ['.github/v290-android-matrix.trigger']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bir-v290-android-matrix
+  cancel-in-progress: false
+
+env:
+  BIR_V290_SOURCE_SHA: a4c17661dcf6c4d088e1aee208cfae6bff793bd6
+
+jobs:
+  build-exact-candidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact validated v2.9 source
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.BIR_V290_SOURCE_SHA }}
+          fetch-depth: 0
+
+      - name: Verify exact identity and safety boundaries
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$BIR_V290_SOURCE_SHA"
+          grep -q 'applicationId "com.profitloop.blueauto"' app/build.gradle
+          grep -q 'versionCode 55' app/build.gradle
+          grep -q 'versionName "2.9.0"' app/build.gradle
+          grep -Fq 'new String[]{"REMOTE", "ROBOT"}' app/src/main/java/com/profitloop/blueauto/MainActivity.java
+          ! grep -q 'SEND_SMS' app/src/main/AndroidManifest.xml
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+
+      - name: Build one ephemeral exact Release APK
+        run: |
+          set -euo pipefail
+          mkdir -p .pilot-signing
+          password="$(openssl rand -hex 32)"
+          echo "::add-mask::$password"
+          keytool -genkeypair -keystore .pilot-signing/debug.keystore -storepass "$password" -alias androiddebugkey -keypass "$password" -dname "CN=BIR v2.9 Android Matrix,O=ProfitLoop,C=CM" -keyalg RSA -keysize 2048 -validity 30 -noprompt
+          export BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD="$password"
+          gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
+          bt="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          apk=app/build/outputs/apk/release/app-release.apk
+          "$bt/zipalign" -c -v 4 "$apk"
+          "$bt/aapt" dump badging "$apk" | tee /tmp/badging.txt
+          grep -q "package: name='com.profitloop.blueauto' versionCode='55' versionName='2.9.0'" /tmp/badging.txt
+          if grep -q 'application-debuggable' /tmp/badging.txt; then exit 1; fi
+          sha256sum "$apk" | tee BIR-v2.9-android-matrix.sha256.txt
+          git rev-parse HEAD > BIR-v2.9-android-matrix-source.txt
+
+      - name: Upload exact candidate once
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIR-v2.9.0-Android-Matrix-Exact
+          path: |
+            app/build/outputs/apk/release/app-release.apk
+            BIR-v2.9-android-matrix.sha256.txt
+            BIR-v2.9-android-matrix-source.txt
+          if-no-files-found: error
+          retention-days: 7
+
+  android-smoke:
+    name: Android ${{ matrix.label }} exact APK
+    needs: build-exact-candidate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - api: 23
+            arch: x86
+            profile: Nexus 5
+            label: 6/API23
+          - api: 26
+            arch: x86_64
+            profile: Nexus 5
+            label: 8/API26
+          - api: 30
+            arch: x86_64
+            profile: Nexus 6
+            label: 11/API30
+    steps:
+      - name: Checkout fixtures at exact source
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.BIR_V290_SOURCE_SHA }}
+
+      - name: Download the exact same Release APK
+        uses: actions/download-artifact@v4
+        with:
+          name: BIR-v2.9.0-Android-Matrix-Exact
+          path: /tmp/bir-v290
+
+      - name: Install launch restart and crash-check
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: ${{ matrix.arch }}
+          profile: ${{ matrix.profile }}
+          disable-animations: true
+          script: |
+            set -euo pipefail
+            apk=/tmp/bir-v290/app-release.apk
+            sha256sum "$apk"
+            adb install -r "$apk" | tee /tmp/install.txt
+            grep -q 'Success' /tmp/install.txt
+            adb logcat -c || true
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/start1.txt
+            grep -q 'Status: ok' /tmp/start1.txt
+            sleep 2
+            adb shell pidof com.profitloop.blueauto
+            adb shell am force-stop com.profitloop.blueauto
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/start2.txt
+            grep -q 'Status: ok' /tmp/start2.txt
+            sleep 2
+            adb shell pidof com.profitloop.blueauto
+            if adb logcat -d -b crash 2>/dev/null | grep -q com.profitloop.blueauto; then
+              adb logcat -d -b crash
+              exit 1
+            fi
