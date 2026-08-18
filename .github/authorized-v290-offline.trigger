@@ -1,0 +1,10 @@
+authorized_by=user
+scope=app-only-v2.9-offline-robot
+modes=REMOTE,ROBOT
+hybrid_mode=forbidden
+relay=wifi-direct,bluetooth-events-only
+sms_fallback=forbidden
+infrastructure_expansion=forbidden
+cloudflare_deploy=forbidden
+d1_migration=forbidden
+pr4_merge=forbidden
