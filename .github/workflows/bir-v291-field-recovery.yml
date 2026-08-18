@@ -27,6 +27,8 @@ jobs:
         run: |
           set -euo pipefail
           test -f .github/scripts/v291_field_recovery.py
+          test -f .github/scripts/v291_preserve_adaptive_poll.py
+          test -f .github/scripts/v291_apply_field_recovery.py
           test -f app/src/test/v291-field-recovery-contract.mjs
           test -f app/src/main/assets/field-recovery-v291.js
           test -f app/src/main/assets/field-recovery-v291.css
@@ -39,10 +41,11 @@ jobs:
           set -euo pipefail
           if grep -q 'versionCode 56' app/build.gradle && grep -q 'versionName "2.9.1"' app/build.gradle; then
             echo 'v2.9.1 source already generated; validating as-is.'
+            python3 .github/scripts/v291_preserve_adaptive_poll.py
           else
             grep -q 'versionCode 55' app/build.gradle
             grep -q 'versionName "2.9.0"' app/build.gradle
-            python3 .github/scripts/v291_field_recovery.py
+            python3 .github/scripts/v291_apply_field_recovery.py
           fi
 
       - name: Setup Node 22
