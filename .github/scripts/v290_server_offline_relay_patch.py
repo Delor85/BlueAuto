@@ -1,4 +1,5 @@
 from pathlib import Path
+import subprocess
 
 ROOT = Path(__file__).resolve().parents[2]
 index = ROOT / 'cloudflare/src/index.js'
@@ -33,4 +34,5 @@ for forbidden in ('DROP TABLE', 'DROP TABLE IF EXISTS'):
     if forbidden.lower() in m.lower():
         raise SystemExit('v290 migration must remain additive: ' + forbidden)
 
+subprocess.check_call(['python3', '.github/scripts/v290_restore_inherited_tests.py'], cwd=ROOT)
 print('BIR v2.9 server offline/Relay source already generated; idempotent verification OK')
