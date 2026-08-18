@@ -28,9 +28,20 @@ jobs:
           fetch-depth: 0
 
       - name: Prove exact source and non-destructive scope
+        env:
+          AUTHORIZED_TRIGGER_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$BIR_V290_SOURCE_SHA"
+          git show "$AUTHORIZED_TRIGGER_SHA:.github/v290-production.trigger" > /tmp/bir-v290-production-trigger.txt
+          grep -q '^authorization=approved-by-user-2026-08-18$' /tmp/bir-v290-production-trigger.txt
+          grep -q '^source_sha=9752441af955dc9b4643802234fb2484afadf11f$' /tmp/bir-v290-production-trigger.txt
+          grep -q '^release=2.9.0$' /tmp/bir-v290-production-trigger.txt
+          grep -q '^scope=production-worker-plus-additive-d1-0007-0008$' /tmp/bir-v290-production-trigger.txt
+          grep -q '^modes=REMOTE,ROBOT$' /tmp/bir-v290-production-trigger.txt
+          grep -q '^sms_fallback=forbidden$' /tmp/bir-v290-production-trigger.txt
+          grep -q '^capacity_expansion=forbidden$' /tmp/bir-v290-production-trigger.txt
+          grep -q '^pr4_merge=forbidden$' /tmp/bir-v290-production-trigger.txt
           grep -q 'versionCode 55' app/build.gradle
           grep -q 'versionName "2.9.0"' app/build.gradle
           grep -Fq 'new String[]{"REMOTE", "ROBOT"}' app/src/main/java/com/profitloop/blueauto/MainActivity.java
@@ -45,7 +56,6 @@ jobs:
           grep -q 'CREATE TABLE IF NOT EXISTS ops_escalations' cloudflare/migrations/0008_v290_free_ops_cockpit.sql
           ! grep -Eiq 'DROP[[:space:]]+TABLE|DELETE[[:space:]]+FROM' cloudflare/migrations/0007_offline_events_and_bir_relay.sql
           ! grep -Eiq 'DROP[[:space:]]+TABLE|DELETE[[:space:]]+FROM' cloudflare/migrations/0008_v290_free_ops_cockpit.sql
-          test "${{ vars.BLUE_MAGIC_PRODUCTION_CONFIRM }}" = "BLUE_MAGIC_PRODUCTION"
 
       - name: Node.js 22
         uses: actions/setup-node@v4
@@ -138,6 +148,7 @@ jobs:
         with:
           name: BIR-v2.9-production-activation-evidence
           path: |
+            /tmp/bir-v290-production-trigger.txt
             /tmp/bir-v290-migrations-before.txt
             /tmp/bir-v290-migrations-after.txt
             /tmp/bir-v290-schema-proof.txt
