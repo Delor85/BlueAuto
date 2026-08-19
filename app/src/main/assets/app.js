@@ -63,7 +63,7 @@
         });
     }
     function initializeTabs(){
-        var saved=localStorage.getItem('bir_active_module_v269')||'reports';
+        var saved='reports'; // v2.9.4: ouverture = War Room; navigation ensuite libre.
         applyRoleNavigation();
         each('button[data-tab]',function(button){button.onclick=function(){showTab(button.getAttribute('data-tab'));};});
         showTab(saved);
@@ -372,7 +372,7 @@
         var activity=n.last_activity_at?(' • activité '+formatTime(n.last_activity_at)):'';
         var split='';
         if((n.role==='DAE'||n.role==='DSM')&&n.balance!==null&&typeof n.balance!=='undefined'){
-            split='<br><small>Stock hors commission : '+escapeHtml(formatMoney(n.commission_base_balance||0))+' • part taux par défaut : '+escapeHtml(formatMoney(n.commission_component_balance||0))+' • total réel : '+escapeHtml(formatMoney(n.balance))+' • taux '+escapeHtml(String(Number(n.default_commission_bps||0)/100).replace('.',','))+' %</small>';
+            split='<br><small>Solde réel hors commission : '+escapeHtml(formatMoney(n.commission_base_balance||0))+' • part commission : '+escapeHtml(formatMoney(n.commission_component_balance||0))+' • total réel : '+escapeHtml(formatMoney(n.balance))+' • taux appliqué '+escapeHtml(String(Number(n.default_commission_bps||0)/100).replace('.',','))+' %</small>';
         }
         return '<article class="network-item"><div><strong>'+escapeHtml(n.node_code||'—')+'</strong><span>'+escapeHtml((n.role||'—')+' • '+(n.device_kind||'—')+evidenceText+activity)+'</span></div><div class="network-balance"><b>Solde Blue : '+escapeHtml(balanceText)+'</b><br><small>Réservé après confirmation : '+escapeHtml(formatMoney(reserved))+' FCFA • Disponible : '+escapeHtml(available===null?'—':formatMoney(available)+' FCFA')+'</small>'+split+'</div></article>';
     }
