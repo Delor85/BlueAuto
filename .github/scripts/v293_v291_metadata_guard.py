@@ -11,4 +11,13 @@ new="must(api.includes('payload.put(\"app_version\", \"2.9.1\");')||api.includes
 if old not in s: raise SystemExit('v291 ApiClient metadata guard anchor missing')
 s=s.replace(old,new,1)
 p.write_text(s,encoding='utf-8')
+
+p=Path('app/src/test/v291-remote-sync-wake-contract.mjs')
+s=p.read_text(encoding='utf-8')
+old="must(worker.includes(\"const API_VERSION = '2.9.1-cloudflare'\"),'Worker version missing');"
+new="must(worker.includes(\"const API_VERSION = '2.9.1-cloudflare'\")||worker.includes(\"const API_VERSION = '2.9.3-cloudflare'\"),'Worker version missing');"
+if old not in s: raise SystemExit('v291 sync-wake Worker metadata guard anchor missing')
+s=s.replace(old,new,1)
+p.write_text(s,encoding='utf-8')
+
 print('v291 metadata guards widened to 2.9.3; all recovery/safety assertions unchanged')
