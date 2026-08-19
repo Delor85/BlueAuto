@@ -1,0 +1,69 @@
+name: BIR v2.9.3 Accessibility 150s and reboot stability
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ['.github/v293-accessibility-reboot.trigger']
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: bir-v293-accessibility-reboot-stability
+  cancel-in-progress: true
+
+env:
+  BIR_V293_SOURCE_SHA: 33a15f4eb7e0c04b0dac8c82837037396c49cea2
+  BIR_V293_ARTIFACT_RUN_ID: '32258437090'
+  BIR_V293_APK_SHA256: 6c3f605a6e6bd9156070cc8888ca34ef49ad33c3e6a240a83b4b3588065c2b50
+
+jobs:
+  accessibility-reboot:
+    name: Accessibility 150s + reboot Android ${{ matrix.label }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {api: 23, arch: x86, profile: "Nexus 5", label: "6/API23"}
+          - {api: 30, arch: x86_64, profile: "Nexus 6", label: "11/API30"}
+          - {api: 34, arch: x86_64, profile: "pixel_2", label: "14/API34"}
+          - {api: 36, arch: x86_64, profile: "pixel_2", label: "16/API36"}
+    steps:
+      - name: Download exact candidate APK
+        uses: actions/download-artifact@v4
+        with:
+          name: BIR-v2.9.3-coherence-ephemeral
+          path: /tmp/bir-v293
+          repository: Delor85/BlueAuto
+          run-id: ${{ env.BIR_V293_ARTIFACT_RUN_ID }}
+          github-token: ${{ github.token }}
+      - name: Prove authorization persistence across regression window and Android reboot
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: ${{ matrix.arch }}
+          profile: ${{ matrix.profile }}
+          disable-animations: true
+          script: |
+            sha256sum /tmp/bir-v293/BIR-v2.9.3-code58-EPHEMERAL.apk | grep "$BIR_V293_APK_SHA256"
+            adb install -r /tmp/bir-v293/BIR-v2.9.3-code58-EPHEMERAL.apk | grep Success
+            adb shell settings put secure enabled_accessibility_services com.profitloop.blueauto/com.profitloop.blueauto.BlueAccessibilityService
+            adb shell settings put secure accessibility_enabled 1
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity | grep -q 'Status: ok'
+            sleep 10
+            adb shell settings get secure enabled_accessibility_services | grep -q 'com.profitloop.blueauto'
+            sleep 150
+            adb shell settings get secure enabled_accessibility_services | grep -q 'com.profitloop.blueauto'
+            adb reboot
+            adb wait-for-device
+            timeout 240 sh -c 'until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" = "1" ]; do sleep 2; done'
+            adb shell settings get secure enabled_accessibility_services | grep -q 'com.profitloop.blueauto'
+            adb shell settings get secure accessibility_enabled | grep -q '^1$'
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity | grep -q 'Status: ok'
+            sleep 10
+            adb shell settings get secure enabled_accessibility_services | grep -q 'com.profitloop.blueauto'
+            adb logcat -d -b crash > /tmp/access-reboot-crash.txt || true
+            ! grep -q com.profitloop.blueauto /tmp/access-reboot-crash.txt
