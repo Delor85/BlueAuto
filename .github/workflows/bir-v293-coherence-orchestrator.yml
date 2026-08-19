@@ -33,6 +33,7 @@ jobs:
           git fetch origin main
           git checkout origin/main -- \
             .github/scripts/v293_app_coherence_patch.py \
+            .github/scripts/v293_app_fixups.py \
             .github/scripts/v293_command_center_ui_patch.py \
             .github/scripts/v293_server_command_center_patch.py \
             .github/scripts/v293_server_fixups.py \
@@ -45,6 +46,7 @@ jobs:
       - name: Apply deterministic v2.9.3 patches
         run: |
           python3 .github/scripts/v293_app_coherence_patch.py
+          python3 .github/scripts/v293_app_fixups.py
           python3 .github/scripts/v293_command_center_ui_patch.py
           python3 .github/scripts/v293_server_command_center_patch.py
           python3 .github/scripts/v293_server_fixups.py
