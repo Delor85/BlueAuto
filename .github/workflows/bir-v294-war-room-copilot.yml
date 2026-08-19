@@ -1,0 +1,138 @@
+name: BIR v2.9.4 War Room and local Copilot
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/v294-war-room.trigger'
+
+permissions:
+  contents: write
+
+env:
+  BIR_V294_BASE_SHA: 33a15f4eb7e0c04b0dac8c82837037396c49cea2
+
+jobs:
+  validate-and-materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact v2.9.3 validated base
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.BIR_V294_BASE_SHA }}
+          fetch-depth: 0
+
+      - name: Import v2.9.4 patch from PR branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin "${{ github.head_ref }}"
+          git show "origin/${{ github.head_ref }}:.github/scripts/v294_war_room_copilot_patch.py" > /tmp/v294_war_room_copilot_patch.py
+          python3 /tmp/v294_war_room_copilot_patch.py
+          test "$(git rev-parse HEAD)" = "$BIR_V294_BASE_SHA"
+          grep -q 'versionCode 59' app/build.gradle
+          grep -q 'versionName "2.9.4"' app/build.gradle
+          grep -q "const API_VERSION = '2.9.4-cloudflare'" cloudflare/src/index.js
+
+      - name: Prove immutable safety boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'new String[]{"REMOTE", "ROBOT"}' app/src/main/java/com/profitloop/blueauto/MainActivity.java
+          ! grep -q 'android.permission.SEND_SMS' app/src/main/AndroidManifest.xml
+          ! grep -RniE 'sms[_ -]?fallback|financial_command_over_relay[[:space:]]*=[[:space:]]*true' app/src/main cloudflare/src
+          ! grep -q 'createCommand(' app/src/main/assets/war-room-v294.js
+          ! grep -q 'create_command' app/src/main/assets/war-room-v294.js
+          ! grep -Eq 'https?://|fetch\(' app/src/main/assets/war-room-v294.js
+          grep -q 'commission_free_competition: true' cloudflare/src/index.js
+
+      - name: Run all Android/WebView contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for test in app/src/test/*.mjs; do
+            echo "=== $test ==="
+            node "$test"
+          done
+          node --check app/src/main/assets/app.js
+          node --check app/src/main/assets/pilotage-v292.js
+          node --check app/src/main/assets/war-room-v294.js
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: cloudflare/package-lock.json
+
+      - name: Validate Worker without production mutation
+        working-directory: cloudflare
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run check
+          npx wrangler deploy --dry-run
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle 8.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+
+      - name: Create ephemeral validation signing key
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .pilot-signing
+          password="$(openssl rand -hex 24)"
+          echo "::add-mask::$password"
+          printf '%s' "$password" > .pilot-signing/keystore.password
+          keytool -genkeypair -keystore .pilot-signing/debug.keystore -storepass "$password" -alias androiddebugkey -keypass "$password" -dname "CN=BIR v2.9.4 CI,O=ProfitLoop,C=CM" -keyalg RSA -keysize 2048 -validity 30 -noprompt
+          echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$password" >> "$GITHUB_ENV"
+
+      - name: Compile exact Release candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
+          apk=app/build/outputs/apk/release/app-release.apk
+          test -f "$apk"
+          build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          "$build_tools/aapt" dump badging "$apk" | tee /tmp/v294-badging.txt
+          grep -q "package: name='com.profitloop.blueauto' versionCode='59' versionName='2.9.4'" /tmp/v294-badging.txt
+          if "$build_tools/aapt" dump badging "$apk" | grep -q 'application-debuggable'; then echo 'Release is debuggable'; exit 1; fi
+          sha256sum "$apk" | tee /tmp/v294-apk.sha256
+          cp "$apk" /tmp/BIR-v2.9.4-code59-EPHEMERAL.apk
+
+      - name: Materialize only validated source on feature branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'BIR v2.9.4 CI'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app cloudflare/src/index.js
+          if git diff --cached --quiet; then
+            echo 'Nothing to commit.'
+          else
+            git commit -m 'feat: BIR v2.9.4 War Room and local Copilot validated [no-prod]'
+            git push origin "HEAD:${{ github.head_ref }}"
+          fi
+          git rev-parse HEAD | tee /tmp/v294-source-sha.txt
+
+      - name: Upload ephemeral candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIR-v2.9.4-war-room-copilot-ephemeral
+          path: |
+            /tmp/BIR-v2.9.4-code59-EPHEMERAL.apk
+            /tmp/v294-apk.sha256
+            /tmp/v294-source-sha.txt
+          retention-days: 7
+          if-no-files-found: error
