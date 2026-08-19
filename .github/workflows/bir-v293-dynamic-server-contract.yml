@@ -21,16 +21,22 @@ jobs:
         with:
           ref: ${{ env.BIR_V293_SOURCE_SHA }}
           fetch-depth: 0
-      - name: Import CI-only dynamic contract patch
+      - name: Import CI-only dynamic contracts
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$BIR_V293_SOURCE_SHA"
           git fetch origin main
           git show origin/main:.github/scripts/v293_dynamic_server_contract_patch.py > /tmp/v293_dynamic_server_contract_patch.py
+          git show origin/main:.github/scripts/v293_balance_regression_test.mjs > /tmp/v293_balance_regression_test.mjs
           python3 /tmp/v293_dynamic_server_contract_patch.py
           git diff -- cloudflare/test/integration.mjs
           test -z "$(git diff --name-only | grep -v '^cloudflare/test/integration.mjs$' || true)"
+      - name: Reproduce and lock the 82 to 81 balance regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          node /tmp/v293_balance_regression_test.mjs
       - name: Run full Worker integration suite with v2.9.3 dynamic checks
         working-directory: cloudflare
         shell: bash
@@ -46,4 +52,4 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$BIR_V293_SOURCE_SHA"
           test -n "$(git diff -- cloudflare/test/integration.mjs)"
-          echo 'Dynamic v2.9.3 server checks passed without modifying candidate source.'
+          echo 'Dynamic v2.9.3 server and balance checks passed without modifying candidate source.'
