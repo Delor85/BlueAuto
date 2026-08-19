@@ -1,0 +1,124 @@
+name: BIR v2.9.3 coherence recovery
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '.github/v293-coherence.trigger'
+
+permissions:
+  contents: write
+
+jobs:
+  validate-v293:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD: BIR-v293-ephemeral-CI-only-2026
+    steps:
+      - name: Checkout recovery branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/bir-v2-9-3-coherence-recovery
+          fetch-depth: 0
+
+      - name: Apply deterministic v2.9.3 patches
+        run: |
+          python3 .github/scripts/v293_app_coherence_patch.py
+          python3 .github/scripts/v293_command_center_ui_patch.py
+          python3 .github/scripts/v293_server_command_center_patch.py
+          python3 .github/scripts/v293_server_fixups.py
+          python3 .github/scripts/v293_allow_version_in_inherited_tests.py
+
+      - name: Immutable safety boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'versionCode 58' app/build.gradle
+          grep -q 'versionName "2.9.3"' app/build.gradle
+          grep -q "const API_VERSION = '2.9.3-cloudflare'" cloudflare/src/index.js
+          grep -q "effective_modes: \['REMOTE','ROBOT'\]" cloudflare/src/index.js
+          ! grep -RniE 'sms[_ -]?fallback|financial_command_over_relay[[:space:]]*=[[:space:]]*true' app/src/main cloudflare/src
+          ! grep -RniE 'DROP TABLE|DELETE FROM nodes|DELETE FROM commands|DELETE FROM account_balances' cloudflare/migrations/0010_coherence_recovery_and_reconciliation.sql
+          grep -q 'leased_by_device_id' cloudflare/migrations/0010_coherence_recovery_and_reconciliation.sql
+          grep -q 'inbound_commission_bps' cloudflare/migrations/0010_coherence_recovery_and_reconciliation.sql
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run Android/WebView contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node app/src/test/bir-v293-coherence-contract.mjs
+          for test in app/src/test/*.mjs; do
+            [ "$test" = 'app/src/test/bir-v293-coherence-contract.mjs' ] && continue
+            echo "==> $test"
+            node "$test"
+          done
+
+      - name: Validate Worker and local D1 migration
+        working-directory: cloudflare
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run check
+          npx wrangler d1 migrations apply blue-magic --local
+          npx wrangler deploy --dry-run
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle 8.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+
+      - name: Create ephemeral CI signing key
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .pilot-signing
+          keytool -genkeypair -v -keystore .pilot-signing/debug.keystore \
+            -storepass "$BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD" -alias androiddebugkey \
+            -keypass "$BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD" -keyalg RSA -keysize 2048 \
+            -validity 30 -dname 'CN=BIR v2.9.3 Ephemeral CI,O=Blue Magic CI,C=CM'
+
+      - name: Compile tests and release APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle :app:testDebugUnitTest :app:assembleRelease --stacktrace
+          APK=$(find app/build/outputs/apk/release -name '*.apk' | head -n 1)
+          test -n "$APK"
+          sha256sum "$APK" | tee /tmp/v293-apk-sha256.txt
+          cp "$APK" /tmp/BIR-v2.9.3-code58-EPHEMERAL.apk
+
+      - name: Commit only validated generated source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'BIR v2.9.3 CI'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app cloudflare/src/index.js cloudflare/migrations/0010_coherence_recovery_and_reconciliation.sql
+          if ! git diff --cached --quiet; then
+            git commit -m 'fix: BIR v2.9.3 coherence recovery validated [no-prod]'
+            git push origin HEAD:fix/bir-v2-9-3-coherence-recovery
+          fi
+          git rev-parse HEAD | tee /tmp/v293-source-sha.txt
+
+      - name: Upload ephemeral validation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIR-v2.9.3-coherence-ephemeral
+          retention-days: 7
+          path: |
+            /tmp/BIR-v2.9.3-code58-EPHEMERAL.apk
+            /tmp/v293-apk-sha256.txt
+            /tmp/v293-source-sha.txt
