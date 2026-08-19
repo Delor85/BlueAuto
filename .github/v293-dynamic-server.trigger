@@ -1,4 +1,5 @@
-run=seed
+run=v2.9.3-dynamic-server-1
 source_sha=33a15f4eb7e0c04b0dac8c82837037396c49cea2
 production_deploy=forbidden
 d1_remote_migration=forbidden
+permanent_signing=forbidden
