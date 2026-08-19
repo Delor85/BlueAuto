@@ -37,6 +37,8 @@ jobs:
               if p.name == 'v294-war-room-contract.mjs':
                   continue
               s=p.read_text(encoding='utf-8')
+              if p.name == 'bir-v293-coherence-contract.mjs':
+                  s=s.replace("need(gradle.includes('versionCode 58')&&gradle.includes('versionName \"2.9.3\"'),'v2.9.3/code58 required');", "need((gradle.includes('versionCode 58')||gradle.includes('versionCode 59'))&&(gradle.includes('versionName \"2.9.3\"')||gradle.includes('versionName \"2.9.4\"')),'v2.9.3+/code58+ required');")
               s=s.replace("versionCode 58')", "versionCode 58')||gradle.includes('versionCode 59')")
               s=s.replace('51|52|53|54|55|56|57|58', '51|52|53|54|55|56|57|58|59')
               s=s.replace('52|53|54|55|56|57|58', '52|53|54|55|56|57|58|59')
