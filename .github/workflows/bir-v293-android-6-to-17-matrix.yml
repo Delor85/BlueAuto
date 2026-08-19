@@ -1,0 +1,167 @@
+name: BIR v2.9.3 Android 6 to 17 exact APK
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ['.github/v293-android-matrix.trigger']
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: bir-v293-android-6-to-17-matrix
+  cancel-in-progress: false
+
+env:
+  BIR_V293_SOURCE_SHA: 33a15f4eb7e0c04b0dac8c82837037396c49cea2
+  BIR_V293_ARTIFACT_RUN_ID: '32258437090'
+  BIR_V293_APK_SHA256: 6c3f605a6e6bd9156070cc8888ca34ef49ad33c3e6a240a83b4b3588065c2b50
+
+jobs:
+  prove-exact-artifact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact validated source
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.BIR_V293_SOURCE_SHA }}
+      - name: Download exact already-built v2.9.3 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: BIR-v2.9.3-coherence-ephemeral
+          path: /tmp/bir-v293
+          repository: Delor85/BlueAuto
+          run-id: ${{ env.BIR_V293_ARTIFACT_RUN_ID }}
+          github-token: ${{ github.token }}
+      - name: Prove immutable binary and source identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$BIR_V293_SOURCE_SHA"
+          apk=/tmp/bir-v293/BIR-v2.9.3-code58-EPHEMERAL.apk
+          test -f "$apk"
+          sha256sum "$apk" | tee /tmp/v293-matrix.sha256
+          grep -q "^$BIR_V293_APK_SHA256  " /tmp/v293-matrix.sha256
+          grep -qx "$BIR_V293_SOURCE_SHA" /tmp/bir-v293/v293-source-sha.txt
+          grep -q 'versionCode 58' app/build.gradle
+          grep -q 'versionName "2.9.3"' app/build.gradle
+          grep -q 'applicationId "com.profitloop.blueauto"' app/build.gradle
+          ! grep -q 'android.permission.SEND_SMS' app/src/main/AndroidManifest.xml
+          grep -Fq 'new String[]{"REMOTE", "ROBOT"}' app/src/main/java/com/profitloop/blueauto/MainActivity.java
+          grep -q 'ACCESSIBILITY_RECONNECT_GRACE_MS' app/src/main/java/com/profitloop/blueauto/RobotService.java
+          grep -q 'sameEvidenceMovement' app/src/main/assets/balance-engine-v280.js
+
+  android-major-smoke:
+    name: Android ${{ matrix.label }} exact v2.9.3
+    needs: prove-exact-artifact
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {api: 23, arch: x86, profile: "Nexus 5", label: "6/API23"}
+          - {api: 24, arch: x86, profile: "Nexus 5", label: "7/API24"}
+          - {api: 26, arch: x86_64, profile: "Nexus 5", label: "8/API26"}
+          - {api: 28, arch: x86_64, profile: "Nexus 5", label: "9/API28"}
+          - {api: 29, arch: x86_64, profile: "Nexus 6", label: "10/API29"}
+          - {api: 30, arch: x86_64, profile: "Nexus 6", label: "11/API30"}
+          - {api: 31, arch: x86_64, profile: "pixel_2", label: "12/API31"}
+          - {api: 33, arch: x86_64, profile: "pixel_2", label: "13/API33"}
+          - {api: 34, arch: x86_64, profile: "pixel_2", label: "14/API34"}
+          - {api: 35, arch: x86_64, profile: "pixel_2", label: "15/API35"}
+          - {api: 36, arch: x86_64, profile: "pixel_2", label: "16/API36"}
+          - {api: 37, arch: x86_64, profile: "pixel_2", label: "17/API37"}
+    steps:
+      - name: Download exact v2.9.3 validation APK
+        uses: actions/download-artifact@v4
+        with:
+          name: BIR-v2.9.3-coherence-ephemeral
+          path: /tmp/bir-v293
+          repository: Delor85/BlueAuto
+          run-id: ${{ env.BIR_V293_ARTIFACT_RUN_ID }}
+          github-token: ${{ github.token }}
+      - name: Install launch restart and crash-check exact binary
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: ${{ matrix.arch }}
+          profile: ${{ matrix.profile }}
+          disable-animations: true
+          script: |
+            set -euo pipefail
+            apk=/tmp/bir-v293/BIR-v2.9.3-code58-EPHEMERAL.apk
+            sha256sum "$apk" | grep "$BIR_V293_APK_SHA256"
+            test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = "${{ matrix.api }}"
+            adb install -r "$apk" | tee /tmp/install.txt
+            grep -q 'Success' /tmp/install.txt
+            adb shell dumpsys package com.profitloop.blueauto > /tmp/package.txt
+            grep -q 'versionCode=58' /tmp/package.txt
+            grep -q 'versionName=2.9.3' /tmp/package.txt
+            adb logcat -c || true
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/start1.txt
+            grep -q 'Status: ok' /tmp/start1.txt
+            sleep 2
+            adb shell pidof com.profitloop.blueauto
+            adb shell am force-stop com.profitloop.blueauto
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/start2.txt
+            grep -q 'Status: ok' /tmp/start2.txt
+            sleep 2
+            adb shell pidof com.profitloop.blueauto
+            adb logcat -d -b crash > /tmp/bir-crash.txt || true
+            ! grep -q com.profitloop.blueauto /tmp/bir-crash.txt
+
+  accessibility-stability:
+    name: Accessibility stability Android ${{ matrix.label }}
+    needs: prove-exact-artifact
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {api: 23, arch: x86, profile: "Nexus 5", label: "6/API23"}
+          - {api: 30, arch: x86_64, profile: "Nexus 6", label: "11/API30"}
+          - {api: 34, arch: x86_64, profile: "pixel_2", label: "14/API34"}
+          - {api: 36, arch: x86_64, profile: "pixel_2", label: "16/API36"}
+          - {api: 37, arch: x86_64, profile: "pixel_2", label: "17/API37"}
+    steps:
+      - name: Download exact v2.9.3 validation APK
+        uses: actions/download-artifact@v4
+        with:
+          name: BIR-v2.9.3-coherence-ephemeral
+          path: /tmp/bir-v293
+          repository: Delor85/BlueAuto
+          run-id: ${{ env.BIR_V293_ARTIFACT_RUN_ID }}
+          github-token: ${{ github.token }}
+      - name: Keep accessibility authorization through restart and reconnect window
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: ${{ matrix.arch }}
+          profile: ${{ matrix.profile }}
+          disable-animations: true
+          script: |
+            set -euo pipefail
+            apk=/tmp/bir-v293/BIR-v2.9.3-code58-EPHEMERAL.apk
+            adb install -r "$apk" | grep Success
+            component=com.profitloop.blueauto/com.profitloop.blueauto.BlueAccessibilityService
+            adb shell settings put secure enabled_accessibility_services "$component"
+            adb shell settings put secure accessibility_enabled 1
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity >/tmp/access-start.txt
+            grep -q 'Status: ok' /tmp/access-start.txt
+            sleep 10
+            adb shell settings get secure enabled_accessibility_services | grep -q 'com.profitloop.blueauto'
+            # Exercise the exact 2-5 minute regression window without issuing any USSD command.
+            sleep 150
+            adb shell settings get secure enabled_accessibility_services | grep -q 'com.profitloop.blueauto'
+            adb shell am force-stop com.profitloop.blueauto
+            sleep 2
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity >/tmp/access-restart.txt
+            grep -q 'Status: ok' /tmp/access-restart.txt
+            sleep 10
+            adb shell settings get secure enabled_accessibility_services | grep -q 'com.profitloop.blueauto'
+            adb logcat -d -b crash > /tmp/access-crash.txt || true
+            ! grep -q com.profitloop.blueauto /tmp/access-crash.txt
