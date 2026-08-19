@@ -40,6 +40,7 @@ jobs:
             .github/scripts/v293_patchscript_repair.py \
             .github/scripts/v293_allow_version_in_inherited_tests.py \
             .github/scripts/v293_v280_metadata_guard.py \
+            .github/scripts/v293_v291_metadata_guard.py \
             .github/scripts/v293_restore_release_hygiene.py \
             app/src/main/java/com/profitloop/blueauto/CertifiedBalanceStore.java \
             app/src/main/java/com/profitloop/blueauto/ServerQueueMirrorStore.java \
@@ -56,6 +57,7 @@ jobs:
           python3 .github/scripts/v293_server_fixups.py
           python3 .github/scripts/v293_allow_version_in_inherited_tests.py
           python3 .github/scripts/v293_v280_metadata_guard.py
+          python3 .github/scripts/v293_v291_metadata_guard.py
           python3 .github/scripts/v293_restore_release_hygiene.py
 
       - name: Immutable safety boundaries
