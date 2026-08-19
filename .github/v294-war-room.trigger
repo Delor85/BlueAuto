@@ -1,0 +1,6 @@
+run=v2.9.4-war-room-copilot-1
+base_sha=33a15f4eb7e0c04b0dac8c82837037396c49cea2
+production_deploy=forbidden
+permanent_signing=forbidden
+sms_fallback=forbidden
+financial_autorun=forbidden
