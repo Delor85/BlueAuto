@@ -1,6 +1,6 @@
-run=1
+run=2
 scope=read-only-production-diagnostic
-nodes=POS1_DSM1_SU1,DSM1_SU1
+identity_match=DSM1,SU1,POS1
 production_mutation=forbidden
 d1_write=forbidden
 worker_deploy=forbidden
