@@ -5,10 +5,13 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
+import android.telecom.TelecomManager;
 import android.text.TextUtils;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
@@ -29,7 +32,7 @@ public class BlueAccessibilityService extends AccessibilityService {
     private static final Pattern TX_ID = Pattern.compile(
             "(?i)(?:transaction\\s*id|transactionid)(?:\\s+is)?\\s*[:#-]?\\s*(\\d{6,})");
     private static final int MAX_PROMPT_RETRIES = 100;
-    private static final int MAX_PIN_WRITE_ATTEMPTS = 5;
+    private static final int MAX_PIN_WRITE_ATTEMPTS = 3;
     private static final int MAX_BUTTON_RETRIES = 24;
 
     private static volatile BlueAccessibilityService liveInstance;
@@ -66,53 +69,87 @@ public class BlueAccessibilityService extends AccessibilityService {
         String profileId = command.optString("local_profile_id", "");
         prepareCommand(commandId, profileId);
 
+        // Never target or submit a Phone field behind any Android keyguard. The Robot normally
+        // removes a swipe-only lock before dialing; this also covers a screen re-locked mid-flow.
+        if (DeviceLockState.isKeyguardLocked(this)) {
+            scheduleInspection(commandId, profileId);
+            return;
+        }
+
         List<AccessibilityNodeInfo> roots = externalRoots();
         String visible = collectExternalText(roots, event);
         String normalized = normalize(visible);
+        String state = command.optString("local_state", PendingCommandStore.LEASED);
+        String operation = UssdCommandFactory.operation(command);
+        String trustedResult = PendingCommandStore.AWAITING_RESULT.equals(state)
+                ? trustedUssdResult(roots, operation) : "";
+        String resultVisible = trustedResult;
+        String resultNormalized = normalize(trustedResult);
+        BlueMessageParser.Result parsedBlue = BlueMessageParser.parse(trustedResult);
 
         if (System.currentTimeMillis() - lastResultAt >= 800L) {
-            if (containsAny(normalized, "wrong pin code", "pin incorrect", "code pin incorrect", "code errone")) {
+            if (parsedBlue.wrongPin || containsAny(resultNormalized,
+                    "wrong pin code", "pin incorrect", "code pin incorrect", "code errone")) {
                 lastResultAt = System.currentTimeMillis();
                 AppConfig.setPinBlocked(this, profileId, true);
                 RobotService.operatorResult(this, profileId, false, "WRONG_PIN",
-                        safeScreenText(visible, profileId), transactionId(visible));
-                clickFirst(roots, "ok", "fermer", "close");
+                        safeScreenText(resultVisible, profileId), transactionId(resultVisible));
+                clickTrustedTelephonyFirst(roots, "ok", "fermer", "close");
                 resetAutomation();
                 return;
             }
 
-            if (containsAny(normalized, "processed successfully", "request is processed successfully",
-                    "successfully transferred", "transfer successfully", "you transfer")
+            if ((parsedBlue.terminalSuccess() || (!parsedBlue.processing && containsAny(resultNormalized, "processed successfully",
+                    "successfully transferred", "transfer successfully", "you transfer")))
                     && resultBelongsToVerifiedSession(command)) {
                 lastResultAt = System.currentTimeMillis();
                 RobotService.operatorResult(this, profileId, true, "",
-                        safeScreenText(visible, profileId), transactionId(visible));
-                clickFirst(roots, "ok", "fermer", "close");
+                        safeScreenText(resultVisible, profileId), transactionId(resultVisible));
+                clickTrustedTelephonyFirst(roots, "ok", "fermer", "close");
                 resetAutomation();
                 return;
             }
 
-            if (containsAny(normalized, "insufficient", "not enough", "transaction failed", "request failed",
-                    "operator is frozen", "operator is suspended", "invalid amount", "echec")
+            if ((parsedBlue.terminalFailure() || containsAny(resultNormalized, "insufficient", "not enough", "transaction failed", "request failed",
+                    "operator is frozen", "operator is suspended", "invalid amount", "echec"))
                     && resultBelongsToVerifiedSession(command)) {
                 lastResultAt = System.currentTimeMillis();
                 RobotService.operatorResult(this, profileId, false, "OPERATOR_REJECTED",
-                        safeScreenText(visible, profileId), transactionId(visible));
-                clickFirst(roots, "ok", "fermer", "close");
+                        safeScreenText(resultVisible, profileId), transactionId(resultVisible));
+                clickTrustedTelephonyFirst(roots, "ok", "fermer", "close");
                 resetAutomation();
                 return;
             }
         }
 
-        String state = command.optString("local_state", PendingCommandStore.LEASED);
-        if ("TEST_NUMBER".equals(command.optString("operation"))
-                && PendingCommandStore.AWAITING_RESULT.equals(state)
-                && !normalized.contains("pin")
-                && normalized.matches("(?s).*\\d{9}.*")) {
+        if (("BALANCE_OWN".equals(operation) || "BALANCE_CHILD".equals(operation))
+                && !trustedResult.isEmpty()) {
             lastResultAt = System.currentTimeMillis();
             RobotService.operatorResult(this, profileId, true, "",
-                    safeScreenText(visible, profileId), transactionId(visible));
-            clickFirst(roots, "ok", "fermer", "close");
+                    safeScreenText(trustedResult, profileId), transactionId(trustedResult));
+            clickTrustedTelephonyFirst(roots, "ok", "fermer", "close");
+            resetAutomation();
+            return;
+        }
+        if ((isRecognizedInformationResult(operation, normalize(trustedResult))
+                || isRecognizedAdministrationResult(operation, normalize(trustedResult)))
+                && !trustedResult.isEmpty()) {
+            lastResultAt = System.currentTimeMillis();
+            RobotService.operatorResult(this, profileId, true, "",
+                    safeScreenText(trustedResult, profileId), transactionId(trustedResult));
+            clickTrustedTelephonyFirst(roots, "ok", "fermer", "close");
+            resetAutomation();
+            return;
+        }
+        if ("TEST_NUMBER".equals(operation)
+                && PendingCommandStore.AWAITING_RESULT.equals(state)
+                && !trustedResult.isEmpty()
+                && !normalize(trustedResult).contains("pin")
+                && normalize(trustedResult).matches("(?s).*\\d{9}.*")) {
+            lastResultAt = System.currentTimeMillis();
+            RobotService.operatorResult(this, profileId, true, "",
+                    safeScreenText(trustedResult, profileId), transactionId(trustedResult));
+            clickTrustedTelephonyFirst(roots, "ok", "fermer", "close");
             resetAutomation();
             return;
         }
@@ -129,7 +166,7 @@ public class BlueAccessibilityService extends AccessibilityService {
             if (hasDefiniteMismatch(command, roots)) {
                 clickFirst(roots, "annuler", "cancel");
                 RobotService.operatorResult(this, profileId, false, "CONFIRMATION_MISMATCH",
-                        "Le numéro ou le montant affiché par Camtel ne correspond pas à l’ordre attendu.", "");
+                        mismatchEvidence(command, visible, profileId), "");
                 resetAutomation();
                 return;
             }
@@ -181,8 +218,12 @@ public class BlueAccessibilityService extends AccessibilityService {
                     retryPinWrite(commandId, profileId, currentAttempt);
                     return;
                 }
-                boolean accepted = setText(refreshed.field, pin);
-                if (currentAttempt >= 2) accepted = pastePin(refreshed.field, pin) || accepted;
+                boolean accepted;
+                if (currentAttempt == 0) {
+                    accepted = pastePin(refreshed.field, pin);
+                } else {
+                    accepted = setText(refreshed.field, pin);
+                }
                 final boolean actionAccepted = accepted;
                 handler.postDelayed(() -> verifyPinWrite(commandId, profileId,
                         currentAttempt, pin, actionAccepted), 260L);
@@ -203,8 +244,12 @@ public class BlueAccessibilityService extends AccessibilityService {
             return;
         }
         PromptTarget target = findVerifiedPrompt(command, externalRoots());
-        if (target != null && (fieldContainsPin(target.field, pin)
-                || (actionAccepted && attempt >= MAX_PIN_WRITE_ATTEMPTS - 1))) {
+        boolean finalFallback = attempt + 1 >= MAX_PIN_WRITE_ATTEMPTS
+                && actionAccepted && target != null && target.field.isVisibleToUser()
+                && target.field.isFocused() && !DeviceLockState.isKeyguardLocked(this);
+        // A first ACTION_SET_TEXT "true" is not proof of mutation on Android 11/OEM dialers. Try
+        // the independent clipboard path before accepting the last focused and visible fallback.
+        if (target != null && (fieldContainsPin(target.field, pin) || finalFallback)) {
             markPinReady(commandId, profileId);
             return;
         }
@@ -359,7 +404,7 @@ public class BlueAccessibilityService extends AccessibilityService {
         for (int i = 0; i < node.getChildCount(); i++) appendText(node.getChild(i), output);
     }
 
-    private static AccessibilityNodeInfo findBestEditable(AccessibilityNodeInfo root) {
+    private AccessibilityNodeInfo findBestEditable(AccessibilityNodeInfo root) {
         List<AccessibilityNodeInfo> nodes = new ArrayList<>();
         flatten(root, nodes);
         AccessibilityNodeInfo best = null;
@@ -368,7 +413,8 @@ public class BlueAccessibilityService extends AccessibilityService {
             CharSequence className = node.getClassName();
             boolean supportsSetText = supportsAction(node, AccessibilityNodeInfo.ACTION_SET_TEXT);
             boolean editText = className != null && className.toString().contains("EditText");
-            if (!(node.isEditable() || supportsSetText || editText) || !node.isVisibleToUser()) continue;
+            if (!(node.isEditable() || supportsSetText || editText)
+                    || !node.isVisibleToUser()) continue;
             int score = 0;
             if (node.isFocused()) score += 8;
             if (node.isEditable()) score += 4;
@@ -427,7 +473,8 @@ public class BlueAccessibilityService extends AccessibilityService {
         String text = value.toString();
         String numeric = digits(text);
         if (pin.equals(numeric)) return true;
-        return text.length() >= 4 && numeric.isEmpty();
+        String compact = text.replaceAll("\\s+", "");
+        return compact.matches("[•●∙*×]{4}");
     }
 
     private static boolean confirmationMatches(String text, String phone, String amount) {
@@ -443,16 +490,130 @@ public class BlueAccessibilityService extends AccessibilityService {
     private static boolean confirmationHasDefiniteMismatch(String text, String phone, String amount) {
         Matcher phoneMatcher = Pattern.compile("(?<!\\d)(6\\d{8})(?!\\d)")
                 .matcher(text.replaceAll("[ ._-]", ""));
-        boolean anotherPhone = phoneMatcher.find() && !phone.equals(phoneMatcher.group(1));
+        boolean sawPhone = false;
+        boolean expectedPhoneSeen = false;
+        while (phoneMatcher.find()) {
+            sawPhone = true;
+            if (phone.equals(phoneMatcher.group(1))) expectedPhoneSeen = true;
+        }
         Matcher amountMatcher = Pattern.compile(
                 "(?i)(?<!\\d)(\\d{1,9})(?:[.,]00)?\\s*(?:f\\s*cfa|fcfa|xaf)").matcher(text);
-        boolean anotherAmount = amountMatcher.find() && !amount.equals(amountMatcher.group(1));
-        return anotherPhone || anotherAmount;
+        boolean sawAmount = false;
+        boolean expectedAmountSeen = false;
+        while (amountMatcher.find()) {
+            sawAmount = true;
+            if (amount.equals(amountMatcher.group(1))) expectedAmountSeen = true;
+        }
+        return (sawPhone && !expectedPhoneSeen) || (sawAmount && !expectedAmountSeen);
+    }
+
+    private String mismatchEvidence(JSONObject command, String visible, String profileId) {
+        String expectedPhone = digits(command.optString("target_phone", ""));
+        String expectedAmount = digits(command.optString("amount", "").replaceFirst("\\.0+$", ""));
+        String observed = safeScreenText(visible == null ? "" : visible, profileId)
+                .replaceAll("\\s+", " ").trim();
+        if (observed.length() > 700) observed = observed.substring(0, 700);
+        return "Transaction annulée avant PIN. Attendu : destinataire " + expectedPhone
+                + ", montant " + expectedAmount + " FCFA. Capture textuelle Camtel : "
+                + (observed.isEmpty() ? "contenu inaccessible" : observed);
     }
 
     private static boolean resultBelongsToVerifiedSession(JSONObject command) {
         return !UssdCommandFactory.requiresPin(command)
                 || command.optBoolean("confirmation_verified", false);
+    }
+
+    private static boolean isRecognizedInformationResult(String operation, String text) {
+        if ("HISTORY_LAST5".equals(operation)) {
+            return containsAny(text, "transaction", "historique", "last transaction")
+                    && text.matches("(?s).*\\d{4,}.*");
+        }
+        if ("TRANSACTION_DETAIL".equals(operation)) {
+            return containsAny(text, "transaction", "detail")
+                    && containsAny(text, "montant", "amount", "fcfa", "xaf", "id");
+        }
+        return false;
+    }
+
+    private static boolean isRecognizedAdministrationResult(String operation, String text) {
+        if ("INIT_CHILD_PIN_RESET".equals(operation)) {
+            return text.contains("pin") && containsAny(text, "reset", "reinitial")
+                    && containsAny(text, "init", "demarr", "started", "code");
+        }
+        if ("SUSPEND_CHILD".equals(operation)) {
+            return containsAny(text, "suspendu avec succes", "successfully suspended");
+        }
+        if ("REACTIVATE_CHILD".equals(operation)
+                || "REACTIVATE_FROZEN_CHILD".equals(operation)) {
+            return containsAny(text, "reactive avec succes", "successfully reactivated");
+        }
+        if ("FREEZE_SELF".equals(operation) || "FREEZE_CHILD".equals(operation)) {
+            return containsAny(text, "gele avec succes", "successfully frozen");
+        }
+        return false;
+    }
+
+    /** Returns one matching Phone/Telecom window, never concatenated text from other apps. */
+    private String trustedUssdResult(List<AccessibilityNodeInfo> roots, String operation) {
+        for (AccessibilityNodeInfo root : roots) {
+            if (!isTrustedTelephonyRoot(root)) continue;
+            String text = collectText(root);
+            String normalized = normalize(text);
+            if (normalized.isEmpty() || normalized.contains("ussd code running")) continue;
+            if (containsAny(normalized, "processed successfully", "request is processed successfully",
+                    "successfully transferred", "transfer successfully", "you transfer",
+                    "insufficient", "not enough", "transaction failed", "request failed",
+                    "operator is frozen", "operator is suspended", "invalid amount", "echec")) {
+                return text;
+            }
+            if (containsAny(normalized,
+                    "wrong pin code", "pin incorrect", "code pin incorrect", "code errone")) return text;
+            if (("BALANCE_OWN".equals(operation) || "BALANCE_CHILD".equals(operation))
+                    && containsAny(normalized, "solde", "balance")
+                    && containsAny(normalized, "fcfa", "f cfa", "xaf")) return text;
+            if (isRecognizedInformationResult(operation, normalized)
+                    || isRecognizedAdministrationResult(operation, normalized)) return text;
+            if ("TEST_NUMBER".equals(operation) && !normalized.contains("pin")
+                    && normalized.matches("(?s).*\\d{9}.*")) return text;
+        }
+        return "";
+    }
+
+    private boolean isTrustedTelephonyRoot(AccessibilityNodeInfo root) {
+        String packageName = root == null || root.getPackageName() == null
+                ? "" : root.getPackageName().toString();
+        if (packageName.isEmpty() || getPackageName().equals(packageName)) return false;
+        try {
+            TelecomManager telecom = (TelecomManager) getSystemService(TELECOM_SERVICE);
+            if (telecom != null && packageName.equals(telecom.getDefaultDialerPackage())) return true;
+        } catch (Exception ignored) {
+        }
+        if ("com.android.phone".equals(packageName)
+                || "com.android.dialer".equals(packageName)
+                || "com.google.android.dialer".equals(packageName)
+                || "com.samsung.android.dialer".equals(packageName)
+                || "com.samsung.android.incallui".equals(packageName)
+                || "com.android.incallui".equals(packageName)
+                || "com.mediatek.ussd".equals(packageName)
+                || "com.mediatek.phone".equals(packageName)) return true;
+        try {
+            ApplicationInfo info = getPackageManager().getApplicationInfo(packageName, 0);
+            boolean system = (info.flags & (ApplicationInfo.FLAG_SYSTEM
+                    | ApplicationInfo.FLAG_UPDATED_SYSTEM_APP)) != 0;
+            String lower = packageName.toLowerCase(Locale.ROOT);
+            return system && (lower.contains("phone") || lower.contains("dialer")
+                    || lower.contains("telecom") || lower.contains("ussd")
+                    || lower.contains("incall"));
+        } catch (PackageManager.NameNotFoundException ignored) {
+            return false;
+        }
+    }
+
+    private boolean clickTrustedTelephonyFirst(List<AccessibilityNodeInfo> roots, String... labels) {
+        for (AccessibilityNodeInfo root : roots) {
+            if (isTrustedTelephonyRoot(root) && clickFirst(root, labels)) return true;
+        }
+        return false;
     }
 
     private static boolean isPinPrompt(String text) {

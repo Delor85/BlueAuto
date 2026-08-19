@@ -5,10 +5,14 @@ import android.content.Context;
 import android.os.Build;
 import android.os.PowerManager;
 
+/**
+ * Read-only view of Android lock state.
+ *
+ * Blue Magic must never disable, dismiss or fight the keyguard. A locked screen is a routing
+ * condition: the Robot keeps running, but an USSD lease is returned to the queue until the user
+ * has unlocked the phone normally. This avoids the screen shaking observed on older Androids.
+ */
 final class DeviceLockState {
-    @SuppressWarnings("deprecation")
-    private static KeyguardManager.KeyguardLock insecureKeyguardLock;
-
     private DeviceLockState() {}
 
     static boolean isSecurelyLocked(Context context) {
@@ -38,35 +42,19 @@ final class DeviceLockState {
         return !secure;
     }
 
-    /**
-     * Temporarily removes only a swipe/no-credential keyguard so the Android Phone service can
-     * expose its USSD prompt to accessibility. A password, PIN, pattern or biometric keyguard is
-     * never bypassed.
-     */
-    @SuppressWarnings("deprecation")
-    static synchronized boolean dismissInsecureKeyguard(Context context) {
-        if (!isInsecurelyLocked(context)) return false;
-        try {
-            KeyguardManager manager = (KeyguardManager) context.getSystemService(
-                    Context.KEYGUARD_SERVICE);
-            if (manager == null) return false;
-            if (insecureKeyguardLock == null) {
-                insecureKeyguardLock = manager.newKeyguardLock("BlueMagic:InsecureUssdPrompt");
-            }
-            insecureKeyguardLock.disableKeyguard();
-            return true;
-        } catch (Exception ignored) {
-            return false;
-        }
+    static boolean hasSecureCredential(Context context) {
+        KeyguardManager manager = (KeyguardManager) context.getSystemService(Context.KEYGUARD_SERVICE);
+        if (manager == null) return false;
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                ? manager.isDeviceSecure() : manager.isKeyguardSecure();
     }
 
-    @SuppressWarnings("deprecation")
-    static synchronized void restoreInsecureKeyguard() {
-        if (insecureKeyguardLock == null) return;
-        try {
-            insecureKeyguardLock.reenableKeyguard();
-        } catch (Exception ignored) {
-        }
-        insecureKeyguardLock = null;
+    static boolean canAssistSimpleUnlock(Context context) {
+        if (isSecurelyLocked(context)) return false;
+        return isInsecurelyLocked(context) || !isScreenInteractive(context);
+    }
+
+    static boolean blocksUssd(Context context) {
+        return isKeyguardLocked(context) || !isScreenInteractive(context);
     }
 }

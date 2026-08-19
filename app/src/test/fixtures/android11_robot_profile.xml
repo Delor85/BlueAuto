@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<map>
+    <string name="profiles_v3">[{&quot;id&quot;:&quot;android11-emulator&quot;,&quot;api_url&quot;:&quot;https://127.0.0.1/api&quot;,&quot;device_token&quot;:&quot;emulator-token&quot;,&quot;node_code&quot;:&quot;DAE-ANDROID11&quot;,&quot;phone_number&quot;:&quot;699000099&quot;,&quot;parent_node_code&quot;:&quot;&quot;,&quot;role&quot;:&quot;DAE&quot;,&quot;device_mode&quot;:&quot;ROBOT&quot;,&quot;sim_slot&quot;:0}</string>
+    <string name="active_profile_id_v3">android11-emulator</string>
+    <boolean name="profile_android11-emulator_robot_enabled" value="true" />
+</map>

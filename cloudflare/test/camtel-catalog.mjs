@@ -1,0 +1,22 @@
+import assert from 'node:assert/strict';
+import {CAMTEL_REGIONS, canonicalCamtelIdentity, parseCamtelIdentity, publicCamtelCatalog} from '../src/camtel-catalog.mjs';
+
+assert.equal(CAMTEL_REGIONS.length, 10);
+assert.deepEqual(CAMTEL_REGIONS.map(item => item.code), ['AD','CE','ES','EN','LT','NO','NW','OU','SU','SW']);
+let id = parseCamtelIdentity('CE04');
+assert.equal(id.ok, true);
+assert.equal(id.role, 'DAE');
+assert.equal(id.region_code, 'CE');
+id = canonicalCamtelIdentity('DSM12', 'DSM', 'CE04');
+assert.equal(id.node_code, 'DSM12_CE04');
+assert.equal(id.parent_node_code, 'CE04');
+id = canonicalCamtelIdentity('POS37', 'POS', 'DSM12_CE04');
+assert.equal(id.node_code, 'POS37_DSM12_CE04');
+assert.equal(id.dae_node_code, 'CE04');
+assert.equal(id.region_code, 'CE');
+assert.equal(canonicalCamtelIdentity('POS37_DSM12_CE04', 'POS', 'DSM12_CE04').ok, true);
+assert.equal(canonicalCamtelIdentity('POS37_DSM12_CE04', 'POS', 'DSM9_CE04').ok, false);
+const catalog = publicCamtelCatalog();
+assert.equal(catalog.national_master_sim_name, 'SIM Nationale');
+assert.match(catalog.identity.pos, /POSA_DSMZ_XXY/);
+console.log('Camtel catalog: hierarchy, regions and aliases OK');

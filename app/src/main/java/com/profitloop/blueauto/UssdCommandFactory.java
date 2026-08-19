@@ -11,7 +11,7 @@ import java.util.Locale;
 final class UssdCommandFactory {
     private UssdCommandFactory() {}
 
-    static String buildAndValidate(Context context, String profileId, JSONObject command) {
+    static String buildAndValidate(Context context, String profileId, JSONObject command) throws Exception {
         String commandId = string(command, "public_id");
         String leaseToken = string(command, "lease_token");
         if (!commandId.matches("[A-Za-z0-9_-]{16,80}")) {
@@ -26,10 +26,24 @@ final class UssdCommandFactory {
         if (!suppliedExecutor.isEmpty() && !expectedExecutor.equals(suppliedExecutor)) {
             throw new SecurityException("La commande appartient à un autre nœud Robot.");
         }
+        int integrityVersion = command.optInt("integrity_version", 1);
+        String executorPhone = digits(string(command, "executor_phone"));
+        String configuredPhone = digits(AppConfig.phoneNumber(context, profileId));
+        if (configuredPhone.length() > 9) {
+            configuredPhone = configuredPhone.substring(configuredPhone.length() - 9);
+        }
+        if (integrityVersion >= 2 && !executorPhone.matches("\\d{9}")) {
+            throw new SecurityException("Le numéro officiel de la SIM exécutrice est absent.");
+        }
+        if (!executorPhone.isEmpty() && !executorPhone.equals(configuredPhone)) {
+            throw new SecurityException("La commande vise une autre SIM fournisseur.");
+        }
 
-        String operation = string(command, "operation");
+        String baseOperation = string(command, "operation");
+        String operation = operation(command);
         String phone = digits(string(command, "target_phone"));
         String amount = digits(string(command, "amount"));
+        String argument = string(command, "command_argument").trim();
         String role = AppConfig.role(context, profileId);
         String targetNode = string(command, "target_node_code").trim().toUpperCase();
         String built;
@@ -44,7 +58,7 @@ final class UssdCommandFactory {
                 if (!targetNode.isEmpty() && targetNode.equals(expectedExecutor)) {
                     throw new SecurityException("Un approvisionnement ne peut pas cibler le Robot lui-même.");
                 }
-                built = "*550*2*" + phone + "*" + amount + "#";
+                built = CamtelUssdCatalog.distributionTransfer(phone, amount);
                 break;
             case "RETAIL_TRANSFER":
                 if (!"POS".equals(role)) {
@@ -55,13 +69,84 @@ final class UssdCommandFactory {
                 if (!targetNode.isEmpty()) {
                     throw new SecurityException("Une vente client ne doit pas viser un nœud interne.");
                 }
-                built = "*550*1*" + phone + "*" + amount + "#";
+                built = CamtelUssdCatalog.retailTransfer(phone, amount);
                 break;
             case "TEST_NUMBER":
                 if (!phone.isEmpty() || !amount.isEmpty() || !targetNode.isEmpty()) {
                     throw new SecurityException("Le diagnostic contient des paramètres financiers inattendus.");
                 }
-                built = "*825*3*3#";
+                built = CamtelUssdCatalog.testNumber();
+                break;
+            case "BALANCE_OWN": {
+                if (!phone.isEmpty() || !amount.isEmpty() || !targetNode.isEmpty()) {
+                    throw new SecurityException("La consultation du solde contient des paramètres inattendus.");
+                }
+                String localPin = SecurePinStore.read(context, profileId);
+                if (!localPin.matches("\\d{4}")) {
+                    throw new SecurityException("PIN local absent pour consulter le solde.");
+                }
+                built = CamtelUssdCatalog.balanceOwn(localPin);
+                break;
+            }
+            case "HISTORY_LAST5":
+                requireNoTransferParameters(phone, amount, targetNode);
+                built = CamtelUssdCatalog.historyLast5(localPin(context, profileId));
+                break;
+            case "RESET_PIN_SELF":
+                built = CamtelUssdCatalog.resetPinSelf();
+                break;
+            case "MODIFY_PIN_LOCAL": {
+                String oldPin = SecurePinStore.read(context, profileId);
+                String newPin = PendingPinChangeStore.read(context, profileId);
+                if (!oldPin.matches("\\d{4}") || !newPin.matches("\\d{4}")) {
+                    throw new SecurityException("PIN ancien/nouveau local absent pour la modification Camtel.");
+                }
+                built = CamtelUssdCatalog.modifyPin(newPin, oldPin);
+                break;
+            }
+            case "TRANSACTION_DETAIL":
+                requireNoTransferParameters(phone, amount, targetNode);
+                if (!argument.matches("[A-Za-z0-9_-]{6,64}")) {
+                    throw new SecurityException("Identifiant de transaction invalide.");
+                }
+                built = CamtelUssdCatalog.transactionDetail(argument, localPin(context, profileId));
+                break;
+            case "BALANCE_CHILD":
+                if (!"DAE".equals(role) && !"DSM".equals(role)) {
+                    throw new SecurityException("Ce rôle ne peut pas consulter un solde enfant.");
+                }
+                requirePhone(phone);
+                if (!amount.isEmpty() || targetNode.isEmpty()) {
+                    throw new SecurityException("Paramètres du solde enfant incohérents.");
+                }
+                built = CamtelUssdCatalog.balanceChild(phone, localPin(context, profileId));
+                break;
+            case "FREEZE_SELF":
+                if (!expectedExecutor.equals(targetNode) || !phone.equals(configuredPhone)
+                        || !amount.isEmpty()) {
+                    throw new SecurityException("La commande de gel propre ne correspond pas à cette SIM.");
+                }
+                built = CamtelUssdCatalog.freezeSelf(configuredPhone, localPin(context, profileId));
+                break;
+            case "INIT_CHILD_PIN_RESET":
+                requireManagedChild(role, targetNode, phone, amount);
+                built = CamtelUssdCatalog.initChildPinReset(phone, localPin(context, profileId));
+                break;
+            case "SUSPEND_CHILD":
+                requireManagedChild(role, targetNode, phone, amount);
+                built = CamtelUssdCatalog.suspendChild(phone, localPin(context, profileId));
+                break;
+            case "REACTIVATE_CHILD":
+                requireManagedChild(role, targetNode, phone, amount);
+                built = CamtelUssdCatalog.reactivateChild(phone, localPin(context, profileId));
+                break;
+            case "FREEZE_CHILD":
+                requireManagedChild(role, targetNode, phone, amount);
+                built = CamtelUssdCatalog.freezeChild(phone, localPin(context, profileId));
+                break;
+            case "REACTIVATE_FROZEN_CHILD":
+                requireManagedChild(role, targetNode, phone, amount);
+                built = CamtelUssdCatalog.reactivateFrozenChild(phone, localPin(context, profileId));
                 break;
             default:
                 throw new IllegalArgumentException("Opération USSD inconnue: " + operation);
@@ -77,10 +162,15 @@ final class UssdCommandFactory {
         }
         String suppliedDigest = string(command, "integrity_digest");
         if (!suppliedDigest.isEmpty()) {
+            String digestUssd = integrityVersion >= 3 ? serverValue : built;
             String digestInput = commandId + "|"
                     + string(command, "requester_node_code").trim().toUpperCase() + "|"
-                    + suppliedExecutor + "|" + targetNode + "|" + operation + "|"
-                    + phone + "|" + amount + "|" + built + "|"
+                    + suppliedExecutor + "|"
+                    + (integrityVersion >= 2 ? executorPhone + "|" : "")
+                    + targetNode + "|" + baseOperation + "|"
+                    + (integrityVersion >= 3 ? string(command, "command_kind") + "|" : "")
+                    + (integrityVersion >= 3 ? argument + "|" : "")
+                    + phone + "|" + amount + "|" + digestUssd + "|"
                     + (requiresPin(command) ? "1" : "0");
             if (!suppliedDigest.equals(sha256(digestInput))) {
                 throw new SecurityException("L’empreinte d’intégrité de la commande est invalide.");
@@ -90,8 +180,39 @@ final class UssdCommandFactory {
     }
 
     static boolean requiresPin(JSONObject command) {
-        String operation = command.optString("operation", "");
+        String operation = operation(command);
         return "DISTRIBUTION_TRANSFER".equals(operation) || "RETAIL_TRANSFER".equals(operation);
+    }
+
+    static String operation(JSONObject command) {
+        String kind = command == null ? "" : command.optString("command_kind", "");
+        String argument = command == null ? "" : command.optString("command_argument", "").trim().toUpperCase(Locale.ROOT);
+        if ("TRANSACTION_DETAIL".equals(kind) && "BM_RESET_PIN_SELF".equals(argument)) return "RESET_PIN_SELF";
+        if ("TRANSACTION_DETAIL".equals(kind) && "BM_MODIFY_PIN_LOCAL".equals(argument)) return "MODIFY_PIN_LOCAL";
+        return kind.isEmpty() ? (command == null ? "" : command.optString("operation", "")) : kind;
+    }
+
+    private static String localPin(Context context, String profileId) throws Exception {
+        String pin = SecurePinStore.read(context, profileId);
+        if (!pin.matches("\\d{4}")) throw new SecurityException("PIN local absent ou invalide.");
+        return pin;
+    }
+
+    private static void requireNoTransferParameters(String phone, String amount, String targetNode) {
+        if (!phone.isEmpty() || !amount.isEmpty() || !targetNode.isEmpty()) {
+            throw new SecurityException("La consultation contient des paramètres financiers inattendus.");
+        }
+    }
+
+    private static void requireManagedChild(String role, String targetNode,
+                                            String phone, String amount) {
+        if (!"DAE".equals(role) && !"DSM".equals(role)) {
+            throw new SecurityException("Ce rôle ne peut pas administrer un enfant.");
+        }
+        requirePhone(phone);
+        if (targetNode.isEmpty() || !amount.isEmpty()) {
+            throw new SecurityException("Paramètres de l’enfant incohérents.");
+        }
     }
 
     private static String digits(String value) {

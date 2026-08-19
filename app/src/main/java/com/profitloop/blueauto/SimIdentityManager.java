@@ -65,6 +65,12 @@ final class SimIdentityManager {
         return Verification.ready(snapshot, true);
     }
 
+    /** Verify a selected slot without changing the saved Remote/Robot profile. */
+    static Verification inspectSelectedSim(Context context, String profileId, int slot) {
+        Snapshot snapshot = snapshot(context, profileId, Math.max(0, slot));
+        return snapshot.ready() ? Verification.ready(snapshot, false) : snapshot.failure;
+    }
+
     static SubscriptionInfo activeSubscription(Context context, String profileId) {
         if (context.checkSelfPermission(Manifest.permission.READ_PHONE_STATE)
                 != PackageManager.PERMISSION_GRANTED) return null;
@@ -79,7 +85,10 @@ final class SimIdentityManager {
     }
 
     private static Snapshot snapshot(Context context, String profileId) {
-        int slot = AppConfig.simSlot(context, profileId);
+        return snapshot(context, profileId, AppConfig.simSlot(context, profileId));
+    }
+
+    private static Snapshot snapshot(Context context, String profileId, int slot) {
         if (context.checkSelfPermission(Manifest.permission.READ_PHONE_STATE)
                 != PackageManager.PERMISSION_GRANTED) {
             return Snapshot.failed(slot, Verification.failure(PERMISSION_MISSING,

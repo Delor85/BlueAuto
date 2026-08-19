@@ -46,24 +46,33 @@ final class ApiClient {
         return post("pair_device", payload, false);
     }
 
+    JSONObject health() throws Exception {
+        return post("health", new JSONObject(), false);
+    }
+
     JSONObject heartbeat() throws Exception {
+        return heartbeat(false);
+    }
+
+    JSONObject heartbeat(boolean claimRobot) throws Exception {
         String targetProfile = profileIdOverride.isEmpty()
                 ? AppConfig.profileId(context) : profileIdOverride;
         SimIdentityManager.Verification sim = SimIdentityManager.verify(context, targetProfile);
         boolean locallyEnabled = AppConfig.robotEnabled(context, targetProfile);
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.5.1-magic-route");
+        payload.put("app_version", "2.6.8");
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
         payload.put("robot_enabled", locallyEnabled && sim.valid);
+        payload.put("claim_robot", claimRobot && locallyEnabled && sim.valid);
         payload.put("sim_verified", sim.valid);
         payload.put("sim_fingerprint", sim.attestation());
         payload.put("sim_slot", Math.max(0, AppConfig.simSlot(context, targetProfile)));
-        return post("heartbeat", payload, true);
+        return postControl("heartbeat", payload, true);
     }
 
     JSONObject leaseCommand() throws Exception {
-        return post("lease_command", new JSONObject(), true);
+        return postControl("lease_command", new JSONObject(), true);
     }
 
     JSONObject releaseCommand(JSONObject command, String reason) throws Exception {
@@ -80,14 +89,74 @@ final class ApiClient {
         return post("update_device_mode", payload, true);
     }
 
+    JSONObject activateRobot() throws Exception {
+        String targetProfile = profileIdOverride.isEmpty()
+                ? AppConfig.profileId(context) : profileIdOverride;
+        SimIdentityManager.Verification sim = SimIdentityManager.verify(context, targetProfile);
+        return activateRobot(sim, AppConfig.simSlot(context, targetProfile));
+    }
+
+    JSONObject activateRobot(SimIdentityManager.Verification sim, int simSlot) throws Exception {
+        return activateRobot(sim, simSlot, false);
+    }
+
+    JSONObject activateRobot(SimIdentityManager.Verification sim, int simSlot,
+                             boolean replaceVerifiedSameSimRobot) throws Exception {
+        JSONObject payload = new JSONObject();
+        payload.put("app_version", "2.6.8");
+        payload.put("android_version", Build.VERSION.RELEASE);
+        payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
+        payload.put("sim_verified", sim.valid);
+        payload.put("sim_fingerprint", sim.attestation());
+        payload.put("sim_slot", Math.max(0, simSlot));
+        payload.put("replace_verified_same_sim_robot", replaceVerifiedSameSimRobot);
+        return post("activate_robot", payload, true);
+    }
+
     JSONObject createCommand(JSONObject payload) throws Exception {
         return post("create_command", payload, true);
+    }
+
+    JSONObject previewCommand(JSONObject payload) throws Exception {
+        return post("preview_command", payload, true);
+    }
+
+    JSONObject checkPurchaseCapacity(JSONObject payload) throws Exception {
+        return post("check_purchase_capacity", payload, true);
+    }
+
+    JSONObject purchaseCapacityStatus(String checkId) throws Exception {
+        JSONObject payload = new JSONObject();
+        payload.put("capacity_check_id", checkId);
+        return post("purchase_capacity_status", payload, true);
+    }
+
+    JSONObject recordOperatorMessage(String message) throws Exception {
+        JSONObject payload = new JSONObject();
+        payload.put("message", message == null ? "" : trim(message, 1800));
+        return post("record_operator_message", payload, true);
+    }
+
+    JSONObject platformAction(String action, JSONObject payload) throws Exception {
+        String safe = action == null ? "" : action.trim();
+        if (!safe.matches("(?:operator_insights|operator_catalog|platform_snapshot|network_balance_audit|shadow_enroll|debt_save|debt_list|kyc_save|mercenary_save|mercenary_list|mercenary_sale|commission_policy|commission_set_default|commission_set_child)")) {
+            throw new ApiException("ACTION_NOT_ALLOWED", "Action plateforme non autorisée par le pont natif.");
+        }
+        return post(safe, payload == null ? new JSONObject() : payload, true);
+    }
+
+    JSONObject networkBalanceAudit() throws Exception {
+        return post("network_balance_audit", new JSONObject(), true);
+    }
+
+    JSONObject dashboard() throws Exception {
+        return postControl("network_dashboard", new JSONObject(), true);
     }
 
     JSONObject commandStatus(String publicId) throws Exception {
         JSONObject payload = new JSONObject();
         payload.put("command_id", publicId);
-        return post("command_status", payload, true);
+        return postControl("command_status", payload, true);
     }
 
     JSONObject cancelCommand(String publicId) throws Exception {
@@ -107,17 +176,30 @@ final class ApiClient {
     }
 
     private JSONObject post(String action, JSONObject payload, boolean authenticated) throws Exception {
-        return post(action, payload, authenticated, true);
+        return post(action, payload, authenticated, true, 12_000, 18_000);
+    }
+
+    private JSONObject postControl(String action, JSONObject payload, boolean authenticated) throws Exception {
+        // Retry-safe control-plane calls never dial USSD or mutate financial stock. Shorter timeouts
+        // prevent one weak profile/network route from starving the other SIM queues on this phone.
+        return post(action, payload, authenticated, true, 7_000, 10_000);
     }
 
     private JSONObject post(String action, JSONObject payload, boolean authenticated,
                             boolean allowAuthenticationRepair) throws Exception {
+        return post(action, payload, authenticated, allowAuthenticationRepair, 12_000, 18_000);
+    }
+
+    private JSONObject post(String action, JSONObject payload, boolean authenticated,
+                            boolean allowAuthenticationRepair, int connectTimeoutMs,
+                            int readTimeoutMs) throws Exception {
         String baseUrl = endpointOverride.isEmpty() ? AppConfig.apiUrl(context) : endpointOverride;
         String endpoint = baseUrl + "?action="
                 + URLEncoder.encode(action, "UTF-8");
         HttpURLConnection connection = (HttpURLConnection) new URL(endpoint).openConnection();
-        connection.setConnectTimeout(12_000);
-        connection.setReadTimeout(18_000);
+        connection.setConnectTimeout(connectTimeoutMs);
+        connection.setReadTimeout(readTimeoutMs);
+        connection.setUseCaches(false);
         connection.setRequestMethod("POST");
         connection.setRequestProperty("Accept", "application/json");
         connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
@@ -138,43 +220,47 @@ final class ApiClient {
             connection.setRequestProperty("X-Device-Token", requestToken);
         }
 
-        connection.setDoOutput(true);
-        byte[] body = payload.toString().getBytes(StandardCharsets.UTF_8);
-        connection.setFixedLengthStreamingMode(body.length);
-        try (OutputStream output = connection.getOutputStream()) {
-            output.write(body);
-        }
-
-        int status = connection.getResponseCode();
-        InputStream stream = status >= 200 && status < 400
-                ? connection.getInputStream()
-                : connection.getErrorStream();
-        String response = read(stream);
-        connection.disconnect();
-
-        if (response.trim().isEmpty()) {
-            throw new ApiException("EMPTY_RESPONSE", "Réponse vide du serveur (HTTP " + status + ").");
-        }
-
-        JSONObject root;
         try {
-            root = new JSONObject(response);
-        } catch (Exception parseError) {
-            throw new ApiException("INVALID_RESPONSE", "Réponse non JSON du serveur (HTTP " + status + ").");
-        }
-
-        if (!root.optBoolean("ok", false)) {
-            JSONObject error = root.optJSONObject("error");
-            String code = error == null ? "API_ERROR" : error.optString("code", "API_ERROR");
-            String message = error == null ? "Erreur API." : error.optString("message", "Erreur API.");
-            if (authenticated && allowAuthenticationRepair && "AUTH_INVALID".equals(code)) {
-                repairAuthentication(baseUrl, requestToken);
-                return post(action, payload, true, false);
+            connection.setDoOutput(true);
+            byte[] body = payload.toString().getBytes(StandardCharsets.UTF_8);
+            connection.setFixedLengthStreamingMode(body.length);
+            try (OutputStream output = connection.getOutputStream()) {
+                output.write(body);
             }
-            throw new ApiException(code, message);
+
+            int status = connection.getResponseCode();
+            InputStream stream = status >= 200 && status < 400
+                    ? connection.getInputStream()
+                    : connection.getErrorStream();
+            String response = read(stream);
+
+            if (response.trim().isEmpty()) {
+                throw new ApiException("EMPTY_RESPONSE", "Réponse vide du serveur (HTTP " + status + ").");
+            }
+
+            JSONObject root;
+            try {
+                root = new JSONObject(response);
+            } catch (Exception parseError) {
+                throw new ApiException("INVALID_RESPONSE", "Réponse non JSON du serveur (HTTP " + status + ").");
+            }
+
+            if (!root.optBoolean("ok", false)) {
+                JSONObject error = root.optJSONObject("error");
+                String code = error == null ? "API_ERROR" : error.optString("code", "API_ERROR");
+                String message = error == null ? "Erreur API." : error.optString("message", "Erreur API.");
+                if (authenticated && allowAuthenticationRepair && "AUTH_INVALID".equals(code)) {
+                    repairAuthentication(baseUrl, requestToken);
+                    return post(action, payload, true, false,
+                            connectTimeoutMs, readTimeoutMs);
+                }
+                throw new ApiException(code, message);
+            }
+            JSONObject data = root.optJSONObject("data");
+            return data == null ? new JSONObject() : data;
+        } finally {
+            connection.disconnect();
         }
-        JSONObject data = root.optJSONObject("data");
-        return data == null ? new JSONObject() : data;
     }
 
     private void repairAuthentication(String baseUrl, String rejectedToken) throws Exception {
@@ -212,6 +298,12 @@ final class ApiClient {
         pairing.put("mode", AppConfig.mode(context, targetProfile));
         pairing.put("pairing_secret", secret);
         pairing.put("device_name", Build.MANUFACTURER + " " + Build.MODEL);
+        pairing.put("replace_device_id", AppConfig.serverDeviceId(context, targetProfile));
+        SimIdentityManager.Verification sim = SimIdentityManager.verify(context, targetProfile);
+        pairing.put("repair_sim_verified", sim.valid);
+        pairing.put("repair_sim_fingerprint", sim.attestation());
+        pairing.put("repair_robot_enabled", AppConfig.robotEnabled(context, targetProfile));
+        pairing.put("sim_slot", Math.max(0, AppConfig.simSlot(context, targetProfile)));
 
         JSONObject data = new ApiClient(context, baseUrl, "")
                 .post("pair_device", pairing, false, false);
