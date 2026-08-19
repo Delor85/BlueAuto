@@ -1,6 +1,10 @@
 name: BIR v2.9.3 coherence recovery
 
 on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/v293-coherence.trigger'
   pull_request:
     branches: [ main ]
     paths:
@@ -16,11 +20,27 @@ jobs:
     env:
       BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD: BIR-v293-ephemeral-CI-only-2026
     steps:
-      - name: Checkout recovery branch
+      - name: Checkout real v2.9.2 recovery base
         uses: actions/checkout@v4
         with:
           ref: fix/bir-v2-9-3-coherence-recovery
           fetch-depth: 0
+
+      - name: Import only v2.9.3 preparatory files from main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git checkout origin/main -- \
+            .github/scripts/v293_app_coherence_patch.py \
+            .github/scripts/v293_command_center_ui_patch.py \
+            .github/scripts/v293_server_command_center_patch.py \
+            .github/scripts/v293_server_fixups.py \
+            .github/scripts/v293_allow_version_in_inherited_tests.py \
+            app/src/main/java/com/profitloop/blueauto/CertifiedBalanceStore.java \
+            app/src/main/java/com/profitloop/blueauto/ServerQueueMirrorStore.java \
+            app/src/test/bir-v293-coherence-contract.mjs \
+            cloudflare/migrations/0010_coherence_recovery_and_reconciliation.sql
 
       - name: Apply deterministic v2.9.3 patches
         run: |
@@ -100,13 +120,13 @@ jobs:
           sha256sum "$APK" | tee /tmp/v293-apk-sha256.txt
           cp "$APK" /tmp/BIR-v2.9.3-code58-EPHEMERAL.apk
 
-      - name: Commit only validated generated source
+      - name: Commit only validated generated source to recovery branch
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'BIR v2.9.3 CI'
           git config user.email 'actions@users.noreply.github.com'
-          git add app cloudflare/src/index.js cloudflare/migrations/0010_coherence_recovery_and_reconciliation.sql
+          git add app cloudflare/src/index.js cloudflare/migrations/0010_coherence_recovery_and_reconciliation.sql .github/scripts/v293_*.py
           if ! git diff --cached --quiet; then
             git commit -m 'fix: BIR v2.9.3 coherence recovery validated [no-prod]'
             git push origin HEAD:fix/bir-v2-9-3-coherence-recovery
