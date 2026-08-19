@@ -60,6 +60,8 @@ jobs:
               if p.name == 'finance-flow.mjs':
                   s=s.replace('versionCode (?:51|52|53|54|55|58)', 'versionCode (?:51|52|53|54|55|58|59)')
                   s=s.replace('2\\.9\\.0|2\\.9\\.3)', '2\\.9\\.0|2\\.9\\.3|2\\.9\\.4)')
+              if p.name == 'v291-field-recovery-contract.mjs':
+                  s=s.replace("must(api.includes('payload.put(\"app_version\", \"2.9.1\");')||api.includes('payload.put(\"app_version\", \"2.9.3\");'),'v2.9.1 heartbeat telemetry missing');", "must(api.includes('payload.put(\"app_version\", \"2.9.1\");')||api.includes('payload.put(\"app_version\", \"2.9.3\");')||api.includes('payload.put(\"app_version\", \"2.9.4\");'),'v2.9.1+ heartbeat telemetry missing');")
               s=re.sub(r'versionCode \(\?:([0-9|]+)\)',lambda m:'versionCode (?:'+m.group(1)+('|59' if '59' not in m.group(1).split('|') else '')+')',s)
               s=s.replace('2\\.9\\.3)"', '2\\.9\\.3|2\\.9\\.4)"')
               s=s.replace("gradle.includes('versionCode 58')", "(gradle.includes('versionCode 58')||gradle.includes('versionCode 59'))")
