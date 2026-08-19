@@ -1,8 +1,8 @@
-run=v2.9.4-accessibility-final-2
+run=v2.9.4-accessibility-safe-reconnect-3
 source_sha=4e5d5ac1d1d7c214c433aa608376dbba647399e2
 artifact_run_id=32273123427
 apk_sha256=f04a836c27d30af56af1015580987d20b0dd9534e5dea84d4deba51b35f8ee5a
 production_deploy=forbidden
 permanent_signing=forbidden
 scope=api23-api30-api34-api36
-method=service-list-150s-real-reboot-persistent-master-flag-crlf-normalized-reconnect-crash-check
+method=service-registration-150s-real-reboot-framework-ready-system-reconnect-relaunch-crash-check
