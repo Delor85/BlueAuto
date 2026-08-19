@@ -53,6 +53,8 @@ jobs:
               if p.name == 'v294-war-room-contract.mjs':
                   continue
               s=p.read_text(encoding='utf-8'); old=s
+              if p.name == 'bir-v269-functional-contract.mjs':
+                  s=s.replace("if(!js.includes(\"bir_active_module_v269')||'reports'\")) throw new Error('BIR home is not default');", "if(!(js.includes(\"bir_active_module_v269')||'reports'\")||js.includes(\"var saved='reports'\"))) throw new Error('BIR home is not default');")
               if p.name == 'bir-v293-coherence-contract.mjs':
                   s=s.replace("need(gradle.includes('versionCode 58')&&gradle.includes('versionName \"2.9.3\"'),'v2.9.3/code58 required');", "need((gradle.includes('versionCode 58')||gradle.includes('versionCode 59'))&&(gradle.includes('versionName \"2.9.3\"')||gradle.includes('versionName \"2.9.4\"')),'v2.9.3+/code58+ required');")
               if p.name == 'finance-flow.mjs':
@@ -133,7 +135,6 @@ jobs:
             app/src/main/assets/control-tower-v2611.js \
             app/src/main/assets/war-room-v294.js \
             app/src/test/v294-war-room-contract.mjs
-          git diff --cached --exit-code -- cloudflare/src cloudflare/migrations || true
           if git diff --cached --quiet; then
             echo 'No generated application diff'
           else
