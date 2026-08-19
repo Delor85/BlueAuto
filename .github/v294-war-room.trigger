@@ -1,4 +1,4 @@
-run=v2.9.4-war-room-ci-6
+run=v2.9.4-war-room-ci-7
 source_branch=feat/bir-v2-9-4-war-room
 production_deploy=forbidden
 permanent_signing=forbidden
