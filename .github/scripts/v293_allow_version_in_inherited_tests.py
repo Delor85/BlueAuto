@@ -4,6 +4,7 @@ import re
 changed=[]
 code_chain=re.compile(r"\((?:gradle\.includes\('versionCode \d+'\)(?:\|\|)?)+\)")
 name_chain=re.compile(r"\((?:gradle\.includes\('versionName [^']+'\)(?:\|\|)?)+\)")
+code_regex=re.compile(r"versionCode \(\?:([0-9|]+)\)")
 
 for p in Path('app/src/test').glob('*.mjs'):
     if p.name == 'bir-v293-coherence-contract.mjs':
@@ -25,8 +26,21 @@ for p in Path('app/src/test').glob('*.mjs'):
             return group
         return group[:-1] + "||gradle.includes('versionName \"2.9.3\"'))"
 
+    def add_code_regex(match):
+        values=match.group(1).split('|')
+        if '58' not in values:
+            values.append('58')
+        return 'versionCode (?:'+'|'.join(values)+')'
+
     s=code_chain.sub(add_code,s)
     s=name_chain.sub(add_name,s)
+    s=code_regex.sub(add_code_regex,s)
+
+    # finance-flow and similar historical guards use a JS RegExp rather than gradle.includes().
+    finance_name='versionName "(?:2\\.7\\.(?:0|1)|2\\.8\\.(?:0|1)|2\\.9\\.0)"'
+    if finance_name in s and '2\\.9\\.3' not in s:
+        s=s.replace(finance_name,
+                    'versionName "(?:2\\.7\\.(?:0|1)|2\\.8\\.(?:0|1)|2\\.9\\.0|2\\.9\\.3)"')
 
     # A few newer contracts use a single literal rather than an OR chain.
     if 'versionCode 58' not in s and "gradle.includes('versionCode 57')" in s:
