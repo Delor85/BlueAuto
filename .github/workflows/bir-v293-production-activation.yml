@@ -1,0 +1,132 @@
+name: BIR v2.9.3 exact production activation
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_activation:
+        description: "Confirmer migration D1 0010 + Worker 2.9.3"
+        required: true
+        type: boolean
+        default: false
+      authorized_sha:
+        description: "SHA source v2.9.3 explicitement autorisé"
+        required: true
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: blue-magic-cloudflare-production
+  cancel-in-progress: false
+
+env:
+  BIR_V293_SOURCE_SHA: 33a15f4eb7e0c04b0dac8c82837037396c49cea2
+  BIR_V292_SOURCE_SHA: f123e766271511c6270305c5641ab4db93401c99
+
+jobs:
+  activate-v293:
+    if: "${{ inputs.confirm_activation == true && inputs.authorized_sha == '33a15f4eb7e0c04b0dac8c82837037396c49cea2' }}"
+    runs-on: ubuntu-24.04
+    environment: production
+    timeout-minutes: 25
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
+    steps:
+      - name: Checkout exact validated v2.9.3 source
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.BIR_V293_SOURCE_SHA }}
+          fetch-depth: 0
+
+      - name: Prove exact source and safety boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$BIR_V293_SOURCE_SHA"
+          test "${{ inputs.authorized_sha }}" = "$BIR_V293_SOURCE_SHA"
+          grep -q 'versionCode 58' app/build.gradle
+          grep -q 'versionName "2.9.3"' app/build.gradle
+          grep -q "const API_VERSION = '2.9.3-cloudflare'" cloudflare/src/index.js
+          grep -q "effective_modes: \['REMOTE','ROBOT'\]" cloudflare/src/index.js
+          ! grep -RniE 'sms[_ -]?fallback|financial_command_over_relay[[:space:]]*=[[:space:]]*true' app/src/main cloudflare/src
+          test -f cloudflare/migrations/0010_coherence_recovery_and_reconciliation.sql
+          ! grep -Eqi 'DROP TABLE|DELETE FROM nodes|DELETE FROM commands|DELETE FROM account_balances' cloudflare/migrations/0010_coherence_recovery_and_reconciliation.sql
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: cloudflare/package-lock.json
+
+      - name: Revalidate Worker before production mutation
+        working-directory: cloudflare
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run check
+          node scripts/prepare-production-config.mjs
+          npx wrangler deploy --dry-run --config wrangler.production.jsonc
+          npx wrangler d1 migrations list blue-magic --remote --config wrangler.production.jsonc
+
+      - name: Apply additive D1 migrations through 0010
+        working-directory: cloudflare
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 migrations apply blue-magic --remote --config wrangler.production.jsonc
+          npx wrangler d1 migrations list blue-magic --remote --config wrangler.production.jsonc | tee /tmp/v293-migrations-after.txt
+          grep -q '0010_coherence_recovery_and_reconciliation.sql' /tmp/v293-migrations-after.txt || true
+
+      - name: Deploy exact blue-magic-api 2.9.3
+        working-directory: cloudflare
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler deploy --config wrangler.production.jsonc
+          touch /tmp/v293-worker-deployed
+
+      - name: Prove production health and exact effective modes
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in 1 2 3 4 5; do
+            if curl --fail --silent --show-error "https://blue-magic-api.mbolodelorpro.workers.dev/api?action=health" -o /tmp/v293-health.json; then break; fi
+            sleep 3
+          done
+          python3 - <<'PY'
+          import json
+          d=json.load(open('/tmp/v293-health.json',encoding='utf-8'))
+          assert d.get('ok') is True, d
+          data=d.get('data') or d
+          assert data.get('version') == '2.9.3-cloudflare', data
+          caps=data.get('capabilities') or {}
+          assert caps.get('queue_reconciliation') is True, caps
+          assert caps.get('distribution_command_center') is True, caps
+          assert caps.get('reconciliation_center') is True, caps
+          assert caps.get('effective_modes') == ['REMOTE','ROBOT'], caps
+          print('B.I.R. production health 2.9.3 confirmed')
+          PY
+
+      - name: Roll back Worker only if post-deploy validation failed
+        if: failure()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f /tmp/v293-worker-deployed ]; then
+            echo 'Failure occurred before v2.9.3 Worker deployment; no Worker rollback needed.'
+            exit 0
+          fi
+          echo 'Post-deploy validation failed: restoring Worker 2.9.2 source. Additive D1 0010 remains backward-compatible.'
+          git fetch origin "$BIR_V292_SOURCE_SHA"
+          git checkout --force "$BIR_V292_SOURCE_SHA"
+          cd cloudflare
+          npm ci
+          node scripts/prepare-production-config.mjs
+          npx wrangler deploy --config wrangler.production.jsonc
+          curl --fail --silent --show-error --retry 5 --retry-delay 3 "https://blue-magic-api.mbolodelorpro.workers.dev/api?action=health"
