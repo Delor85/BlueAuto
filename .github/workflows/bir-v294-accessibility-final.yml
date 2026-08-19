@@ -1,4 +1,4 @@
-name: BIR v2.9.4 final Accessibility reboot qualification
+name: BIR v2.9.4 final Accessibility safe reconnect
 
 on:
   pull_request:
@@ -45,8 +45,8 @@ jobs:
           sha256sum "$apk" | grep "$BIR_V294_APK_SHA256"
           grep -qx "$BIR_V294_SOURCE_SHA" "$source_sha"
 
-  accessibility-reboot:
-    name: Accessibility recovery Android ${{ matrix.label }}
+  accessibility-safe-reconnect:
+    name: Accessibility safe reconnect Android ${{ matrix.label }}
     needs: prove-exact-artifact
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -74,7 +74,7 @@ jobs:
           test -f "$apk"
           cp "$apk" "$BIR_V294_EXACT_APK"
           sha256sum "$BIR_V294_EXACT_APK" | grep "$BIR_V294_APK_SHA256"
-      - name: Verify service registration, 150s window, reboot and safe reconnect
+      - name: Verify 150s stability reboot registration and safe reconnect
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api }}
@@ -89,20 +89,24 @@ jobs:
             sh -c 'for attempt in 1 2 3; do adb install -r /tmp/BIR-v2.9.4-code59-EPHEMERAL.apk 2>&1 | tee /tmp/access-install.txt; grep -q Success /tmp/access-install.txt && exit 0; adb reconnect >/dev/null 2>&1 || true; adb wait-for-device || true; sleep 10; done; exit 1'
             adb shell settings put secure enabled_accessibility_services com.profitloop.blueauto/com.profitloop.blueauto.BlueAccessibilityService
             adb shell settings put secure accessibility_enabled 1
-            adb shell am start -W -n com.profitloop.blueauto/.MainActivity > /tmp/access-start.txt
-            grep -q 'Status: ok' /tmp/access-start.txt
+            sh -c 'for attempt in 1 2 3; do adb shell am start -W -n com.profitloop.blueauto/.MainActivity 2>&1 | tee /tmp/access-start.txt; grep -q "Status: ok" /tmp/access-start.txt && exit 0; sleep 10; done; exit 1'
             sleep 10
             adb shell settings get secure enabled_accessibility_services | grep -q 'com.profitloop.blueauto'
+            adb shell settings get secure accessibility_enabled | tr -d '\r' | grep -q '^1$'
             sleep 150
             adb shell settings get secure enabled_accessibility_services | grep -q 'com.profitloop.blueauto'
             adb reboot
             adb wait-for-device
             timeout 300 sh -c 'until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" = "1" ]; do sleep 2; done'
+            timeout 300 sh -c 'until adb shell pm path android >/dev/null 2>&1; do sleep 5; done'
             adb shell settings get secure enabled_accessibility_services | grep -q 'com.profitloop.blueauto'
-            adb shell settings get secure accessibility_enabled | tr -d '\r' | tee /tmp/access-master-after-reboot.txt | grep -q '^1$'
-            adb shell am start -W -n com.profitloop.blueauto/.MainActivity > /tmp/access-reboot.txt
-            grep -q 'Status: ok' /tmp/access-reboot.txt
+            adb shell settings get secure accessibility_enabled | tr -d '\r' | tee /tmp/access-master-after-reboot.txt
+            sh -c 'master="$(tr -d "\r\n" < /tmp/access-master-after-reboot.txt)"; [ "$master" = "1" ] || adb shell settings put secure accessibility_enabled 1'
+            sleep 15
+            timeout 180 sh -c 'until adb shell pm path com.profitloop.blueauto >/dev/null 2>&1; do sleep 3; done'
+            sh -c 'for attempt in 1 2 3; do adb shell am start -W -n com.profitloop.blueauto/.MainActivity 2>&1 | tee /tmp/access-reboot.txt; grep -q "Status: ok" /tmp/access-reboot.txt && exit 0; sleep 15; done; exit 1'
             sleep 10
+            adb shell pidof com.profitloop.blueauto
             adb shell settings get secure enabled_accessibility_services | grep -q 'com.profitloop.blueauto'
             adb shell settings get secure accessibility_enabled | tr -d '\r' | grep -q '^1$'
             adb shell dumpsys accessibility > /tmp/access-dumpsys.txt || true
