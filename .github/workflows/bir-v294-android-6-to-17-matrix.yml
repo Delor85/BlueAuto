@@ -1,0 +1,172 @@
+name: BIR v2.9.4 Android 6 to 17 exact APK
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ['.github/v294-android-matrix.trigger']
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: bir-v294-android-6-to-17-matrix
+  cancel-in-progress: true
+
+env:
+  BIR_V294_SOURCE_SHA: 4e5d5ac1d1d7c214c433aa608376dbba647399e2
+  BIR_V294_ARTIFACT_RUN_ID: '32273123427'
+  BIR_V294_APK_SHA256: f04a836c27d30af56af1015580987d20b0dd9534e5dea84d4deba51b35f8ee5a
+
+jobs:
+  prove-exact-artifact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact validated source
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.BIR_V294_SOURCE_SHA }}
+      - name: Download exact already-built v2.9.4 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: BIR-v2.9.4-war-room-EPHEMERAL
+          path: /tmp/bir-v294
+          repository: Delor85/BlueAuto
+          run-id: ${{ env.BIR_V294_ARTIFACT_RUN_ID }}
+          github-token: ${{ github.token }}
+      - name: Prove immutable binary and source identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$BIR_V294_SOURCE_SHA"
+          apk="$(find /tmp/bir-v294 -type f -name 'app-release.apk' -print -quit)"
+          source_sha="$(find /tmp/bir-v294 -type f -name 'v294-source-sha.txt' -print -quit)"
+          test -n "$apk" && test -f "$apk"
+          test -n "$source_sha" && test -f "$source_sha"
+          sha256sum "$apk" | tee /tmp/v294-matrix.sha256
+          grep -q "^$BIR_V294_APK_SHA256  " /tmp/v294-matrix.sha256
+          grep -qx "$BIR_V294_SOURCE_SHA" "$source_sha"
+          grep -q 'versionCode 59' app/build.gradle
+          grep -q 'versionName "2.9.4"' app/build.gradle
+          grep -q 'applicationId "com.profitloop.blueauto"' app/build.gradle
+          ! grep -q 'android.permission.SEND_SMS' app/src/main/AndroidManifest.xml
+          grep -Fq 'new String[]{"REMOTE", "ROBOT"}' app/src/main/java/com/profitloop/blueauto/MainActivity.java
+          grep -q 'ACCESSIBILITY_RECONNECT_GRACE_MS' app/src/main/java/com/profitloop/blueauto/RobotService.java
+          grep -q 'sameEvidenceMovement' app/src/main/assets/balance-engine-v280.js
+          grep -q 'war-room-v294.js' app/src/main/assets/index.html
+          grep -q 'Assistant B.I.R.' app/src/main/assets/war-room-v294.js
+
+  android-major-smoke:
+    name: Android ${{ matrix.label }} exact v2.9.4
+    needs: prove-exact-artifact
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {api: 23, arch: x86, profile: "Nexus 5", label: "6/API23", channel: stable}
+          - {api: 24, arch: x86, profile: "Nexus 5", label: "7/API24", channel: stable}
+          - {api: 26, arch: x86_64, profile: "Nexus 5", label: "8/API26", channel: stable}
+          - {api: 28, arch: x86_64, profile: "Nexus 5", label: "9/API28", channel: stable}
+          - {api: 29, arch: x86_64, profile: "Nexus 6", label: "10/API29", channel: stable}
+          - {api: 30, arch: x86_64, profile: "Nexus 6", label: "11/API30", channel: stable}
+          - {api: 31, arch: x86_64, profile: "pixel_2", label: "12/API31", channel: stable}
+          - {api: 33, arch: x86_64, profile: "pixel_2", label: "13/API33", channel: stable}
+          - {api: 34, arch: x86_64, profile: "pixel_2", label: "14/API34", channel: stable}
+          - {api: 35, arch: x86_64, profile: "pixel_2", label: "15/API35", channel: stable}
+          - {api: 36, arch: x86_64, profile: "pixel_2", label: "16/API36", channel: stable}
+          - {api: 37, arch: x86_64, profile: "pixel_2", label: "17/API37", channel: canary}
+    steps:
+      - name: Download exact v2.9.4 validation APK
+        uses: actions/download-artifact@v4
+        with:
+          name: BIR-v2.9.4-war-room-EPHEMERAL
+          path: /tmp/bir-v294
+          repository: Delor85/BlueAuto
+          run-id: ${{ env.BIR_V294_ARTIFACT_RUN_ID }}
+          github-token: ${{ github.token }}
+      - name: Install launch restart and crash-check exact binary
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: ${{ matrix.arch }}
+          profile: ${{ matrix.profile }}
+          channel: ${{ matrix.channel }}
+          disable-animations: true
+          script: |
+            apk="$(find /tmp/bir-v294 -type f -name 'app-release.apk' -print -quit)"
+            test -n "$apk" && test -f "$apk"
+            sha256sum "$apk" | grep "$BIR_V294_APK_SHA256"
+            test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = "${{ matrix.api }}"
+            adb install -r "$apk" | tee /tmp/install.txt
+            grep -q 'Success' /tmp/install.txt
+            adb shell dumpsys package com.profitloop.blueauto > /tmp/package.txt
+            grep -q 'versionCode=59' /tmp/package.txt
+            grep -q 'versionName=2.9.4' /tmp/package.txt
+            adb logcat -c || true
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/start1.txt
+            grep -q 'Status: ok' /tmp/start1.txt
+            sleep 2
+            adb shell pidof com.profitloop.blueauto
+            adb shell am force-stop com.profitloop.blueauto
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity | tee /tmp/start2.txt
+            grep -q 'Status: ok' /tmp/start2.txt
+            sleep 2
+            adb shell pidof com.profitloop.blueauto
+            adb logcat -d -b crash > /tmp/bir-crash.txt || true
+            ! grep -q com.profitloop.blueauto /tmp/bir-crash.txt
+
+  accessibility-stability:
+    name: Accessibility stability Android ${{ matrix.label }}
+    needs: prove-exact-artifact
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {api: 23, arch: x86, profile: "Nexus 5", label: "6/API23", channel: stable}
+          - {api: 30, arch: x86_64, profile: "Nexus 6", label: "11/API30", channel: stable}
+          - {api: 34, arch: x86_64, profile: "pixel_2", label: "14/API34", channel: stable}
+          - {api: 36, arch: x86_64, profile: "pixel_2", label: "16/API36", channel: stable}
+          - {api: 37, arch: x86_64, profile: "pixel_2", label: "17/API37", channel: canary}
+    steps:
+      - name: Download exact v2.9.4 validation APK
+        uses: actions/download-artifact@v4
+        with:
+          name: BIR-v2.9.4-war-room-EPHEMERAL
+          path: /tmp/bir-v294
+          repository: Delor85/BlueAuto
+          run-id: ${{ env.BIR_V294_ARTIFACT_RUN_ID }}
+          github-token: ${{ github.token }}
+      - name: Keep accessibility authorization through restart and reconnect window
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: ${{ matrix.arch }}
+          profile: ${{ matrix.profile }}
+          channel: ${{ matrix.channel }}
+          disable-animations: true
+          script: |
+            apk="$(find /tmp/bir-v294 -type f -name 'app-release.apk' -print -quit)"
+            test -n "$apk" && test -f "$apk"
+            sha256sum "$apk" | grep "$BIR_V294_APK_SHA256"
+            adb install -r "$apk" | grep Success
+            adb shell settings put secure enabled_accessibility_services com.profitloop.blueauto/com.profitloop.blueauto.BlueAccessibilityService
+            adb shell settings put secure accessibility_enabled 1
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity >/tmp/access-start.txt
+            grep -q 'Status: ok' /tmp/access-start.txt
+            sleep 10
+            adb shell settings get secure enabled_accessibility_services | grep -q 'com.profitloop.blueauto'
+            sleep 150
+            adb shell settings get secure enabled_accessibility_services | grep -q 'com.profitloop.blueauto'
+            adb shell am force-stop com.profitloop.blueauto
+            sleep 2
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity >/tmp/access-restart.txt
+            grep -q 'Status: ok' /tmp/access-restart.txt
+            sleep 10
+            adb shell settings get secure enabled_accessibility_services | grep -q 'com.profitloop.blueauto'
+            adb logcat -d -b crash > /tmp/access-crash.txt || true
+            ! grep -q com.profitloop.blueauto /tmp/access-crash.txt
