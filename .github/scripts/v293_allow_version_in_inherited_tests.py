@@ -5,6 +5,7 @@ changed=[]
 code_chain=re.compile(r"\((?:gradle\.includes\('versionCode \d+'\)(?:\|\|)?)+\)")
 name_chain=re.compile(r"\((?:gradle\.includes\('versionName [^']+'\)(?:\|\|)?)+\)")
 worker_chain=re.compile(r"\((?:worker\.includes\(\"const API_VERSION = '[^']+'\"\)(?:\|\|)?)+\)")
+worker_bare_chain=re.compile(r"\((?:worker\.includes\(\"[0-9.]+-cloudflare\"\)(?:\|\|)?)+\)")
 code_regex=re.compile(r"versionCode \(\?:([0-9|]+)\)")
 
 for p in Path('app/src/test').glob('*.mjs'):
@@ -33,6 +34,12 @@ for p in Path('app/src/test').glob('*.mjs'):
             return group
         return group[:-1] + "||worker.includes(\"const API_VERSION = '2.9.3-cloudflare'\"))"
 
+    def add_worker_bare(match):
+        group=match.group(0)
+        if "2.9.3-cloudflare" in group:
+            return group
+        return group[:-1] + '||worker.includes("2.9.3-cloudflare"))'
+
     def add_code_regex(match):
         values=match.group(1).split('|')
         if '58' not in values:
@@ -42,6 +49,7 @@ for p in Path('app/src/test').glob('*.mjs'):
     s=code_chain.sub(add_code,s)
     s=name_chain.sub(add_name,s)
     s=worker_chain.sub(add_worker,s)
+    s=worker_bare_chain.sub(add_worker_bare,s)
     s=code_regex.sub(add_code_regex,s)
 
     # finance-flow and similar historical guards use a JS RegExp rather than gradle.includes().
@@ -60,6 +68,9 @@ for p in Path('app/src/test').glob('*.mjs'):
     if '2.9.3-cloudflare' not in s and 'worker.includes("const API_VERSION = \'2.9.2-cloudflare\'")' in s:
         s=s.replace('worker.includes("const API_VERSION = \'2.9.2-cloudflare\'")',
                     '(worker.includes("const API_VERSION = \'2.9.2-cloudflare\'")||worker.includes("const API_VERSION = \'2.9.3-cloudflare\'"))')
+    if '2.9.3-cloudflare' not in s and 'worker.includes("2.9.2-cloudflare")' in s:
+        s=s.replace('worker.includes("2.9.2-cloudflare")',
+                    '(worker.includes("2.9.2-cloudflare")||worker.includes("2.9.3-cloudflare"))')
 
     if s!=old:
         p.write_text(s,encoding='utf-8')
