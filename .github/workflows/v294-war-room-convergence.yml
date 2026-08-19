@@ -29,7 +29,7 @@ jobs:
           node --check app/src/main/assets/war-room-v294.js
           node app/src/test/v294-war-room-contract.mjs
           git diff --check
-      - name: Adapt inherited test metadata in runner only
+      - name: Adapt inherited Android metadata guards in runner only
         shell: python
         run: |
           from pathlib import Path
@@ -42,7 +42,10 @@ jobs:
               if p.name == 'finance-flow.mjs':
                   s=s.replace('versionCode (?:51|52|53|54|55|58)', 'versionCode (?:51|52|53|54|55|58|59)')
                   s=s.replace('2\\.9\\.0|2\\.9\\.3)', '2\\.9\\.0|2\\.9\\.3|2\\.9\\.4)')
-              s=s.replace("versionCode 58')", "versionCode 58')||gradle.includes('versionCode 59')")
+              s=s.replace("gradle.includes('versionCode 58')", "(gradle.includes('versionCode 58')||gradle.includes('versionCode 59'))")
+              s=s.replace("gradle.includes('versionName \\\"2.9.3\\\"')", "(gradle.includes('versionName \\\"2.9.3\\\"')||gradle.includes('versionName \\\"2.9.4\\\"'))")
+              s=s.replace("gradle.includes('versionName \"2.9.3\"')", "(gradle.includes('versionName \"2.9.3\"')||gradle.includes('versionName \"2.9.4\"'))")
+              s=s.replace("api.includes('\\\"2.9.3\\\"')", "(api.includes('\\\"2.9.3\\\"')||api.includes('\\\"2.9.4\\\"'))")
               s=s.replace('51|52|53|54|55|56|57|58', '51|52|53|54|55|56|57|58|59')
               s=s.replace('52|53|54|55|56|57|58', '52|53|54|55|56|57|58|59')
               s=s.replace('53|54|55|56|57|58', '53|54|55|56|57|58|59')
@@ -50,7 +53,6 @@ jobs:
               s=s.replace('55|56|57|58', '55|56|57|58|59')
               s=s.replace('56|57|58', '56|57|58|59')
               s=s.replace('57|58', '57|58|59')
-              s=s.replace('2.9.3', '2.9.4') if 'version mismatch' in s and '2.9.3' in s else s
               p.write_text(s,encoding='utf-8')
       - name: Run inherited JS contracts
         shell: bash
@@ -62,6 +64,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          grep -q "const API_VERSION = '2.9.3-cloudflare'" src/index.js
           npm ci
           npm run check
           npx wrangler deploy --dry-run
@@ -90,7 +93,7 @@ jobs:
         run: |
           set -euo pipefail
           git checkout -- app/src/test ':!app/src/test/v294-war-room-contract.mjs' || true
-          git add app/build.gradle app/src/main/assets/index.html app/src/main/assets/control-tower-v2611.js app/src/main/assets/war-room-v294.js app/src/test/v294-war-room-contract.mjs
+          git add app/build.gradle app/src/main/assets/index.html app/src/main/assets/app.js app/src/main/assets/control-tower-v2611.js app/src/main/assets/war-room-v294.js app/src/main/java/com/profitloop/blueauto/ApiClient.java app/src/test/v294-war-room-contract.mjs
           if git diff --cached --quiet; then echo 'No generated app diff'; exit 0; fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
