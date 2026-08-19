@@ -1,0 +1,49 @@
+name: BIR v2.9.3 dynamic server recovery contract
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ['.github/v293-dynamic-server.trigger']
+
+permissions:
+  contents: read
+
+env:
+  BIR_V293_SOURCE_SHA: 33a15f4eb7e0c04b0dac8c82837037396c49cea2
+
+jobs:
+  dynamic-v293-server:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact validated v2.9.3 source
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.BIR_V293_SOURCE_SHA }}
+          fetch-depth: 0
+      - name: Import CI-only dynamic contract patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$BIR_V293_SOURCE_SHA"
+          git fetch origin main
+          git show origin/main:.github/scripts/v293_dynamic_server_contract_patch.py > /tmp/v293_dynamic_server_contract_patch.py
+          python3 /tmp/v293_dynamic_server_contract_patch.py
+          git diff -- cloudflare/test/integration.mjs
+          test -z "$(git diff --name-only | grep -v '^cloudflare/test/integration.mjs$' || true)"
+      - name: Run full Worker integration suite with v2.9.3 dynamic checks
+        working-directory: cloudflare
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run check
+          npx wrangler d1 migrations apply blue-magic --local
+          npx wrangler deploy --dry-run
+      - name: Prove candidate source remained immutable
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$BIR_V293_SOURCE_SHA"
+          test -n "$(git diff -- cloudflare/test/integration.mjs)"
+          echo 'Dynamic v2.9.3 server checks passed without modifying candidate source.'
