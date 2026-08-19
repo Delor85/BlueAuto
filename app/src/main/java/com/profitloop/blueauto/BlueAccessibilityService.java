@@ -109,6 +109,9 @@ public class BlueAccessibilityService extends AccessibilityService {
                     "successfully transferred", "transfer successfully", "you transfer")))
                     && resultBelongsToVerifiedSession(command)) {
                 lastResultAt = System.currentTimeMillis();
+                if (parsedBlue.currentBalanceFcfa != null) {
+                    CertifiedBalanceStore.observeTrusted(this, profileId, parsedBlue);
+                }
                 RobotService.operatorResult(this, profileId, true, "",
                         safeScreenText(resultVisible, profileId), transactionId(resultVisible));
                 clickTrustedTelephonyFirst(roots, "ok", "fermer", "close");
@@ -131,6 +134,9 @@ public class BlueAccessibilityService extends AccessibilityService {
         if (("BALANCE_OWN".equals(operation) || "BALANCE_CHILD".equals(operation))
                 && !trustedResult.isEmpty()) {
             lastResultAt = System.currentTimeMillis();
+            if ("BALANCE_OWN".equals(operation) && parsedBlue.currentBalanceFcfa != null) {
+                CertifiedBalanceStore.observeTrusted(this, profileId, parsedBlue);
+            }
             RobotService.operatorResult(this, profileId, true, "",
                     safeScreenText(trustedResult, profileId), transactionId(trustedResult));
             clickTrustedTelephonyFirst(roots, "ok", "fermer", "close");
@@ -141,6 +147,10 @@ public class BlueAccessibilityService extends AccessibilityService {
                 || isRecognizedAdministrationResult(operation, normalize(trustedResult)))
                 && !trustedResult.isEmpty()) {
             lastResultAt = System.currentTimeMillis();
+            if (("HISTORY_LAST5".equals(operation) || "TRANSACTION_DETAIL".equals(operation))
+                    && parsedBlue.currentBalanceFcfa != null) {
+                CertifiedBalanceStore.observeTrusted(this, profileId, parsedBlue);
+            }
             RobotService.operatorResult(this, profileId, true, "",
                     safeScreenText(trustedResult, profileId), transactionId(trustedResult));
             clickTrustedTelephonyFirst(roots, "ok", "fermer", "close");

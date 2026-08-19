@@ -15,41 +15,21 @@ var STATE_KEY=key(configuration,'bir_event_balance_v280_');
 var FINANCE_FRESH_MS=60*60*1000;
 var MAX_RECONCILED_AGE_MS=14*60*60*1000;
 
-function proof(){return parse(localStorage.getItem(PROOF_KEY)||'null',null);}
+function localProof(){return parse(localStorage.getItem(PROOF_KEY)||'null',null);}
+function nativeProof(){var b=bridge(),p=null,raw;if(!b||!b.getCertifiedBalance)return null;try{raw=b.getCertifiedBalance();p=parse(raw||'{}',{});}catch(e){return null;}if(!p||p.balance===null||typeof p.balance==='undefined')return null;return {balance:num(p.balance),available_balance:num(p.balance),reserved_amount:0,balance_quality:'EXACT',evidence_kind:'NATIVE_BLUE_PROOF',observed_at:p.observed_at||'',operator_event_at:p.operator_event_at||p.observed_at||'',last_transaction_id:p.transaction_id||p.receipt_number||'',receipt_number:p.receipt_number||'',source_command_public_id:'',evidence_command_public_id:'',ts:Number(p.chronology_ms||p.operator_event_at_ms||p.captured_at_ms||stamp(p.operator_event_at)||Date.now()),native:true};}
+function saveProof(p){if(!p||p.balance===null||typeof p.balance==='undefined')return;var old=localProof(),next=Number(p.ts||stamp(p.operator_event_at||p.observed_at)||0);if(old&&Number(old.ts||0)>next)return;p.ts=next||Date.now();try{localStorage.setItem(PROOF_KEY,JSON.stringify(p));}catch(e){}}
+function proof(){var l=localProof(),n=nativeProof();if(n&&(!l||Number(n.ts||0)>=Number(l.ts||0))){saveProof(n);return n;}return l;}
 function journal(){return parse(localStorage.getItem(JOURNAL_KEY)||'[]',[]);}
-function movement(entry){
-  if(!entry||upper(entry.state)!=='SUCCEEDED')return 0;
-  var op=upper(entry.op),target=upper(entry.target),node=upper(configuration.node_code),amount=num(entry.amount),base=num(entry.base||entry.amount),commission=num(entry.commission),total=(base||amount)+commission;
-  if(!amount&&!base)return 0;
-  if(op.indexOf('RETAIL')>=0||op==='RETAIL_SALE')return -amount;
-  if(op.indexOf('DISTRIBUTION')>=0||op==='SUPPLY_CHILD'||op==='REQUEST_SUPPLY')return target===node?(base||amount):-(commission>0?total:amount);
-  return 0;
-}
-function isUncertain(entry,baseTs){
-  if(!entry)return false;var ts=stamp(entry.at);if(ts&&ts<=baseTs)return false;
-  var state=upper(entry.state),op=upper(entry.op);
-  if(/UNKNOWN|BLOCKED/.test(state)&&(/TRANSFER|SUPPLY|RETAIL|SALE/.test(op)))return true;
-  if(entry.chronology_safe===false)return true;
-  return false;
-}
-function recompute(){
-  var p=proof(),items=journal(),now=Date.now(),baseTs,i,e,ts,delta=0,movements=0,uncertain=false,state;
-  if(!p||p.balance===null||typeof p.balance==='undefined'){
-    state={quality:'UNCERTAIN',reason:'NO_CERTIFIED_PROOF',balance:null,reusable:false,updated_at:new Date().toISOString()};
-    localStorage.setItem(STATE_KEY,JSON.stringify(state));render(state);return state;
-  }
-  baseTs=Number(p.ts||stamp(p.operator_event_at||p.observed_at)||0);
-  for(i=0;i<items.length;i+=1){e=items[i];ts=stamp(e.at);if(ts&&ts<=baseTs)continue;if(isUncertain(e,baseTs)){uncertain=true;continue;}var d=movement(e);if(d){delta+=d;movements+=1;}}
-  var age=baseTs?now-baseTs:MAX_RECONCILED_AGE_MS+1;
-  if(uncertain||age>MAX_RECONCILED_AGE_MS){state={quality:'UNCERTAIN',reason:uncertain?'UNRECONCILED_FINANCIAL_EVENT':'PROOF_TOO_OLD',balance:num(p.balance)+delta,base_balance:num(p.balance),delta:delta,movements:movements,reusable:false,proof_at:baseTs,updated_at:new Date().toISOString()};}
-  else if(movements){state={quality:'RECALCULATED',reason:'CERTIFIED_PROOF_PLUS_CONFIRMED_MOVEMENTS',balance:num(p.balance)+delta,base_balance:num(p.balance),delta:delta,movements:movements,reusable:true,proof_at:baseTs,updated_at:new Date().toISOString()};}
-  else{state={quality:age<=FINANCE_FRESH_MS?'CERTIFIED':'RECALCULATED',reason:age<=FINANCE_FRESH_MS?'RECENT_CERTIFIED_PROOF':'CERTIFIED_PROOF_NO_LATER_MOVEMENT',balance:num(p.balance),base_balance:num(p.balance),delta:0,movements:0,reusable:true,proof_at:baseTs,updated_at:new Date().toISOString()};}
-  localStorage.setItem(STATE_KEY,JSON.stringify(state));render(state);return state;
-}
+function movement(entry){if(!entry||upper(entry.state)!=='SUCCEEDED')return 0;var op=upper(entry.op),target=upper(entry.target),node=upper(configuration.node_code),amount=num(entry.amount),base=num(entry.base||entry.amount),commission=num(entry.commission),total=(base||amount)+commission;if(!amount&&!base)return 0;if(op.indexOf('RETAIL')>=0||op==='RETAIL_SALE')return -amount;if(op.indexOf('DISTRIBUTION')>=0||op==='SUPPLY_CHILD'||op==='REQUEST_SUPPLY')return target===node?(base||amount):-(commission>0?total:amount);return 0;}
+function normalizedId(v){return upper(String(v||'').replace(/[^A-Z0-9]/g,''));}
+function sameEvidenceMovement(entry,p){if(!entry||!p)return false;var tx=normalizedId(entry.tx),receipt=normalizedId(entry.receipt),last=normalizedId(p.last_transaction_id),pr=normalizedId(p.receipt_number),id=normalizedId(entry.id),src=normalizedId(p.source_command_public_id),ev=normalizedId(p.evidence_command_public_id);if(tx&&last&&tx===last)return true;if(receipt&&last&&receipt===last)return true;if(tx&&pr&&tx===pr)return true;if(receipt&&pr&&receipt===pr)return true;if(id&&src&&id===src)return true;if(id&&ev&&id===ev)return true;return false;}
+function movementTime(entry){return stamp(entry&&entry.operator_at)||stamp(entry&&entry.at);}
+function isUncertain(entry,baseTs,p){if(!entry||sameEvidenceMovement(entry,p))return false;var ts=movementTime(entry);if(ts&&ts<=baseTs)return false;var state=upper(entry.state),op=upper(entry.op);if(/UNKNOWN|BLOCKED/.test(state)&&(/TRANSFER|SUPPLY|RETAIL|SALE/.test(op)))return true;if(entry.chronology_safe===false)return true;return false;}
+function recompute(){var p=proof(),items=journal(),now=Date.now(),baseTs,i,e,ts,delta=0,movements=0,uncertain=false,state;if(!p||p.balance===null||typeof p.balance==='undefined'){state={quality:'UNCERTAIN',reason:'NO_CERTIFIED_PROOF',balance:null,reusable:false,updated_at:new Date().toISOString()};localStorage.setItem(STATE_KEY,JSON.stringify(state));render(state);return state;}baseTs=Number(p.ts||stamp(p.operator_event_at||p.observed_at)||0);for(i=0;i<items.length;i+=1){e=items[i];if(sameEvidenceMovement(e,p))continue;ts=movementTime(e);if(ts&&ts<=baseTs)continue;if(isUncertain(e,baseTs,p)){uncertain=true;continue;}var d=movement(e);if(d){delta+=d;movements+=1;}}var age=baseTs?now-baseTs:MAX_RECONCILED_AGE_MS+1;if(uncertain||age>MAX_RECONCILED_AGE_MS){state={quality:'UNCERTAIN',reason:uncertain?'UNRECONCILED_FINANCIAL_EVENT':'PROOF_TOO_OLD',balance:num(p.balance)+delta,base_balance:num(p.balance),delta:delta,movements:movements,reusable:false,proof_at:baseTs,last_transaction_id:p.last_transaction_id||'',updated_at:new Date().toISOString()};}else if(movements){state={quality:'RECALCULATED',reason:'CERTIFIED_PROOF_PLUS_CONFIRMED_MOVEMENTS',balance:num(p.balance)+delta,base_balance:num(p.balance),delta:delta,movements:movements,reusable:true,proof_at:baseTs,last_transaction_id:p.last_transaction_id||'',updated_at:new Date().toISOString()};}else{state={quality:age<=FINANCE_FRESH_MS?'CERTIFIED':'RECALCULATED',reason:age<=FINANCE_FRESH_MS?'RECENT_CERTIFIED_PROOF':'CERTIFIED_PROOF_NO_LATER_MOVEMENT',balance:num(p.balance),base_balance:num(p.balance),delta:0,movements:0,reusable:true,proof_at:baseTs,last_transaction_id:p.last_transaction_id||'',updated_at:new Date().toISOString()};}localStorage.setItem(STATE_KEY,JSON.stringify(state));render(state);return state;}
 function render(s){var card=document.getElementById('birBalanceFreshness'),own=document.getElementById('ownBalance'),main=document.getElementById('birCamtelBalance'),label;if(!s)return;if(s.balance!==null){label=(s.reusable?'':'≈ ')+money(s.balance);if(own)own.textContent=label+' FCFA';if(main)main.textContent=label;}if(card){if(s.quality==='CERTIFIED')card.textContent='Preuve Blue certifiée • aucune interrogation USSD nécessaire';else if(s.quality==='RECALCULATED')card.textContent='Solde recalculé • preuve certifiée + '+String(s.movements||0)+' mouvement(s) confirmé(s)';else card.textContent='≈ Estimation B.I.R. à rapprocher • ne pas la confondre avec un solde Blue certifié';}}
 function get(){return parse(localStorage.getItem(STATE_KEY)||'null',null)||recompute();}
 function shouldRecertify(){var s=get();return !s||s.reusable!==true||s.quality==='UNCERTAIN';}
-window.BIREventBalanceV280={recompute:recompute,get:get,shouldRecertify:shouldRecertify};
+window.BIREventBalanceV280={recompute:recompute,get:get,shouldRecertify:shouldRecertify,sameEvidenceMovement:sameEvidenceMovement};
 window.BlueMagicNative=window.BlueMagicNative||{};
 var status=window.BlueMagicNative.onCommandStatus;window.BlueMagicNative.onCommandStatus=function(data){if(typeof status==='function')try{status(data);}catch(e){};setTimeout(recompute,50);};
 var created=window.BlueMagicNative.onCommandCreated;window.BlueMagicNative.onCommandCreated=function(data){if(typeof created==='function')try{created(data);}catch(e){};setTimeout(recompute,50);};

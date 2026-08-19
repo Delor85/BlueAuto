@@ -1,7 +1,7 @@
 import {parseBlueMessage} from './blue-message.mjs';
 import {CAMTEL_USSD, canonicalCamtelIdentity, parseCamtelIdentity, publicCamtelCatalog} from './camtel-catalog.mjs';
 
-const API_VERSION = '2.9.2-cloudflare';
+const API_VERSION = '2.9.3-cloudflare';
 const ROBOT_LIVE_WINDOW_MINUTES = 15;
 const BALANCE_EVIDENCE_TTL_SECONDS = 3600;
 const REPORT_BALANCE_EVIDENCE_TTL_SECONDS = 14 * 3600;
@@ -45,7 +45,7 @@ export default {
       const input = request.method === 'POST' ? await readJson(request) : {};
       if (action === 'health') {
         await env.DB.prepare('SELECT 1 AS online').first();
-        return success({service: 'blue-magic-api', version: API_VERSION, database: 'online', capabilities: {commissions: true, commission_override: true, remote_results: true, force_sync: true, network_audit: true, owner_admin: true, super_admin: true, free_ops_cockpit: true, premium_for_all: true, hierarchical_rescue: true, simple_pilotage: true, dae_pro_free: true, region_national_ops_free: true, owner_mock_entitlement: true, accounting: true, tchoronko: true, event_balance: true, offline_sync: true, bir_relay: true, effective_modes: ['REMOTE','ROBOT']}}, 200, headers);
+        return success({service: 'blue-magic-api', version: API_VERSION, database: 'online', capabilities: {commissions: true, commission_override: true, remote_results: true, force_sync: true, network_audit: true, owner_admin: true, super_admin: true, free_ops_cockpit: true, premium_for_all: true, hierarchical_rescue: true, simple_pilotage: true, dae_pro_free: true, region_national_ops_free: true, owner_mock_entitlement: true, accounting: true, tchoronko: true, event_balance: true, offline_sync: true, bir_relay: true, queue_reconciliation: true, lease_recovery: true, distribution_command_center: true, stockout_forecast: true, anomaly_detection: true, operator_incident_inference: true, reconciliation_center: true, effective_modes: ['REMOTE','ROBOT']}}, 200, headers);
       }
       if (action === 'pair_device') return await pairDevice(env, input, headers);
 
@@ -95,6 +95,11 @@ export default {
         case 'mercenary_save': return await mercenarySave(env, auth, input, headers);
         case 'mercenary_list': return await mercenaryList(env, auth, headers);
         case 'mercenary_sale': return await mercenarySale(env, auth, input, headers);
+        case 'queue_snapshot': return await queueSnapshot(env, auth, headers);
+        case 'recover_lease': return await recoverLease(env, auth, input, headers);
+        case 'distribution_command_center': return await distributionCommandCenter(env, auth, headers);
+        case 'reconciliation_center': return await reconciliationCenter(env, auth, headers);
+        case 'owner_distribution_command_center': return await ownerDistributionCommandCenter(request, env, auth, headers);
         case 'lease_command': return await leaseCommand(env, auth, headers);
         case 'release_command': return await releaseCommand(env, auth, input, headers);
         case 'cancel_command': return await cancelCommand(env, auth, input, headers);
@@ -492,6 +497,8 @@ async function createCommand(env, auth, input, headers) {
     + 'WHERE requester_node_code = ? AND client_request_id = ?'
   ).bind(auth.node_code, clientId).first();
   if (previous) {
+    try { await env.DB.prepare('INSERT INTO duplicate_request_audit(requester_node_code,existing_command_public_id,client_request_id,existing_state) VALUES(?,?,?,?)')
+      .bind(auth.node_code,previous.public_id,clientId,previous.state).run(); } catch (ignored) {}
     const availability = await robotAvailability(env, previous.executor_node_code);
     return success({command: {...previous, ...availability}, duplicate: true}, 200, headers);
   }
@@ -571,6 +578,8 @@ async function createCommand(env, auth, input, headers) {
       + 'WHERE requester_node_code = ? AND client_request_id = ?'
     ).bind(auth.node_code, clientId).first();
     if (duplicate) {
+      try { await env.DB.prepare('INSERT INTO duplicate_request_audit(requester_node_code,existing_command_public_id,client_request_id,existing_state) VALUES(?,?,?,?)')
+        .bind(auth.node_code,duplicate.public_id,clientId,duplicate.state).run(); } catch (ignored) {}
       const availability = await robotAvailability(env, duplicate.executor_node_code);
       return success({command: {...duplicate, ...availability}, duplicate: true}, 200, headers);
     }
@@ -1178,6 +1187,119 @@ async function resolveCommand(env, auth, input, requestType) {
   throw new ApiError('INVALID_REQUEST_TYPE', 'Type de commande inconnu.', 422);
 }
 
+
+async function queueSnapshot(env, auth, headers) {
+  const rows = await env.DB.prepare(
+    "SELECT public_id,requester_node_code,executor_node_code,target_node_code,operation,command_kind,target_phone,amount,requested_base_amount,commission_rate_bps,commission_amount,state,result_message,operator_transaction_id,created_at,started_at,completed_at,updated_at "
+    + "FROM commands WHERE requester_node_code=? OR executor_node_code=? OR target_node_code=? "
+    + "ORDER BY CASE WHEN state IN ('PENDING','LEASED','DIALING','AWAITING_PIN','PIN_SUBMITTED','AWAITING_RESULT') THEN 0 ELSE 1 END,id DESC LIMIT 80"
+  ).bind(auth.node_code,auth.node_code,auth.node_code).all();
+  const commands=(rows.results||[]).map(commandView);
+  const active=commands.filter(c=>!TERMINAL_STATES.has(c.state));
+  const pending=active.filter(c=>c.state==='PENDING');
+  let oldest=0;
+  for(const row of active){const age=row.created_at?Math.max(0,Math.floor((Date.now()-Date.parse(row.created_at))/1000)):0;if(age>oldest)oldest=age;}
+  return success({node_code:auth.node_code,generated_at:new Date().toISOString(),server_time_ms:Date.now(),pending_count:pending.length,active_count:active.length,oldest_pending_age_seconds:oldest,commands},200,headers);
+}
+
+async function recoverLease(env, auth, input, headers) {
+  const publicId=String(input.command_id||'').trim();
+  if(!publicId)throw new ApiError('COMMAND_REQUIRED','Commande à récupérer requise.',422);
+  const current=await env.DB.prepare(
+    'SELECT * FROM commands WHERE public_id=? AND executor_node_code=?'
+  ).bind(publicId,auth.node_code).first();
+  if(!current)throw new ApiError('COMMAND_NOT_FOUND','Commande introuvable pour ce Robot.',404);
+  if(current.state!=='LEASED'){
+    const verifyOnly=['DIALING','AWAITING_PIN','PIN_SUBMITTED','AWAITING_RESULT'].includes(current.state);
+    return success({recovered:false,verify_only:verifyOnly,state:current.state,command:commandView(current)},200,headers);
+  }
+  if(!current.leased_by_device_id || current.leased_by_device_id!==auth.device_id){
+    return success({recovered:false,verify_only:false,state:current.state,reason:'LEASE_OWNED_BY_ANOTHER_DEVICE'},200,headers);
+  }
+  const leaseToken=randomHex(24),hash=await sha256(leaseToken);
+  const command=await env.DB.prepare(
+    "UPDATE commands SET lease_token_hash=?,leased_until=strftime('%Y-%m-%dT%H:%M:%fZ','now','+120 seconds'),last_recovery_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') "
+    + "WHERE id=? AND state='LEASED' AND leased_by_device_id=? RETURNING *"
+  ).bind(hash,current.id,auth.device_id).first();
+  if(!command)throw new ApiError('COMMAND_RACE','La commande a changé pendant la récupération.',409);
+  await env.DB.prepare("INSERT INTO command_events(command_id,device_id,state,message) VALUES(?,?,'LEASED','Lease restauré sur le même appareil après perte de la copie locale; aucune recomposition préalable.')")
+    .bind(command.id,auth.device_id).run();
+  command.executor_phone=auth.phone_number;command.integrity_version=3;
+  const integrityDigest=await commandDigest(command);
+  return success({recovered:true,verify_only:false,command:{
+    public_id:command.public_id,lease_token:leaseToken,requester_node_code:command.requester_node_code,
+    executor_node_code:command.executor_node_code,executor_phone:command.executor_phone,
+    target_node_code:command.target_node_code,operation:command.operation,command_kind:command.command_kind||'',
+    command_argument:command.command_argument||'',target_phone:command.target_phone,amount:command.amount,
+    requested_base_amount:command.requested_base_amount,commission_rate_bps:Number(command.commission_rate_bps||0),
+    commission_amount:Number(command.commission_amount||0),ussd_code:command.ussd_code,requires_pin:Boolean(command.requires_pin),
+    integrity_version:3,integrity_digest:integrityDigest
+  }},200,headers);
+}
+
+function commandCenterRow(row){
+  const balance=row.balance==null?null:Number(row.balance),out7=Number(row.outflow_7d||0),daily=out7/7;
+  const daysCover=balance==null||daily<=0?null:Math.round((balance/daily)*10)/10;
+  const terminal24=Number(row.success_24h||0)+Number(row.bad_24h||0);
+  const failRate=terminal24?Math.round(Number(row.bad_24h||0)*1000/terminal24)/10:0;
+  const balanceAge=row.balance_at?Math.max(0,Math.floor((Date.now()-Date.parse(row.balance_at))/1000)):null;
+  const robotAge=row.robot_last_seen_at?Math.max(0,Math.floor((Date.now()-Date.parse(row.robot_last_seen_at))/1000)):null;
+  const queueAge=row.oldest_queue_at?Math.max(0,Math.floor((Date.now()-Date.parse(row.oldest_queue_at))/1000)):0;
+  const anomalies=[];
+  if(daysCover!=null&&daysCover<1)anomalies.push({code:'STOCKOUT_RISK',severity:'CRITICAL',message:'Couverture estimée inférieure à 1 jour.'});
+  else if(daysCover!=null&&daysCover<3)anomalies.push({code:'STOCKOUT_RISK',severity:'WARN',message:'Couverture estimée inférieure à 3 jours.'});
+  if(queueAge>900)anomalies.push({code:'QUEUE_STALE',severity:queueAge>3600?'CRITICAL':'WARN',message:'Commande active trop ancienne.'});
+  if(terminal24>=5&&failRate>=20)anomalies.push({code:'FAILURE_SPIKE',severity:failRate>=50?'CRITICAL':'WARN',message:`Taux d'échec/à vérifier ${failRate} % sur 24 h.`});
+  if(Number(row.duplicate_24h||0)>=3)anomalies.push({code:'DUPLICATE_SPIKE',severity:'WARN',message:`${Number(row.duplicate_24h)} tentative(s) anti-doublon sur 24 h.`});
+  if(balanceAge==null||balanceAge>6*3600)anomalies.push({code:'BALANCE_STALE',severity:'INFO',message:'Preuve de solde ancienne ou absente.'});
+  if(row.robot_enabled&&robotAge!=null&&robotAge>15*60)anomalies.push({code:'ROBOT_STALE',severity:'CRITICAL',message:'Robot déclaré actif mais télémétrie ancienne.'});
+  if(row.robot_enabled&&row.accessibility_enabled&&!row.accessibility_connected)anomalies.push({code:'ACCESSIBILITY_DISCONNECTED',severity:'WARN',message:'Accessibilité autorisée mais service Android non connecté.'});
+  return {...row,balance,outflow_7d:out7,daily_outflow_estimate:Math.round(daily*100)/100,days_cover:daysCover,stockout:daysCover==null?'UNKNOWN':daysCover<1?'CRITICAL':daysCover<3?'WATCH':'COMFORTABLE',failure_rate_24h:failRate,balance_age_seconds:balanceAge,robot_age_seconds:robotAge,oldest_queue_age_seconds:queueAge,anomalies};
+}
+
+async function distributionCommandCenterCore(env, rootNode, national=false) {
+  const nodeSql=national
+    ? "SELECT n.node_code,n.role,n.phone_number,n.parent_node_code,n.active,n.default_commission_bps,n.inbound_commission_bps FROM nodes n WHERE n.active=1"
+    : "WITH RECURSIVE tree(node_code) AS (SELECT ? UNION ALL SELECT n.node_code FROM nodes n JOIN tree t ON n.parent_node_code=t.node_code WHERE n.active=1) SELECT n.node_code,n.role,n.phone_number,n.parent_node_code,n.active,n.default_commission_bps,n.inbound_commission_bps FROM nodes n JOIN tree t ON t.node_code=n.node_code WHERE n.active=1";
+  const nodes=national?(await env.DB.prepare(nodeSql).all()).results||[]:(await env.DB.prepare(nodeSql).bind(rootNode).all()).results||[];
+  const output=[];
+  for(const n of nodes){
+    const balance=await env.DB.prepare('SELECT balance,balance_quality,evidence_kind,COALESCE(operator_event_at,observed_at) AS balance_at,last_transaction_id FROM account_balances WHERE node_code=?').bind(n.node_code).first();
+    const flow=await env.DB.prepare("SELECT COALESCE(SUM(CASE WHEN state='SUCCEEDED' AND operation IN ('DISTRIBUTION_TRANSFER','RETAIL_TRANSFER') THEN amount ELSE 0 END),0) outflow_7d,COALESCE(SUM(CASE WHEN created_at>=strftime('%Y-%m-%dT%H:%M:%fZ','now','-24 hours') AND state='SUCCEEDED' THEN 1 ELSE 0 END),0) success_24h,COALESCE(SUM(CASE WHEN created_at>=strftime('%Y-%m-%dT%H:%M:%fZ','now','-24 hours') AND state IN ('FAILED','UNKNOWN','BLOCKED') THEN 1 ELSE 0 END),0) bad_24h FROM commands WHERE executor_node_code=? AND created_at>=strftime('%Y-%m-%dT%H:%M:%fZ','now','-7 days')").bind(n.node_code).first();
+    const queue=await env.DB.prepare("SELECT COUNT(*) queue_count,MIN(created_at) oldest_queue_at FROM commands WHERE executor_node_code=? AND state IN ('PENDING','LEASED','DIALING','AWAITING_PIN','PIN_SUBMITTED','AWAITING_RESULT')").bind(n.node_code).first();
+    const dev=await env.DB.prepare("SELECT robot_enabled,accessibility_enabled,accessibility_connected,offline_pending_events,battery_percent,last_seen_at AS robot_last_seen_at,app_version,android_version,device_name FROM devices WHERE node_code=? AND active=1 ORDER BY robot_enabled DESC,last_seen_at DESC LIMIT 1").bind(n.node_code).first();
+    const dup=await env.DB.prepare("SELECT COUNT(*) total FROM duplicate_request_audit WHERE requester_node_code=? AND observed_at>=strftime('%Y-%m-%dT%H:%M:%fZ','now','-24 hours')").bind(n.node_code).first();
+    output.push(commandCenterRow({...n,...(balance||{}),...(flow||{}),...(queue||{}),...(dev||{}),duplicate_24h:Number(dup?.total||0)}));
+  }
+  const anomalies=[];for(const n of output)for(const a of n.anomalies||[])anomalies.push({...a,node_code:n.node_code,role:n.role});
+  const recent=national
+    ? await env.DB.prepare("SELECT COUNT(*) total,COUNT(DISTINCT CASE WHEN state IN ('FAILED','UNKNOWN','BLOCKED') THEN executor_node_code END) bad_nodes,SUM(CASE WHEN state IN ('FAILED','UNKNOWN','BLOCKED') THEN 1 ELSE 0 END) bad FROM commands WHERE updated_at>=strftime('%Y-%m-%dT%H:%M:%fZ','now','-15 minutes') AND state IN ('SUCCEEDED','FAILED','UNKNOWN','BLOCKED')").first()
+    : await env.DB.prepare("WITH RECURSIVE tree(node_code) AS (SELECT ? UNION ALL SELECT n.node_code FROM nodes n JOIN tree t ON n.parent_node_code=t.node_code WHERE n.active=1) SELECT COUNT(*) total,COUNT(DISTINCT CASE WHEN c.state IN ('FAILED','UNKNOWN','BLOCKED') THEN c.executor_node_code END) bad_nodes,SUM(CASE WHEN c.state IN ('FAILED','UNKNOWN','BLOCKED') THEN 1 ELSE 0 END) bad FROM commands c JOIN tree t ON t.node_code=c.executor_node_code WHERE c.updated_at>=strftime('%Y-%m-%dT%H:%M:%fZ','now','-15 minutes') AND c.state IN ('SUCCEEDED','FAILED','UNKNOWN','BLOCKED')").bind(rootNode).first();
+  const bad=Number(recent?.bad||0),total=Number(recent?.total||0),badNodes=Number(recent?.bad_nodes||0),ratio=total?bad/total:0;
+  const serviceSignal=badNodes>=3&&total>=5&&ratio>=0.35
+    ? {code:'PROBABLE_OPERATOR_INCIDENT',severity:'CRITICAL',message:'Des échecs ou états à vérifier sont corrélés sur plusieurs nœuds. Suspendre les répétitions inutiles et vérifier le service Blue.'}
+    : badNodes===1&&bad>0?{code:'NODE_SPECIFIC_ANOMALY',severity:'WARN',message:'Le signal récent semble concentré sur un seul nœud/appareil.'}
+    : {code:'SERVICE_STABLE',severity:'OK',message:'Aucun incident transversal significatif détecté dans les données B.I.R. récentes.'};
+  const flows=national
+    ? await env.DB.prepare("SELECT operation,COUNT(*) count,COALESCE(SUM(amount),0) amount FROM commands WHERE state='SUCCEEDED' AND operation IN ('DISTRIBUTION_TRANSFER','RETAIL_TRANSFER') AND created_at>=strftime('%Y-%m-%dT%H:%M:%fZ','now','-7 days') GROUP BY operation").all()
+    : await env.DB.prepare("WITH RECURSIVE tree(node_code) AS (SELECT ? UNION ALL SELECT n.node_code FROM nodes n JOIN tree t ON n.parent_node_code=t.node_code WHERE n.active=1) SELECT c.operation,COUNT(*) count,COALESCE(SUM(c.amount),0) amount FROM commands c JOIN tree t ON t.node_code=c.executor_node_code WHERE c.state='SUCCEEDED' AND c.operation IN ('DISTRIBUTION_TRANSFER','RETAIL_TRANSFER') AND c.created_at>=strftime('%Y-%m-%dT%H:%M:%fZ','now','-7 days') GROUP BY c.operation").bind(rootNode).all();
+  const critical=anomalies.filter(a=>a.severity==='CRITICAL').length,warn=anomalies.filter(a=>a.severity==='WARN').length;
+  return {generated_at:new Date().toISOString(),scope:national?'NATIONAL':rootNode,summary:{nodes:output.length,critical,warn,stockout_critical:output.filter(n=>n.stockout==='CRITICAL').length,stockout_watch:output.filter(n=>n.stockout==='WATCH').length},service_signal:serviceSignal,flows_7d:flows.results||[],nodes:output,anomalies:anomalies.slice(0,500)};
+}
+
+async function distributionCommandCenter(env, auth, headers){return success(await distributionCommandCenterCore(env,auth.node_code,false),200,headers);}
+async function ownerDistributionCommandCenter(request,env,auth,headers){const owner=await authenticateOwnerAny(request,env,auth);const data=await distributionCommandCenterCore(env,auth.node_code,true);await adminAudit(env,owner.entitlement_id,'DISTRIBUTION_COMMAND_CENTER',null,auth.device_id,{nodes:data.summary.nodes},'READ');return success(data,200,headers);}
+
+async function reconciliationCenter(env,auth,headers){
+  const commands=await env.DB.prepare("SELECT c.public_id,c.state,c.operation,c.amount,c.operator_transaction_id,c.created_at,c.completed_at,om.transaction_id,om.receipt_number,om.status AS operator_status,om.current_balance FROM commands c LEFT JOIN operator_messages om ON om.command_public_id=c.public_id WHERE (c.requester_node_code=? OR c.executor_node_code=? OR c.target_node_code=?) AND c.operation IN ('DISTRIBUTION_TRANSFER','RETAIL_TRANSFER') ORDER BY c.id DESC LIMIT 300").bind(auth.node_code,auth.node_code,auth.node_code).all();
+  const blueOnly=await env.DB.prepare("SELECT transaction_id,receipt_number,status,amount,current_balance,transaction_date,transaction_time,created_at FROM operator_messages WHERE node_code=? AND message_kind IN ('TRANSFER_RECEIVED','TRANSFER_SENT','RETAIL_TOPUP_RECEIVED','RETAIL_TOPUP_SENT') AND command_public_id IS NULL ORDER BY id DESC LIMIT 100").bind(auth.node_code).all();
+  const evidence=await env.DB.prepare("SELECT COUNT(*) total,SUM(CASE WHEN accepted=1 THEN 1 ELSE 0 END) accepted,SUM(CASE WHEN accepted=0 THEN 1 ELSE 0 END) rejected FROM balance_evidence_log WHERE node_code=?").bind(auth.node_code).first();
+  let matched=0,mismatch=0,birOnly=0;const rows=[];
+  for(const r of commands.results||[]){let state='MATCHED',reason='Commande et preuve opérateur reliées.';if(!r.transaction_id&&!r.receipt_number){state='BIR_ONLY';reason='Commande financière sans preuve opérateur liée.';birOnly++;}else if(r.state==='SUCCEEDED'&&String(r.operator_status||'').toUpperCase()==='FAILED'){state='MISMATCH';reason='B.I.R. et preuve opérateur portent des états incompatibles.';mismatch++;}else matched++;rows.push({...r,reconciliation_state:state,reconciliation_reason:reason});}
+  const imported=await env.DB.prepare("SELECT match_state,COUNT(*) total FROM reconciliation_rows GROUP BY match_state").all();
+  return success({generated_at:new Date().toISOString(),node_code:auth.node_code,summary:{matched,mismatch,bir_only:birOnly,blue_only:(blueOnly.results||[]).length,balance_evidence_total:Number(evidence?.total||0),balance_evidence_accepted:Number(evidence?.accepted||0),balance_evidence_rejected:Number(evidence?.rejected||0)},transactions:rows,blue_only:blueOnly.results||[],imported_reconciliation:imported.results||[]},200,headers);
+}
+
 async function leaseCommand(env, auth, headers) {
   if (!['ROBOT', 'HYBRID'].includes(auth.mode)) {
     throw new ApiError('NOT_A_ROBOT', 'Cet appareil n’est pas autorisé à louer des commandes.', 403);
@@ -1214,7 +1336,7 @@ async function leaseCommand(env, auth, headers) {
     + "WHEN state = 'LEASED' AND attempt < max_attempts THEN 'Lease expiré avant composition.' "
     + "WHEN state = 'LEASED' THEN 'Robot indisponible après plusieurs leases.' "
     + "ELSE 'Session USSD expirée après composition; vérification manuelle requise.' END, "
-    + 'lease_token_hash = NULL, leased_until = NULL, '
+    + 'lease_token_hash = NULL, leased_until = NULL, leased_by_device_id = NULL, '
     + "completed_at = CASE WHEN state <> 'LEASED' OR attempt >= max_attempts "
     + "THEN strftime('%Y-%m-%dT%H:%M:%fZ', 'now') ELSE completed_at END, "
     + "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') "
@@ -1224,7 +1346,7 @@ async function leaseCommand(env, auth, headers) {
   ).bind(auth.node_code).run();
 
   const active = await env.DB.prepare(
-    "SELECT public_id, state FROM commands WHERE executor_node_code = ? "
+    "SELECT public_id, state, leased_by_device_id, leased_until, updated_at FROM commands WHERE executor_node_code = ? "
     + "AND state IN ('LEASED', 'DIALING', 'AWAITING_PIN', 'PIN_SUBMITTED', 'AWAITING_RESULT') "
     + 'ORDER BY id LIMIT 1'
   ).bind(auth.node_code).first();
@@ -1234,13 +1356,13 @@ async function leaseCommand(env, auth, headers) {
 
   const leaseToken = randomHex(24);
   const command = await env.DB.prepare(
-    "UPDATE commands SET state = 'LEASED', attempt = attempt + 1, lease_token_hash = ?, "
+    "UPDATE commands SET state = 'LEASED', attempt = attempt + 1, lease_token_hash = ?, leased_by_device_id = ?, "
     + "leased_until = strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '+120 seconds'), "
     + "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') "
     + "WHERE id = (SELECT id FROM commands WHERE executor_node_code = ? AND state = 'PENDING' ORDER BY id LIMIT 1) "
     + "AND state = 'PENDING' RETURNING id, public_id, requester_node_code, executor_node_code, "
     + "target_node_code, operation, command_kind, command_argument, target_phone, amount, ussd_code, requires_pin"
-  ).bind(await sha256(leaseToken), auth.node_code).first();
+  ).bind(await sha256(leaseToken), auth.device_id, auth.node_code).first();
   if (!command) return success({available: false}, 200, headers);
 
   await env.DB.prepare(
@@ -1275,13 +1397,16 @@ async function releaseCommand(env, auth, input, headers) {
   const publicId = String(input.command_id || '').trim();
   const leaseToken = String(input.lease_token || '').trim();
   const command = await env.DB.prepare(
-    'SELECT id, state, executor_node_code, lease_token_hash FROM commands WHERE public_id = ?'
+    'SELECT id, state, executor_node_code, lease_token_hash, leased_by_device_id FROM commands WHERE public_id = ?'
   ).bind(publicId).first();
   if (!command || command.executor_node_code !== auth.node_code) {
     throw new ApiError('COMMAND_NOT_FOUND', 'Commande introuvable pour ce Robot.', 404);
   }
   if (command.state !== 'LEASED') {
     return success({command: {public_id: publicId, state: command.state}, released: false}, 200, headers);
+  }
+  if (command.leased_by_device_id && command.leased_by_device_id !== auth.device_id) {
+    throw new ApiError('LEASE_OWNER_MISMATCH', 'Ce lease appartient à un autre appareil Robot.', 409);
   }
   if (!command.lease_token_hash || command.lease_token_hash !== await sha256(leaseToken)) {
     throw new ApiError('LEASE_INVALID', 'Lease invalide ou expiré.', 409);
@@ -1290,7 +1415,7 @@ async function releaseCommand(env, auth, input, headers) {
   const results = await env.DB.batch([
     env.DB.prepare(
       "UPDATE commands SET state = 'PENDING', attempt = CASE WHEN attempt > 0 THEN attempt - 1 ELSE 0 END, "
-      + 'lease_token_hash = NULL, leased_until = NULL, result_message = ?, '
+      + 'lease_token_hash = NULL, leased_until = NULL, leased_by_device_id = NULL, result_message = ?, '
       + "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ? AND state = 'LEASED'"
     ).bind(reason, command.id),
     env.DB.prepare(
@@ -1363,10 +1488,10 @@ async function commandEvent(env, auth, input, headers) {
       'UPDATE commands SET state = ?, result_message = ?, operator_transaction_id = ?, '
       + "started_at = CASE WHEN ? = 'DIALING' AND started_at IS NULL THEN strftime('%Y-%m-%dT%H:%M:%fZ', 'now') ELSE started_at END, "
       + "completed_at = CASE WHEN ? = 1 THEN strftime('%Y-%m-%dT%H:%M:%fZ', 'now') ELSE completed_at END, "
-      + 'leased_until = CASE WHEN ? = 1 THEN NULL ELSE leased_until END, '
+      + 'leased_until = CASE WHEN ? = 1 THEN NULL ELSE leased_until END, leased_by_device_id = CASE WHEN ? = 1 THEN NULL ELSE leased_by_device_id END, '
       + "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') "
       + 'WHERE id = ? AND state = ?'
-    ).bind(nextState, message, operatorId, nextState, terminal ? 1 : 0, terminal ? 1 : 0, command.id, command.state),
+    ).bind(nextState, message, operatorId, nextState, terminal ? 1 : 0, terminal ? 1 : 0, terminal ? 1 : 0, command.id, command.state),
     env.DB.prepare(
       'INSERT INTO command_events(command_id, device_id, state, message) VALUES(?, ?, ?, ?)'
     ).bind(command.id, auth.device_id, nextState, message)
@@ -1401,6 +1526,12 @@ function commandView(command) {
 
 async function applyTerminalEffects(env, command, state, message, publicId) {
   await applyMercenaryTerminal(env, publicId, state);
+  if (state === 'SUCCEEDED' && command.operation === 'DISTRIBUTION_TRANSFER'
+      && command.target_node_code && Number.isInteger(Number(command.commission_rate_bps))) {
+    const inbound = Math.max(0, Math.min(5000, Number(command.commission_rate_bps || 0)));
+    await env.DB.prepare('UPDATE nodes SET inbound_commission_bps=? WHERE node_code=?')
+      .bind(inbound, command.target_node_code).run();
+  }
   const explicitEvidence = state === 'SUCCEEDED' ? explicitBalanceEvidence(command, message) : null;
   if (explicitEvidence) {
     await saveObservedBalance(env, explicitEvidence.nodeCode, explicitEvidence.value, publicId,
@@ -2188,7 +2319,7 @@ async function networkDashboard(env, auth, headers) {
     'WITH RECURSIVE network(node_code) AS (SELECT ? UNION ALL '
     + 'SELECT n.node_code FROM nodes n JOIN network p ON n.parent_node_code = p.node_code '
     + 'WHERE n.active = 1) '
-    + 'SELECT n.node_code, n.role, n.phone_number, n.parent_node_code, n.default_commission_bps, '
+    + 'SELECT n.node_code, n.role, n.phone_number, n.parent_node_code, n.default_commission_bps, n.inbound_commission_bps, '
     + 'b.balance, b.source AS balance_source, b.evidence_kind, b.confidence, b.observed_at, b.valid_until, '
     + 'b.evidence_priority, b.operator_event_at, b.balance_quality, b.last_transaction_id, '
     + 'a.last_financial_activity_at, a.last_unbalanced_activity_at, '
@@ -2225,8 +2356,9 @@ async function networkDashboard(env, auth, headers) {
       const reusable = balance != null && row.balance_quality === 'EXACT'
         && Date.parse(row.valid_until || '') > Date.now() && !unbalancedAfterEvidence;
       const defaultRate = Number(row.default_commission_bps || 0);
-      const baseEquivalent = balance == null ? null : maxBaseForTotal(balance, defaultRate);
-      return {...row, balance, default_commission_bps: defaultRate, reserved_amount: reserved,
+      const inboundRate = Number(row.inbound_commission_bps || (row.role === 'DAE' ? 1000 : row.role === 'DSM' ? 900 : row.role === 'POS' ? 800 : 0));
+      const baseEquivalent = balance == null ? null : maxBaseForTotal(balance, inboundRate);
+      return {...row, balance, default_commission_bps: defaultRate, inbound_commission_bps: inboundRate, reserved_amount: reserved,
         commission_base_balance: baseEquivalent,
         commission_component_balance: balance == null ? null : balance - baseEquivalent,
         available_balance: balance == null ? null : Math.max(0, balance - reserved),

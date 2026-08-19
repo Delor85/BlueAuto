@@ -2112,10 +2112,39 @@ public class MainActivity extends Activity {
                 value.put("mock_owner_server_entitled", SecureOwnerStore.has(MainActivity.this, "MOCK_OWNER"));
                 value.put("offline_pending_events", LocalEventStore.pendingCount(MainActivity.this));
                 value.put("robot_offline_capable", AppConfig.isRobotMode(MainActivity.this));
+                JSONObject certified = CertifiedBalanceStore.get(MainActivity.this, AppConfig.profileId(MainActivity.this));
+                value.put("certified_balance", certified == null ? JSONObject.NULL : certified);
+                value.put("unified_queue", ServerQueueMirrorStore.unified(MainActivity.this, AppConfig.profileId(MainActivity.this)));
                 return value.toString();
             } catch (Exception ignored) {
                 return "{}";
             }
+        }
+
+        @JavascriptInterface
+        public String getCertifiedBalance() {
+            return CertifiedBalanceStore.json(MainActivity.this, AppConfig.profileId(MainActivity.this));
+        }
+
+        @JavascriptInterface
+        public String getUnifiedQueueSnapshot() {
+            return ServerQueueMirrorStore.unified(MainActivity.this, AppConfig.profileId(MainActivity.this)).toString();
+        }
+
+        @JavascriptInterface
+        public void refreshQueueSnapshot() {
+            final String profileId = AppConfig.profileId(MainActivity.this);
+            new Thread(() -> {
+                try {
+                    JSONObject snapshot = ApiClient.forProfile(MainActivity.this, profileId).queueSnapshot();
+                    ServerQueueMirrorStore.save(MainActivity.this, profileId, snapshot);
+                    callback("onQueueSnapshot", snapshot);
+                } catch (Exception error) {
+                    JSONObject cached = ServerQueueMirrorStore.get(MainActivity.this, profileId);
+                    if (cached != null) callback("onQueueSnapshot", cached);
+                    else callbackError("onQueueSnapshot", error);
+                }
+            }, "BIR-QueueSnapshot-v293").start();
         }
 
         @JavascriptInterface

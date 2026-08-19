@@ -8,7 +8,7 @@ const robot=read('app/src/main/java/com/profitloop/blueauto/RobotService.java');
 const boot=read('app/src/main/java/com/profitloop/blueauto/BootReceiver.java');
 const access=read('app/src/main/java/com/profitloop/blueauto/BlueAccessibilityService.java');
 const js=read('app/src/main/assets/control-tower-v280.js');
-if(!(gradle.includes('versionCode 54')||gradle.includes('versionCode 55')||gradle.includes('versionCode 56'))) throw new Error('Missing release identity: vc54/vc55/vc56'); if(!(gradle.includes('versionName \"2.8.1\"')||gradle.includes('versionName \"2.9.0\"')||gradle.includes('versionName \"2.9.1\"'))) throw new Error('Missing release identity: v2.8.1/v2.9.x');
+if(!(gradle.includes('versionCode 54')||gradle.includes('versionCode 55')||gradle.includes('versionCode 56')||gradle.includes('versionCode 58'))) throw new Error('Missing release identity: vc54/vc55/vc56'); if(!(gradle.includes('versionName \"2.8.1\"')||gradle.includes('versionName \"2.9.0\"')||gradle.includes('versionName \"2.9.1\"')||gradle.includes('versionName "2.9.3"'))) throw new Error('Missing release identity: v2.8.1/v2.9.x');
 need(main,'OWNER_SESSION_IDLE_MS = 30L * 60_000L','30-minute owner timeout');
 need(main,'MOCK_PROFILE_ID.equals(selected)','MOCK virtual account row');
 need(main,'ADMIN_PROFILE_ID.equals(selected)','ADMIN virtual account row');

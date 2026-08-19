@@ -56,6 +56,7 @@ public class RobotService extends Service {
     private static final String REMOTE_CACHE_AT_PREFIX = "remote_dashboard_cache_at_v281_";
     private static final long SIMPLE_UNLOCK_WAIT_MS = 3_500L;
     private static final long SIMPLE_UNLOCK_COOLDOWN_MS = 30_000L;
+    private static final long ACCESSIBILITY_RECONNECT_GRACE_MS = 45_000L;
 
     private ScheduledExecutorService executor;
     private final AtomicBoolean cycleRunning = new AtomicBoolean(false);
@@ -345,6 +346,36 @@ public class RobotService extends Service {
                         nextDelay = 500L;
                         continue;
                     }
+                    if (lease.optBoolean("busy", false)) {
+                        ServerQueueMirrorStore.observeBusy(this, profileId, lease);
+                        JSONObject active = lease.optJSONObject("active_command");
+                        if (active != null && PendingCommandStore.get(this, profileId) == null
+                                && PendingCommandStore.LEASED.equals(active.optString("state", ""))) {
+                            try {
+                                JSONObject recovered = api.recoverLease(active.optString("public_id", ""));
+                                if (recovered.optBoolean("recovered", false)) {
+                                    JSONObject restored = recovered.optJSONObject("command");
+                                    if (restored != null) {
+                                        restored.put("local_profile_id", profileId);
+                                        restored.put("local_state", PendingCommandStore.LEASED);
+                                        restored.put("leased_at", System.currentTimeMillis());
+                                        restored.put("state_changed_at", System.currentTimeMillis());
+                                        restored.put("lease_recovered", true);
+                                        PendingCommandStore.save(this, profileId, restored);
+                                        JSONObject evidence = new JSONObject(restored.toString());
+                                        evidence.remove("lease_token");
+                                        LocalEventStore.append(this, profileId, restored.optString("public_id"),
+                                                "QUEUE_RECOVERY", evidence);
+                                        updateNotification(robotSummary("File serveur récupérée sans recomposer la transaction"));
+                                        nextDelay = 250L;
+                                        return;
+                                    }
+                                }
+                            } catch (Exception ignored) {
+                                // The command stays visible in the mirror and will be retried safely.
+                            }
+                        }
+                    }
                     if (lease.optBoolean("available", false)) {
                         JSONObject command = lease.optJSONObject("command");
                         if (command == null) throw new IllegalStateException("Commande louée absente.");
@@ -605,6 +636,7 @@ public class RobotService extends Service {
             }
             acquireCommandWakeLock();
             try {
+                try { command.remove("accessibility_wait_started_at"); PendingCommandStore.save(this, profileId, command); } catch (Exception ignored) {}
                 PendingCommandStore.updateState(this, profileId, PendingCommandStore.DIALING);
                 if (api != null) {
                     // This single fence is intentionally kept: it prevents another Robot from
@@ -991,17 +1023,37 @@ public class RobotService extends Service {
 
     private void holdLeaseForAccessibility(String profileId, JSONObject command, ApiClient api) {
         boolean granted = BlueAccessibilityService.isEnabled(this);
+        long now = System.currentTimeMillis();
         if (command != null && command.optBoolean("local_origin", false)) {
             updateNotification(robotSummary(granted ? "Accessibilité autorisée, service Android en reconnexion — commande locale conservée" : "Accessibilité désactivée par Android/utilisateur — commande locale conservée, réactivation requise"));
             scheduleWatchdog(this, granted ? 5_000L : 30_000L); return;
         }
+        if (granted && command != null) {
+            long started = command.optLong("accessibility_wait_started_at", 0L);
+            if (started <= 0L) {
+                started = now;
+                try {
+                    command.put("accessibility_wait_started_at", started);
+                    PendingCommandStore.save(this, profileId, command);
+                    JSONObject event = new JSONObject();
+                    event.put("state", "AUTHORIZED_RECONNECTING");
+                    LocalEventStore.append(this, profileId, command.optString("public_id"),
+                            "ACCESSIBILITY_STATE", event);
+                } catch (Exception ignored) {}
+            }
+            if (now - started < ACCESSIBILITY_RECONNECT_GRACE_MS) {
+                updateNotification(robotSummary("Accessibilité en reconnexion — autorisation toujours accordée, lease conservé"));
+                scheduleWatchdog(this, 5_000L);
+                return;
+            }
+        }
         String reason = granted
-                ? "Accessibilité Android autorisée mais service en reconnexion; aucune composition financière avant reconnexion."
-                : "Accessibilité Android désactivée; réactivation utilisateur requise avant achat/vente.";
+                ? "Accessibilité toujours autorisée mais reconnexion trop longue; lease relâché avant expiration, sans composition."
+                : "Accessibilité Android réellement désactivée; réactivation utilisateur requise avant achat/vente.";
         releaseUnexecutedLease(profileId, command, api, reason);
-        apiRetryAtByProfile.put(profileId, System.currentTimeMillis() + (granted ? 5_000L : 30_000L));
+        apiRetryAtByProfile.put(profileId, now + (granted ? 5_000L : 30_000L));
         updateNotification(robotSummary(granted
-                ? "Accessibilité en reconnexion — Robot conservé, reprise automatique dès retour du service"
+                ? "Accessibilité autorisée mais service instable — file conservée côté serveur"
                 : "Accessibilité désactivée — Robot conservé, achat/vente en attente de réactivation"));
     }
 

@@ -62,7 +62,7 @@ final class ApiClient {
         SimIdentityManager.Verification sim = SimIdentityManager.verify(context, targetProfile);
         boolean locallyEnabled = AppConfig.robotEnabled(context, targetProfile);
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.9.2");
+        payload.put("app_version", "2.9.3");
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
         payload.put("robot_enabled", locallyEnabled && sim.valid);
@@ -83,6 +83,16 @@ final class ApiClient {
 
     JSONObject leaseCommand() throws Exception {
         return postControl("lease_command", new JSONObject(), true);
+    }
+
+    JSONObject queueSnapshot() throws Exception {
+        return postControl("queue_snapshot", new JSONObject(), true);
+    }
+
+    JSONObject recoverLease(String publicId) throws Exception {
+        JSONObject payload = new JSONObject();
+        payload.put("command_id", publicId == null ? "" : publicId.trim());
+        return postControl("recover_lease", payload, true);
     }
 
     JSONObject requestForceSync(String reason) throws Exception {
@@ -119,7 +129,7 @@ final class ApiClient {
     JSONObject activateRobot(SimIdentityManager.Verification sim, int simSlot,
                              boolean replaceVerifiedSameSimRobot) throws Exception {
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.9.2");
+        payload.put("app_version", "2.9.3");
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
         payload.put("sim_verified", sim.valid);
@@ -189,7 +199,7 @@ final class ApiClient {
 
     JSONObject platformAction(String action, JSONObject payload) throws Exception {
         String safe = action == null ? "" : action.trim();
-        if (!safe.matches("(?:operator_insights|operator_catalog|platform_snapshot|network_balance_audit|shadow_enroll|debt_save|debt_list|kyc_save|mercenary_save|mercenary_list|mercenary_sale|commission_policy|commission_set_default|commission_set_child|accounting_summary|transaction_ledger|ops_cockpit|ops_assist|ops_escalate|ops_resolve|owner_ops_cockpit|owner_ops_resolve|owner_snapshot|owner_transactions|owner_audit|owner_control|owner_assist|owner_tchoronko_save)")) {
+        if (!safe.matches("(?:operator_insights|operator_catalog|platform_snapshot|network_balance_audit|shadow_enroll|debt_save|debt_list|kyc_save|mercenary_save|mercenary_list|mercenary_sale|commission_policy|commission_set_default|commission_set_child|accounting_summary|transaction_ledger|ops_cockpit|ops_assist|ops_escalate|ops_resolve|distribution_command_center|reconciliation_center|owner_distribution_command_center|owner_ops_cockpit|owner_ops_resolve|owner_snapshot|owner_transactions|owner_audit|owner_control|owner_assist|owner_tchoronko_save)")) {
             throw new ApiException("ACTION_NOT_ALLOWED", "Action plateforme non autorisée par le pont natif.");
         }
         return post(safe, payload == null ? new JSONObject() : payload, true);

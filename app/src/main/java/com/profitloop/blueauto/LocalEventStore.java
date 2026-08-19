@@ -38,7 +38,15 @@ final class LocalEventStore extends SQLiteOpenHelper {
         v.put("command_id", commandId == null ? "" : commandId);
         v.put("kind", kind == null ? "EVENT" : kind);
         v.put("payload", payload == null ? "{}" : payload.toString());
-        v.put("created_at", System.currentTimeMillis()); v.put("sync_state", "LOCAL_COMMAND_RESULT".equals(kind) ? "PENDING" : "LOCAL");
+        String safeKind = kind == null ? "EVENT" : kind;
+        boolean syncable = "LOCAL_COMMAND_RESULT".equals(safeKind)
+                || "LOCAL_COMMAND_QUEUED".equals(safeKind)
+                || "REMOTE_ORDER_RECEIVED".equals(safeKind)
+                || "LOCAL_PROGRESS".equals(safeKind)
+                || "QUEUE_RECOVERY".equals(safeKind)
+                || "ACCESSIBILITY_STATE".equals(safeKind);
+        v.put("created_at", System.currentTimeMillis());
+        v.put("sync_state", syncable ? "PENDING" : "LOCAL");
         get(context).getWritableDatabase().insertOrThrow("events", null, v);
         return id;
     }
