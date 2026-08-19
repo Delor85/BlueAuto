@@ -39,6 +39,7 @@ jobs:
             .github/scripts/v293_server_fixups.py \
             .github/scripts/v293_patchscript_repair.py \
             .github/scripts/v293_allow_version_in_inherited_tests.py \
+            .github/scripts/v293_restore_release_hygiene.py \
             app/src/main/java/com/profitloop/blueauto/CertifiedBalanceStore.java \
             app/src/main/java/com/profitloop/blueauto/ServerQueueMirrorStore.java \
             app/src/test/bir-v293-coherence-contract.mjs \
@@ -53,6 +54,7 @@ jobs:
           python3 .github/scripts/v293_server_command_center_patch.py
           python3 .github/scripts/v293_server_fixups.py
           python3 .github/scripts/v293_allow_version_in_inherited_tests.py
+          python3 .github/scripts/v293_restore_release_hygiene.py
 
       - name: Immutable safety boundaries
         shell: bash
@@ -131,6 +133,7 @@ jobs:
           git config user.name 'BIR v2.9.3 CI'
           git config user.email 'actions@users.noreply.github.com'
           git add app cloudflare/src/index.js cloudflare/migrations/0010_coherence_recovery_and_reconciliation.sql .github/scripts/v293_*.py
+          git reset -- .github/workflows/build.yml || true
           if ! git diff --cached --quiet; then
             git commit -m 'fix: BIR v2.9.3 coherence recovery validated [no-prod]'
             git push origin HEAD:fix/bir-v2-9-3-coherence-recovery
