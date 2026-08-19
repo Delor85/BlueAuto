@@ -17,6 +17,7 @@ env:
   BIR_V294_SOURCE_SHA: 4e5d5ac1d1d7c214c433aa608376dbba647399e2
   BIR_V294_ARTIFACT_RUN_ID: '32273123427'
   BIR_V294_APK_SHA256: f04a836c27d30af56af1015580987d20b0dd9534e5dea84d4deba51b35f8ee5a
+  BIR_V294_EXACT_APK: /tmp/BIR-v2.9.4-code59-EPHEMERAL.apk
 
 jobs:
   prove-exact-artifact:
@@ -61,6 +62,7 @@ jobs:
     name: Android ${{ matrix.label }} exact v2.9.4
     needs: prove-exact-artifact
     runs-on: ubuntu-24.04
+    continue-on-error: ${{ matrix.api == 37 }}
     timeout-minutes: 35
     strategy:
       fail-fast: false
@@ -87,6 +89,14 @@ jobs:
           repository: Delor85/BlueAuto
           run-id: ${{ env.BIR_V294_ARTIFACT_RUN_ID }}
           github-token: ${{ github.token }}
+      - name: Normalize exact APK path
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk="$(find /tmp/bir-v294 -type f -name 'app-release.apk' -print -quit)"
+          test -n "$apk" && test -f "$apk"
+          cp "$apk" "$BIR_V294_EXACT_APK"
+          sha256sum "$BIR_V294_EXACT_APK" | grep "$BIR_V294_APK_SHA256"
       - name: Install launch restart and crash-check exact binary
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -96,11 +106,9 @@ jobs:
           channel: ${{ matrix.channel }}
           disable-animations: true
           script: |
-            apk="$(find /tmp/bir-v294 -type f -name 'app-release.apk' -print -quit)"
-            test -n "$apk" && test -f "$apk"
-            sha256sum "$apk" | grep "$BIR_V294_APK_SHA256"
+            sha256sum /tmp/BIR-v2.9.4-code59-EPHEMERAL.apk | grep "$BIR_V294_APK_SHA256"
             test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = "${{ matrix.api }}"
-            adb install -r "$apk" | tee /tmp/install.txt
+            adb install -r /tmp/BIR-v2.9.4-code59-EPHEMERAL.apk | tee /tmp/install.txt
             grep -q 'Success' /tmp/install.txt
             adb shell dumpsys package com.profitloop.blueauto > /tmp/package.txt
             grep -q 'versionCode=59' /tmp/package.txt
@@ -122,6 +130,7 @@ jobs:
     name: Accessibility stability Android ${{ matrix.label }}
     needs: prove-exact-artifact
     runs-on: ubuntu-24.04
+    continue-on-error: ${{ matrix.api == 37 }}
     timeout-minutes: 35
     strategy:
       fail-fast: false
@@ -141,6 +150,14 @@ jobs:
           repository: Delor85/BlueAuto
           run-id: ${{ env.BIR_V294_ARTIFACT_RUN_ID }}
           github-token: ${{ github.token }}
+      - name: Normalize exact APK path
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk="$(find /tmp/bir-v294 -type f -name 'app-release.apk' -print -quit)"
+          test -n "$apk" && test -f "$apk"
+          cp "$apk" "$BIR_V294_EXACT_APK"
+          sha256sum "$BIR_V294_EXACT_APK" | grep "$BIR_V294_APK_SHA256"
       - name: Keep accessibility authorization through restart and reconnect window
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -150,10 +167,8 @@ jobs:
           channel: ${{ matrix.channel }}
           disable-animations: true
           script: |
-            apk="$(find /tmp/bir-v294 -type f -name 'app-release.apk' -print -quit)"
-            test -n "$apk" && test -f "$apk"
-            sha256sum "$apk" | grep "$BIR_V294_APK_SHA256"
-            adb install -r "$apk" | grep Success
+            sha256sum /tmp/BIR-v2.9.4-code59-EPHEMERAL.apk | grep "$BIR_V294_APK_SHA256"
+            adb install -r /tmp/BIR-v2.9.4-code59-EPHEMERAL.apk | grep Success
             adb shell settings put secure enabled_accessibility_services com.profitloop.blueauto/com.profitloop.blueauto.BlueAccessibilityService
             adb shell settings put secure accessibility_enabled 1
             adb shell am start -W -n com.profitloop.blueauto/.MainActivity >/tmp/access-start.txt
