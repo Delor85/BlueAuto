@@ -1,4 +1,4 @@
-run=v2.9.3-coherence-5
+run=v2.9.3-coherence-6
 production_deploy=forbidden
 permanent_signing=forbidden
 d1_remote_migration=forbidden
