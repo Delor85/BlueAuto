@@ -48,6 +48,7 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$BIR_V293_SOURCE_SHA"
           test "${{ inputs.authorized_sha }}" = "$BIR_V293_SOURCE_SHA"
+          git cat-file -e "$BIR_V292_SOURCE_SHA^{commit}"
           grep -q 'versionCode 58' app/build.gradle
           grep -q 'versionName "2.9.3"' app/build.gradle
           grep -q "const API_VERSION = '2.9.3-cloudflare'" cloudflare/src/index.js
@@ -63,7 +64,7 @@ jobs:
           cache: npm
           cache-dependency-path: cloudflare/package-lock.json
 
-      - name: Revalidate Worker before production mutation
+      - name: Revalidate Worker and record pre-migration counts
         working-directory: cloudflare
         shell: bash
         run: |
@@ -73,15 +74,45 @@ jobs:
           node scripts/prepare-production-config.mjs
           npx wrangler deploy --dry-run --config wrangler.production.jsonc
           npx wrangler d1 migrations list blue-magic --remote --config wrangler.production.jsonc
+          npx wrangler d1 execute blue-magic --remote --json --config wrangler.production.jsonc \
+            --command "SELECT (SELECT COUNT(*) FROM nodes) AS nodes,(SELECT COUNT(*) FROM devices) AS devices,(SELECT COUNT(*) FROM commands) AS commands,(SELECT COUNT(*) FROM account_balances) AS balances;" \
+            | tee /tmp/v293-counts-before.json
 
-      - name: Apply additive D1 migrations through 0010
+      - name: Apply additive D1 migrations through 0010 and prove schema/data continuity
         working-directory: cloudflare
         shell: bash
         run: |
           set -euo pipefail
           npx wrangler d1 migrations apply blue-magic --remote --config wrangler.production.jsonc
-          npx wrangler d1 migrations list blue-magic --remote --config wrangler.production.jsonc | tee /tmp/v293-migrations-after.txt
-          grep -q '0010_coherence_recovery_and_reconciliation.sql' /tmp/v293-migrations-after.txt || true
+          npx wrangler d1 execute blue-magic --remote --json --config wrangler.production.jsonc \
+            --command "PRAGMA table_info(commands);" | tee /tmp/v293-commands-schema.json
+          npx wrangler d1 execute blue-magic --remote --json --config wrangler.production.jsonc \
+            --command "PRAGMA table_info(nodes);" | tee /tmp/v293-nodes-schema.json
+          grep -q 'leased_by_device_id' /tmp/v293-commands-schema.json
+          grep -q 'last_recovery_at' /tmp/v293-commands-schema.json
+          grep -q 'inbound_commission_bps' /tmp/v293-nodes-schema.json
+          npx wrangler d1 execute blue-magic --remote --json --config wrangler.production.jsonc \
+            --command "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('duplicate_request_audit','reconciliation_batches','reconciliation_rows') ORDER BY name;" \
+            | tee /tmp/v293-tables.json
+          grep -q 'duplicate_request_audit' /tmp/v293-tables.json
+          grep -q 'reconciliation_batches' /tmp/v293-tables.json
+          grep -q 'reconciliation_rows' /tmp/v293-tables.json
+          npx wrangler d1 execute blue-magic --remote --json --config wrangler.production.jsonc \
+            --command "SELECT (SELECT COUNT(*) FROM nodes) AS nodes,(SELECT COUNT(*) FROM devices) AS devices,(SELECT COUNT(*) FROM commands) AS commands,(SELECT COUNT(*) FROM account_balances) AS balances;" \
+            | tee /tmp/v293-counts-after.json
+          python3 - <<'PY'
+          import json
+          def row(path):
+              d=json.load(open(path,encoding='utf-8'))
+              # Wrangler --json returns a list of result objects.
+              if isinstance(d,list): d=d[0]
+              r=(d.get('results') or [{}])[0]
+              return {k:int(r.get(k,0)) for k in ('nodes','devices','commands','balances')}
+          before=row('/tmp/v293-counts-before.json'); after=row('/tmp/v293-counts-after.json')
+          for key in before:
+              assert after[key] >= before[key], (key,before,after)
+          print('D1 critical row counts preserved:',before,'=>',after)
+          PY
 
       - name: Deploy exact blue-magic-api 2.9.3
         working-directory: cloudflare
@@ -107,6 +138,7 @@ jobs:
           assert data.get('version') == '2.9.3-cloudflare', data
           caps=data.get('capabilities') or {}
           assert caps.get('queue_reconciliation') is True, caps
+          assert caps.get('lease_recovery') is True, caps
           assert caps.get('distribution_command_center') is True, caps
           assert caps.get('reconciliation_center') is True, caps
           assert caps.get('effective_modes') == ['REMOTE','ROBOT'], caps
@@ -122,11 +154,13 @@ jobs:
             echo 'Failure occurred before v2.9.3 Worker deployment; no Worker rollback needed.'
             exit 0
           fi
-          echo 'Post-deploy validation failed: restoring Worker 2.9.2 source. Additive D1 0010 remains backward-compatible.'
-          git fetch origin "$BIR_V292_SOURCE_SHA"
+          echo 'Post-deploy validation failed: restoring exact Worker 2.9.2 source. Additive D1 0010 remains backward-compatible.'
+          git cat-file -e "$BIR_V292_SOURCE_SHA^{commit}"
           git checkout --force "$BIR_V292_SOURCE_SHA"
+          test "$(git rev-parse HEAD)" = "$BIR_V292_SOURCE_SHA"
           cd cloudflare
           npm ci
           node scripts/prepare-production-config.mjs
           npx wrangler deploy --config wrangler.production.jsonc
-          curl --fail --silent --show-error --retry 5 --retry-delay 3 "https://blue-magic-api.mbolodelorpro.workers.dev/api?action=health"
+          curl --fail --silent --show-error --retry 5 --retry-delay 3 "https://blue-magic-api.mbolodelorpro.workers.dev/api?action=health" | tee /tmp/v292-rollback-health.json
+          grep -q '2.9.2-cloudflare' /tmp/v292-rollback-health.json
