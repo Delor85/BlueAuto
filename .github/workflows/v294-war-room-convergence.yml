@@ -61,6 +61,7 @@ jobs:
                   s=s.replace('versionCode (?:51|52|53|54|55|58)', 'versionCode (?:51|52|53|54|55|58|59)')
                   s=s.replace('2\\.9\\.0|2\\.9\\.3)', '2\\.9\\.0|2\\.9\\.3|2\\.9\\.4)')
               s=re.sub(r'versionCode \(\?:([0-9|]+)\)',lambda m:'versionCode (?:'+m.group(1)+('|59' if '59' not in m.group(1).split('|') else '')+')',s)
+              s=s.replace('2\\.9\\.3)"', '2\\.9\\.3|2\\.9\\.4)"')
               s=s.replace("gradle.includes('versionCode 58')", "(gradle.includes('versionCode 58')||gradle.includes('versionCode 59'))")
               s=s.replace("gradle.includes('versionName \\\"2.9.3\\\"')", "(gradle.includes('versionName \\\"2.9.3\\\"')||gradle.includes('versionName \\\"2.9.4\\\"'))")
               s=s.replace("gradle.includes('versionName \"2.9.3\"')", "(gradle.includes('versionName \"2.9.3\"')||gradle.includes('versionName \"2.9.4\"'))")
