@@ -72,6 +72,12 @@ for p in Path('app/src/test').glob('*.mjs'):
         s=s.replace('worker.includes("2.9.2-cloudflare")',
                     '(worker.includes("2.9.2-cloudflare")||worker.includes("2.9.3-cloudflare"))')
 
+    # v2611 and a few historical contracts check the JSON app_version literal in ApiClient.
+    if 'api client version mismatch' in s and '\"2.9.3\"' not in s:
+        old_api="api.includes('\\\"2.9.1\\\"')"
+        if old_api in s:
+            s=s.replace(old_api, "("+old_api+"||api.includes('\\\"2.9.3\\\"'))", 1)
+
     if s!=old:
         p.write_text(s,encoding='utf-8')
         changed.append(str(p))
