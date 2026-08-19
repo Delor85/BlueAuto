@@ -62,18 +62,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {api: 23, arch: x86, profile: "Nexus 5", label: "6/API23"}
-          - {api: 24, arch: x86, profile: "Nexus 5", label: "7/API24"}
-          - {api: 26, arch: x86_64, profile: "Nexus 5", label: "8/API26"}
-          - {api: 28, arch: x86_64, profile: "Nexus 5", label: "9/API28"}
-          - {api: 29, arch: x86_64, profile: "Nexus 6", label: "10/API29"}
-          - {api: 30, arch: x86_64, profile: "Nexus 6", label: "11/API30"}
-          - {api: 31, arch: x86_64, profile: "pixel_2", label: "12/API31"}
-          - {api: 33, arch: x86_64, profile: "pixel_2", label: "13/API33"}
-          - {api: 34, arch: x86_64, profile: "pixel_2", label: "14/API34"}
-          - {api: 35, arch: x86_64, profile: "pixel_2", label: "15/API35"}
-          - {api: 36, arch: x86_64, profile: "pixel_2", label: "16/API36"}
-          - {api: 37, arch: x86_64, profile: "pixel_2", label: "17/API37"}
+          - {api: 23, arch: x86, profile: "Nexus 5", label: "6/API23", channel: stable}
+          - {api: 24, arch: x86, profile: "Nexus 5", label: "7/API24", channel: stable}
+          - {api: 26, arch: x86_64, profile: "Nexus 5", label: "8/API26", channel: stable}
+          - {api: 28, arch: x86_64, profile: "Nexus 5", label: "9/API28", channel: stable}
+          - {api: 29, arch: x86_64, profile: "Nexus 6", label: "10/API29", channel: stable}
+          - {api: 30, arch: x86_64, profile: "Nexus 6", label: "11/API30", channel: stable}
+          - {api: 31, arch: x86_64, profile: "pixel_2", label: "12/API31", channel: stable}
+          - {api: 33, arch: x86_64, profile: "pixel_2", label: "13/API33", channel: stable}
+          - {api: 34, arch: x86_64, profile: "pixel_2", label: "14/API34", channel: stable}
+          - {api: 35, arch: x86_64, profile: "pixel_2", label: "15/API35", channel: stable}
+          - {api: 36, arch: x86_64, profile: "pixel_2", label: "16/API36", channel: stable}
+          - {api: 37, arch: x86_64, profile: "pixel_2", label: "17/API37", channel: canary}
     steps:
       - name: Download exact v2.9.3 validation APK
         uses: actions/download-artifact@v4
@@ -89,9 +89,10 @@ jobs:
           api-level: ${{ matrix.api }}
           arch: ${{ matrix.arch }}
           profile: ${{ matrix.profile }}
+          channel: ${{ matrix.channel }}
           disable-animations: true
           script: |
-            set -euo pipefail
+            set -eu
             apk=/tmp/bir-v293/BIR-v2.9.3-code58-EPHEMERAL.apk
             sha256sum "$apk" | grep "$BIR_V293_APK_SHA256"
             test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = "${{ matrix.api }}"
@@ -122,11 +123,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {api: 23, arch: x86, profile: "Nexus 5", label: "6/API23"}
-          - {api: 30, arch: x86_64, profile: "Nexus 6", label: "11/API30"}
-          - {api: 34, arch: x86_64, profile: "pixel_2", label: "14/API34"}
-          - {api: 36, arch: x86_64, profile: "pixel_2", label: "16/API36"}
-          - {api: 37, arch: x86_64, profile: "pixel_2", label: "17/API37"}
+          - {api: 23, arch: x86, profile: "Nexus 5", label: "6/API23", channel: stable}
+          - {api: 30, arch: x86_64, profile: "Nexus 6", label: "11/API30", channel: stable}
+          - {api: 34, arch: x86_64, profile: "pixel_2", label: "14/API34", channel: stable}
+          - {api: 36, arch: x86_64, profile: "pixel_2", label: "16/API36", channel: stable}
+          - {api: 37, arch: x86_64, profile: "pixel_2", label: "17/API37", channel: canary}
     steps:
       - name: Download exact v2.9.3 validation APK
         uses: actions/download-artifact@v4
@@ -142,9 +143,10 @@ jobs:
           api-level: ${{ matrix.api }}
           arch: ${{ matrix.arch }}
           profile: ${{ matrix.profile }}
+          channel: ${{ matrix.channel }}
           disable-animations: true
           script: |
-            set -euo pipefail
+            set -eu
             apk=/tmp/bir-v293/BIR-v2.9.3-code58-EPHEMERAL.apk
             adb install -r "$apk" | grep Success
             component=com.profitloop.blueauto/com.profitloop.blueauto.BlueAccessibilityService
@@ -154,7 +156,6 @@ jobs:
             grep -q 'Status: ok' /tmp/access-start.txt
             sleep 10
             adb shell settings get secure enabled_accessibility_services | grep -q 'com.profitloop.blueauto'
-            # Exercise the exact 2-5 minute regression window without issuing any USSD command.
             sleep 150
             adb shell settings get secure enabled_accessibility_services | grep -q 'com.profitloop.blueauto'
             adb shell am force-stop com.profitloop.blueauto
