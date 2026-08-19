@@ -37,6 +37,7 @@ jobs:
             .github/scripts/v293_command_center_ui_patch.py \
             .github/scripts/v293_server_command_center_patch.py \
             .github/scripts/v293_server_fixups.py \
+            .github/scripts/v293_patchscript_repair.py \
             .github/scripts/v293_allow_version_in_inherited_tests.py \
             app/src/main/java/com/profitloop/blueauto/CertifiedBalanceStore.java \
             app/src/main/java/com/profitloop/blueauto/ServerQueueMirrorStore.java \
@@ -48,6 +49,7 @@ jobs:
           python3 .github/scripts/v293_app_coherence_patch.py
           python3 .github/scripts/v293_app_fixups.py
           python3 .github/scripts/v293_command_center_ui_patch.py
+          python3 .github/scripts/v293_patchscript_repair.py
           python3 .github/scripts/v293_server_command_center_patch.py
           python3 .github/scripts/v293_server_fixups.py
           python3 .github/scripts/v293_allow_version_in_inherited_tests.py
