@@ -62,6 +62,10 @@ jobs:
                   s=s.replace('2\\.9\\.0|2\\.9\\.3)', '2\\.9\\.0|2\\.9\\.3|2\\.9\\.4)')
               if p.name == 'v291-field-recovery-contract.mjs':
                   s=s.replace("must(api.includes('payload.put(\"app_version\", \"2.9.1\");')||api.includes('payload.put(\"app_version\", \"2.9.3\");'),'v2.9.1 heartbeat telemetry missing');", "must(api.includes('payload.put(\"app_version\", \"2.9.1\");')||api.includes('payload.put(\"app_version\", \"2.9.3\");')||api.includes('payload.put(\"app_version\", \"2.9.4\");'),'v2.9.1+ heartbeat telemetry missing');")
+              if p.name == 'v292-free-premium-pilotage-contract.mjs':
+                  v292_old = """must(((api.match(/app_version\", \"2\\.9\\.2/g) || []).length + (api.match(/app_version\", \"2\\.9\\.3/g) || []).length) >= 2, 'native heartbeat/activation does not report 2.9.2');"""
+                  v292_new = """must(((api.match(/app_version\", \"2\\.9\\.2/g) || []).length + (api.match(/app_version\", \"2\\.9\\.3/g) || []).length + (api.match(/app_version\", \"2\\.9\\.4/g) || []).length) >= 2, 'native heartbeat/activation does not report 2.9.2+');"""
+                  s=s.replace(v292_old,v292_new)
               s=re.sub(r'versionCode \(\?:([0-9|]+)\)',lambda m:'versionCode (?:'+m.group(1)+('|59' if '59' not in m.group(1).split('|') else '')+')',s)
               s=s.replace('2\\.9\\.3)"', '2\\.9\\.3|2\\.9\\.4)"')
               s=s.replace("gradle.includes('versionCode 58')", "(gradle.includes('versionCode 58')||gradle.includes('versionCode 59'))")
