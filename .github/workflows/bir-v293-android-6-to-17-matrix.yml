@@ -11,7 +11,7 @@ permissions:
 
 concurrency:
   group: bir-v293-android-6-to-17-matrix
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   BIR_V293_SOURCE_SHA: 33a15f4eb7e0c04b0dac8c82837037396c49cea2
@@ -92,11 +92,9 @@ jobs:
           channel: ${{ matrix.channel }}
           disable-animations: true
           script: |
-            set -eu
-            apk=/tmp/bir-v293/BIR-v2.9.3-code58-EPHEMERAL.apk
-            sha256sum "$apk" | grep "$BIR_V293_APK_SHA256"
+            sha256sum /tmp/bir-v293/BIR-v2.9.3-code58-EPHEMERAL.apk | grep "$BIR_V293_APK_SHA256"
             test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = "${{ matrix.api }}"
-            adb install -r "$apk" | tee /tmp/install.txt
+            adb install -r /tmp/bir-v293/BIR-v2.9.3-code58-EPHEMERAL.apk | tee /tmp/install.txt
             grep -q 'Success' /tmp/install.txt
             adb shell dumpsys package com.profitloop.blueauto > /tmp/package.txt
             grep -q 'versionCode=58' /tmp/package.txt
@@ -146,11 +144,8 @@ jobs:
           channel: ${{ matrix.channel }}
           disable-animations: true
           script: |
-            set -eu
-            apk=/tmp/bir-v293/BIR-v2.9.3-code58-EPHEMERAL.apk
-            adb install -r "$apk" | grep Success
-            component=com.profitloop.blueauto/com.profitloop.blueauto.BlueAccessibilityService
-            adb shell settings put secure enabled_accessibility_services "$component"
+            adb install -r /tmp/bir-v293/BIR-v2.9.3-code58-EPHEMERAL.apk | grep Success
+            adb shell settings put secure enabled_accessibility_services com.profitloop.blueauto/com.profitloop.blueauto.BlueAccessibilityService
             adb shell settings put secure accessibility_enabled 1
             adb shell am start -W -n com.profitloop.blueauto/.MainActivity >/tmp/access-start.txt
             grep -q 'Status: ok' /tmp/access-start.txt
