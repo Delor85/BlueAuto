@@ -14,8 +14,34 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  authorization-gate:
+    runs-on: ubuntu-24.04
+    outputs:
+      authorized: ${{ steps.gate.outputs.authorized }}
+    steps:
+      - name: Checkout candidate authorization
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Allow only an isolated authorization-file commit
+        id: gate
+        run: |
+          set -euo pipefail
+          echo 'authorized=false' >> "$GITHUB_OUTPUT"
+          test -f .github/authorized-v296-permanent.trigger || exit 0
+          source_sha="$(sed -n 's/^authorized_sha=//p' .github/authorized-v296-permanent.trigger | head -1 | tr -d '\r\n')"
+          test -n "$source_sha" || exit 0
+          git cat-file -e "$source_sha^{commit}" || exit 0
+          test "$source_sha" != "$(git rev-parse HEAD)" || exit 0
+          unexpected="$(git diff --name-only "$source_sha"..HEAD | grep -v '^.github/authorized-v296-permanent.trigger$' || true)"
+          test -z "$unexpected" || exit 0
+          changed="$(git diff --name-only "$source_sha"..HEAD)"
+          test "$changed" = '.github/authorized-v296-permanent.trigger' || exit 0
+          echo 'authorized=true' >> "$GITHUB_OUTPUT"
+
   permanent-build:
-    if: "${{ github.event.head_commit.message == 'release: authorized BIR v2.9.6 permanent upgrade' }}"
+    needs: authorization-gate
+    if: "${{ needs.authorization-gate.outputs.authorized == 'true' }}"
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     environment: production

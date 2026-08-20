@@ -93,6 +93,6 @@ jobs:
           retention-days: 7
 
   permanent-upgrade:
-    if: "${{ github.event_name == 'push' && github.event.head_commit.message == 'release: authorized BIR v2.9.6 permanent upgrade' }}"
+    if: "${{ github.event_name == 'push' }}"
     uses: ./.github/workflows/v296-permanent-upgrade.yml
     secrets: inherit
