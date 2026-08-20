@@ -1,7 +1,7 @@
 import {parseBlueMessage} from './blue-message.mjs';
 import {CAMTEL_USSD, canonicalCamtelIdentity, parseCamtelIdentity, publicCamtelCatalog} from './camtel-catalog.mjs';
 
-const API_VERSION = '2.9.3-cloudflare';
+const API_VERSION = '2.9.5-cloudflare';
 const ROBOT_LIVE_WINDOW_MINUTES = 15;
 const BALANCE_EVIDENCE_TTL_SECONDS = 3600;
 const REPORT_BALANCE_EVIDENCE_TTL_SECONDS = 14 * 3600;
@@ -45,7 +45,7 @@ export default {
       const input = request.method === 'POST' ? await readJson(request) : {};
       if (action === 'health') {
         await env.DB.prepare('SELECT 1 AS online').first();
-        return success({service: 'blue-magic-api', version: API_VERSION, database: 'online', capabilities: {commissions: true, commission_override: true, remote_results: true, force_sync: true, network_audit: true, owner_admin: true, super_admin: true, free_ops_cockpit: true, premium_for_all: true, hierarchical_rescue: true, simple_pilotage: true, dae_pro_free: true, region_national_ops_free: true, owner_mock_entitlement: true, accounting: true, tchoronko: true, event_balance: true, offline_sync: true, bir_relay: true, queue_reconciliation: true, lease_recovery: true, distribution_command_center: true, stockout_forecast: true, anomaly_detection: true, operator_incident_inference: true, reconciliation_center: true, effective_modes: ['REMOTE','ROBOT']}}, 200, headers);
+        return success({service: 'blue-magic-api', version: API_VERSION, database: 'online', capabilities: {commissions: true, commission_override: true, remote_results: true, participant_results: true, canonical_identity_v2: true, truthful_freshness: true, force_sync: true, network_audit: true, owner_admin: true, super_admin: true, free_ops_cockpit: true, premium_for_all: true, hierarchical_rescue: true, simple_pilotage: true, dae_pro_free: true, region_national_ops_free: true, owner_mock_entitlement: true, accounting: true, tchoronko: true, event_balance: true, offline_sync: true, bir_relay: true, queue_reconciliation: true, lease_recovery: true, distribution_command_center: true, stockout_forecast: true, anomaly_detection: true, operator_incident_inference: true, reconciliation_center: true, effective_modes: ['REMOTE','ROBOT']}}, 200, headers);
       }
       if (action === 'pair_device') return await pairDevice(env, input, headers);
 
@@ -129,19 +129,31 @@ async function pairDevice(env, input, headers) {
   const deviceName = cleanText(input.device_name || 'Android', 160);
   let parent = String(input.parent_node_code || '').trim().toUpperCase();
   if (!['DAE', 'DSM', 'POS'].includes(role)) throw new ApiError('INVALID_ROLE', 'Rôle invalide.', 422);
-  if (!['REMOTE', 'ROBOT', 'HYBRID'].includes(mode)) throw new ApiError('INVALID_MODE', 'Mode invalide.', 422);
+  if (!['REMOTE', 'ROBOT'].includes(mode)) {
+    throw new ApiError('INVALID_MODE', 'Le mode doit être REMOTE ou ROBOT.', 422);
+  }
 
-  // Existing installations remain repairable even if they predate the current Camtel grammar.
-  // New identities, however, must use the official filiation XXY → DSMZ_XXY → POSA_DSMZ_XXY.
-  const legacyExact = await env.DB.prepare(
-    'SELECT node_code, role, phone_number, parent_node_code FROM nodes WHERE node_code = ? AND phone_number = ?'
-  ).bind(requestedNode, phoneNumber).first();
+  // The SIM number is unique and remains the safest recovery anchor. Historical relational
+  // keys are preserved, while every public surface receives the official Camtel identity.
+  const existingByPhone = await env.DB.prepare(
+    'SELECT node_code, role, phone_number, parent_node_code, official_node_code '
+    + 'FROM nodes WHERE phone_number = ? LIMIT 1'
+  ).bind(phoneNumber).first();
   let node = '';
   let identity = null;
-  if (legacyExact && legacyExact.role === role) {
-    node = legacyExact.node_code;
-    parent = String(legacyExact.parent_node_code || '');
-    identity = parseCamtelIdentity(node);
+  if (existingByPhone) {
+    if (existingByPhone.role !== role) {
+      throw new ApiError('PHONE_IDENTITY_CONFLICT',
+        'Cette SIM existe avec un autre rôle Camtel.', 409);
+    }
+    const officialExisting = await officialNodeIdentity(env, existingByPhone.node_code);
+    if (!identityReferenceMatches(requestedNode, officialExisting)) {
+      throw new ApiError('PHONE_IDENTITY_CONFLICT',
+        `Cette SIM appartient officiellement à ${officialExisting.node_code}.`, 409);
+    }
+    node = existingByPhone.node_code;
+    parent = String(existingByPhone.parent_node_code || '');
+    identity = officialExisting;
   } else if (role === 'DAE') {
     parent = '';
     identity = canonicalCamtelIdentity(requestedNode, 'DAE', '');
@@ -159,7 +171,8 @@ async function pairDevice(env, input, headers) {
     }
     const parentNode = await resolveParentNode(env, parent, role === 'DSM' ? 'DAE' : 'DSM');
     parent = parentNode.node_code;
-    identity = canonicalCamtelIdentity(requestedNode, role, parent);
+    const parentOfficial = await officialNodeIdentity(env, parent);
+    identity = canonicalCamtelIdentity(requestedNode, role, parentOfficial.node_code);
     if (!identity.ok) throw identityApiError(identity.error);
     node = identity.node_code;
   }
@@ -185,8 +198,24 @@ async function pairDevice(env, input, headers) {
     }
     // Creation of a root DAE remains protected by the global super-admin pairing secret.
     await env.DB.prepare(
-      'INSERT INTO nodes(node_code, role, phone_number, parent_node_code, default_commission_bps) VALUES(?, ?, ?, NULL, ?)'
-    ).bind(node, role, phoneNumber, role === 'DAE' ? 1000 : role === 'DSM' ? 800 : 0).run();
+      'INSERT INTO nodes(node_code, role, phone_number, parent_node_code, default_commission_bps, '
+      + "official_node_code, identity_state) VALUES(?, ?, ?, NULL, ?, ?, 'VERIFIED')"
+    ).bind(node, role, phoneNumber, role === 'DAE' ? 1000 : role === 'DSM' ? 800 : 0,
+      identity.node_code).run();
+  }
+  if (identity?.ok) {
+    await env.DB.batch([
+      env.DB.prepare(
+        "UPDATE nodes SET official_node_code=CASE WHEN length(official_node_code)=0 THEN ? ELSE official_node_code END, "
+        + "identity_state=CASE WHEN length(official_node_code)=0 THEN 'VERIFIED' ELSE identity_state END WHERE node_code=?"
+      ).bind(identity.node_code, node),
+      env.DB.prepare(
+        "INSERT OR IGNORE INTO node_identity_aliases(alias_code,scope_parent_node_code,node_code,alias_kind) VALUES(?,'',?,'OFFICIAL')"
+      ).bind(identity.node_code, node),
+      env.DB.prepare(
+        "INSERT OR IGNORE INTO node_identity_aliases(alias_code,scope_parent_node_code,node_code,alias_kind) VALUES(?,?,?,'LOCAL')"
+      ).bind(identity.local_code || identity.node_code, parent || '', node)
+    ]);
   }
 
   // A first DSM/PoS activation must have been approved by its direct superior during the last 48 h.
@@ -210,8 +239,7 @@ async function pairDevice(env, input, headers) {
   const repairFingerprint = String(input.repair_sim_fingerprint || '').trim().toLowerCase();
   const repairVerified = input.repair_sim_verified === true
     && /^[a-f0-9]{64}$/.test(repairFingerprint);
-  const repairRobot = repairVerified && input.repair_robot_enabled === true
-    && ['ROBOT', 'HYBRID'].includes(mode);
+  const repairRobot = repairVerified && input.repair_robot_enabled === true && mode === 'ROBOT';
   const repairSlot = Number.isInteger(input.sim_slot) && input.sim_slot >= 0 && input.sim_slot <= 3
     ? input.sim_slot : null;
 
@@ -261,13 +289,15 @@ async function pairDevice(env, input, headers) {
     }
   }
 
-  const official = parseCamtelIdentity(node);
+  const official = await officialNodeIdentity(env, node);
   return success({
     device_id: deviceId, device_token: token, node_code: node,
     parent_node_code: parent, role, mode,
-    region_code: official.ok ? official.region_code || '' : '',
-    dae_node_code: official.ok ? official.dae_node_code || '' : '',
-    dsm_node_code: official.ok ? official.dsm_node_code || '' : '',
+    official_node_code: official.node_code,
+    official_parent_node_code: official.parent_node_code || '',
+    region_code: official.region_code || '',
+    dae_node_code: official.dae_node_code || '',
+    dsm_node_code: official.dsm_node_code || '',
     repaired_device: Boolean(replacement)
   }, replacement ? 200 : 201, headers);
 }
@@ -291,8 +321,7 @@ async function authenticate(request, env) {
 async function heartbeat(env, auth, input, headers) {
   const simFingerprint = String(input.sim_fingerprint || '').trim().toLowerCase();
   const simVerified = input.sim_verified === true && /^[a-f0-9]{64}$/.test(simFingerprint);
-  const wantsRobot = input.robot_enabled === true && simVerified
-    && ['ROBOT', 'HYBRID'].includes(auth.mode);
+  const wantsRobot = input.robot_enabled === true && simVerified && auth.mode === 'ROBOT';
   const claimsRobot = wantsRobot && input.claim_robot === true;
   const simSlot = Number.isInteger(input.sim_slot) && input.sim_slot >= 0 && input.sim_slot <= 3
     ? input.sim_slot : null;
@@ -402,7 +431,7 @@ async function replaceVerifiedSameSimOwner(env, auth, input, simFingerprint, sim
 
 async function claimRobotSlot(env, auth, input, simFingerprint, simSlot, activateMode) {
   const targetMode = activateMode ? 'ROBOT' : auth.mode;
-  if (!['ROBOT', 'HYBRID'].includes(targetMode)) {
+  if (targetMode !== 'ROBOT') {
     throw new ApiError('NOT_A_ROBOT', 'Passez d’abord ce compte en mode Robot.', 403);
   }
   await clearInvalidOrStaleSameSimOwners(env, auth.node_code, auth.device_id, simFingerprint);
@@ -440,7 +469,7 @@ async function clearInvalidOrStaleSameSimOwners(env, nodeCodeValue, deviceId, si
 async function liveRobotOwner(env, nodeCodeValue, excludedDeviceId = '') {
   return env.DB.prepare(
     'SELECT device_id, app_version, android_version, last_seen_at FROM devices '
-    + "WHERE node_code = ? AND device_id <> ? AND mode IN ('ROBOT', 'HYBRID') "
+    + "WHERE node_code = ? AND device_id <> ? AND mode = 'ROBOT' "
     + 'AND active = 1 AND robot_enabled = 1 AND sim_verified = 1 '
     + "AND length(sim_fingerprint) = 64 AND last_seen_at >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', ?) "
     + 'ORDER BY last_seen_at DESC LIMIT 1'
@@ -460,7 +489,7 @@ async function robotAvailability(env, nodeCodeValue) {
   }
   const configured = await env.DB.prepare(
     'SELECT last_seen_at FROM devices '
-    + "WHERE node_code = ? AND mode IN ('ROBOT', 'HYBRID') AND active = 1 "
+    + "WHERE node_code = ? AND mode = 'ROBOT' AND active = 1 "
     + 'AND robot_enabled = 1 AND sim_verified = 1 AND length(sim_fingerprint) = 64 '
     + 'ORDER BY last_seen_at DESC LIMIT 1'
   ).bind(nodeCodeValue).first();
@@ -845,7 +874,7 @@ async function networkBalanceAudit(env, auth, headers) {
   const nodes = network.results || [];
   const liveRows = await env.DB.prepare(
     "SELECT DISTINCT node_code FROM devices WHERE active = 1 AND robot_enabled = 1 AND sim_verified = 1 "
-    + "AND mode IN ('ROBOT','HYBRID') "
+    + "AND mode = 'ROBOT' "
     + "AND last_seen_at >= strftime('%Y-%m-%dT%H:%M:%fZ','now','-15 minutes')"
   ).all();
   const live = new Set((liveRows.results || []).map(row => row.node_code));
@@ -1019,13 +1048,19 @@ async function reportBalanceStatus(env, nodeCodeValue) {
 async function resolveDescendant(env, ancestorNode, requestedNode, roles) {
   const target = String(requestedNode || '').trim().toUpperCase();
   if (!target) return null;
-  const row = await env.DB.prepare(
+  const rows = await env.DB.prepare(
     'WITH RECURSIVE subtree(node_code) AS (SELECT ? UNION ALL '
     + 'SELECT n.node_code FROM nodes n JOIN subtree s ON n.parent_node_code = s.node_code WHERE n.active = 1) '
     + 'SELECT n.node_code, n.role, n.phone_number, n.parent_node_code FROM subtree s '
-    + 'JOIN nodes n ON n.node_code = s.node_code WHERE n.node_code = ? AND n.node_code <> ? LIMIT 1'
-  ).bind(ancestorNode, target, ancestorNode).first();
-  return row && roles.includes(row.role) ? row : null;
+    + 'JOIN nodes n ON n.node_code = s.node_code WHERE n.node_code <> ?'
+  ).bind(ancestorNode, ancestorNode).all();
+  const matches = [];
+  for (const row of (rows.results || [])) {
+    if (!roles.includes(row.role)) continue;
+    const identity = await officialNodeIdentity(env, row.node_code);
+    if (identityReferenceMatches(target, identity)) matches.push(row);
+  }
+  return matches.length === 1 ? matches[0] : null;
 }
 
 async function resolveCommand(env, auth, input, requestType) {
@@ -1190,11 +1225,11 @@ async function resolveCommand(env, auth, input, requestType) {
 
 async function queueSnapshot(env, auth, headers) {
   const rows = await env.DB.prepare(
-    "SELECT public_id,requester_node_code,executor_node_code,target_node_code,operation,command_kind,target_phone,amount,requested_base_amount,commission_rate_bps,commission_amount,state,result_message,operator_transaction_id,created_at,started_at,completed_at,updated_at "
+    "SELECT public_id,requester_node_code,executor_node_code,target_node_code,operation,command_kind,target_phone,amount,requested_base_amount,commission_rate_bps,commission_amount,state,result_message,recipient_result_message,recipient_result_at,recipient_balance_after,operator_transaction_id,created_at,started_at,completed_at,updated_at "
     + "FROM commands WHERE requester_node_code=? OR executor_node_code=? OR target_node_code=? "
     + "ORDER BY CASE WHEN state IN ('PENDING','LEASED','DIALING','AWAITING_PIN','PIN_SUBMITTED','AWAITING_RESULT') THEN 0 ELSE 1 END,id DESC LIMIT 80"
   ).bind(auth.node_code,auth.node_code,auth.node_code).all();
-  const commands=(rows.results||[]).map(commandView);
+  const commands=(rows.results||[]).map(row => commandView(row, auth.node_code));
   const active=commands.filter(c=>!TERMINAL_STATES.has(c.state));
   const pending=active.filter(c=>c.state==='PENDING');
   let oldest=0;
@@ -1301,7 +1336,7 @@ async function reconciliationCenter(env,auth,headers){
 }
 
 async function leaseCommand(env, auth, headers) {
-  if (!['ROBOT', 'HYBRID'].includes(auth.mode)) {
+  if (auth.mode !== 'ROBOT') {
     throw new ApiError('NOT_A_ROBOT', 'Cet appareil n’est pas autorisé à louer des commandes.', 403);
   }
   if (!auth.sim_verified || !/^[a-f0-9]{64}$/.test(auth.sim_fingerprint || '')) {
@@ -1506,14 +1541,15 @@ async function commandStatus(env, auth, input, headers) {
   const publicId = String(input.command_id || '').trim();
   const command = await env.DB.prepare(
     'SELECT public_id, requester_node_code, executor_node_code, target_node_code, operation, command_kind, target_phone, '
-    + 'amount, state, result_message, operator_transaction_id, created_at, started_at, completed_at, updated_at '
-    + 'FROM commands WHERE public_id = ? AND (requester_node_code = ? OR executor_node_code = ?)'
-  ).bind(publicId, auth.node_code, auth.node_code).first();
+    + 'amount, state, result_message, recipient_result_message, recipient_result_at, recipient_balance_after, '
+    + 'operator_transaction_id, created_at, started_at, completed_at, updated_at '
+    + 'FROM commands WHERE public_id = ? AND (requester_node_code = ? OR executor_node_code = ? OR target_node_code = ?)'
+  ).bind(publicId, auth.node_code, auth.node_code, auth.node_code).first();
   if (!command) throw new ApiError('COMMAND_NOT_FOUND', 'Commande introuvable.', 404);
-  return success({command: commandView(command)}, 200, headers);
+  return success({command: commandView(command, auth.node_code)}, 200, headers);
 }
 
-function commandView(command) {
+function commandView(command, viewerNode = '') {
   const keys = [
     'public_id', 'requester_node_code', 'executor_node_code', 'target_node_code', 'operation',
     'target_phone', 'amount', 'state', 'result_message', 'operator_transaction_id', 'created_at',
@@ -1521,6 +1557,21 @@ function commandView(command) {
   ];
   const view = Object.fromEntries(keys.filter(key => key in command).map(key => [key, command[key]]));
   if (command.command_kind) view.operation = command.command_kind;
+  const recipientView = command.operation === 'DISTRIBUTION_TRANSFER'
+    && viewerNode && command.target_node_code === viewerNode
+    && command.executor_node_code !== viewerNode;
+  if (recipientView) {
+    view.result_audience = 'RECIPIENT';
+    view.result_message = command.recipient_result_message || (command.state === 'SUCCEEDED'
+      ? 'Approvisionnement exécuté par votre supérieur. La confirmation Blue destinée à votre SIM est en attente de réception.'
+      : command.result_message || '');
+    if (command.recipient_result_at) view.result_received_at = command.recipient_result_at;
+    if (command.recipient_balance_after != null) {
+      view.balance_after = Number(command.recipient_balance_after);
+    }
+  } else {
+    view.result_audience = 'EXECUTOR';
+  }
   return view;
 }
 
@@ -1531,6 +1582,26 @@ async function applyTerminalEffects(env, command, state, message, publicId) {
     const inbound = Math.max(0, Math.min(5000, Number(command.commission_rate_bps || 0)));
     await env.DB.prepare('UPDATE nodes SET inbound_commission_bps=? WHERE node_code=?')
       .bind(inbound, command.target_node_code).run();
+  }
+  if (state === 'SUCCEEDED' && command.operation === 'DISTRIBUTION_TRANSFER'
+      && command.target_node_code && command.target_node_code !== command.executor_node_code) {
+    // The sender result proves only the sender balance. Invalidate any older child proof until
+    // that child's own TRANSFER_RECEIVED message supplies its exact post-transaction balance.
+    await env.DB.batch([
+      env.DB.prepare(
+        "UPDATE account_balances SET balance_quality='NEEDS_RECHECK', valid_until=strftime('%Y-%m-%dT%H:%M:%fZ','now'), "
+        + "updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE node_code=?"
+      ).bind(command.target_node_code),
+      env.DB.prepare(
+        'INSERT INTO node_activity_state(node_code,last_activity_at,last_financial_activity_at,last_unbalanced_activity_at,transaction_counter) '
+        + "VALUES(?,strftime('%Y-%m-%dT%H:%M:%fZ','now'),strftime('%Y-%m-%dT%H:%M:%fZ','now'),strftime('%Y-%m-%dT%H:%M:%fZ','now'),1) "
+        + 'ON CONFLICT(node_code) DO UPDATE SET last_activity_at=excluded.last_activity_at, '
+        + 'last_financial_activity_at=excluded.last_financial_activity_at, '
+        + 'last_unbalanced_activity_at=excluded.last_unbalanced_activity_at, '
+        + 'transaction_counter=node_activity_state.transaction_counter+1, '
+        + "updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now')"
+      ).bind(command.target_node_code)
+    ]);
   }
   const explicitEvidence = state === 'SUCCEEDED' ? explicitBalanceEvidence(command, message) : null;
   if (explicitEvidence) {
@@ -1569,6 +1640,7 @@ async function applyTerminalEffects(env, command, state, message, publicId) {
       statements.push(env.DB.prepare(
         "UPDATE account_balances SET balance = balance + ?, source = 'ESTIMATED_TRANSFER', "
         + "evidence_kind = 'ESTIMATED_TRANSFER', confidence = 'DERIVED_FROM_EXPLICIT', "
+        + "evidence_priority = 100, balance_quality = 'ESTIMATED', operator_event_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), "
         + 'source_command_public_id = ?, '
         + "valid_until = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), "
         + "updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE node_code = ?"
@@ -1735,8 +1807,9 @@ async function recordParsedOperatorMessage(env, nodeCodeValue, message, publicId
     const owner = await env.DB.prepare('SELECT node_code FROM nodes WHERE phone_number=? LIMIT 1')
       .bind(parsed.source_phone).first();
     if (owner) {
-      if (parsed.source_node && parsed.source_node.toUpperCase() !== owner.node_code) {
-        identityConflict += `SOURCE_LABEL:${parsed.source_node}->${owner.node_code}`;
+      const officialOwner = await officialNodeIdentity(env, owner.node_code);
+      if (parsed.source_node && !identityReferenceMatches(parsed.source_node, officialOwner)) {
+        identityConflict += `SOURCE_LABEL:${parsed.source_node}->${officialOwner.node_code}`;
       }
       parsed.source_node = owner.node_code;
     }
@@ -1745,20 +1818,42 @@ async function recordParsedOperatorMessage(env, nodeCodeValue, message, publicId
     const owner = await env.DB.prepare('SELECT node_code FROM nodes WHERE phone_number=? LIMIT 1')
       .bind(parsed.target_phone).first();
     if (owner) {
-      if (parsed.target_node && parsed.target_node.toUpperCase() !== owner.node_code) {
-        identityConflict += `${identityConflict ? ';' : ''}TARGET_LABEL:${parsed.target_node}->${owner.node_code}`;
+      const officialOwner = await officialNodeIdentity(env, owner.node_code);
+      if (parsed.target_node && !identityReferenceMatches(parsed.target_node, officialOwner)) {
+        identityConflict += `${identityConflict ? ';' : ''}TARGET_LABEL:${parsed.target_node}->${officialOwner.node_code}`;
       }
       parsed.target_node = owner.node_code;
     }
   }
   parsed.identity_conflict = identityConflict;
 
+  // The child receives a distinct Blue message after a distribution. Correlate that passive
+  // message to the command without replacing the superior/Robot message already recorded there.
+  let recipientCommand = null;
+  if (!command && parsed.kind === 'TRANSFER_RECEIVED' && parsed.status === 'SUCCEEDED') {
+    if (tx) {
+      recipientCommand = await env.DB.prepare(
+        "SELECT public_id FROM commands WHERE target_node_code=? AND operation='DISTRIBUTION_TRANSFER' "
+        + "AND state='SUCCEEDED' AND operator_transaction_id=? ORDER BY id DESC LIMIT 1"
+      ).bind(nodeCodeValue, tx).first();
+    }
+    if (!recipientCommand && parsed.source_node && parsed.amount_fcfa != null) {
+      recipientCommand = await env.DB.prepare(
+        "SELECT public_id FROM commands WHERE target_node_code=? AND executor_node_code=? "
+        + "AND operation='DISTRIBUTION_TRANSFER' AND state='SUCCEEDED' AND amount=? "
+        + "AND completed_at>=strftime('%Y-%m-%dT%H:%M:%fZ','now','-48 hours') "
+        + "AND length(recipient_result_message)=0 ORDER BY id DESC LIMIT 1"
+      ).bind(nodeCodeValue, parsed.source_node, Number(parsed.amount_fcfa)).first();
+    }
+  }
+  const effectivePublicId = publicId || recipientCommand?.public_id || null;
+
   await env.DB.prepare(
     'INSERT OR IGNORE INTO operator_messages(command_public_id, node_code, message_kind, status, transaction_id, '
     + 'receipt_number, source_phone, source_node_code, target_phone, target_node_code, amount, current_balance, '
     + 'account_no, transaction_date, transaction_time, debit_credit, charge_amount, commission_amount, tax_amount, raw_message) '
     + 'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-  ).bind(publicId, nodeCodeValue, parsed.kind, parsed.status, tx, parsed.receipt_number,
+  ).bind(effectivePublicId, nodeCodeValue, parsed.kind, parsed.status, tx, parsed.receipt_number,
     parsed.source_phone, parsed.source_node, parsed.target_phone, parsed.target_node,
     parsed.amount_fcfa, parsed.current_balance, parsed.account_no, parsed.transaction_date,
     parsed.transaction_time, parsed.debit_credit, parsed.charge_amount, parsed.commission_amount,
@@ -1782,7 +1877,7 @@ async function recordParsedOperatorMessage(env, nodeCodeValue, message, publicId
       + 'receipt_number, source_phone, source_node_code, target_phone, target_node_code, amount, '
       + 'current_balance, account_no, transaction_date, debit_credit, charge_amount, commission_amount, '
       + 'tax_amount, raw_message) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    ).bind(publicId, nodeCodeValue, 'MINI_STATEMENT_ENTRY', entry.status || 'INFO',
+    ).bind(effectivePublicId, nodeCodeValue, 'MINI_STATEMENT_ENTRY', entry.status || 'INFO',
       entry.receipt_number || null, entry.source_phone || '', sourceNode,
       entry.target_phone || '', targetNode, entry.debit_credit_amount,
       entry.current_balance, entry.account_no || '', entry.transaction_date || '',
@@ -1824,6 +1919,14 @@ async function recordParsedOperatorMessage(env, nodeCodeValue, message, publicId
     + "updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now')"
   ).bind(nodeCodeValue, lastActivityAt, lastFinancialAt, lastUnbalancedAt, receivedAt,
     tx || current?.last_transaction_id || '', counter).run();
+  if (recipientCommand) {
+    await env.DB.prepare(
+      'UPDATE commands SET recipient_result_message=?, recipient_result_at=?, recipient_balance_after=?, '
+      + "updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE public_id=?"
+    ).bind(cleanText(parsed.raw_message, 1800), receivedAt, parsed.current_balance,
+      recipientCommand.public_id).run();
+    parsed.linked_command_public_id = recipientCommand.public_id;
+  }
   return parsed;
 }
 
@@ -1837,7 +1940,8 @@ function publicOperatorMessage(parsed) {
     transaction_date: parsed.transaction_date || '', transaction_time: parsed.transaction_time || '',
     debit_credit: parsed.debit_credit || '', charge_amount: parsed.charge_amount,
     commission_amount: parsed.commission_amount, tax_amount: parsed.tax_amount,
-    identity_conflict: parsed.identity_conflict || ''
+    identity_conflict: parsed.identity_conflict || '',
+    linked_command_public_id: parsed.linked_command_public_id || ''
   };
 }
 
@@ -1918,7 +2022,14 @@ async function cockpitRows(env, scopeNode) {
     "FROM tree t JOIN nodes n ON n.node_code=t.node_code LEFT JOIN account_balances b ON b.node_code=n.node_code " +
     "LEFT JOIN devices d ON d.device_id=(SELECT d2.device_id FROM devices d2 WHERE d2.node_code=n.node_code AND d2.active=1 ORDER BY d2.robot_enabled DESC,d2.last_seen_at DESC LIMIT 1) ORDER BY n.role,n.node_code")
     .bind(scopeNode).all();
-  return rows.results || [];
+  const decorated = [];
+  for (const row of (rows.results || [])) {
+    const identity = await officialNodeIdentity(env, row.node_code);
+    decorated.push({...row, official_node_code: identity.node_code,
+      official_parent_node_code: identity.parent_node_code || '',
+      internal_node_code: row.node_code, internal_parent_node_code: row.parent_node_code || ''});
+  }
+  return decorated;
 }
 function healthView(row) {
   const last = row.last_telemetry_at || row.last_seen_at || '';
@@ -1961,7 +2072,7 @@ async function opsCockpit(env, auth, headers) {
   else if(auth.role==='DSM') nodes=health.filter(x=>x.node_code===auth.node_code||x.parent_node_code===auth.node_code).map(x=>({...x,can_escalate:x.role==='POS',action_hint:x.role==='POS'?'Ce PoS relève directement de vous. Traitez-le ici; escaladez seulement si nécessaire.':'Votre compte DSM.'}));
   else if(auth.role==='DAE') {
     const dsms=health.filter(x=>x.parent_node_code===auth.node_code&&x.role==='DSM');
-    nodes=dsms.map(d=>{const children=health.filter(x=>x.parent_node_code===d.node_code&&x.role==='POS');const hot=children.filter(x=>['HOT','CRITICAL'].includes(x.severity)).length;return {...d,pos_count:children.length,pos_attention:hot,can_escalate:false,action_hint:hot?`${hot} PoS à suivre par ${d.node_code}; intervenez via votre DSM si le cas est escaladé.`:'Ce DSM gère ses PoS; aucune intervention DAE requise.'};});
+    nodes=dsms.map(d=>{const children=health.filter(x=>x.parent_node_code===d.node_code&&x.role==='POS');const hot=children.filter(x=>['HOT','CRITICAL'].includes(x.severity)).length;return {...d,pos_count:children.length,pos_attention:hot,can_escalate:false,action_hint:hot?`${hot} PoS à suivre par ${d.official_node_code||d.node_code}; intervenez via votre DSM si le cas est escaladé.`:'Ce DSM gère ses PoS; aucune intervention DAE requise.'};});
     const escalatedPos=new Set(escalations.filter(e=>e.assigned_to===auth.node_code).map(e=>e.target_node_code));
     for(const pos of health.filter(x=>x.role==='POS'&&escalatedPos.has(x.node_code))) nodes.push({...pos,can_escalate:false,action_hint:'Détail visible car le DSM a demandé votre secours.'});
   }
@@ -1976,7 +2087,7 @@ async function opsCockpit(env, auth, headers) {
 async function queueOpsSyncWake(env, targetNode, requestedByDeviceId, reason) {
   await env.DB.prepare("UPDATE sync_wake_requests SET state='EXPIRED' WHERE node_code=? AND state='PENDING' AND created_at<strftime('%Y-%m-%dT%H:%M:%fZ','now','-10 minutes')")
     .bind(targetNode).run();
-  const robot = await env.DB.prepare("SELECT device_id,last_seen_at FROM devices WHERE node_code=? AND active=1 AND robot_enabled=1 AND sim_verified=1 AND mode IN ('ROBOT','HYBRID') ORDER BY last_seen_at DESC LIMIT 1")
+  const robot = await env.DB.prepare("SELECT device_id,last_seen_at FROM devices WHERE node_code=? AND active=1 AND robot_enabled=1 AND sim_verified=1 AND mode='ROBOT' ORDER BY last_seen_at DESC LIMIT 1")
     .bind(targetNode).first();
   if (!robot) return {queued:false,node_code:targetNode,reason:'NO_ACTIVE_ROBOT'};
   const pending = await env.DB.prepare("SELECT id,created_at FROM sync_wake_requests WHERE node_code=? AND state='PENDING' ORDER BY id DESC LIMIT 1")
@@ -2069,7 +2180,8 @@ async function shadowEnroll(env, auth, input, headers) {
     throw new ApiError('REQUEST_NOT_ALLOWED', 'Seul un DAE/DSM peut valider un enfant direct.', 403);
   }
   const childRole = auth.role === 'DAE' ? 'DSM' : 'POS';
-  const identity = canonicalCamtelIdentity(input.node_code, childRole, auth.node_code);
+  const parentIdentity = await officialNodeIdentity(env, auth.node_code);
+  const identity = canonicalCamtelIdentity(input.node_code, childRole, parentIdentity.node_code);
   if (!identity.ok) throw identityApiError(identity.error);
   const desired = identity.node_code;
   const p = phone(input.phone_number);
@@ -2078,24 +2190,38 @@ async function shadowEnroll(env, auth, input, headers) {
   const existing = await env.DB.prepare(
     'SELECT node_code, role, phone_number, parent_node_code FROM nodes WHERE node_code=? OR phone_number=? LIMIT 1'
   ).bind(desired, p).first();
-  if (existing && (existing.node_code !== desired || existing.phone_number !== p || existing.role !== childRole
+  const existingIdentity = existing ? await officialNodeIdentity(env, existing.node_code) : null;
+  if (existing && (!identityReferenceMatches(desired, existingIdentity)
+      || existing.phone_number !== p || existing.role !== childRole
       || String(existing.parent_node_code || '') !== auth.node_code)) {
     throw new ApiError('IDENTITY_CONFLICT',
       'Ce numéro ou identifiant appartient déjà à une autre identité Camtel.', 409);
   }
   if (!existing) {
-    await env.DB.prepare('INSERT INTO nodes(node_code, role, phone_number, parent_node_code, default_commission_bps) VALUES(?,?,?,?,?)')
-      .bind(desired, childRole, p, auth.node_code, childRole === 'DSM' ? 800 : 0).run();
+    await env.DB.prepare(
+      "INSERT INTO nodes(node_code, role, phone_number, parent_node_code, default_commission_bps, official_node_code, identity_state) VALUES(?,?,?,?,?,?,'VERIFIED')"
+    ).bind(desired, childRole, p, auth.node_code, childRole === 'DSM' ? 800 : 0,
+      identity.node_code).run();
   }
+  const internalDesired = existing?.node_code || desired;
+  await env.DB.batch([
+    env.DB.prepare(
+      "INSERT OR IGNORE INTO node_identity_aliases(alias_code,scope_parent_node_code,node_code,alias_kind) VALUES(?,'',?,'OFFICIAL')"
+    ).bind(identity.node_code, internalDesired),
+    env.DB.prepare(
+      "INSERT OR IGNORE INTO node_identity_aliases(alias_code,scope_parent_node_code,node_code,alias_kind) VALUES(?,?,?,'LOCAL')"
+    ).bind(identity.local_code, auth.node_code, internalDesired)
+  ]);
   await env.DB.prepare(
     "INSERT INTO shadow_accounts(node_code, created_by_node_code, terminal_type, display_name, zone) "
     + "VALUES(?, ?, 'TCHORONKO_SHADOW', ?, ?) ON CONFLICT(node_code) DO UPDATE SET "
     + "created_by_node_code=excluded.created_by_node_code, display_name=excluded.display_name, "
     + "zone=excluded.zone, created_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'), "
     + "updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now')"
-  ).bind(desired, auth.node_code, displayName, zone).run();
-  return success({shadow:{node_code:desired, local_code:identity.local_code,
-    role:childRole, phone_number:p, parent_node_code:auth.node_code,
+  ).bind(internalDesired, auth.node_code, displayName, zone).run();
+  return success({shadow:{node_code:identity.node_code, local_code:identity.local_code,
+    role:childRole, phone_number:p, parent_node_code:parentIdentity.node_code,
+    internal_node_code:internalDesired, internal_parent_node_code:auth.node_code,
     region_code:identity.region_code, approval_valid_hours:48,
     terminal_type:'TCHORONKO_SHADOW'}}, 201, headers);
 }
@@ -2319,7 +2445,8 @@ async function networkDashboard(env, auth, headers) {
     'WITH RECURSIVE network(node_code) AS (SELECT ? UNION ALL '
     + 'SELECT n.node_code FROM nodes n JOIN network p ON n.parent_node_code = p.node_code '
     + 'WHERE n.active = 1) '
-    + 'SELECT n.node_code, n.role, n.phone_number, n.parent_node_code, n.default_commission_bps, n.inbound_commission_bps, '
+    + 'SELECT n.node_code, n.role, n.phone_number, n.parent_node_code, n.official_node_code, n.identity_state, '
+    + 'n.default_commission_bps, n.inbound_commission_bps, '
     + 'b.balance, b.source AS balance_source, b.evidence_kind, b.confidence, b.observed_at, b.valid_until, '
     + 'b.evidence_priority, b.operator_event_at, b.balance_quality, b.last_transaction_id, '
     + 'a.last_financial_activity_at, a.last_unbalanced_activity_at, '
@@ -2329,7 +2456,15 @@ async function networkDashboard(env, auth, headers) {
     + "AND r.state NOT IN ('FAILED','CANCELLED')),0) AS reserved_amount, "
     + '(SELECT MAX(c.updated_at) FROM commands c WHERE c.requester_node_code = n.node_code '
     + 'OR c.executor_node_code = n.node_code OR c.target_node_code = n.node_code) AS last_activity_at, '
-    + '(SELECT COUNT(*) FROM devices d WHERE d.node_code = n.node_code AND d.active = 1) AS android_devices '
+    + '(SELECT COUNT(*) FROM devices d WHERE d.node_code = n.node_code AND d.active = 1) AS android_devices, '
+    + "(SELECT COUNT(*) FROM devices d WHERE d.node_code=n.node_code AND d.active=1 AND d.mode='ROBOT') AS robot_devices, "
+    + "(SELECT d.robot_enabled FROM devices d WHERE d.node_code=n.node_code AND d.active=1 AND d.mode='ROBOT' ORDER BY d.robot_enabled DESC,d.last_seen_at DESC LIMIT 1) AS robot_enabled, "
+    + "(SELECT d.last_seen_at FROM devices d WHERE d.node_code=n.node_code AND d.active=1 AND d.mode='ROBOT' ORDER BY d.robot_enabled DESC,d.last_seen_at DESC LIMIT 1) AS robot_last_seen_at, "
+    + "(SELECT d.last_telemetry_at FROM devices d WHERE d.node_code=n.node_code AND d.active=1 AND d.mode='ROBOT' ORDER BY d.robot_enabled DESC,d.last_seen_at DESC LIMIT 1) AS robot_last_telemetry_at, "
+    + "(SELECT d.offline_pending_events FROM devices d WHERE d.node_code=n.node_code AND d.active=1 AND d.mode='ROBOT' ORDER BY d.robot_enabled DESC,d.last_seen_at DESC LIMIT 1) AS robot_offline_pending_events, "
+    + "(SELECT d.accessibility_connected FROM devices d WHERE d.node_code=n.node_code AND d.active=1 AND d.mode='ROBOT' ORDER BY d.robot_enabled DESC,d.last_seen_at DESC LIMIT 1) AS robot_accessibility_connected, "
+    + "(SELECT d.app_version FROM devices d WHERE d.node_code=n.node_code AND d.active=1 AND d.mode='ROBOT' ORDER BY d.robot_enabled DESC,d.last_seen_at DESC LIMIT 1) AS robot_app_version, "
+    + "(SELECT MAX(d.last_seen_at) FROM devices d WHERE d.node_code=n.node_code AND d.active=1 AND d.mode='REMOTE') AS remote_last_seen_at "
     + 'FROM network x JOIN nodes n ON n.node_code = x.node_code '
     + 'LEFT JOIN account_balances b ON b.node_code = n.node_code '
     + 'LEFT JOIN node_activity_state a ON a.node_code = n.node_code ORDER BY n.role, n.node_code'
@@ -2345,9 +2480,8 @@ async function networkDashboard(env, auth, headers) {
     + "THEN amount ELSE 0 END) AS successful_volume "
     + 'FROM commands WHERE requester_node_code IN (SELECT node_code FROM network)'
   ).bind(auth.node_code).first();
-  return success({
-    generated_at: new Date().toISOString(), root_node_code: auth.node_code,
-    nodes: nodes.results.map(row => {
+  const decoratedNodes = [];
+  for (const row of (nodes.results || [])) {
       const balance = row.balance == null ? null : Number(row.balance);
       const reserved = Number(row.reserved_amount || 0);
       const evidenceAt = row.operator_event_at || row.observed_at || '';
@@ -2358,16 +2492,33 @@ async function networkDashboard(env, auth, headers) {
       const defaultRate = Number(row.default_commission_bps || 0);
       const inboundRate = Number(row.inbound_commission_bps || (row.role === 'DAE' ? 1000 : row.role === 'DSM' ? 900 : row.role === 'POS' ? 800 : 0));
       const baseEquivalent = balance == null ? null : maxBaseForTotal(balance, inboundRate);
-      return {...row, balance, default_commission_bps: defaultRate, inbound_commission_bps: inboundRate, reserved_amount: reserved,
+      const identity = await officialNodeIdentity(env, row.node_code);
+      const robotSeenAt = row.robot_last_telemetry_at || row.robot_last_seen_at || '';
+      decoratedNodes.push({...row, official_node_code: identity.node_code,
+        official_parent_node_code: identity.parent_node_code || '', local_node_code: identity.local_code,
+        internal_node_code: row.node_code, internal_parent_node_code: row.parent_node_code || '',
+        identity_state: identity.identity_state, balance, default_commission_bps: defaultRate,
+        inbound_commission_bps: inboundRate, reserved_amount: reserved,
         commission_base_balance: baseEquivalent,
         commission_component_balance: balance == null ? null : balance - baseEquivalent,
         available_balance: balance == null ? null : Math.max(0, balance - reserved),
         balance_reusable: reusable,
+        balance_evidence_at: evidenceAt,
         balance_age_seconds: row.observed_at
           ? Math.max(0, Math.floor((Date.now() - Date.parse(row.observed_at)) / 1000)) : null,
+        robot_age_seconds: robotSeenAt
+          ? Math.max(0, Math.floor((Date.now() - Date.parse(robotSeenAt)) / 1000)) : null,
+        robot_stale: Number(row.robot_devices || 0) > 0
+          && (!robotSeenAt || Date.now() - Date.parse(robotSeenAt) > ROBOT_LIVE_WINDOW_MINUTES * 60_000),
         android_devices: Number(row.android_devices || 0),
-        device_kind: Number(row.android_devices || 0) > 0 ? 'ANDROID' : 'NON_ENREGISTRE'};
-    }),
+        robot_devices: Number(row.robot_devices || 0),
+        device_kind: Number(row.android_devices || 0) > 0 ? 'ANDROID' : 'NON_ENREGISTRE'});
+  }
+  const rootIdentity = await officialNodeIdentity(env, auth.node_code);
+  return success({
+    generated_at: new Date().toISOString(), root_node_code: auth.node_code,
+    official_root_node_code: rootIdentity.node_code,
+    nodes: decoratedNodes,
     summary: {
       command_count: Number(summary?.command_count || 0),
       success_count: Number(summary?.success_count || 0),
@@ -2396,6 +2547,69 @@ function nodeCode(value) {
   return node;
 }
 
+function localIdentityCode(value, role) {
+  const parsed = parseCamtelIdentity(String(value || '').trim().toUpperCase());
+  if (parsed.ok && parsed.role === role) return parsed.local_code || parsed.node_code;
+  const match = String(value || '').trim().toUpperCase().match(
+    role === 'DSM' ? /^(DSM\d+)/ : role === 'POS' ? /^(POS\d+)/ : /^([A-Z]{2}\d{1,2})$/
+  );
+  return match ? match[1] : '';
+}
+
+async function officialNodeIdentity(env, internalNodeCode, seen = new Set()) {
+  const internal = String(internalNodeCode || '').trim().toUpperCase();
+  if (!internal || seen.has(internal)) {
+    return {ok: false, node_code: internal, internal_node_code: internal, local_code: internal,
+      parent_node_code: '', role: '', identity_state: 'REVIEW_REQUIRED'};
+  }
+  seen.add(internal);
+  const row = await env.DB.prepare(
+    'SELECT node_code, role, parent_node_code, official_node_code, identity_state '
+    + 'FROM nodes WHERE node_code=? LIMIT 1'
+  ).bind(internal).first();
+  if (!row) {
+    return {ok: false, node_code: internal, internal_node_code: internal, local_code: internal,
+      parent_node_code: '', role: '', identity_state: 'REVIEW_REQUIRED'};
+  }
+
+  const stored = parseCamtelIdentity(row.official_node_code || '');
+  let parsed = stored.ok && stored.role === row.role ? stored : null;
+  let parentOfficial = null;
+  if (!parsed && row.role === 'DAE') {
+    const legacy = parseCamtelIdentity(row.node_code);
+    if (legacy.ok && legacy.role === 'DAE') parsed = legacy;
+  }
+  if (!parsed && ['DSM', 'POS'].includes(row.role) && row.parent_node_code) {
+    parentOfficial = await officialNodeIdentity(env, row.parent_node_code, seen);
+    const local = localIdentityCode(row.node_code, row.role);
+    const derived = canonicalCamtelIdentity(local, row.role, parentOfficial.node_code);
+    if (derived.ok) parsed = derived;
+  }
+  if (!parentOfficial && row.parent_node_code) {
+    parentOfficial = await officialNodeIdentity(env, row.parent_node_code, seen);
+  }
+  const official = parsed?.node_code || row.official_node_code || row.node_code;
+  const local = parsed?.local_code || localIdentityCode(official, row.role) || official;
+  return {
+    ok: Boolean(parsed), node_code: official, official_node_code: official,
+    internal_node_code: row.node_code, legacy_node_code: row.node_code, local_code: local,
+    parent_node_code: parsed?.parent_node_code || parentOfficial?.node_code || '',
+    internal_parent_node_code: row.parent_node_code || '', role: row.role,
+    region_code: parsed?.region_code || parentOfficial?.region_code || '',
+    dae_node_code: parsed?.dae_node_code || parentOfficial?.dae_node_code || '',
+    dsm_node_code: parsed?.dsm_node_code || (row.role === 'DSM' ? official : parentOfficial?.dsm_node_code) || '',
+    identity_state: parsed ? (row.identity_state || (stored.ok ? 'VERIFIED' : 'DERIVED')) : 'REVIEW_REQUIRED'
+  };
+}
+
+function identityReferenceMatches(reference, identity) {
+  const value = String(reference || '').trim().toUpperCase();
+  if (!value || !identity) return false;
+  return [identity.node_code, identity.official_node_code, identity.internal_node_code,
+    identity.legacy_node_code, identity.local_code]
+    .some(candidate => String(candidate || '').trim().toUpperCase() === value);
+}
+
 function canonicalChildCode(localCode, parentCode, expectedRole = '') {
   const result = canonicalCamtelIdentity(localCode, expectedRole, parentCode);
   if (!result.ok) throw identityApiError(result.error);
@@ -2417,21 +2631,17 @@ function identityApiError(code) {
 
 async function resolveParentNode(env, reference, expectedRole) {
   const value = nodeCode(reference);
-  const exact = await env.DB.prepare(
-    'SELECT node_code, role FROM nodes WHERE node_code = ? AND active = 1'
-  ).bind(value).first();
-  if (exact) {
-    if (exact.role !== expectedRole) {
-      throw new ApiError('INVALID_PARENT_ROLE', `Le supérieur doit être de type ${expectedRole}.`, 422);
-    }
-    return exact;
+  const rows = await env.DB.prepare(
+    'SELECT node_code, role, phone_number, parent_node_code FROM nodes '
+    + 'WHERE role=? AND active=1 ORDER BY node_code'
+  ).bind(expectedRole).all();
+  const candidates = [];
+  for (const row of (rows.results || [])) {
+    const identity = await officialNodeIdentity(env, row.node_code);
+    if (identityReferenceMatches(value, identity)) candidates.push(row);
   }
-  const candidates = await env.DB.prepare(
-    'SELECT node_code, role FROM nodes WHERE role = ? AND active = 1 '
-    + 'AND node_code LIKE ? ORDER BY node_code LIMIT 2'
-  ).bind(expectedRole, `${value}_%`).all();
-  if (candidates.results.length === 1) return candidates.results[0];
-  if (candidates.results.length > 1) {
+  if (candidates.length === 1) return candidates[0];
+  if (candidates.length > 1) {
     throw new ApiError('PARENT_AMBIGUOUS',
       'Ce code supérieur abrégé existe dans plusieurs arborescences; saisissez son nom complet.', 422);
   }
@@ -2440,16 +2650,20 @@ async function resolveParentNode(env, reference, expectedRole) {
 
 async function resolveDirectChild(env, parentCode, reference, expectedRole) {
   const value = nodeCode(reference);
-  const exact = await env.DB.prepare(
-    'SELECT node_code, phone_number FROM nodes '
-    + 'WHERE node_code = ? AND parent_node_code = ? AND role = ? AND active = 1'
-  ).bind(value, parentCode, expectedRole).first();
-  if (exact) return exact;
-  const canonical = canonicalChildCode(value, parentCode, expectedRole);
-  return env.DB.prepare(
-    'SELECT node_code, phone_number FROM nodes '
-    + 'WHERE node_code = ? AND parent_node_code = ? AND role = ? AND active = 1'
-  ).bind(canonical, parentCode, expectedRole).first();
+  const rows = await env.DB.prepare(
+    'SELECT node_code, phone_number, parent_node_code, role FROM nodes '
+    + 'WHERE parent_node_code=? AND role=? AND active=1 ORDER BY node_code'
+  ).bind(parentCode, expectedRole).all();
+  const matches = [];
+  for (const row of (rows.results || [])) {
+    const identity = await officialNodeIdentity(env, row.node_code);
+    if (identityReferenceMatches(value, identity)) matches.push(row);
+  }
+  if (matches.length > 1) {
+    throw new ApiError('CHILD_AMBIGUOUS',
+      'Ce raccourci existe plusieurs fois; utilisez le nom Camtel complet.', 422);
+  }
+  return matches[0] || null;
 }
 
 async function commandDigest(command) {
@@ -2715,7 +2929,7 @@ async function forceSyncRequest(env, auth, input, headers) {
   }
   await env.DB.prepare("UPDATE sync_wake_requests SET state='EXPIRED' WHERE node_code=? AND state='PENDING' AND created_at<strftime('%Y-%m-%dT%H:%M:%fZ','now','-10 minutes')")
     .bind(auth.node_code).run();
-  const robot = await env.DB.prepare("SELECT device_id,last_seen_at FROM devices WHERE node_code=? AND active=1 AND robot_enabled=1 AND sim_verified=1 AND mode IN ('ROBOT','HYBRID') ORDER BY last_seen_at DESC LIMIT 1")
+  const robot = await env.DB.prepare("SELECT device_id,last_seen_at FROM devices WHERE node_code=? AND active=1 AND robot_enabled=1 AND sim_verified=1 AND mode='ROBOT' ORDER BY last_seen_at DESC LIMIT 1")
     .bind(auth.node_code).first();
   if (!robot) return success({queued:false,node_code:auth.node_code,reason:'NO_ACTIVE_ROBOT'},200,headers);
   const pending = await env.DB.prepare("SELECT id,created_at FROM sync_wake_requests WHERE node_code=? AND state='PENDING' ORDER BY id DESC LIMIT 1")
@@ -2867,8 +3081,11 @@ async function relaySync(env, auth, input, headers) {
 }
 
 async function consumeOfflineEvent(env, sourceDevice, sourceNode, commandPublicId, kind, payload) {
+  // Relay/offline sync transports evidence only. Queue, receipt and progress events remain
+  // observability records: they must never create/replay a command or be parsed as money proof.
+  if (kind !== 'LOCAL_COMMAND_RESULT') return;
   const message = cleanText(payload?.result_message || payload?.message || '', 2000);
-  if (kind === 'LOCAL_COMMAND_RESULT' && commandPublicId) {
+  if (commandPublicId) {
     const command = await env.DB.prepare('SELECT * FROM commands WHERE public_id=? LIMIT 1').bind(commandPublicId).first();
     if (command && command.executor_node_code === sourceNode && !TERMINAL_STATES.has(command.state)) {
       const next = String(payload?.state || '').trim().toUpperCase();

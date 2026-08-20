@@ -482,6 +482,9 @@ public class MainActivity extends Activity {
                     if (token.isEmpty()) throw new IllegalStateException(ui("Jeton appareil absent.", "Device token missing."));
                     AppConfig.savePairing(this, deviceId, token, canonicalNode, sim, canonicalParent,
                             selectedRole, selectedMode, apiUrl, selectedSlot);
+                    AppConfig.updateOfficialIdentity(this, AppConfig.profileId(this),
+                            data.optString("official_node_code", canonicalNode),
+                            data.optString("official_parent_node_code", canonicalParent));
                     SecurePairingStore.save(this, pairingSecret);
                     String resultMessage;
                     if ("ROBOT".equals(selectedMode)) {
@@ -683,7 +686,7 @@ public class MainActivity extends Activity {
                         "LOCAL_API_INVALID", "L’adresse du serveur doit commencer par https://");
                 return;
             }
-            if (("ROBOT".equals(selectedMode) || "HYBRID".equals(selectedMode)) && !pin.matches("\\d{4}")) {
+            if ("ROBOT".equals(selectedMode) && !pin.matches("\\d{4}")) {
                 showPairingIssue(scroll, operatorPin, feedback, diagnostic,
                         "LOCAL_PIN_INVALID", "Un Robot doit recevoir le PIN Blue exact à 4 chiffres.");
                 return;
@@ -717,6 +720,9 @@ public class MainActivity extends Activity {
                     stage = "PAIR_LOCAL_PROFILE_SAVE";
                     AppConfig.savePairing(this, deviceId, token, canonicalNode, sim, canonicalParent,
                             selectedRole, selectedMode, selectedApiUrl, selectedSlot);
+                    AppConfig.updateOfficialIdentity(this, AppConfig.profileId(this),
+                            data.optString("official_node_code", canonicalNode),
+                            data.optString("official_parent_node_code", canonicalParent));
                     stage = "PAIR_LOCAL_SECRET_SAVE";
                     SecurePairingStore.save(this, secret);
                     if (!pin.isEmpty()) SecurePinStore.save(this, pin);
@@ -1669,6 +1675,9 @@ public class MainActivity extends Activity {
                                     canonicalNode, endpoint)) {
                                 throw new IllegalStateException("Impossible d’enregistrer le nouveau jeton.");
                             }
+                            AppConfig.updateOfficialIdentity(this, profileId,
+                                    data.optString("official_node_code", canonicalNode),
+                                    data.optString("official_parent_node_code", AppConfig.parentNode(this, profileId)));
                             SecurePairingStore.save(this, secret);
                             runOnUiThread(() -> {
                                 dialog.dismiss();
@@ -1755,6 +1764,9 @@ public class MainActivity extends Activity {
                 data.optString("node_code", AppConfig.nodeCode(this)), AppConfig.apiUrl(this))) {
             throw new IllegalStateException("Le nouveau mode n’a pas pu être enregistré localement.");
         }
+        AppConfig.updateOfficialIdentity(this, profileId,
+                data.optString("official_node_code", AppConfig.nodeCode(this)),
+                data.optString("official_parent_node_code", AppConfig.parentNode(this)));
     }
 
     private void showPendingOperations() {
@@ -2090,10 +2102,12 @@ public class MainActivity extends Activity {
             try {
                 JSONObject value = new JSONObject();
                 value.put("node_code", AppConfig.nodeCode(MainActivity.this));
+                value.put("official_node_code", AppConfig.officialNodeCode(MainActivity.this));
                 value.put("phone_number", AppConfig.phoneNumber(MainActivity.this));
                 value.put("profile_id", AppConfig.profileId(MainActivity.this));
                 value.put("role", AppConfig.role(MainActivity.this));
                 value.put("parent_node_code", AppConfig.parentNode(MainActivity.this));
+                value.put("official_parent_node_code", AppConfig.officialParentNode(MainActivity.this));
                 value.put("mode", AppConfig.displayMode(AppConfig.mode(MainActivity.this)));
                 value.put("sim_slot", AppConfig.simSlot(MainActivity.this));
                 value.put("robot_enabled", AppConfig.robotEnabled(MainActivity.this));
@@ -2111,6 +2125,7 @@ public class MainActivity extends Activity {
                 value.put("super_admin_workspace", isSuperAdminWorkspaceActive());
                 value.put("mock_owner_server_entitled", SecureOwnerStore.has(MainActivity.this, "MOCK_OWNER"));
                 value.put("offline_pending_events", LocalEventStore.pendingCount(MainActivity.this));
+                value.put("relay_permissions", BirRelayManager.permissionsReady(MainActivity.this));
                 value.put("robot_offline_capable", AppConfig.isRobotMode(MainActivity.this));
                 JSONObject certified = CertifiedBalanceStore.get(MainActivity.this, AppConfig.profileId(MainActivity.this));
                 value.put("certified_balance", certified == null ? JSONObject.NULL : certified);
@@ -2349,15 +2364,33 @@ public class MainActivity extends Activity {
                                 AppConfig.profileId(MainActivity.this), 6_000L);
                         if (cached != null) {
                             cached.put("_bir_remote_cache", true);
+                            rememberOfficialIdentity(cached);
                             callback("onDashboard", cached);
                             return;
                         }
                     }
-                    callback("onDashboard", new ApiClient(MainActivity.this).dashboard());
+                    JSONObject dashboard = new ApiClient(MainActivity.this).dashboard();
+                    rememberOfficialIdentity(dashboard);
+                    callback("onDashboard", dashboard);
                 } catch (Exception error) {
                     callbackError("onDashboard", error);
                 }
             }).start();
+        }
+
+        private void rememberOfficialIdentity(JSONObject dashboard) {
+            if (dashboard == null) return;
+            String internal = AppConfig.nodeCode(MainActivity.this);
+            JSONArray nodes = dashboard.optJSONArray("nodes");
+            if (nodes == null) return;
+            for (int i = 0; i < nodes.length(); i++) {
+                JSONObject row = nodes.optJSONObject(i);
+                if (row == null || !internal.equalsIgnoreCase(row.optString("node_code", ""))) continue;
+                AppConfig.updateOfficialIdentity(MainActivity.this, AppConfig.profileId(MainActivity.this),
+                        row.optString("official_node_code", internal),
+                        row.optString("official_parent_node_code", AppConfig.parentNode(MainActivity.this)));
+                return;
+            }
         }
 
         @JavascriptInterface
@@ -2367,7 +2400,9 @@ public class MainActivity extends Activity {
                     JSONObject audit = new ApiClient(MainActivity.this).networkBalanceAudit();
                     audit.put("_action", "network_balance_audit");
                     callback("onPlatformAction", audit);
-                    callback("onDashboard", new ApiClient(MainActivity.this).dashboard());
+                    JSONObject dashboard = new ApiClient(MainActivity.this).dashboard();
+                    rememberOfficialIdentity(dashboard);
+                    callback("onDashboard", dashboard);
                     if (AppConfig.anyRobotEnabled(MainActivity.this)) {
                         RobotService.startEnabled(MainActivity.this);
                     }

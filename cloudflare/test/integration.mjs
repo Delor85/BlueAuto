@@ -18,7 +18,8 @@ try {
     '0003_balance_preflight_and_modules.sql', '0004_blue_message_intelligence_and_modules.sql',
     '0005_commission_policies_and_financial_quotes.sql', '0006_owner_admin_control_and_audit.sql',
     '0007_offline_events_and_bir_relay.sql', '0008_v290_free_ops_cockpit.sql',
-    '0009_remote_sync_wake.sql', '0010_coherence_recovery_and_reconciliation.sql']) {
+    '0009_remote_sync_wake.sql', '0010_coherence_recovery_and_reconciliation.sql',
+    '0011_canonical_identity_participant_results.sql']) {
     const schema = await readFile(new URL(`../migrations/${migration}`, import.meta.url), 'utf8');
     for (const statement of schema.split(';').map(value => value.replace(/^--.*$/gm, '').trim()).filter(Boolean)) {
       await db.prepare(statement).run();
@@ -68,6 +69,7 @@ try {
     phone_number: '699000003', device_name: 'Second Robot test'
   });
   assert.equal(pos.data.node_code, 'POS37_DSM12_CE04');
+  assert.equal(pos.data.official_node_code, 'POS37_DSM12_CE04');
   await attest(pos.data.device_token, 'c'.repeat(64), 1);
   const shortPosFromDae = await requestFailure('create_command', {
     request_type: 'CHILD_BALANCE', target_node_code: 'POS37',
@@ -242,6 +244,26 @@ try {
   }, dsm.data.device_token);
   assert.equal(status.data.command.state, 'SUCCEEDED');
   assert.equal(status.data.command.amount, 550);
+  assert.equal(status.data.command.result_audience, 'RECIPIENT');
+  assert.doesNotMatch(status.data.command.result_message, /test SUCCEEDED/);
+  assert.match(status.data.command.result_message, /confirmation Blue destinée à votre SIM/i);
+
+  const recipientProof = await request('record_operator_message', {
+    message: 'You received Airtime from 699000001 - CE04. Amount is 550.00 FCFA. Now your balance is 673.00 FCFA. TransactionID 000039365555, 20-08-2026 at 13:10:09.'
+  }, dsm.data.device_token);
+  assert.equal(recipientProof.data.operator_message.linked_command_public_id,
+    created.data.command.public_id);
+  const recipientStatus = await request('command_status', {
+    command_id: created.data.command.public_id
+  }, dsm.data.device_token);
+  assert.equal(recipientStatus.data.command.result_audience, 'RECIPIENT');
+  assert.match(recipientStatus.data.command.result_message, /You received Airtime/);
+  assert.equal(recipientStatus.data.command.balance_after, 673);
+  const executorStatus = await request('command_status', {
+    command_id: created.data.command.public_id
+  }, dae.data.device_token);
+  assert.equal(executorStatus.data.command.result_audience, 'EXECUTOR');
+  assert.equal(executorStatus.data.command.result_message, 'test SUCCEEDED');
 
   await db.prepare("DELETE FROM account_balances WHERE node_code = 'CE04'").run();
   const waitingCapacity = await request('check_purchase_capacity', {
@@ -274,6 +296,10 @@ try {
   assert.equal(dashboard.data.nodes.some(node => node.node_code === 'CE04'
     && node.balance === 650), true);
   assert.equal(dashboard.data.nodes.some(node => node.device_kind === 'ANDROID'), true);
+  assert.equal(dashboard.data.nodes.find(node => node.node_code === 'POS37_DSM12_CE04').official_node_code,
+    'POS37_DSM12_CE04');
+  assert.equal(typeof dashboard.data.nodes.find(node => node.node_code === 'CE04').robot_stale,
+    'boolean');
 
   // Une vue d'historique ne doit fournir un solde mutualisable que si le même écran Camtel
   // contient un libellé de solde actuel explicite. « Transfer Balance of 1 FCFA » n'en est pas un.

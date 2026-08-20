@@ -11,8 +11,8 @@ const field=read('app/src/main/assets/field-recovery-v291.js');
 const index=read('app/src/main/assets/index.html');
 const manifest=read('app/src/main/AndroidManifest.xml');
 
-must((gradle.includes('versionCode 56')||gradle.includes('versionCode 58'))&&(gradle.includes('versionName "2.9.1"')||gradle.includes('versionName "2.9.3"')),'v2.9.1/code56 identity missing');
-must(api.includes('payload.put("app_version", "2.9.1");')||api.includes('payload.put("app_version", "2.9.3");'),'v2.9.1 heartbeat telemetry missing');
+must((gradle.includes('versionCode 56')||gradle.includes('versionCode 58')||gradle.includes('versionCode 60'))&&(gradle.includes('versionName "2.9.1"')||gradle.includes('versionName "2.9.3"')||gradle.includes('versionName "2.9.5"')),'v2.9.1+ identity missing');
+must(api.includes('payload.put("app_version", "2.9.1");')||api.includes('payload.put("app_version", "2.9.3");')||api.includes('payload.put("app_version", "2.9.5");'),'v2.9.1+ heartbeat telemetry missing');
 must(main.includes('final boolean commissionPrompt')&&main.includes('final boolean supportPrompt'),'JS prompt routing not contextual');
 must(main.includes('TYPE_TEXT_FLAG_MULTI_LINE')&&main.includes('"Secours / SAV"')&&main.includes('"ENVOYER"'),'Secours must be text, not commission numeric UI');
 must(main.includes('"Taux de commission"')&&main.includes('TYPE_NUMBER_FLAG_DECIMAL'),'commission prompt compatibility lost');
@@ -25,10 +25,10 @@ const force=robot.slice(robot.indexOf('if (ACTION_FORCE_SYNC.equals(action))'),r
 must(force&&!/createCommand|placeUssdCall|previewCommand|checkPurchaseCapacity/.test(force),'Auto-Reveil must never simulate a financial/USSD command');
 must(app.includes('now-dashboardLoadedAt<5000'),'foreground dashboard freshness gate must accept rapid explicit refresh');
 must(app.includes('scheduleDashboardPoll();},60000);'),'normal dashboard polling must remain economical at 60s');
-must(field.includes('staleAfterMs=12000')&&field.includes('setInterval(function()')&&field.includes('},5000);'),'fast recovery must be adaptive/event-staleness driven');
+must(field.includes('staleAfterMs=60000')&&field.includes('pulseCooldownMs=45000')&&field.includes('setInterval(function()')&&field.includes('},5000);'),'recovery must be event-driven while keeping server polling economical');
 must(app.includes('window.AndroidBridge.kickSynchronization()'),'command lifecycle must wake synchronization');
 must(balance.includes('commission>0?total:amount'),'predictive supply balance must account for commission debit');
-must(balance.includes('≈ Estimation B.I.R. à rapprocher'),'uncertain balance must be visibly qualified');
+must(balance.includes('Valeur masquée • nouvelle preuve Blue exacte requise'),'uncertain balance must be hidden, not presented as real');
 must(field.includes('AUTO-RÉVEIL B.I.R.')&&field.includes('TROUVER UN SERVICE'),'field recovery/search UI missing');
 must(field.includes('silentPulse')&&!field.includes('SEND_SMS'),'self-healing must stay non-SMS');
 must(index.includes('field-recovery-v291.css')&&index.includes('field-recovery-v291.js'),'v2.9.1 assets not wired');

@@ -62,7 +62,7 @@ final class ApiClient {
         SimIdentityManager.Verification sim = SimIdentityManager.verify(context, targetProfile);
         boolean locallyEnabled = AppConfig.robotEnabled(context, targetProfile);
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.9.4");
+        payload.put("app_version", "2.9.5");
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
         payload.put("robot_enabled", locallyEnabled && sim.valid);
@@ -129,7 +129,7 @@ final class ApiClient {
     JSONObject activateRobot(SimIdentityManager.Verification sim, int simSlot,
                              boolean replaceVerifiedSameSimRobot) throws Exception {
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.9.4");
+        payload.put("app_version", "2.9.5");
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
         payload.put("sim_verified", sim.valid);
@@ -377,6 +377,9 @@ final class ApiClient {
             throw new ApiException("PAIRING_REPAIR_FAILED",
                     "Le nouveau jeton n’a pas pu être enregistré sur ce compte.");
         }
+        AppConfig.updateOfficialIdentity(context, targetProfile,
+                data.optString("official_node_code", AppConfig.nodeCode(context, targetProfile)),
+                data.optString("official_parent_node_code", AppConfig.parentNode(context, targetProfile)));
         tokenOverride = renewedToken;
     }
 

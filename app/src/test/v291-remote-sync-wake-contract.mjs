@@ -12,11 +12,11 @@ const forceStart=worker.indexOf('async function forceSyncRequest');
 const forceEnd=worker.indexOf('async function ownerAssist',forceStart);
 const forceBody=forceStart>=0&&forceEnd>forceStart?worker.slice(forceStart,forceEnd):'';
 
-must(worker.includes("const API_VERSION = '2.9.1-cloudflare'")||worker.includes("const API_VERSION = '2.9.3-cloudflare'"),'Worker version missing');
+must(worker.includes("const API_VERSION = '2.9.1-cloudflare'")||worker.includes("const API_VERSION = '2.9.3-cloudflare'")||worker.includes("const API_VERSION = '2.9.5-cloudflare'"),'Worker version missing');
 must(worker.includes("case 'force_sync': return await forceSyncRequest"),'force_sync route missing');
 must(worker.includes("auth.mode !== 'REMOTE'"),'force_sync must be Remote-only');
 must(worker.includes('node_code=?')&&worker.includes('requested_by_device_id'),'wake must be same-node/device-authenticated');
-must(worker.includes("mode IN ('ROBOT','HYBRID')")&&worker.includes('robot_enabled=1')&&worker.includes('sim_verified=1'),'wake target must be active verified Robot');
+must(worker.includes("mode='ROBOT'")&&worker.includes('robot_enabled=1')&&worker.includes('sim_verified=1'),'wake target must be active verified Robot');
 must(worker.includes('duplicate_safe:true')&&worker.includes("state='PENDING'"),'wake deduplication missing');
 must(worker.includes("return success({available:false,force_sync:true"),'existing lease poll must carry wake without creating a command');
 must(forceBody&& !/(INSERT INTO commands|createCommand|previewCommand|ussd_code)/.test(forceBody),'force_sync must not create financial/USSD commands');
