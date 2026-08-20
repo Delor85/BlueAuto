@@ -9,6 +9,7 @@ import org.json.JSONObject;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 final class AppConfig {
@@ -201,12 +202,12 @@ final class AppConfig {
 
     static String role(Context context) {
         JSONObject profile = activeProfile(context);
-        return profile == null ? "" : profile.optString("role", "");
+        return normalizedRole(profile);
     }
 
     static String role(Context context, String profileId) {
         JSONObject profile = profile(context, profileId);
-        return profile == null ? "" : profile.optString("role", "");
+        return normalizedRole(profile);
     }
 
     static String parentNode(Context context) {
@@ -260,7 +261,7 @@ final class AppConfig {
             String robotState = isRobotMode(context, id)
                     ? (robotEnabled(context, id) ? " • ACTIF" : " • ARRÊTÉ") : "";
             result[i] = marker + profile.optString("node_code", "—")
-                    + " • " + profile.optString("role", "—")
+                    + " • " + normalizedRole(profile)
                     + " • " + displayMode(profile.optString("device_mode", "REMOTE"))
                     + " • SIM " + (profile.optInt("sim_slot", 0) + 1)
                     + robotState;
@@ -611,5 +612,27 @@ final class AppConfig {
             }
         }
         return null;
+    }
+
+    /**
+     * Profiles created by early Blue Magic builds did not always persist the role. Keeping an
+     * empty legacy value made the ES5 interface hide every financial card while TEST_NUMBER
+     * remained visible. Recover only identities that are unambiguous in the Camtel hierarchy;
+     * the Worker still performs the authoritative role and parent checks for every command.
+     */
+    private static String normalizedRole(JSONObject profile) {
+        if (profile == null) return "";
+        String configured = profile.optString("role", "").trim().toUpperCase(Locale.ROOT);
+        if ("DAE".equals(configured) || "DSM".equals(configured) || "POS".equals(configured)) {
+            return configured;
+        }
+
+        String node = profile.optString("node_code", "").trim().toUpperCase(Locale.ROOT);
+        if (node.matches("^POS(?:[-_/].*|\\d.*)$")) return "POS";
+        if (node.matches("^DSM(?:[-_/].*|\\d.*)$")) return "DSM";
+        if (!node.isEmpty() && profile.optString("parent_node_code", "").trim().isEmpty()) {
+            return "DAE";
+        }
+        return "";
     }
 }

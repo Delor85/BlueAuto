@@ -46,13 +46,17 @@ final class ApiClient {
         return post("pair_device", payload, false);
     }
 
+    JSONObject health() throws Exception {
+        return post("health", new JSONObject(), false);
+    }
+
     JSONObject heartbeat() throws Exception {
         String targetProfile = profileIdOverride.isEmpty()
                 ? AppConfig.profileId(context) : profileIdOverride;
         SimIdentityManager.Verification sim = SimIdentityManager.verify(context, targetProfile);
         boolean locallyEnabled = AppConfig.robotEnabled(context, targetProfile);
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.5.1-magic-route");
+        payload.put("app_version", "2.5.4-pairing-diagnostic");
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
         payload.put("robot_enabled", locallyEnabled && sim.valid);

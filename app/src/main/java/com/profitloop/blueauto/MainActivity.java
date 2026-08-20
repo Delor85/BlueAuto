@@ -5,6 +5,7 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
@@ -33,9 +34,17 @@ import android.widget.Toast;
 
 import org.json.JSONObject;
 
+import java.net.ConnectException;
+import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
+
+import javax.net.ssl.SSLException;
 
 public class MainActivity extends Activity {
     private static final int REQUEST_CORE_PERMISSIONS = 550;
@@ -44,6 +53,7 @@ public class MainActivity extends Activity {
     private static final int VIOLET = Color.rgb(135, 92, 255);
     private static final int SURFACE = Color.rgb(15, 37, 70);
     private static final int BACKGROUND = Color.rgb(5, 18, 42);
+    private static final String PAIRING_DIAGNOSTIC_KEY = "pairing_diagnostic_v254";
 
     private TextView nativeStatus;
     private WebView webView;
@@ -68,6 +78,15 @@ public class MainActivity extends Activity {
 
         form.addView(title("BLUE MAGIC — APPAIRAGE SÉCURISÉ"));
         form.addView(help("Vérifiez l’adresse et le secret avant l’appairage. Le PIN Camtel reste uniquement dans le Keystore du téléphone."));
+
+        TextView installedVersion = help("VERSION INSTALLÉE : " + installedVersionLabel());
+        installedVersion.setTextColor(CYAN);
+        form.addView(installedVersion);
+
+        TextView diagnostic = help(AppConfig.prefs(this).getString(PAIRING_DIAGNOSTIC_KEY,
+                "DIAGNOSTIC : aucun test effectué sur cette installation."));
+        diagnostic.setTextColor(GOLD);
+        form.addView(diagnostic);
 
         EditText apiUrl = field("Adresse du serveur Blue Magic", AppConfig.pairingApiUrl(this), false);
         EditText nodeCode = field("Code local (ex. SU2, DSM7 ou POS5)", "", false);
@@ -117,35 +136,115 @@ public class MainActivity extends Activity {
         TextView feedback = help("ROBOT est le mode polyvalent : il exécute les commandes et peut aussi en créer. REMOTE est uniquement une télécommande. Chaque compte conserve séparément son PIN et son slot SIM.");
         form.addView(feedback);
 
+        Button testServer = actionButton("VÉRIFIER LE SERVEUR", CYAN);
+        form.addView(testServer);
+        testServer.setOnClickListener(v -> {
+            String selectedApiUrl = AppConfig.normalizeApiUrl(apiUrl.getText().toString());
+            if (!selectedApiUrl.toLowerCase(Locale.ROOT).startsWith("https://")) {
+                showPairingIssue(scroll, apiUrl, feedback, diagnostic,
+                        "LOCAL_API_INVALID", "L’adresse du serveur doit commencer par https://");
+                return;
+            }
+            testServer.setEnabled(false);
+            testServer.setText("VÉRIFICATION EN COURS…");
+            updatePairingDiagnostic(diagnostic, "SERVER_CHECK_SENT",
+                    "Connexion au serveur depuis ce téléphone en cours.");
+            new Thread(() -> {
+                try {
+                    JSONObject health = new ApiClient(this, selectedApiUrl, "").health();
+                    String service = health.optString("service", "serveur");
+                    String version = health.optString("version", "version inconnue");
+                    String database = health.optString("database", "état D1 inconnu");
+                    runOnUiThread(() -> {
+                        testServer.setEnabled(true);
+                        testServer.setText("SERVEUR VÉRIFIÉ — RETESTER");
+                        String message = "Connexion HTTPS réussie : " + service + " • " + version
+                                + " • D1 " + database + ".";
+                        feedback.setTextColor(CYAN);
+                        feedback.setText(message);
+                        updatePairingDiagnostic(diagnostic, "SERVER_CHECK_OK", message);
+                        toast(message);
+                    });
+                } catch (Exception error) {
+                    runOnUiThread(() -> {
+                        testServer.setEnabled(true);
+                        testServer.setText("ÉCHEC SERVEUR — RETESTER");
+                        String code = diagnosticCode(error, "SERVER_CHECK");
+                        String message = "Connexion serveur impossible : " + readable(error);
+                        feedback.setTextColor(Color.rgb(255, 139, 152));
+                        feedback.setText(message);
+                        updatePairingDiagnostic(diagnostic, code, message);
+                        showDiagnosticDialog(code, message);
+                    });
+                }
+            }).start();
+        });
+
         Button pair = actionButton("APPAIRER CE TÉLÉPHONE", GOLD);
         form.addView(pair);
         pair.setOnClickListener(v -> {
+            updatePairingDiagnostic(diagnostic, "PAIR_CLICK_RECEIVED",
+                    "Le bouton APPAIRER fonctionne. Validation locale du formulaire en cours.");
             String node = nodeCode.getText().toString().trim().toUpperCase();
-            String sim = phone.getText().toString().trim();
-            String parentNode = parent.getText().toString().trim().toUpperCase();
+            String sim = normalizeCameroonPhone(phone.getText().toString());
             String selectedRole = role.getSelectedItem().toString();
             String selectedMode = mode.getSelectedItem().toString();
-            String secret = pairingSecret.getText().toString();
+            String parentNode = "DAE".equals(selectedRole)
+                    ? "" : parent.getText().toString().trim().toUpperCase();
+            String secret = pairingSecret.getText().toString().trim();
             String pin = operatorPin.getText().toString().trim();
             int selectedSlot = simSlot.getSelectedItemPosition();
 
-            if (!node.matches("[A-Z0-9/_-]{3,64}") || !sim.matches("\\d{9}") || secret.length() < 24) {
-                feedback.setText("Vérifiez le code nœud, le numéro à 9 chiffres et le secret d’appairage.");
+            if (!node.matches("[A-Z0-9/_-]{3,64}")) {
+                showPairingIssue(scroll, nodeCode, feedback, diagnostic,
+                        "LOCAL_NODE_INVALID", "Le code local doit contenir au moins 3 lettres ou chiffres.");
+                return;
+            }
+            if (!sim.matches("6\\d{8}")) {
+                showPairingIssue(scroll, phone, feedback, diagnostic,
+                        "LOCAL_PHONE_INVALID",
+                        "Saisissez un numéro camerounais valide de 9 chiffres commençant par 6.");
+                return;
+            }
+            phone.setText(sim);
+            if (!"DAE".equals(selectedRole) && !parentNode.matches("[A-Z0-9/_-]{3,64}")) {
+                showPairingIssue(scroll, parent, feedback, diagnostic,
+                        "LOCAL_PARENT_REQUIRED",
+                        "Un DSM doit indiquer son DAE supérieur et un PoS son DSM supérieur.");
+                return;
+            }
+            if (!parentNode.isEmpty() && parentNode.equals(node)) {
+                showPairingIssue(scroll, parent, feedback, diagnostic,
+                        "LOCAL_PARENT_EQUALS_NODE",
+                        "Le supérieur doit être différent du compte en cours d’appairage.");
+                return;
+            }
+            if (secret.length() < 24) {
+                showPairingIssue(scroll, pairingSecret, feedback, diagnostic,
+                        "LOCAL_SECRET_INCOMPLETE", "Le secret d’appairage est absent ou incomplet.");
                 return;
             }
             String selectedApiUrl = AppConfig.normalizeApiUrl(apiUrl.getText().toString());
-            if (!selectedApiUrl.toLowerCase().startsWith("https://")) {
-                feedback.setText("L’adresse du serveur doit commencer par https://");
+            if (!selectedApiUrl.toLowerCase(Locale.ROOT).startsWith("https://")) {
+                showPairingIssue(scroll, apiUrl, feedback, diagnostic,
+                        "LOCAL_API_INVALID", "L’adresse du serveur doit commencer par https://");
                 return;
             }
             if (("ROBOT".equals(selectedMode) || "HYBRID".equals(selectedMode)) && !pin.matches("\\d{4}")) {
-                feedback.setText("Un Robot doit recevoir le PIN Camtel exact à 4 chiffres.");
+                showPairingIssue(scroll, operatorPin, feedback, diagnostic,
+                        "LOCAL_PIN_INVALID", "Un Robot doit recevoir le PIN Camtel exact à 4 chiffres.");
                 return;
             }
 
             pair.setEnabled(false);
-            feedback.setText("Appairage avec " + selectedApiUrl + "…");
+            pair.setText("APPAIRAGE EN COURS…");
+            feedback.setTextColor(CYAN);
+            feedback.setText("Connexion sécurisée à " + selectedApiUrl + "…");
+            updatePairingDiagnostic(diagnostic, "PAIR_REQUEST_SENT",
+                    "Formulaire valide. Requête HTTPS d’appairage envoyée au serveur.");
+            toast("Demande d’appairage envoyée. Patientez quelques secondes.");
             new Thread(() -> {
+                String stage = "PAIR_NETWORK";
                 try {
                     JSONObject payload = new JSONObject();
                     payload.put("node_code", node);
@@ -156,17 +255,23 @@ public class MainActivity extends Activity {
                     payload.put("pairing_secret", secret);
                     payload.put("device_name", Build.MANUFACTURER + " " + Build.MODEL);
                     JSONObject data = new ApiClient(this, selectedApiUrl, "").pair(payload);
+                    stage = "PAIR_SERVER_RESPONSE";
                     String token = data.optString("device_token", "");
                     String deviceId = data.optString("device_id", "");
                     String canonicalNode = data.optString("node_code", node);
                     if (token.isEmpty()) throw new IllegalStateException("Jeton appareil absent.");
+                    stage = "PAIR_LOCAL_PROFILE_SAVE";
                     AppConfig.savePairing(this, deviceId, token, canonicalNode, sim, parentNode,
                             selectedRole, selectedMode, selectedApiUrl, selectedSlot);
+                    stage = "PAIR_LOCAL_SECRET_SAVE";
                     SecurePairingStore.save(this, secret);
                     if (!pin.isEmpty()) SecurePinStore.save(this, pin);
+                    stage = "PAIR_SIM_BINDING";
                     SimIdentityManager.Verification simVerification =
                             SimIdentityManager.bindSelectedSim(this, AppConfig.profileId(this));
                     runOnUiThread(() -> {
+                        updatePairingDiagnostic(diagnostic, "PAIRING_COMPLETE",
+                                "Serveur accepté, profil enregistré et écran de contrôle prêt.");
                         Toast.makeText(this, "REMOTE".equals(selectedMode)
                                 ? "Téléphone appairé en mode Remote."
                                 : simVerification.valid
@@ -176,9 +281,17 @@ public class MainActivity extends Activity {
                         recreate();
                     });
                 } catch (Exception error) {
+                    String failedStage = stage;
                     runOnUiThread(() -> {
                         pair.setEnabled(true);
-                        feedback.setText("Échec : " + readable(error));
+                        pair.setText("RÉESSAYER L’APPAIRAGE");
+                        String code = diagnosticCode(error, failedStage);
+                        String message = "Échec de l’appairage : " + readable(error);
+                        feedback.setTextColor(Color.rgb(255, 139, 152));
+                        feedback.setText(message);
+                        updatePairingDiagnostic(diagnostic, code, message);
+                        showDiagnosticDialog(code, message);
+                        scroll.post(() -> scroll.smoothScrollTo(0, feedback.getTop()));
                     });
                 }
             }).start();
@@ -191,6 +304,62 @@ public class MainActivity extends Activity {
         }
 
         setContentView(scroll);
+    }
+
+    private void showPairingIssue(ScrollView scroll, View target, TextView feedback,
+                                  TextView diagnostic, String code, String message) {
+        feedback.setTextColor(Color.rgb(255, 139, 152));
+        feedback.setText("À corriger : " + message);
+        if (target instanceof EditText) ((EditText) target).setError(message);
+        target.requestFocus();
+        updatePairingDiagnostic(diagnostic, code, message);
+        showDiagnosticDialog(code, message);
+        scroll.post(() -> scroll.smoothScrollTo(0, Math.max(0, target.getTop() - dp(18))));
+    }
+
+    private void updatePairingDiagnostic(TextView diagnostic, String code, String message) {
+        String timestamp = new SimpleDateFormat("HH:mm:ss", Locale.ROOT).format(new Date());
+        String report = "DIAGNOSTIC " + timestamp + " • " + code + "\n" + message;
+        AppConfig.prefs(this).edit().putString(PAIRING_DIAGNOSTIC_KEY, report).commit();
+        diagnostic.setText(report);
+    }
+
+    private void showDiagnosticDialog(String code, String message) {
+        new AlertDialog.Builder(this)
+                .setTitle("Diagnostic d’appairage — " + code)
+                .setMessage(message + "\n\nNotez ou photographiez ce code. Aucun secret n’est affiché.")
+                .setPositiveButton("COMPRIS", null)
+                .show();
+    }
+
+    private static String diagnosticCode(Exception error, String stage) {
+        if (error instanceof ApiClient.ApiException) {
+            String code = ((ApiClient.ApiException) error).code;
+            return code == null || code.trim().isEmpty() ? "API_ERROR" : code;
+        }
+        if (error instanceof UnknownHostException) return "NETWORK_DNS";
+        if (error instanceof SocketTimeoutException) return "NETWORK_TIMEOUT";
+        if (error instanceof SSLException) return "NETWORK_TLS";
+        if (error instanceof ConnectException) return "NETWORK_CONNECT";
+        return stage == null || stage.trim().isEmpty() ? "PAIR_UNKNOWN" : stage;
+    }
+
+    private static String normalizeCameroonPhone(String value) {
+        String digits = value == null ? "" : value.replaceAll("\\D", "");
+        if (digits.length() == 12 && digits.startsWith("237")) return digits.substring(3);
+        return digits;
+    }
+
+    @SuppressWarnings("deprecation")
+    private String installedVersionLabel() {
+        try {
+            PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), 0);
+            long versionCode = Build.VERSION.SDK_INT >= 28
+                    ? info.getLongVersionCode() : info.versionCode;
+            return info.versionName + " • versionCode " + versionCode;
+        } catch (Exception error) {
+            return "version inconnue • " + error.getClass().getSimpleName();
+        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -848,6 +1017,7 @@ public class MainActivity extends Activity {
                 value.put("node_code", AppConfig.nodeCode(MainActivity.this));
                 value.put("profile_id", AppConfig.profileId(MainActivity.this));
                 value.put("role", AppConfig.role(MainActivity.this));
+                value.put("parent_node_code", AppConfig.parentNode(MainActivity.this));
                 value.put("mode", AppConfig.displayMode(AppConfig.mode(MainActivity.this)));
                 value.put("sim_slot", AppConfig.simSlot(MainActivity.this));
                 value.put("robot_enabled", AppConfig.robotEnabled(MainActivity.this));
