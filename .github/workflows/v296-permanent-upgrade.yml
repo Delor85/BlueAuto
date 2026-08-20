@@ -1,6 +1,7 @@
 name: BIR v2.9.6 Permanent Upgrade
 
 on:
+  workflow_call:
   push:
     branches: [fix/bir-v2-9-5-identity-balance-sync]
     paths: [.github/authorized-v296-permanent.trigger]
