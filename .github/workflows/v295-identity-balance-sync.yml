@@ -92,6 +92,3 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  permanent-upgrade:
-    uses: ./.github/workflows/v296-permanent-upgrade.yml
-    secrets: inherit
