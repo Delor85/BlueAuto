@@ -108,20 +108,43 @@ public class MainActivity extends Activity {
         return "en".equalsIgnoreCase(AppConfig.prefs(this).getString(UI_LANGUAGE_KEY, "fr")) ? en : fr;
     }
 
-    private String inferParentFromNode(String node, String role) {
-        if (node == null || "DAE".equalsIgnoreCase(role)) return "";
-        String value = node.trim().toUpperCase(Locale.ROOT);
-        int separator = value.indexOf('_');
-        return separator >= 0 && separator + 1 < value.length() ? value.substring(separator + 1) : "";
+    private String activationLockMessage(long remainingMs) {
+        long minutes = Math.max(1L, (remainingMs + 59_999L) / 60_000L);
+        return ui("Cinq codes incorrects. Nouvel essai possible dans " + minutes
+                        + " min, sans effacer les données de l’app.",
+                "Five incorrect codes. Try again in " + minutes
+                        + " min without clearing app data.");
     }
 
     private void showPairingAdminActivation(TextView status, Button button) {
+        long locked = PairingAttemptGuard.lockedForMs(this);
+        if (locked > 0L) {
+            status.setText(activationLockMessage(locked));
+            status.setTextColor(GOLD);
+            return;
+        }
         EditText secret = field(ui("Code d’activation administrateur", "Administrator activation code"), "", true);
+        secret.setSingleLine(false);
+        secret.setMinLines(2);
+        secret.setMaxLines(4);
+        secret.setHorizontallyScrolling(false);
+        CheckBox reveal = new CheckBox(this);
+        reveal.setText(ui("Afficher le code pendant la saisie", "Show code while typing"));
+        reveal.setTextColor(Color.WHITE);
+        reveal.setOnCheckedChangeListener((control, checked) -> {
+            secret.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | (checked
+                    ? InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+                    : InputType.TYPE_TEXT_VARIATION_PASSWORD));
+            secret.setSelection(secret.length());
+        });
         LinearLayout content = verticalContainer();
         content.setPadding(dp(18), dp(8), dp(18), dp(4));
-        content.addView(help(ui("Cette étape n’apparaît que sur un téléphone non encore activé. Le code reste chiffré localement.",
-                "This step appears only on a phone that has not been activated yet. The code stays encrypted locally.")));
+        content.addView(help(ui("Le code reste chiffré localement. Vous disposez de 5 essais; "
+                        + "une erreur ne nécessite plus d’effacer les données de l’app.",
+                "The code stays encrypted locally. You have 5 attempts; an error no longer "
+                        + "requires clearing app data.")));
         content.addView(secret);
+        content.addView(reveal);
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle(ui("Activation administrateur", "Administrator activation"))
                 .setView(content)
@@ -346,19 +369,33 @@ public class MainActivity extends Activity {
         Spinner role = spinner(new String[]{"DAE", "DSM", "POS"});
         Spinner mode = spinner(new String[]{"REMOTE", "ROBOT"});
         Spinner simSlot = spinner(SimCallManager.slotLabels(this));
-        EditText operatorPin = field(ui("PIN Blue 4 chiffres — uniquement Robot", "4-digit Blue PIN — Robot only"), "", true);
+        EditText operatorPin = field(ui("PIN Blue obligatoire — 4 chiffres", "Required 4-digit Blue PIN"), "", true);
         operatorPin.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+        CheckBox revealPin = new CheckBox(this);
+        revealPin.setText(ui("Afficher le PIN pendant la saisie", "Show PIN while typing"));
+        revealPin.setTextColor(Color.WHITE);
+        revealPin.setOnCheckedChangeListener((control, checked) -> {
+            operatorPin.setInputType(InputType.TYPE_CLASS_NUMBER | (checked
+                    ? InputType.TYPE_NUMBER_VARIATION_NORMAL
+                    : InputType.TYPE_NUMBER_VARIATION_PASSWORD));
+            operatorPin.setSelection(operatorPin.length());
+        });
+        TextView identityPreview = help(ui("Nom officiel : complétez l’identité et la filiation.",
+                "Official name: complete the identity and lineage."));
+        identityPreview.setTextColor(GOLD);
 
         realFields.addView(phone);
         realFields.addView(parent);
+        realFields.addView(identityPreview);
         realFields.addView(label(ui("Rôle du compte", "Account role")));
         realFields.addView(role);
         realFields.addView(label(ui("Mode de ce téléphone", "This phone mode")));
         realFields.addView(mode);
+        realFields.addView(operatorPin);
+        realFields.addView(revealPin);
         LinearLayout robotFields = verticalContainer();
         robotFields.addView(label(ui("SIM utilisée par ce Robot", "SIM used by this Robot")));
         robotFields.addView(simSlot);
-        robotFields.addView(operatorPin);
         realFields.addView(robotFields);
         form.addView(realFields);
 
@@ -375,6 +412,20 @@ public class MainActivity extends Activity {
 
         Button pair = actionButton(ui("CONTINUER", "CONTINUE"), GOLD);
         form.addView(pair);
+
+        Runnable refreshIdentity = () -> {
+            String requested = CamtelIdentity.normalize(nodeCode.getText().toString());
+            if ("MOCK".equals(requested) || "ADMIN".equals(requested)
+                    || "SUPERADMIN".equals(requested)) return;
+            CamtelIdentity identity = CamtelIdentity.resolve(requested,
+                    role.getSelectedItem().toString(), parent.getText().toString());
+            identityPreview.setText(identity.valid
+                    ? ui("Nom officiel vérifié : ", "Verified official name: ") + identity.officialNode
+                    + (identity.officialParent.isEmpty() ? ""
+                    : ui("\nSupérieur officiel : ", "\nOfficial superior: ") + identity.officialParent)
+                    : ui("Filiation à compléter : ", "Lineage to complete: ") + identity.error);
+            identityPreview.setTextColor(identity.valid ? CYAN : GOLD);
+        };
 
         nodeCode.addTextChangedListener(new android.text.TextWatcher() {
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
@@ -394,7 +445,21 @@ public class MainActivity extends Activity {
                                 "Private owner control tower. ADMIN is not a Blue role and requires a cryptographic server entitlement.")
                         : ui("Les réglages techniques du serveur sont gérés automatiquement par B.I.R.",
                                 "B.I.R. manages server technical settings automatically."));
+                refreshIdentity.run();
             }
+        });
+
+        parent.addTextChangedListener(new android.text.TextWatcher() {
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            public void afterTextChanged(android.text.Editable value) { refreshIdentity.run(); }
+        });
+
+        role.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            public void onItemSelected(android.widget.AdapterView<?> parentView, View view, int position, long id) {
+                refreshIdentity.run();
+            }
+            public void onNothingSelected(android.widget.AdapterView<?> parentView) {}
         });
 
         mode.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
@@ -404,9 +469,10 @@ public class MainActivity extends Activity {
             public void onNothingSelected(android.widget.AdapterView<?> parentView) {}
         });
         robotFields.setVisibility(View.GONE);
+        refreshIdentity.run();
 
         pair.setOnClickListener(v -> {
-            String node = nodeCode.getText().toString().trim().toUpperCase(Locale.ROOT);
+            String node = CamtelIdentity.normalize(nodeCode.getText().toString());
             if ("MOCK".equals(node)) {
                 openMockFromPairing(mockCode.getText().toString().trim(), feedback);
                 return;
@@ -419,11 +485,6 @@ public class MainActivity extends Activity {
                 openSuperAdminFromPairing(adminCode.getText().toString().trim(), feedback);
                 return;
             }
-            if (!node.matches("[A-Z0-9/_-]{3,64}")) {
-                nodeCode.setError(ui("Identifiant Blue invalide.", "Invalid Blue ID."));
-                nodeCode.requestFocus();
-                return;
-            }
             String sim = normalizeCameroonPhone(phone.getText().toString());
             if (!sim.matches("6\\d{8}")) {
                 phone.setError(ui("Numéro Blue camerounais invalide.", "Invalid Cameroon Blue number."));
@@ -432,18 +493,19 @@ public class MainActivity extends Activity {
             }
             String selectedRole = role.getSelectedItem().toString();
             String selectedMode = mode.getSelectedItem().toString();
-            String parentNode = "DAE".equals(selectedRole) ? "" : parent.getText().toString().trim().toUpperCase(Locale.ROOT);
-            if (parentNode.isEmpty()) parentNode = inferParentFromNode(node, selectedRole);
-            if (!"DAE".equals(selectedRole) && !parentNode.matches("[A-Z0-9/_-]{3,64}")) {
-                parent.setError(ui("Indiquez le supérieur direct ou utilisez l’identifiant Blue complet.",
-                        "Enter the direct superior or use the full Blue ID."));
-                parent.requestFocus();
+            CamtelIdentity identity = CamtelIdentity.resolve(node, selectedRole,
+                    parent.getText().toString());
+            if (!identity.valid) {
+                nodeCode.setError(identity.error);
+                identityPreview.setText(ui("Filiation refusée : ", "Lineage rejected: ") + identity.error);
+                identityPreview.setTextColor(Color.rgb(255, 139, 152));
+                nodeCode.requestFocus();
                 return;
             }
             String pin = operatorPin.getText().toString().trim();
-            if ("ROBOT".equals(selectedMode) && !pin.matches("\\d{4}")) {
-                operatorPin.setError(ui("Le Robot exige le PIN Blue exact à 4 chiffres.",
-                        "Robot mode requires the exact 4-digit Blue PIN."));
+            if (!pin.matches("\\d{4}")) {
+                operatorPin.setError(ui("Le PIN Blue exact à 4 chiffres est obligatoire en Remote et en Robot.",
+                        "The exact 4-digit Blue PIN is required in both Remote and Robot modes."));
                 operatorPin.requestFocus();
                 return;
             }
@@ -462,33 +524,35 @@ public class MainActivity extends Activity {
             pair.setText(ui("CONNEXION…", "CONNECTING…"));
             feedback.setTextColor(CYAN);
             feedback.setText(ui("Appairage sécurisé Blue en cours…", "Secure Blue pairing in progress…"));
-            final String resolvedParent = parentNode;
+            final CamtelIdentity resolvedIdentity = identity;
+            final String resolvedParent = identity.officialParent;
             final String pairingSecret = secret;
             new Thread(() -> {
                 try {
                     JSONObject payload = new JSONObject();
-                    payload.put("node_code", node);
+                    payload.put("node_code", resolvedIdentity.officialNode);
                     payload.put("phone_number", sim);
                     payload.put("parent_node_code", resolvedParent);
                     payload.put("role", selectedRole);
                     payload.put("mode", selectedMode);
                     payload.put("pairing_secret", pairingSecret);
                     payload.put("device_name", Build.MANUFACTURER + " " + Build.MODEL);
-                    JSONObject data = new ApiClient(this, apiUrl, "").pair(payload);
+                    JSONObject data = pairWithLegacyRecovery(
+                            new ApiClient(this, apiUrl, ""), payload, resolvedIdentity);
                     String token = data.optString("device_token", "");
                     String deviceId = data.optString("device_id", "");
-                    String canonicalNode = data.optString("node_code", node);
+                    String canonicalNode = data.optString("node_code", resolvedIdentity.localNode);
                     String canonicalParent = data.optString("parent_node_code", resolvedParent);
                     if (token.isEmpty()) throw new IllegalStateException(ui("Jeton appareil absent.", "Device token missing."));
                     AppConfig.savePairing(this, deviceId, token, canonicalNode, sim, canonicalParent,
                             selectedRole, selectedMode, apiUrl, selectedSlot);
                     AppConfig.updateOfficialIdentity(this, AppConfig.profileId(this),
-                            data.optString("official_node_code", canonicalNode),
-                            data.optString("official_parent_node_code", canonicalParent));
+                            resolvedIdentity.officialNode, resolvedIdentity.officialParent);
                     SecurePairingStore.save(this, pairingSecret);
+                    PairingAttemptGuard.reset(this);
+                    SecurePinStore.save(this, pin);
                     String resultMessage;
                     if ("ROBOT".equals(selectedMode)) {
-                        SecurePinStore.save(this, pin);
                         SimIdentityManager.Verification verification = SimIdentityManager.bindSelectedSim(this, AppConfig.profileId(this));
                         resultMessage = verification.valid
                                 ? ui("Compte Robot ajouté et SIM liée.", "Robot account added and SIM linked.")
@@ -506,7 +570,20 @@ public class MainActivity extends Activity {
                         pair.setEnabled(true);
                         pair.setText(ui("RÉESSAYER", "TRY AGAIN"));
                         feedback.setTextColor(Color.rgb(255, 139, 152));
-                        feedback.setText(ui("Échec de l’appairage : ", "Pairing failed: ") + readable(error));
+                        if (error instanceof ApiClient.ApiException
+                                && "PAIRING_DENIED".equals(((ApiClient.ApiException) error).code)) {
+                            SecurePairingStore.clear(this);
+                            int remaining = PairingAttemptGuard.recordDenied(this);
+                            adminActivation.setVisibility(View.VISIBLE);
+                            feedback.setText(remaining > 0
+                                    ? ui("Code incorrect. Il reste " + remaining
+                                                    + " essai(s). Touchez Activation administrateur pour corriger le code.",
+                                            "Incorrect code. " + remaining
+                                                    + " attempt(s) remain. Tap Administrator activation to correct it.")
+                                    : activationLockMessage(PairingAttemptGuard.lockedForMs(this)));
+                        } else {
+                            feedback.setText(ui("Échec de l’appairage : ", "Pairing failed: ") + readable(error));
+                        }
                     });
                 }
             }, "BIR-Pairing-v271").start();
@@ -518,6 +595,39 @@ public class MainActivity extends Activity {
             form.addView(cancel);
         }
         setContentView(scroll);
+    }
+
+    /**
+     * Production 2.9.2 stores some verified nodes as DSM1/POS1 relational keys. The app always
+     * validates and displays the full official identity first, then retries once with those exact
+     * legacy keys only when the old Worker proves that it cannot resolve the official alias.
+     */
+    private JSONObject pairWithLegacyRecovery(ApiClient api, JSONObject officialPayload,
+                                              CamtelIdentity identity) throws Exception {
+        try {
+            return api.pair(officialPayload);
+        } catch (ApiClient.ApiException error) {
+            boolean oldWorkerAliasGap = "PHONE_ALREADY_USED".equals(error.code)
+                    || "PARENT_NOT_FOUND".equals(error.code);
+            boolean hasLegacyAlias = !identity.localNode.isEmpty()
+                    && (!identity.legacyNode.equals(identity.officialNode)
+                    || !identity.legacyParent.equals(identity.officialParent));
+            if (!oldWorkerAliasGap || !hasLegacyAlias) throw error;
+            ApiClient.ApiException last = error;
+            String[] candidates = {identity.legacyNode, identity.localNode};
+            for (String candidate : candidates) {
+                if (candidate.isEmpty() || candidate.equals(identity.officialNode)) continue;
+                JSONObject legacyPayload = new JSONObject(officialPayload.toString());
+                legacyPayload.put("node_code", candidate);
+                legacyPayload.put("parent_node_code", identity.legacyParent);
+                try {
+                    return api.pair(legacyPayload);
+                } catch (ApiClient.ApiException retryError) {
+                    last = retryError;
+                }
+            }
+            throw last;
+        }
     }
 
     private boolean hasPairingSecret() {
@@ -982,7 +1092,7 @@ public class MainActivity extends Activity {
         tools.setPadding(dp(10), dp(6), dp(10), dp(12));
         scroll.addView(tools);
 
-        TextView intro = help(AppConfig.nodeCode(this) + " • "
+        TextView intro = help(AppConfig.officialNodeCode(this) + " • "
                 + AppConfig.displayMode(AppConfig.mode(this))
                 + " • SIM " + (AppConfig.simSlot(this) + 1)
                 + "\nActions regroupées pour rester lisibles même sur les petits téléphones.");
@@ -1001,17 +1111,18 @@ public class MainActivity extends Activity {
                 ? "↔ PASSER EN REMOTE" : "↔ PASSER EN ROBOT", GOLD);
         addManagementFull(tools, switchMode);
 
-        Button pinSettings = null;
+        tools.addView(managementSectionTitle("PIN BLUE LOCAL"));
+        Button pinSettings = managementActionButton("🔐 ENREGISTRER / CORRIGER LE PIN", GOLD);
+        addManagementFull(tools, pinSettings);
         Button networkPinChange = null;
         Button networkPinReset = null;
         Button prepare = null;
         Button battery = null;
         Button toggle = null;
         if (robotMode) {
-            tools.addView(managementSectionTitle("PIN CAMTEL"));
-            pinSettings = managementActionButton("🔐 PIN LOCAL", GOLD);
+            tools.addView(managementSectionTitle("OPÉRATIONS PIN CAMTEL"));
             networkPinChange = managementActionButton("🔁 MODIFIER LE PIN CAMTEL", CYAN);
-            addManagementPair(tools, pinSettings, networkPinChange);
+            addManagementFull(tools, networkPinChange);
             networkPinReset = managementActionButton("🆘 DEMANDER RESET PIN", VIOLET);
             addManagementFull(tools, networkPinReset);
 
@@ -1055,14 +1166,13 @@ public class MainActivity extends Activity {
         repairPairing.setOnClickListener(v -> { setManagementOpen(false); showPairingRepairDialog(); });
         switchMode.setOnClickListener(v -> { setManagementOpen(false); showModeSwitcher(); });
         pendingOperations.setOnClickListener(v -> { setManagementOpen(false); showPendingOperations(); });
+        pinSettings.setOnClickListener(v -> { setManagementOpen(false); showPinEditorDialog(); });
         if (robotMode) {
-            final Button pinButton = pinSettings;
             final Button changeButton = networkPinChange;
             final Button resetButton = networkPinReset;
             final Button permissionButton = prepare;
             final Button batteryButton = battery;
             final Button toggleButton = toggle;
-            pinButton.setOnClickListener(v -> { setManagementOpen(false); showPinEditorDialog(); });
             changeButton.setOnClickListener(v -> { setManagementOpen(false); showOperatorPinChangeDialog(); });
             resetButton.setOnClickListener(v -> { setManagementOpen(false); confirmResetOperatorPin(); });
             permissionButton.setOnClickListener(v -> { setManagementOpen(false); prepareRobotPermissions(); });
@@ -1145,10 +1255,6 @@ public class MainActivity extends Activity {
     }
 
     private void showPinEditorDialog() {
-        if (!AppConfig.isRobotMode(this)) {
-            toast("Entrez d’abord dans le hall Robot pour enregistrer son PIN local.");
-            return;
-        }
         if (!canModifyActiveProfile()) return;
 
         LinearLayout content = new LinearLayout(this);
@@ -1168,7 +1274,7 @@ public class MainActivity extends Activity {
 
         CheckBox reveal = new CheckBox(this);
         reveal.setText("Afficher le PIN pendant la saisie");
-        reveal.setTextColor(Color.DKGRAY);
+        reveal.setTextColor(Color.WHITE);
         reveal.setOnCheckedChangeListener((button, checked) -> {
             pin.setInputType(InputType.TYPE_CLASS_NUMBER | (checked
                     ? InputType.TYPE_NUMBER_VARIATION_NORMAL
@@ -1178,7 +1284,7 @@ public class MainActivity extends Activity {
         content.addView(reveal);
 
         AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle("PIN Blue — " + AppConfig.nodeCode(this))
+                .setTitle("PIN Blue — " + AppConfig.officialNodeCode(this))
                 .setView(content)
                 .setPositiveButton("ENREGISTRER", null)
                 .setNegativeButton("Annuler", null)
@@ -1597,11 +1703,55 @@ public class MainActivity extends Activity {
         }
         new AlertDialog.Builder(this)
                 .setTitle("Entrer dans le hall Robot ?")
-                .setMessage("Le compte passera dans l’espace Robot sans démarrer et sans exiger immédiatement les autorisations. Dans ☰ GÉRER, accordez ensuite les autorisations, choisissez le slot, liez la SIM physique, enregistrez le PIN puis touchez DÉMARRER ROBOT. Vous pourrez revenir en Remote à tout moment.")
+                .setMessage("Le compte passera dans l’espace Robot sans démarrer. Son PIN Blue doit déjà être conservé localement; B.I.R. le demandera maintenant s’il manque. Dans ☰ GÉRER, accordez ensuite les autorisations, choisissez le slot, liez la SIM physique puis touchez DÉMARRER ROBOT.")
                 .setPositiveButton("ENTRER DANS LE HALL ROBOT", (dialog, which) ->
-                        changeActiveMode("ROBOT"))
+                        requirePinThenEnterRobot())
                 .setNegativeButton("Annuler", null)
                 .show();
+    }
+
+    private void requirePinThenEnterRobot() {
+        String profileId = AppConfig.profileId(this);
+        if (SecurePinStore.hasPin(this, profileId)) {
+            changeActiveMode("ROBOT");
+            return;
+        }
+        LinearLayout content = verticalContainer();
+        content.setPadding(dp(18), dp(8), dp(18), dp(4));
+        content.addView(help("Ce compte Remote ancien ne possède pas encore de PIN local. "
+                + "Enregistrez-le avant d’activer les capacités Robot."));
+        EditText pin = field("PIN Blue obligatoire — 4 chiffres", "", true);
+        pin.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+        CheckBox reveal = new CheckBox(this);
+        reveal.setText("Afficher le PIN pendant la saisie");
+        reveal.setTextColor(Color.DKGRAY);
+        reveal.setOnCheckedChangeListener((control, checked) -> {
+            pin.setInputType(InputType.TYPE_CLASS_NUMBER | (checked
+                    ? InputType.TYPE_NUMBER_VARIATION_NORMAL
+                    : InputType.TYPE_NUMBER_VARIATION_PASSWORD));
+            pin.setSelection(pin.length());
+        });
+        content.addView(pin);
+        content.addView(reveal);
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("PIN Blue — " + AppConfig.officialNodeCode(this))
+                .setView(content)
+                .setPositiveButton("ENREGISTRER ET CONTINUER", null)
+                .setNegativeButton("Annuler", null)
+                .create();
+        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                .setOnClickListener(v -> {
+                    try {
+                        SecurePinStore.save(this, profileId, pin.getText().toString().trim());
+                        pin.setText("");
+                        dialog.dismiss();
+                        changeActiveMode("ROBOT");
+                    } catch (Exception error) {
+                        pin.setError(readable(error));
+                        pin.requestFocus();
+                    }
+                }));
+        dialog.show();
     }
 
     private void showPairingRepairDialog() {
@@ -2009,7 +2159,7 @@ public class MainActivity extends Activity {
         if (!robotMode) {
             // A Remote is a control terminal. SIM verification and Accessibility are Robot-only
             // requirements and showing them here was both confusing and wasteful on short screens.
-            nativeStatus.setText(AppConfig.nodeCode(this)
+            nativeStatus.setText(AppConfig.officialNodeCode(this)
                     + " • REMOTE • Télécommande prête"
                     + (AppConfig.profileCount(this) > 1
                     ? " • " + AppConfig.profileCount(this) + " comptes sur ce téléphone" : ""));
@@ -2029,7 +2179,7 @@ public class MainActivity extends Activity {
         }
 
         StringBuilder status = new StringBuilder();
-        status.append(AppConfig.nodeCode(this))
+        status.append(AppConfig.officialNodeCode(this))
                 .append(" • ROBOT • SIM ").append(AppConfig.simSlot(this) + 1)
                 .append(sim.valid ? " VÉRIFIÉE" : " BLOQUÉE")
                 .append(" • ").append(robotEnabled ? "ACTIF" : "ARRÊTÉ");

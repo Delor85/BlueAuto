@@ -19,9 +19,9 @@ const app = read('app/src/main/assets/app.js');
 const pilotage = read('app/src/main/assets/pilotage-v292.js');
 const manifest = read('app/src/main/AndroidManifest.xml');
 
-need(gradle.includes('versionCode 60') && gradle.includes('versionName "2.9.5"'),
+need((gradle.includes('versionCode 60')||gradle.includes('versionCode 61')) && (gradle.includes('versionName "2.9.5"')||gradle.includes('versionName "2.9.6"')),
   'v2.9.5 Android identity missing');
-need(worker.includes("const API_VERSION = '2.9.5-cloudflare'"), 'v2.9.5 Worker identity missing');
+need((worker.includes("const API_VERSION = '2.9.5-cloudflare'")||worker.includes("const API_VERSION = '2.9.6-cloudflare'")), 'v2.9.5 Worker identity missing');
 
 need(migration.includes("official_node_code='POS1_DSM1_SU1'")
   && migration.includes("phone_number='621081275'"), 'confirmed POS1 field correction missing');

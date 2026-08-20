@@ -11,7 +11,7 @@ const manifest=fs.readFileSync('app/src/main/AndroidManifest.xml','utf8');
 function need(ok,msg){if(!ok)throw new Error(msg);}
 
 need(index.includes('war-room-v294.js'),'War Room not loaded');
-need((gradle.includes('versionCode 59')&&gradle.includes('versionName "2.9.4"'))||(gradle.includes('versionCode 60')&&gradle.includes('versionName "2.9.5"')),'v2.9.4+ metadata missing');
+need((gradle.includes('versionCode 59')&&gradle.includes('versionName "2.9.4"'))||((gradle.includes('versionCode 60')||gradle.includes('versionCode 61'))&&(gradle.includes('versionName "2.9.5"')||gradle.includes('versionName "2.9.6"'))),'v2.9.4+ metadata missing');
 need(app.includes("var saved='reports'; // v2.9.4: ouverture = War Room"),'fresh app opening must start on War Room');
 need(war.includes('Situation maintenant'),'War Room summary missing');
 need(war.includes('Mes 3 soldes')&&war.includes("role==='POS'?'<span>Mon unique solde"),'role-aware balance summary missing');
@@ -35,9 +35,9 @@ need(ct.includes('Mon taux habituel (%)'),'free commission wording missing');
 need(ct.includes('Vos règles, taux par enfant'),'commission freedom copy missing');
 need(!ct.includes("r==='DAE'?'10':'8'"),'role-prescribed commission example still present');
 need(app.includes('Stock hors commission')&&app.includes('commission incluse'),'neutral commission language missing from network cards');
-need(api.includes('payload.put("app_version", "2.9.4");')||api.includes('payload.put("app_version", "2.9.5");'),'v2.9.4+ telemetry missing');
+need(api.includes('payload.put("app_version", "2.9.4");')||api.includes('payload.put("app_version", "2.9.5");')||api.includes('payload.put("app_version", "2.9.6");'),'v2.9.4+ telemetry missing');
 need(!api.includes('payload.put("app_version", "2.9.3");'),'stale v2.9.3 telemetry remains');
-need(worker.includes("const API_VERSION = '2.9.3-cloudflare'")||worker.includes("const API_VERSION = '2.9.5-cloudflare'"),'supported Worker release required');
+need(worker.includes("const API_VERSION = '2.9.3-cloudflare'")||(worker.includes("const API_VERSION = '2.9.5-cloudflare'")||worker.includes("const API_VERSION = '2.9.6-cloudflare'")),'supported Worker release required');
 need(worker.includes("effective_modes: ['REMOTE','ROBOT']"),'two-mode invariant lost');
 need(!manifest.includes('android.permission.SEND_SMS'),'SMS invariant lost');
 console.log('BIR v2.9.4 War Room/local assistant contract OK');

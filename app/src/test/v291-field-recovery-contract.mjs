@@ -11,8 +11,8 @@ const field=read('app/src/main/assets/field-recovery-v291.js');
 const index=read('app/src/main/assets/index.html');
 const manifest=read('app/src/main/AndroidManifest.xml');
 
-must((gradle.includes('versionCode 56')||gradle.includes('versionCode 58')||gradle.includes('versionCode 60'))&&(gradle.includes('versionName "2.9.1"')||gradle.includes('versionName "2.9.3"')||gradle.includes('versionName "2.9.5"')),'v2.9.1+ identity missing');
-must(api.includes('payload.put("app_version", "2.9.1");')||api.includes('payload.put("app_version", "2.9.3");')||api.includes('payload.put("app_version", "2.9.5");'),'v2.9.1+ heartbeat telemetry missing');
+must((gradle.includes('versionCode 56')||gradle.includes('versionCode 58')||(gradle.includes('versionCode 60')||gradle.includes('versionCode 61')))&&(gradle.includes('versionName "2.9.1"')||gradle.includes('versionName "2.9.3"')||(gradle.includes('versionName "2.9.5"')||gradle.includes('versionName "2.9.6"'))),'v2.9.1+ identity missing');
+must(api.includes('payload.put("app_version", "2.9.1");')||api.includes('payload.put("app_version", "2.9.3");')||api.includes('payload.put("app_version", "2.9.5");')||api.includes('payload.put("app_version", "2.9.6");'),'v2.9.1+ heartbeat telemetry missing');
 must(main.includes('final boolean commissionPrompt')&&main.includes('final boolean supportPrompt'),'JS prompt routing not contextual');
 must(main.includes('TYPE_TEXT_FLAG_MULTI_LINE')&&main.includes('"Secours / SAV"')&&main.includes('"ENVOYER"'),'Secours must be text, not commission numeric UI');
 must(main.includes('"Taux de commission"')&&main.includes('TYPE_NUMBER_FLAG_DECIMAL'),'commission prompt compatibility lost');

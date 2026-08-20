@@ -63,6 +63,49 @@ try {
   });
   assert.equal(dsmTwo.data.node_code, 'DSM2_CE04');
 
+  // Field recovery: historical relational keys remain DSM1/POS1 while pairing and every public
+  // response use the full SU1 lineage confirmed by the SIM owner.
+  const southDae = await pair({
+    node_code: 'SU1', role: 'DAE', mode: 'REMOTE',
+    phone_number: '620550255', device_name: 'DAE Sud terrain'
+  });
+  assert.equal(southDae.data.official_node_code, 'SU1');
+  await db.prepare(
+    "INSERT INTO nodes(node_code,role,phone_number,parent_node_code,official_node_code,identity_state) "
+    + "VALUES('DSM1','DSM','620451087','SU1','','DERIVED')"
+  ).run();
+  await db.prepare(
+    "INSERT INTO devices(device_id,node_code,mode,device_name,token_hash) "
+    + "VALUES('11111111-1111-4111-8111-111111111111','DSM1','REMOTE','Legacy DSM','d1legacy')"
+  ).run();
+  const recoveredDsm = await pair({
+    node_code: 'DSM1_SU1', parent_node_code: 'SU1', role: 'DSM', mode: 'REMOTE',
+    phone_number: '620451087', device_name: 'DSM terrain récupéré'
+  });
+  assert.equal(recoveredDsm.data.node_code, 'DSM1');
+  assert.equal(recoveredDsm.data.official_node_code, 'DSM1_SU1');
+  await db.prepare(
+    "INSERT INTO nodes(node_code,role,phone_number,parent_node_code,official_node_code,identity_state) "
+    + "VALUES('POS1_DSM1','POS','621081275','DSM1','','DERIVED')"
+  ).run();
+  await db.prepare(
+    "INSERT INTO devices(device_id,node_code,mode,device_name,token_hash) "
+    + "VALUES('22222222-2222-4222-8222-222222222222','POS1_DSM1','REMOTE','Legacy POS','p1legacy')"
+  ).run();
+  const recoveredPos = await pair({
+    node_code: 'POS1_DSM1_SU1', parent_node_code: 'DSM1', role: 'POS', mode: 'REMOTE',
+    phone_number: '621081275', device_name: 'PoS terrain récupéré'
+  });
+  assert.equal(recoveredPos.data.node_code, 'POS1_DSM1');
+  assert.equal(recoveredPos.data.official_node_code, 'POS1_DSM1_SU1');
+
+  const ambiguousPosParent = await rawRequest('pair_device', {
+    node_code: 'POS38', parent_node_code: 'DSM12', role: 'POS', mode: 'REMOTE',
+    phone_number: '699000008', device_name: 'PoS incomplet', pairing_secret: PAIRING_SECRET
+  }, '');
+  assert.equal(ambiguousPosParent.status, 422);
+  assert.equal(ambiguousPosParent.body.error.code, 'INVALID_DSM_PARENT');
+
   await request('shadow_enroll', {node_code: 'POS37', phone_number: '699000003'}, dsm.data.device_token);
   const pos = await pair({
     node_code: 'POS37', parent_node_code: 'DSM12_CE04', role: 'POS', mode: 'ROBOT',

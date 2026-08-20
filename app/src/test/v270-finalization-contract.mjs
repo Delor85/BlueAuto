@@ -8,8 +8,8 @@ const overlay = await readFile(new URL('main/assets/control-tower-v270.js', base
 const css = await readFile(new URL('main/assets/control-tower-v270.css', base), 'utf8');
 const worker = await readFile(new URL('../../cloudflare/src/index.js', import.meta.url), 'utf8').catch(()=>'');
 assert.match(gradle,/applicationId "com\.profitloop\.blueauto"/);
-assert.match(gradle,/versionCode (?:51|52|53|54|55|58|60)/);
-assert.match(gradle,/versionName "(?:2\.7\.(?:0|1)|2\.8\.(?:0|1)|2\.9\.0|2\.9\.3|2\.9\.5)"/);
+assert.match(gradle,/versionCode (?:51|52|53|54|55|58|60|61)/);
+assert.match(gradle,/versionName "(?:2\.7\.(?:0|1)|2\.8\.(?:0|1)|2\.9\.0|2\.9\.3|2.9.5|2.9.6)"/);
 assert.match(html,/control-tower-v2611\.css/);
 assert.match(html,/control-tower-v270\.css/);
 assert.match(html,/control-tower-v2611\.js/);

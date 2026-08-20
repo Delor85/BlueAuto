@@ -1,7 +1,7 @@
 import {parseBlueMessage} from './blue-message.mjs';
 import {CAMTEL_USSD, canonicalCamtelIdentity, parseCamtelIdentity, publicCamtelCatalog} from './camtel-catalog.mjs';
 
-const API_VERSION = '2.9.5-cloudflare';
+const API_VERSION = '2.9.6-cloudflare';
 const ROBOT_LIVE_WINDOW_MINUTES = 15;
 const BALANCE_EVIDENCE_TTL_SECONDS = 3600;
 const REPORT_BALANCE_EVIDENCE_TTL_SECONDS = 14 * 3600;
@@ -133,6 +133,39 @@ async function pairDevice(env, input, headers) {
     throw new ApiError('INVALID_MODE', 'Le mode doit être REMOTE ou ROBOT.', 422);
   }
 
+  // Resolve the public identity before touching D1. A short PoS code is accepted only with a
+  // complete DSM_DAE parent. When the PoS name is already complete, the optional parent may be
+  // its short DSM alias because the full lineage is still explicit in the child name.
+  const suppliedIdentity = parseCamtelIdentity(requestedNode);
+  let requestedIdentity = null;
+  if (role === 'DAE') {
+    parent = '';
+    requestedIdentity = canonicalCamtelIdentity(requestedNode, role, '');
+  } else if (suppliedIdentity.ok && suppliedIdentity.role === role) {
+    const suppliedParent = suppliedIdentity.parent_node_code;
+    const expectedParentRole = role === 'DSM' ? 'DAE' : 'DSM';
+    const shortParent = localIdentityCode(suppliedParent, expectedParentRole);
+    if (parent && parent !== suppliedParent && parent !== shortParent) {
+      throw identityApiError('NODE_PARENT_MISMATCH');
+    }
+    parent = suppliedParent;
+    requestedIdentity = suppliedIdentity;
+  } else {
+    if (!parent) {
+      throw new ApiError('PARENT_REQUIRED', role === 'DSM'
+        ? 'Indiquez le DAE supérieur (ex. SU1).'
+        : 'Indiquez le DSM supérieur avec son nom complet (ex. DSM1_SU1).', 422);
+    }
+    if (role === 'POS') {
+      const fullParent = parseCamtelIdentity(parent);
+      if (!fullParent.ok || fullParent.role !== 'DSM') {
+        throw identityApiError('INVALID_DSM_PARENT');
+      }
+    }
+    requestedIdentity = canonicalCamtelIdentity(requestedNode, role, parent);
+  }
+  if (!requestedIdentity?.ok) throw identityApiError(requestedIdentity?.error);
+
   // The SIM number is unique and remains the safest recovery anchor. Historical relational
   // keys are preserved, while every public surface receives the official Camtel identity.
   const existingByPhone = await env.DB.prepare(
@@ -147,7 +180,8 @@ async function pairDevice(env, input, headers) {
         'Cette SIM existe avec un autre rôle Camtel.', 409);
     }
     const officialExisting = await officialNodeIdentity(env, existingByPhone.node_code);
-    if (!identityReferenceMatches(requestedNode, officialExisting)) {
+    if (requestedIdentity.node_code !== officialExisting.node_code
+        || (requestedIdentity.parent_node_code || '') !== (officialExisting.parent_node_code || '')) {
       throw new ApiError('PHONE_IDENTITY_CONFLICT',
         `Cette SIM appartient officiellement à ${officialExisting.node_code}.`, 409);
     }
@@ -156,24 +190,16 @@ async function pairDevice(env, input, headers) {
     identity = officialExisting;
   } else if (role === 'DAE') {
     parent = '';
-    identity = canonicalCamtelIdentity(requestedNode, 'DAE', '');
-    if (!identity.ok) throw identityApiError(identity.error);
+    identity = requestedIdentity;
     node = identity.node_code;
   } else {
-    const suppliedIdentity = parseCamtelIdentity(requestedNode);
-    if (!parent && suppliedIdentity.ok && suppliedIdentity.role === role) {
-      parent = suppliedIdentity.parent_node_code;
-    }
-    if (!parent) {
-      throw new ApiError('PARENT_REQUIRED',
-        role === 'DSM' ? 'Indiquez le DAE supérieur (ex. OU3).'
-          : 'Indiquez le DSM supérieur avec son nom complet (ex. DSM7_OU3).', 422);
-    }
-    const parentNode = await resolveParentNode(env, parent, role === 'DSM' ? 'DAE' : 'DSM');
+    const publicParent = requestedIdentity.parent_node_code;
+    const parentNode = await resolveParentNode(env, publicParent,
+      role === 'DSM' ? 'DAE' : 'DSM');
     parent = parentNode.node_code;
     const parentOfficial = await officialNodeIdentity(env, parent);
-    identity = canonicalCamtelIdentity(requestedNode, role, parentOfficial.node_code);
-    if (!identity.ok) throw identityApiError(identity.error);
+    if (parentOfficial.node_code !== publicParent) throw identityApiError('NODE_PARENT_MISMATCH');
+    identity = requestedIdentity;
     node = identity.node_code;
   }
 

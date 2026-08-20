@@ -12,7 +12,7 @@ const forceStart=worker.indexOf('async function forceSyncRequest');
 const forceEnd=worker.indexOf('async function ownerAssist',forceStart);
 const forceBody=forceStart>=0&&forceEnd>forceStart?worker.slice(forceStart,forceEnd):'';
 
-must(worker.includes("const API_VERSION = '2.9.1-cloudflare'")||worker.includes("const API_VERSION = '2.9.3-cloudflare'")||worker.includes("const API_VERSION = '2.9.5-cloudflare'"),'Worker version missing');
+must(worker.includes("const API_VERSION = '2.9.1-cloudflare'")||worker.includes("const API_VERSION = '2.9.3-cloudflare'")||(worker.includes("const API_VERSION = '2.9.5-cloudflare'")||worker.includes("const API_VERSION = '2.9.6-cloudflare'")),'Worker version missing');
 must(worker.includes("case 'force_sync': return await forceSyncRequest"),'force_sync route missing');
 must(worker.includes("auth.mode !== 'REMOTE'"),'force_sync must be Remote-only');
 must(worker.includes('node_code=?')&&worker.includes('requested_by_device_id'),'wake must be same-node/device-authenticated');
