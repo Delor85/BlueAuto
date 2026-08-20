@@ -9,6 +9,7 @@
     function byId(id){return document.getElementById(id);}
     function each(selector,fn){var items=document.querySelectorAll(selector),i;for(i=0;i<items.length;i+=1){fn(items[i]);}}
     function bridge(){return typeof window.AndroidBridge!=='undefined';}
+    function displayNode(value){return value&&value.official_node_code||value&&value.node_code||value||'—';}
     window.BlueMagicNative={
         onCommandPreview:function(data){handlePreview(data);},
         onPurchaseCapacity:function(data){handlePurchaseCapacity(data);},
@@ -23,19 +24,19 @@
         try{configuration=JSON.parse(window.AndroidBridge.getConfiguration()||'{}');}catch(ignored){configuration={};}
         configuration.role=normalizeRole(configuration);
         commands=load();byId('nativeBadge').textContent='PONT NATIF ACTIF';byId('nativeBadge').className='badge badge-ok';
-        byId('nodeCode').textContent=configuration.node_code||'Nœud non configuré';
+        byId('nodeCode').textContent=configuration.official_node_code||configuration.node_code||'Nœud non configuré';
         var accountPhone=configuration.phone_number||'Numéro non renseigné';
         byId('nodeMeta').textContent=(configuration.role||'—')+' • '+(configuration.mode||'—')+' • SIM '+((configuration.sim_slot||0)+1)+' • '+accountPhone;
         byId('robotState').textContent=configuration.robot_enabled?'ROBOT ACTIF':'ROBOT ARRÊTÉ';
         if(byId('birAccountRole')){byId('birAccountRole').textContent=configuration.role||'COMPTE';}
-        if(byId('birAccountNode')){byId('birAccountNode').textContent=configuration.node_code||'—';}
+        if(byId('birAccountNode')){byId('birAccountNode').textContent=configuration.official_node_code||configuration.node_code||'—';}
         if(byId('birAccountPhone')){byId('birAccountPhone').textContent='SIM '+((configuration.sim_slot||0)+1)+' • '+accountPhone;}
         if(byId('birRobotState')){byId('birRobotState').textContent=configuration.robot_enabled?'ROBOT ACTIF':'ROBOT ARRÊTÉ';}
         if(configuration.pin_blocked){byId('fatalNotice').textContent='PIN BLOQUÉ pour les achats et ventes. TEST_NUMBER et les fonctions Remote restent disponibles.';byId('fatalNotice').className='notice notice-danger';}
         else if(configuration.mode==='ROBOT'&&!configuration.sim_verified){byId('fatalNotice').textContent='SIM NON VÉRIFIÉE : le Robot est arrêté et ne peut réserver aucune commande. Ouvrez ☰ GÉRER > VÉRIFIER / LIER LA SIM.';byId('fatalNotice').className='notice notice-danger';}
         if(configuration.role==='DAE'){showRoleNotice('DAE actif : pilotez vos DSM, leurs PoS, les soldes et les approvisionnements depuis votre propre pyramide.');if(byId('birRoleActionTitle')){byId('birRoleActionTitle').textContent='ACTIONS DAE PRIORITAIRES';byId('birRoleActionSub').textContent='Pilotez, approvisionnez et développez votre réseau.';byId('birTransactionModuleTitle').textContent='Approvisionnement Blue';}byId('reportsIntroTitle').textContent='Pilotage de mon réseau';byId('reportsIntroText').textContent='Mon solde, mes DSM et leurs PoS sont présentés dans ma propre pyramide uniquement, avec les activités et preuves disponibles.';}
         else if(configuration.role==='DSM'){showRoleNotice('DSM actif : demandez du stock au DAE, approvisionnez vos PoS et suivez votre réseau direct.');if(byId('birRoleActionTitle')){byId('birRoleActionTitle').textContent='ACTIONS DSM PRIORITAIRES';byId('birRoleActionSub').textContent='Approvisionnez vos PoS et maîtrisez votre stock.';byId('birTransactionModuleTitle').textContent='Approvisionnement PoS';}byId('reportsIntroTitle').textContent='Mes soldes et mes PoS';byId('reportsIntroText').textContent='Mon compte et mes PoS directs sont suivis ici sans exposer les autres DSM ni les autres branches du DAE.';}
-        else if(configuration.role==='POS'){showRoleNotice('PoS actif : vendez du crédit Blue, demandez du stock à votre DSM et suivez votre propre activité.');if(byId('birRoleActionTitle')){byId('birRoleActionTitle').textContent='VENDRE & SUIVRE';byId('birRoleActionSub').textContent='Vendez du crédit Blue rapidement et gardez votre solde sous contrôle.';byId('birTransactionModuleTitle').textContent='Vente Blue';}byId('reportsIntroTitle').textContent='Mon solde et mon activité';byId('reportsIntroText').textContent='Ce PoS affiche uniquement son propre solde Blue, son disponible, ses ventes et ses preuves récentes.';}
+        else if(configuration.role==='POS'){showRoleNotice('PoS actif : vendez du crédit Blue, demandez du stock à votre DSM et suivez votre propre activité.');if(byId('birRoleActionTitle')){byId('birRoleActionTitle').textContent='VENDRE & SUIVRE';byId('birRoleActionSub').textContent='Vendez du crédit Blue rapidement et gardez votre solde sous contrôle.';byId('birTransactionModuleTitle').textContent='Vente Blue';}byId('reportsIntroTitle').textContent='Mon solde et mon activité';byId('reportsIntroText').textContent='Ce PoS affiche un seul solde Blue certifié, ses ventes et ses preuves récentes.';}
         else{byId('fatalNotice').textContent='RÔLE NON RECONNU : ouvrez ☰ GÉRER > VÉRIFIER / RÉPARER L’APPAIRAGE. Aucune opération financière ne sera envoyée tant que le profil n’est pas identifié.';byId('fatalNotice').className='notice notice-danger';}
         if(configuration.mode==='ROBOT'&&!configuration.pin_configured){showActionError({code:'FINANCE_PIN_REQUIRED',message:'TEST_NUMBER reste disponible. Enregistrez le PIN Blue chiffré avant un achat ou une vente.'});}
         else if(configuration.mode==='ROBOT'&&!configuration.accessibility_enabled){showActionError({code:'FINANCE_ACCESSIBILITY_REQUIRED',message:'TEST_NUMBER reste disponible. Activez l’Accessibilité B.I.R. avant un achat ou une vente. Le Robot reste mémorisé et reprendra après réactivation.'});}
@@ -353,7 +354,7 @@
         if(byId('birActivityDetail')){byId('birActivityDetail').textContent=last?('Dernière activité : '+(labels[last.state]||last.state||'Commande')+' • '+(last.operation||'opération')+' • '+formatTime(last.updated_at||last.created_at||'')):'Aucune activité locale récente. Les preuves Blue et diagnostics restent disponibles ci-dessous.';}
         byId('reportActivityTitle').textContent=last?(labels[last.state]||last.state||'Commande locale'):'Aucune activité locale';
         byId('reportActivityDetail').textContent=last?((last.operation||'Commande')+' • '+formatTime(last.updated_at||last.created_at||'')):'Les résultats apparaîtront ici sans exposer le PIN.';
-        byId('fleetNodeStatus').textContent=(configuration.node_code||'Nœud non configuré')+' • '+(configuration.role||'—')+' • '+(configuration.mode||'—');
+        byId('fleetNodeStatus').textContent=(configuration.official_node_code||configuration.node_code||'Nœud non configuré')+' • '+(configuration.role||'—')+' • '+(configuration.mode||'—');
         byId('fleetSimStatus').textContent=configuration.mode==='ROBOT'
             ? ('SIM '+((configuration.sim_slot||0)+1)+' • '+(configuration.sim_verified?'VÉRIFIÉE':'À VÉRIFIER / LIER')+' • '+(configuration.robot_enabled?'ROBOT ACTIF':'HALL ROBOT — ARRÊTÉ'))
             : 'Mode Remote : aucune SIM n’est requise. Passez dans le hall Robot avant de demander les autorisations.';
@@ -366,44 +367,39 @@
         byId('supportStatus').textContent=support;updateTabAttention();
     }
     function nodeCard(n){
-        var balanceText=n.balance===null||typeof n.balance==='undefined'?'Non lu':formatMoney(n.balance)+' FCFA';
-        var reserved=Number(n.reserved_amount||0), available=n.available_balance===null||typeof n.available_balance==='undefined'?null:Number(n.available_balance);
-        var evidenceText=n.balance===null||typeof n.balance==='undefined'?'':(' • '+(n.balance_quality==='EXACT'?'confirmé':'estimé')+' / '+(n.evidence_kind||n.balance_source||'source inconnue'));
-        var activity=n.last_activity_at?(' • activité '+formatTime(n.last_activity_at)):'';
-        var split='';
-        if((n.role==='DAE'||n.role==='DSM')&&n.balance!==null&&typeof n.balance!=='undefined'){
-            split='<br><small>Solde réel hors commission : '+escapeHtml(formatMoney(n.commission_base_balance||0))+' • part commission : '+escapeHtml(formatMoney(n.commission_component_balance||0))+' • total réel : '+escapeHtml(formatMoney(n.balance))+' • taux appliqué '+escapeHtml(String(Number(n.default_commission_bps||0)/100).replace('.',','))+' %</small>';
-        }
-        return '<article class="network-item"><div><strong>'+escapeHtml(n.node_code||'—')+'</strong><span>'+escapeHtml((n.role||'—')+' • '+(n.device_kind||'—')+evidenceText+activity)+'</span></div><div class="network-balance"><b>Solde Blue : '+escapeHtml(balanceText)+'</b><br><small>Réservé après confirmation : '+escapeHtml(formatMoney(reserved))+' FCFA • Disponible : '+escapeHtml(available===null?'—':formatMoney(available)+' FCFA')+'</small>'+split+'</div></article>';
+        var certified=n.balance_reusable===true&&n.balance_quality==='EXACT'&&n.balance!==null&&typeof n.balance!=='undefined',balanceText=certified?formatMoney(n.balance)+' FCFA':'—';
+        var evidenceText=certified?' • preuve exacte / '+(n.evidence_kind||n.balance_source||'Blue'):' • solde à recertifier';
+        var activity=(n.last_command_activity_at||n.last_activity_at)?(' • activité '+formatTime(n.last_command_activity_at||n.last_activity_at)):'';
+        var split=certified&&(n.role==='DAE'||n.role==='DSM')?'<br><small>Stock hors commission : '+escapeHtml(formatMoney(n.commission_base_balance||0))+' • commission incluse : '+escapeHtml(formatMoney(n.commission_component_balance||0))+' • total Blue certifié : '+escapeHtml(formatMoney(n.balance))+'</small>':'';
+        return '<article class="network-item"><div><strong>'+escapeHtml(n.official_node_code||n.node_code||'—')+'</strong><span>'+escapeHtml((n.role||'—')+' • '+(n.device_kind||'—')+evidenceText+activity)+'</span></div><div class="network-balance"><b>'+(n.role==='POS'?'Solde unique':'Total certifié')+' : '+escapeHtml(balanceText)+'</b>'+split+'</div></article>';
     }
-    function fleetCard(n){return '<article class="network-item"><div><strong>'+escapeHtml(n.node_code||'—')+'</strong><span>'+escapeHtml(n.phone_number||'—')+'</span></div><div class="network-balance">'+escapeHtml(n.device_kind||'—')+'</div></article>';}
+    function fleetCard(n){return '<article class="network-item"><div><strong>'+escapeHtml(displayNode(n))+'</strong><span>'+escapeHtml(n.phone_number||'—')+'</span></div><div class="network-balance">'+escapeHtml(n.device_kind||'—')+'</div></article>';}
     function renderDashboard(){
         var nodes=dashboard&&dashboard.nodes||[],html='',fleet='',i,n,own=null,known=0,byParent={},direct=[],children=[];
         for(i=0;i<nodes.length;i+=1){n=nodes[i];if(n.node_code===configuration.node_code){own=n;}if(n.balance!==null&&typeof n.balance!=='undefined'){known+=1;}if(!byParent[n.parent_node_code||'']){byParent[n.parent_node_code||'']=[];}byParent[n.parent_node_code||''].push(n);}
-        if(own){html+=nodeCard(own);fleet+=fleetCard(own);}
+        if(own){html+=nodeCard(own);fleet+=fleetCard(own);var shown=own.official_node_code||own.node_code;if(shown){if(byId('nodeCode'))byId('nodeCode').textContent=shown;if(byId('birAccountNode'))byId('birAccountNode').textContent=shown;}}
         direct=byParent[configuration.node_code]||[];
         if(configuration.role==='DAE'){
-            for(i=0;i<direct.length;i+=1){n=direct[i];if(n.role!=='DSM'){continue;}children=byParent[n.node_code]||[];html+='<details class="panel" open><summary><strong>'+escapeHtml(n.node_code)+'</strong> — DSM direct • '+String(children.length)+' PoS</summary>'+nodeCard(n)+(children.length?'<details><summary>Afficher / masquer les PoS de '+escapeHtml(n.node_code)+'</summary>'+children.map(nodeCard).join('')+'</details>':'')+'</details>';fleet+='<details><summary>'+escapeHtml(n.node_code)+' • DSM</summary>'+fleetCard(n)+children.map(fleetCard).join('')+'</details>';}
+            for(i=0;i<direct.length;i+=1){n=direct[i];if(n.role!=='DSM'){continue;}children=byParent[n.node_code]||[];var dsmName=displayNode(n);html+='<details class="panel" open><summary><strong>'+escapeHtml(dsmName)+'</strong> — DSM direct • '+String(children.length)+' PoS</summary>'+nodeCard(n)+(children.length?'<details><summary>Afficher / masquer les PoS de '+escapeHtml(dsmName)+'</summary>'+children.map(nodeCard).join('')+'</details>':'')+'</details>';fleet+='<details><summary>'+escapeHtml(dsmName)+' • DSM</summary>'+fleetCard(n)+children.map(fleetCard).join('')+'</details>';}
         }else if(configuration.role==='DSM'){
             for(i=0;i<direct.length;i+=1){if(direct[i].role==='POS'){html+=nodeCard(direct[i]);fleet+=fleetCard(direct[i]);}}
         }
         byId('networkList').innerHTML=html||'<p class="muted">Aucun nœud visible dans votre périmètre.</p>';
         byId('fleetNetworkList').innerHTML=fleet||'<p class="muted">Aucun terminal rattaché.</p>';
         byId('fleetNetworkTitle').textContent=configuration.role==='DAE'?'Mes DSM et leurs PoS — '+String(nodes.length)+' nœud(s)':configuration.role==='DSM'?'Mes PoS — '+String(nodes.length)+' nœud(s)':'Mon terminal';
-        byId('ownBalance').textContent=own&&own.balance!==null?formatMoney(own.balance)+' FCFA':'À actualiser';
-        if(byId('birCamtelBalance')){byId('birCamtelBalance').textContent=own&&own.balance!==null?formatMoney(own.balance):'À actualiser';}
-        if(byId('birAvailableBalance')){byId('birAvailableBalance').textContent=own&&own.available_balance!==null&&typeof own.available_balance!=='undefined'?formatMoney(own.available_balance)+' F':'—';}
-        if(byId('birReservedBalance')){byId('birReservedBalance').textContent=own?formatMoney(Number(own.reserved_amount||0))+' F':'—';}
+        var ownCertified=own&&own.balance_reusable===true&&own.balance_quality==='EXACT'&&own.balance!==null;
+        byId('ownBalance').textContent=ownCertified?formatMoney(own.balance)+' FCFA':'À recertifier';
+        if(byId('birCamtelBalance')){byId('birCamtelBalance').textContent=ownCertified?formatMoney(own.balance):'—';}
+        if(byId('birAvailableBalance')){byId('birAvailableBalance').textContent='—';}
+        if(byId('birReservedBalance')){byId('birReservedBalance').textContent='—';}
         if(byId('birThirdMetricLabel')&&byId('birThirdMetricValue')){
-            if(own&&(configuration.role==='DAE'||configuration.role==='DSM')){byId('birThirdMetricLabel').textContent='Composante commission';byId('birThirdMetricValue').textContent=formatMoney(Number(own.commission_component_balance||0))+' F';}
+            if(ownCertified&&(configuration.role==='DAE'||configuration.role==='DSM')){byId('birThirdMetricLabel').textContent='Commission incluse';byId('birThirdMetricValue').textContent=formatMoney(Number(own.commission_component_balance||0))+' F';}
             else{byId('birThirdMetricLabel').textContent='Commandes réussies';byId('birThirdMetricValue').textContent=byId('metricSuccessCount')?byId('metricSuccessCount').textContent:'0';}
         }
-        if(byId('birBalanceFreshness')){byId('birBalanceFreshness').textContent=own&&own.observed_at?((own.balance_quality==='EXACT'?'Confirmé Blue':'Estimé')+' • '+formatTime(own.operator_event_at||own.observed_at)):'Aucune lecture Blue horodatée.';}
-        byId('balanceFreshness').textContent=own&&own.observed_at
-            ? ('Dernière observation : '+formatTime(own.operator_event_at||own.observed_at)+' • '+(own.balance_quality==='EXACT'?'confirmé Blue':'estimé')+' • '+(own.evidence_kind||own.balance_source||'source inconnue')
-                +(own.available_balance!==null&&typeof own.available_balance!=='undefined'?' • disponible '+formatMoney(own.available_balance)+' FCFA':'')
-                +(own.balance_reusable?' • réutilisable / partageable sans nouvel USSD':' • à recertifier avant finance'))
-            :'Aucune lecture Blue horodatée.';
+        if(byId('birBalanceFreshness')){byId('birBalanceFreshness').textContent=ownCertified?('Preuve Blue exacte • '+formatTime(own.balance_evidence_at||own.operator_event_at||own.observed_at)):'Valeur masquée • nouvelle preuve Blue requise';}
+        byId('balanceFreshness').textContent=ownCertified
+            ? ('Preuve exacte : '+formatTime(own.balance_evidence_at||own.operator_event_at||own.observed_at)+' • '+(own.evidence_kind||own.balance_source||'Blue')+' • partageable sans nouvel USSD pendant sa validité')
+            :'Aucun solde approximatif affiché : recertification requise avant une décision financière.';
     }
     function cancelRemote(commandId){if(!bridge()||!window.confirm('Annuler cette commande encore en attente ?')){return;}window.AndroidBridge.cancelCommand(commandId);}
     function formatTime(value){var d=new Date(value);if(isNaN(d.getTime())){return String(value);}return two(d.getDate())+'/'+two(d.getMonth()+1)+'/'+d.getFullYear()+' à '+two(d.getHours())+':'+two(d.getMinutes())+':'+two(d.getSeconds());}

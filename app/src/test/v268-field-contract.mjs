@@ -10,7 +10,7 @@ for(const banned of ['disableKeyguard','SCREEN_BRIGHT_WAKE_LOCK','ACQUIRE_CAUSES
 if(!robot.includes('DeviceLockState.blocksUssd(this)')) throw new Error('locked-screen USSD gate missing');
 if(!policy.includes('needsAccessibility(operation)')||!policy.includes('return isFinancial(operation)')) throw new Error('direct PIN commands still tied to Accessibility');
 if(ui.includes('Solde cumulé connu')) throw new Error('aggregate balance label still exposed');
-if(!ui.includes('Réservé après confirmation : ')||!(ui.includes('Solde Camtel : ')||ui.includes('Solde Blue : '))) throw new Error('balance/reservation separation missing');
+if(!ui.includes('Stock hors commission')||!ui.includes('commission incluse')||!ui.includes("n.role==='POS'?'Solde unique':'Total certifié'")) throw new Error('one-PoS / three-DAE-DSM balance contract missing');
 if(!worker.includes('commissionRateFor')||!worker.includes('commission_amount')||!worker.includes('requested_base_amount')) throw new Error('commission quote persistence missing');
 console.log('v2.6.8 field contract: lock safety, direct PIN, balances and commissions OK');
 

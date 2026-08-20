@@ -1,0 +1,9 @@
+authorized_sha=85d49d4a06e1e96d2c47064281460bedc0afb52b
+package=com.profitloop.blueauto
+versionCode=61
+versionName=2.9.6
+certificate_sha256=f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5
+upgrade_baseline=2.9.4-vc59
+android_matrix=23,26
+production_mutation=false
+authorization_attempt=4

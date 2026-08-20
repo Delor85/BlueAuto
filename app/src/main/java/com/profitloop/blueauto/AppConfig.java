@@ -46,8 +46,11 @@ final class AppConfig {
                 profile.put("api_url", normalizeApiUrl(preferences.getString("api_url", DEFAULT_API)));
                 profile.put("device_token", token);
                 profile.put("node_code", node);
+                profile.put("official_node_code", preferences.getString("official_node_code", node));
                 profile.put("phone_number", preferences.getString("phone_number", ""));
                 profile.put("parent_node_code", preferences.getString("parent_node_code", ""));
+                profile.put("official_parent_node_code", preferences.getString(
+                        "official_parent_node_code", preferences.getString("parent_node_code", "")));
                 profile.put("role", preferences.getString("role", ""));
                 profile.put("device_mode", preferences.getString("device_mode", "REMOTE"));
                 profile.put("sim_slot", preferences.getInt("sim_slot", 0));
@@ -154,6 +157,17 @@ final class AppConfig {
         return profile == null ? "" : profile.optString("node_code", "");
     }
 
+    static String officialNodeCode(Context context) {
+        return officialNodeCode(context, profileId(context));
+    }
+
+    static String officialNodeCode(Context context, String profileId) {
+        JSONObject profile = profile(context, profileId);
+        if (profile == null) return "";
+        String official = profile.optString("official_node_code", "").trim();
+        return official.isEmpty() ? profile.optString("node_code", "") : official;
+    }
+
     static String phoneNumber(Context context) {
         JSONObject profile = activeProfile(context);
         return profile == null ? "" : profile.optString("phone_number", "");
@@ -252,6 +266,17 @@ final class AppConfig {
         return profile == null ? "" : profile.optString("parent_node_code", "");
     }
 
+    static String officialParentNode(Context context) {
+        return officialParentNode(context, profileId(context));
+    }
+
+    static String officialParentNode(Context context, String profileId) {
+        JSONObject profile = profile(context, profileId);
+        if (profile == null) return "";
+        String official = profile.optString("official_parent_node_code", "").trim();
+        return official.isEmpty() ? profile.optString("parent_node_code", "") : official;
+    }
+
     static boolean isPaired(Context context) {
         return !token(context).isEmpty() && !nodeCode(context).isEmpty();
     }
@@ -313,7 +338,8 @@ final class AppConfig {
             String id = profile.optString("id", "");
             String robotState = isRobotMode(context, id)
                     ? (robotEnabled(context, id) ? " • ACTIF" : " • ARRÊTÉ") : "";
-            result[i] = marker + profile.optString("node_code", "—")
+            String official = profile.optString("official_node_code", "").trim();
+            result[i] = marker + (official.isEmpty() ? profile.optString("node_code", "—") : official)
                     + " • " + normalizedRole(profile)
                     + " • " + displayMode(profile.optString("device_mode", "REMOTE"))
                     + " • SIM " + (profile.optInt("sim_slot", 0) + 1)
@@ -332,8 +358,10 @@ final class AppConfig {
         profile.put("api_url", normalizeApiUrl(apiUrl));
         profile.put("device_token", token);
         profile.put("node_code", nodeCode);
+        profile.put("official_node_code", nodeCode);
         profile.put("phone_number", phoneNumber);
         profile.put("parent_node_code", parentNode == null ? "" : parentNode);
+        profile.put("official_parent_node_code", parentNode == null ? "" : parentNode);
         profile.put("role", role);
         profile.put("device_mode", mode);
         profile.put("sim_slot", Math.max(0, simSlot));
@@ -503,6 +531,26 @@ final class AppConfig {
                 } catch (Exception ignored) {
                     return false;
                 }
+            }
+        }
+        return false;
+    }
+
+    static synchronized boolean updateOfficialIdentity(Context context, String profileId,
+                                                       String officialNode, String officialParent) {
+        if (profileId == null || profileId.isEmpty()) return false;
+        JSONArray profiles = profiles(context);
+        for (int i = 0; i < profiles.length(); i++) {
+            JSONObject profile = profiles.optJSONObject(i);
+            if (profile == null || !profileId.equals(profile.optString("id", ""))) continue;
+            try {
+                String node = officialNode == null ? "" : officialNode.trim().toUpperCase(Locale.ROOT);
+                String parent = officialParent == null ? "" : officialParent.trim().toUpperCase(Locale.ROOT);
+                if (!node.isEmpty()) profile.put("official_node_code", node);
+                profile.put("official_parent_node_code", parent);
+                return prefs(context).edit().putString(PROFILES_KEY, profiles.toString()).commit();
+            } catch (Exception ignored) {
+                return false;
             }
         }
         return false;

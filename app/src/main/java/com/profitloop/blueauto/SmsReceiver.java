@@ -59,6 +59,9 @@ public class SmsReceiver extends BroadcastReceiver {
                 if ("MODIFY_PIN_LOCAL".equals(UssdCommandFactory.operation(active))) {
                     try { PendingPinChangeStore.commit(context, profileId); } catch (Exception ignored) {}
                 }
+                if (parsed.currentBalanceFcfa != null && !"BALANCE_CHILD".equals(activeOperation)) {
+                    CertifiedBalanceStore.observeTrusted(context, profileId, parsed);
+                }
                 RobotService.operatorResult(context, profileId, true, "",
                         BlueMessageParser.redactSensitive(message, safePin(context, profileId)), parsed.transactionId);
                 return;
@@ -77,6 +80,14 @@ public class SmsReceiver extends BroadcastReceiver {
                 SecurePinStore.save(context, profileId, parsed.provisionalPin);
                 AppConfig.setPinBlocked(context, profileId, false);
             } catch (Exception ignored) {}
+        }
+        boolean passiveOwnFinancial = "TRANSFER_RECEIVED".equals(parsed.kind)
+                || "TRANSFER_SENT".equals(parsed.kind)
+                || "RETAIL_TOPUP_RECEIVED".equals(parsed.kind)
+                || "RETAIL_TOPUP_SENT".equals(parsed.kind)
+                || "MINI_STATEMENT".equals(parsed.kind);
+        if (passiveOwnFinancial && parsed.currentBalanceFcfa != null && parsed.terminalSuccess()) {
+            CertifiedBalanceStore.observeTrusted(context, profileId, parsed);
         }
         final PendingResult pendingResult = goAsync();
         final String redacted = BlueMessageParser.redactSensitive(message, safePin(context, profileId));

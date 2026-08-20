@@ -10,8 +10,8 @@ function setRateStatus(text,kind){var out=id('ctRateList');if(!out)return;out.cl
 function platform(action,payload){lastPlatformAction=action;if(action.indexOf('commission_')===0&&serverSupportsCommissions===false){setRateStatus('Le serveur '+esc(serverVersion||'actuel')+' n\'a pas encore activé les commissions. Aucun ordre n\'a été envoyé. Après mise à niveau serveur, ce même écran deviendra opérationnel sans changer vos comptes.','warn');return;}if(window.AndroidBridge&&window.AndroidBridge.platformAction){window.AndroidBridge.platformAction(action,JSON.stringify(payload||{}));}}
 function startOrResume(c){if(upper(c.mode)!=='ROBOT')return;if(window.AndroidBridge&&window.AndroidBridge.startRobot)window.AndroidBridge.startRobot();window.setTimeout(function(){updateRuntimeStatus(cfg());},1200);}
 function boot(){var c=cfg(),main=document.querySelector('main'),hero=document.querySelector('.hero'),balance=document.querySelector('.bir-balance-card'),mode=upper(c.mode),isRobot=mode==='ROBOT',off=isRobot&&!c.robot_enabled,simBad=isRobot&&!c.sim_verified,shown;
- if(balance&&main&&hero){balance.className+=' bir-control-balance';main.insertBefore(balance,hero);}
- shown=official(c.node_code,upper(c.role),c.parent_node_code);if(shown){if(id('nodeCode'))id('nodeCode').textContent=shown;if(id('birAccountNode'))id('birAccountNode').textContent=shown;}
+ if(balance)balance.style.display='none';var duplicate=document.querySelector('.balance-hero');if(duplicate)duplicate.style.display='none';
+ shown=upper(c.official_node_code)||official(c.node_code,upper(c.role),upper(c.official_parent_node_code)||c.parent_node_code);if(shown){if(id('nodeCode'))id('nodeCode').textContent=shown;if(id('birAccountNode'))id('birAccountNode').textContent=shown;}
  updateRuntimeStatus(c);buildHeaderControls(c);if(simBad)makeSimNoticeActionable();buildQuickControls(c);roleFields(c);buildRoleModules(c);resultCard();commissionCard(c);hideDuplicates();bindKeyboardVisibility();wrapCallbacks(c);
  if(window.AndroidBridge&&window.AndroidBridge.checkServerHealth){window.setTimeout(function(){try{window.AndroidBridge.checkServerHealth();}catch(e){}},120);}
 }

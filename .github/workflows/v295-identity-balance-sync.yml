@@ -1,0 +1,94 @@
+name: BIR v2.9.6 Field Correction validation
+
+on:
+  push:
+    branches: [fix/bir-v2-9-5-identity-balance-sync]
+  pull_request:
+    paths:
+      - 'app/**'
+      - 'cloudflare/**'
+      - '.github/workflows/v295-identity-balance-sync.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bir-v295-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-and-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Checkout candidate source
+        uses: actions/checkout@v5
+
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate Worker and D1 migrations locally
+        working-directory: cloudflare
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run check
+
+      - name: Validate Android and WebView contracts
+        run: |
+          set -euo pipefail
+          for test_file in app/src/test/*.mjs; do node "$test_file"; done
+          node --check app/src/main/assets/app.js
+          node --check app/src/main/assets/balance-engine-v280.js
+          node --check app/src/main/assets/field-recovery-v291.js
+          node --check app/src/main/assets/war-room-v294.js
+
+      - name: Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Gradle 8.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+
+      - name: Prepare ephemeral validation signature
+        run: |
+          set -euo pipefail
+          mkdir -p .pilot-signing
+          validation_password="$(openssl rand -hex 32)"
+          echo "::add-mask::$validation_password"
+          keytool -genkeypair -keystore .pilot-signing/debug.keystore -storepass "$validation_password" -alias androiddebugkey -keypass "$validation_password" -dname 'CN=BIR v2.9.6 Validation,O=ProfitLoop,C=CM' -keyalg RSA -keysize 2048 -validity 7 -noprompt
+          echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$validation_password" >> "$GITHUB_ENV"
+
+      - name: Test and assemble Release APK
+        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
+
+      - name: Verify APK identity
+        run: |
+          set -euo pipefail
+          build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          apk_path=app/build/outputs/apk/release/app-release.apk
+          "$build_tools/zipalign" -c -v 4 "$apk_path"
+          "$build_tools/aapt" dump badging "$apk_path" | tee /tmp/bir-v296-badging.txt
+          grep -q "package: name='com.profitloop.blueauto' versionCode='61' versionName='2.9.6'" /tmp/bir-v296-badging.txt
+          grep -q "application-label:'B.I.R. — Blue Infinity Retail'" /tmp/bir-v296-badging.txt
+          grep -q 'application-icon' /tmp/bir-v296-badging.txt
+          ! grep -q 'application-debuggable' /tmp/bir-v296-badging.txt
+          sha256sum "$apk_path" | tee /tmp/bir-v296-apk.sha256
+
+      - name: Upload ephemeral candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIR-v2.9.6-field-correction-EPHEMERAL
+          path: |
+            app/build/outputs/apk/release/app-release.apk
+            /tmp/bir-v296-badging.txt
+            /tmp/bir-v296-apk.sha256
+          if-no-files-found: error
+          retention-days: 7
+

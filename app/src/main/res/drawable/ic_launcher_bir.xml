@@ -1,49 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="390"
-    android:viewportHeight="390">
-
-    <!-- Square launcher background. The B.I.R. mark below reuses the exact infinity geometry
-         from app/src/main/assets/bir-logo.svg; the in-app SVG itself remains untouched. -->
-    <path
-        android:fillColor="#03122F"
-        android:pathData="M48,6 H342 C369,6 384,21 384,48 V342 C384,369 369,384 342,384 H48 C21,384 6,369 6,342 V48 C6,21 21,6 48,6 Z" />
-
-    <group android:translateY="117.5">
-        <path
-            android:fillColor="@android:color/transparent"
-            android:strokeColor="#16D7FF"
-            android:strokeWidth="15"
-            android:strokeLineCap="round"
-            android:strokeLineJoin="round"
-            android:pathData="M194,77 C154,26 110,16 71,25 C30,34 19,71 33,95 C48,122 91,127 126,109 C151,96 171,79 194,61" />
-        <path
-            android:fillColor="@android:color/transparent"
-            android:strokeColor="#FFE26F"
-            android:strokeWidth="15"
-            android:strokeLineCap="round"
-            android:strokeLineJoin="round"
-            android:pathData="M196,61 C219,79 239,96 264,109 C299,127 342,122 357,95 C371,71 360,34 319,25 C280,16 236,26 196,77" />
-        <path
-            android:fillColor="#FFE26F"
-            android:pathData="M188,23 H202 V131 H188 Z" />
-    </group>
-
-    <!-- B and R are vector paths so the launcher is independent of fonts installed on the phone. -->
-    <path
-        android:fillColor="@android:color/transparent"
-        android:strokeColor="#33C8FF"
-        android:strokeWidth="12"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:pathData="M70,169 V221 M70,169 H91 C108,169 108,194 91,195 H70 M91,195 C110,195 110,221 91,221 H70" />
-    <path
-        android:fillColor="@android:color/transparent"
-        android:strokeColor="#FFE37B"
-        android:strokeWidth="12"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:pathData="M275,221 V169 H299 C318,169 318,195 299,195 H275 M299,195 L324,221" />
-</vector>
+<!-- Keep the historical manifest untouched while forcing legacy Android 6 launchers to consume
+     a real density-specific PNG instead of a vector launcher drawable. -->
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:antialias="true"
+    android:dither="true"
+    android:filter="true"
+    android:gravity="fill"
+    android:src="@mipmap/ic_launcher_bir" />
