@@ -22,6 +22,7 @@ jobs:
       - name: Checkout candidate authorization
         uses: actions/checkout@v5
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
       - name: Allow only an isolated authorization-file commit
         id: gate
@@ -52,6 +53,7 @@ jobs:
       - name: Checkout authorization commit
         uses: actions/checkout@v5
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Verify exact authorization scope

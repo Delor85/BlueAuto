@@ -93,6 +93,5 @@ jobs:
           retention-days: 7
 
   permanent-upgrade:
-    if: "${{ github.event_name == 'push' }}"
     uses: ./.github/workflows/v296-permanent-upgrade.yml
     secrets: inherit
