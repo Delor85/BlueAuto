@@ -1,4 +1,4 @@
-authorized_sha=925e78059023a3987918fc1ef03cf97ee1d36c8c
+authorized_sha=85d49d4a06e1e96d2c47064281460bedc0afb52b
 package=com.profitloop.blueauto
 versionCode=61
 versionName=2.9.6
