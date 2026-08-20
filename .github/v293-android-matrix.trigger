@@ -1,5 +1,8 @@
+run=v2.9.3-android-6-to-17-3
 source_sha=33a15f4eb7e0c04b0dac8c82837037396c49cea2
 artifact_run=32258437090
 apk_sha256=6c3f605a6e6bd9156070cc8888ca34ef49ad33c3e6a240a83b4b3588065c2b50
+runner_script=no-cross-line-shell-variables
+api37_channel=canary
 production_deploy=forbidden
 permanent_signing=forbidden
