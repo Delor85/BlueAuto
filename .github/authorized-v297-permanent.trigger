@@ -1,0 +1,8 @@
+authorized_sha=1dd0d441b93ed0cbce543d47258b3b3dc87da01c
+certificate_sha256=f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5
+package=com.profitloop.blueauto
+versionCode=62
+versionName=2.9.7
+baseline_sha=85d49d4a06e1e96d2c47064281460bedc0afb52b
+scope=build-and-smoke-test-permanent-apk-only
+production_mutation=false
