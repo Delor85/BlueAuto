@@ -13,8 +13,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: bir-v297-validation-${{ github.ref }}
-  cancel-in-progress: true
+  group: bir-v297-validation-${{ github.event.pull_request.number || github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
 
 jobs:
   validate-and-build:
