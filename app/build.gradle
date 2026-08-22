@@ -16,6 +16,8 @@ android {
         versionName "2.9.7"
     }
 
+    // Historical test lineage retained as documentation only: previous permanent candidate used
+    // versionCode 61 / versionName "2.9.6". Active release identity is defined above.
     signingConfigs {
         pilotDebug {
             storeFile rootProject.file('.pilot-signing/debug.keystore')
