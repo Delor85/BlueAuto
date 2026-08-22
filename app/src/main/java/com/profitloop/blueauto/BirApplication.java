@@ -17,11 +17,12 @@ import org.json.JSONObject;
 import java.util.Locale;
 
 /**
- * Lightweight field-safety observer for Remote terminals.
+ * Lightweight field-safety observer for Remote terminals and local Robot health.
  *
- * It never calls the network and never creates a financial command. RobotService already refreshes
- * the authenticated Remote dashboard cache every ~5 seconds; this observer only reads that cache
- * and promotes critical Robot/Accessibility failures to an Android high-priority notification.
+ * It never creates a financial command. RobotService already refreshes the authenticated Remote
+ * dashboard cache every ~5 seconds; this observer reads that cache for urgent Remote alerts. On a
+ * Robot it only detects an Accessibility state transition and wakes the existing sync engine so the
+ * Remote receives that state promptly instead of waiting for the normal heartbeat interval.
  */
 public final class BirApplication extends Application {
     private static final String CHANNEL = "bir_remote_urgent_v297";
@@ -29,9 +30,14 @@ public final class BirApplication extends Application {
     private static final long CHECK_MS = 5_000L;
     private static final long CACHE_MAX_AGE_MS = 35_000L;
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private Boolean lastAccessibilityEnabled;
+    private Boolean lastAccessibilityConnected;
     private final Runnable observer = new Runnable() {
         @Override public void run() {
-            try { inspectRemoteHealth(); } catch (Exception ignored) {}
+            try {
+                publishLocalAccessibilityTransition();
+                inspectRemoteHealth();
+            } catch (Exception ignored) {}
             handler.postDelayed(this, CHECK_MS);
         }
     };
@@ -40,6 +46,28 @@ public final class BirApplication extends Application {
         super.onCreate();
         createUrgencyChannel();
         handler.postDelayed(observer, 1_500L);
+    }
+
+    private void publishLocalAccessibilityTransition() {
+        if (!AppConfig.anyRobotEnabled(this)) {
+            lastAccessibilityEnabled = null;
+            lastAccessibilityConnected = null;
+            return;
+        }
+        boolean enabled = BlueAccessibilityService.isEnabled(this);
+        boolean connected = BlueAccessibilityService.isConnected();
+        if (lastAccessibilityEnabled == null || lastAccessibilityConnected == null) {
+            lastAccessibilityEnabled = enabled;
+            lastAccessibilityConnected = connected;
+            return;
+        }
+        if (lastAccessibilityEnabled != enabled || lastAccessibilityConnected != connected) {
+            lastAccessibilityEnabled = enabled;
+            lastAccessibilityConnected = connected;
+            // Safe control-plane wake only: clears heartbeat backoff and publishes fresh telemetry.
+            // No command is created and no USSD is dialled by this observer.
+            RobotService.forceSync(this);
+        }
     }
 
     private void inspectRemoteHealth() {
