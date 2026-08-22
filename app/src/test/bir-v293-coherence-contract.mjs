@@ -16,7 +16,7 @@ const worker=read('cloudflare/src/index.js');
 const migration=read('cloudflare/migrations/0010_coherence_recovery_and_reconciliation.sql');
 
 function need(ok,msg){if(!ok)throw new Error(msg);}
-need((gradle.includes('versionCode 58')&&gradle.includes('versionName "2.9.3"'))||((gradle.includes('versionCode 60')||gradle.includes('versionCode 61'))&&(gradle.includes('versionName "2.9.5"')||gradle.includes('versionName "2.9.6"'))),'v2.9.3+ release identity required');
+need((gradle.includes('versionCode 58')&&gradle.includes('versionName "2.9.3"'))||((gradle.includes('versionCode 60')||gradle.includes('versionCode 61')||gradle.includes('versionCode 62'))&&(gradle.includes('versionName "2.9.5"')||gradle.includes('versionName "2.9.6"')||gradle.includes('versionName "2.9.7"'))),'v2.9.3+ release identity required');
 need(local.includes('LOCAL_COMMAND_QUEUED')&&local.includes('REMOTE_ORDER_RECEIVED')&&local.includes('LOCAL_PROGRESS'),'safe local events must become syncable');
 need(balance.includes('TRUSTED_TELEPHONY')&&balance.includes('transaction_id')&&balance.includes('receipt_number'),'trusted local balance evidence must be durable and identifiable');
 need(access.includes('CertifiedBalanceStore.observeTrusted'),'accessibility result must promote trusted Blue proof locally');
@@ -34,4 +34,4 @@ need(worker.includes('PROBABLE_OPERATOR_INCIDENT')&&worker.includes('stockout'),
 need(migration.includes('inbound_commission_bps')&&migration.includes('duplicate_request_audit')&&migration.includes('reconciliation_rows'),'accounting/reconciliation schema missing');
 need(!/sms[_ -]?fallback/i.test(worker+robot),'no SMS fallback may be introduced');
 need(!/financial_command_over_relay\s*=\s*true/i.test(worker+robot),'Relay must not carry financial commands');
-console.log('B.I.R. v2.9.3 coherence/recovery contract OK');
+console.log('B.I.R. v2.9.3+ coherence/recovery contract OK');
