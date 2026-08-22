@@ -1,0 +1,14 @@
+import fs from 'node:fs';
+import {execFileSync} from 'node:child_process';
+const modulePath='app/src/main/assets/field-ops-v297.js';
+execFileSync(process.execPath,['--check',modulePath],{stdio:'inherit'});
+const js=fs.readFileSync(modulePath,'utf8');
+const html=fs.readFileSync('app/src/main/assets/index.html','utf8');
+const sms=fs.readFileSync('app/src/main/java/com/profitloop/blueauto/SmsReceiver.java','utf8');
+for(const x of ['field-ops-v297.js','field-ops-v297.css']) if(!html.includes(x)) throw new Error('missing v297 asset: '+x);
+for(const x of ['refreshQueueSnapshot','loadDashboard','5000','ACTUALISER SOLDE','ASSISTANT OPÉRATIONNEL LOCAL']) if(!js.includes(x)) throw new Error('field resilience missing: '+x);
+if(/createCommand\s*\(/.test(js)||/previewCommand\s*\(/.test(js)) throw new Error('assistant/telemetry module must not create finance commands');
+if(!js.includes("document.visibilityState==='hidden'")) throw new Error('5s telemetry must pause while UI is hidden');
+if(!sms.includes('bestScore > 0 && !tie ? best : ""')) throw new Error('dual-SIM ambiguity must fail closed');
+if(!sms.includes('AppConfig.simSlot(context, id) == slot')) throw new Error('Android subscription slot must remain primary SMS routing evidence');
+console.log('BIR v2.9.7 field resilience, no-finance assistant and dual-SIM fail-closed contract OK');
