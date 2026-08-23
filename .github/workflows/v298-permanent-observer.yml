@@ -1,0 +1,39 @@
+name: BIR v2.9.8 Permanent Run Observer
+
+on:
+  push:
+    branches: [fix/bir-v2-9-8-transaction-first-reference]
+    paths: [.github/authorized-v298-permanent.trigger]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bir-v298-permanent-observer
+  cancel-in-progress: true
+
+jobs:
+  record-run:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fix/bir-v2-9-8-transaction-first-reference
+          fetch-depth: 0
+      - name: Persist permanent run observability
+        run: |
+          set -euo pipefail
+          trigger=.github/authorized-v298-permanent.trigger
+          source_sha="$(sed -n 's/^authorized_sha=//p' "$trigger" | head -1 | tr -d '\r\n')"
+          cat > .github/v298-permanent-run-start.txt <<EOF
+          observer_run_id=${{ github.run_id }}
+          authorization_sha=${{ github.sha }}
+          authorized_source_sha=$source_sha
+          observed_at=${{ github.event.head_commit.timestamp }}
+          production_mutation=false
+          EOF
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/v298-permanent-run-start.txt
+          git commit -m 'ci(v2.9.8): record permanent push run id' || exit 0
+          git push origin HEAD:fix/bir-v2-9-8-transaction-first-reference
