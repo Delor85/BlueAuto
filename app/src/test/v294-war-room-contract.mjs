@@ -11,7 +11,7 @@ const manifest=fs.readFileSync('app/src/main/AndroidManifest.xml','utf8');
 function need(ok,msg){if(!ok)throw new Error(msg);}
 
 need(index.includes('war-room-v294.js'),'War Room not loaded');
-need((gradle.includes('versionCode 59')&&gradle.includes('versionName "2.9.4"'))||((gradle.includes('versionCode 60')||gradle.includes('versionCode 61')||gradle.includes('versionCode 62'))&&(gradle.includes('versionName "2.9.5"')||gradle.includes('versionName "2.9.6"')||gradle.includes('versionName "2.9.7"'))),'v2.9.4+ metadata missing');
+need((gradle.includes('versionCode 59')&&gradle.includes('versionName "2.9.4"'))||((gradle.includes('versionCode 60')||gradle.includes('versionCode 61')||gradle.includes('versionCode 62')||gradle.includes('versionCode 63')||gradle.includes('versionCode 64'))&&(gradle.includes('versionName "2.9.5"')||gradle.includes('versionName "2.9.6"')||gradle.includes('versionName "2.9.7"')||gradle.includes('versionName "2.9.8"')||gradle.includes('versionName "2.9.9"'))),'v2.9.4+ metadata missing');
 need(app.includes("var saved='reports'; // v2.9.4: ouverture = War Room"),'fresh app opening must start on War Room');
 need(war.includes('Situation maintenant'),'War Room summary missing');
 need(war.includes('Mes 3 soldes')&&war.includes("role==='POS'?'<span>Mon unique solde"),'role-aware balance summary missing');

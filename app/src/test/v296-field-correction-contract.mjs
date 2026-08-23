@@ -13,7 +13,7 @@ const api=read('app/src/main/java/com/profitloop/blueauto/ApiClient.java');
 const worker=read('cloudflare/src/index.js');
 const permanent=read('.github/workflows/v296-permanent-upgrade.yml');
 
-must((gradle.includes('versionCode 61')&&gradle.includes('versionName "2.9.6"'))||(gradle.includes('versionCode 62')&&gradle.includes('versionName "2.9.7"'))||(gradle.includes('versionCode 63')&&gradle.includes('versionName "2.9.8"')),'2.9.6+ Android identity missing');
+must((gradle.includes('versionCode 61')&&gradle.includes('versionName "2.9.6"'))||(gradle.includes('versionCode 62')&&gradle.includes('versionName "2.9.7"'))||(gradle.includes('versionCode 63')&&gradle.includes('versionName "2.9.8"'))||(gradle.includes('versionCode 64')&&gradle.includes('versionName "2.9.9"')),'2.9.6+ Android identity missing');
 must(api.includes('payload.put("app_version", BuildConfig.VERSION_NAME);')||api.includes('payload.put("app_version", "2.9.6");')||api.includes('payload.put("app_version", "2.9.7");')||api.includes('payload.put("app_version", "2.9.8");'),'2.9.6+ telemetry missing');
 must(worker.includes("const API_VERSION = '2.9.6-cloudflare'"),'2.9.6 Worker source baseline missing');
 must(main.includes('PIN Blue exact à 4 chiffres est obligatoire en Remote et en Robot')
@@ -39,4 +39,4 @@ const v297Proof=permanent.includes('BIR-v2.9.6-vc61-Permanent-Baseline.apk')
 must((oldProof||v297Proof)&&permanent.includes('certificate_sha256')&&permanent.includes('api: 23')
   &&permanent.includes('api: 26'),'permanent Android 6/8 in-place upgrade proof missing');
 
-console.log('B.I.R. v2.9.6 baseline preserved under v2.9.8 transaction-first correction contract OK');
+console.log('B.I.R. v2.9.6 baseline preserved under v2.9.9 reference stability correction contract OK');

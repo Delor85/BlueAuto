@@ -11,7 +11,7 @@ const main = read('app/src/main/java/com/profitloop/blueauto/MainActivity.java')
 const manifest = read('app/src/main/AndroidManifest.xml');
 const worker = read('cloudflare/src/index.js');
 
-must((gradle.includes('versionCode 57')||gradle.includes('versionCode 58')||gradle.includes('versionCode 60')||gradle.includes('versionCode 61')||gradle.includes('versionCode 62')) && (gradle.includes('versionName "2.9.2"')||gradle.includes('versionName "2.9.3"')||gradle.includes('versionName "2.9.5"')||gradle.includes('versionName "2.9.6"')||gradle.includes('versionName "2.9.7"')), 'v2.9.2+ identity missing');
+must((gradle.includes('versionCode 57')||gradle.includes('versionCode 58')||gradle.includes('versionCode 60')||gradle.includes('versionCode 61')||gradle.includes('versionCode 62')||gradle.includes('versionCode 63')||gradle.includes('versionCode 64')) && (gradle.includes('versionName "2.9.2"')||gradle.includes('versionName "2.9.3"')||gradle.includes('versionName "2.9.5"')||gradle.includes('versionName "2.9.6"')||gradle.includes('versionName "2.9.7"')||gradle.includes('versionName "2.9.8"')||gradle.includes('versionName "2.9.9"')), 'v2.9.2+ identity missing');
 must(index.includes('pilotage-v292.css') && index.includes('pilotage-v292.js'), 'v2.9.2 dashboard assets not loaded');
 must(api.includes('BuildConfig.VERSION_NAME') || ((api.match(/app_version", "2\.9\.[2356]/g) || []).length) >= 2, 'native heartbeat/activation does not report a supported v2.9 release');
 must(api.includes('|ops_cockpit|ops_assist|ops_escalate|'), 'ops_assist is not allowed through native bridge');

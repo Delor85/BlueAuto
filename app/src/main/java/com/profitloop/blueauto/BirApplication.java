@@ -1,5 +1,6 @@
 package com.profitloop.blueauto;
 
+import android.app.Activity;
 import android.app.Application;
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -8,6 +9,7 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 
@@ -19,10 +21,10 @@ import java.util.Locale;
 /**
  * Lightweight field-safety observer for Remote terminals and local Robot health.
  *
- * It never creates a financial command. RobotService maintains the authenticated Remote dashboard
- * cache; this observer checks that state every 10 seconds for urgent Remote alerts. On a Robot it
- * only detects an Accessibility state transition and wakes the existing sync engine so the Remote
- * receives that state promptly instead of waiting for a normal heartbeat.
+ * It never creates a financial command. RobotService owns the authenticated Remote dashboard
+ * cache and its 10-second polling cadence. This application class only wakes that existing engine
+ * when a Remote process starts or returns to foreground, so several Remote phones attached to the
+ * same logical account converge quickly on the same server truth without becoming competing Robots.
  */
 public final class BirApplication extends Application {
     private static final String CHANNEL = "bir_remote_urgent_v297";
@@ -30,9 +32,11 @@ public final class BirApplication extends Application {
     private static final long CHECK_MS = 10_000L;
     private static final long ROBOT_SILENCE_ALERT_SECONDS = 60L;
     private static final long CACHE_MAX_AGE_MS = 90_000L;
+    private static final long FOREGROUND_SYNC_DEBOUNCE_MS = 3_000L;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private Boolean lastAccessibilityEnabled;
     private Boolean lastAccessibilityConnected;
+    private long lastForegroundSyncAt;
     private final Runnable observer = new Runnable() {
         @Override public void run() {
             try {
@@ -46,7 +50,31 @@ public final class BirApplication extends Application {
     @Override public void onCreate() {
         super.onCreate();
         createUrgencyChannel();
+        registerActivityLifecycleCallbacks(new ActivityLifecycleCallbacks() {
+            @Override public void onActivityCreated(Activity activity, Bundle state) {}
+            @Override public void onActivityStarted(Activity activity) {}
+            @Override public void onActivityResumed(Activity activity) { wakeRemoteTruth(false); }
+            @Override public void onActivityPaused(Activity activity) {}
+            @Override public void onActivityStopped(Activity activity) {}
+            @Override public void onActivitySaveInstanceState(Activity activity, Bundle state) {}
+            @Override public void onActivityDestroyed(Activity activity) {}
+        });
+        // First process start: ensure a Remote-only phone does not wait for a Robot/watchdog event
+        // before its existing 10-second observer begins. sendServiceAction remains guarded by the
+        // Android background-start fallback inside RobotService.
+        wakeRemoteTruth(true);
         handler.postDelayed(observer, 1_500L);
+    }
+
+    private void wakeRemoteTruth(boolean force) {
+        if (!AppConfig.anyRemoteProfile(this)) return;
+        long now = System.currentTimeMillis();
+        if (!force && now - lastForegroundSyncAt < FOREGROUND_SYNC_DEBOUNCE_MS) return;
+        lastForegroundSyncAt = now;
+        // Safe read/control-plane wake only. ACTION_FORCE_SYNC clears Remote dashboard throttles;
+        // RobotService still performs the single authenticated dashboard poll and never leases a
+        // command for a REMOTE profile.
+        RobotService.forceSync(this);
     }
 
     private void publishLocalAccessibilityTransition() {
@@ -104,8 +132,6 @@ public final class BirApplication extends Application {
             boolean serverStale = row.optBoolean("robot_stale", false)
                     || "OFFLINE".equals(status) || "STALE".equals(status);
             boolean silentForSixtySeconds = age >= ROBOT_SILENCE_ALERT_SECONDS;
-            // Prefer the measured age. If an older server does not expose age_seconds, keep its
-            // explicit STALE/OFFLINE verdict as a compatibility fallback instead of hiding danger.
             if (silentForSixtySeconds || (age < 0d && serverStale)) {
                 urgentTitle = "URGENT — Robot " + node + " injoignable";
                 urgentText = silentForSixtySeconds

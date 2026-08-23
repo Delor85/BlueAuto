@@ -1,0 +1,20 @@
+/* B.I.R. v2.9.9 — Reference Stability
+ * Additive only. Transaction-First remains the primary shell.
+ */
+.bir-v299-buy{background:linear-gradient(145deg,#dff9e8,#b9efd0)!important;border:1px solid rgba(30,155,86,.42)!important;box-shadow:0 10px 24px rgba(30,155,86,.14)!important}
+.bir-v299-buy label,.bir-v299-buy b,.bir-v299-buy span{color:#123b26!important}
+.bir-v299-buy button{background:linear-gradient(105deg,#168c50,#0d6f40)!important;color:#fff!important;box-shadow:0 8px 20px rgba(13,111,64,.28)!important}
+.bir-v299-buy input{border-color:rgba(13,111,64,.5)!important;background:#fff!important;color:#102a1d!important}
+.bir-v299-buy input::placeholder{color:#668275!important}
+.bir-v299-strategy{margin-top:16px;padding:16px;border:1px solid rgba(78,225,255,.28);border-radius:16px;background:linear-gradient(145deg,rgba(15,47,87,.97),rgba(7,26,54,.98));box-shadow:0 9px 24px rgba(0,0,0,.18)}
+.bir-v299-strategy-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}.bir-v299-strategy h3{margin:4px 0 3px}.bir-v299-strategy-head button{width:auto;min-height:38px;margin:0;padding:0 14px}.bir-v299-rate-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}.bir-v299-rate-box{padding:12px;border-radius:12px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.08)}.bir-v299-rate-box>span{display:block;color:#a8bad2;font-size:.72rem}.bir-v299-rate-box>strong{display:block;margin:5px 0;color:#fff;font-size:1.2rem}.bir-v299-rate-box small{display:block;line-height:1.35;color:#c8d8ea}.bir-v299-rate-list{margin-top:10px}.bir-v299-rate-row{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid rgba(78,225,255,.12)}.bir-v299-rate-row:first-child{border-top:0}.bir-v299-rate-row b{color:#fff}.bir-v299-rate-row small{display:block;color:#9fb4cd;margin-top:2px}.bir-v299-rate-pill{white-space:nowrap;align-self:center;padding:5px 8px;border-radius:999px;background:rgba(78,225,255,.12);color:#83ecff;font-weight:800;font-size:.7rem}.bir-v299-rate-pill.custom{background:rgba(255,205,92,.15);color:#ffd56a}.bir-v299-rate-pill.oneshot{background:rgba(135,92,255,.18);color:#d9ceff}.bir-v299-empty{padding:9px 0;color:#9fb4cd;font-size:.78rem}.bir-v299-assistant-hint{margin-top:8px;padding:8px 10px;border-radius:10px;background:rgba(78,225,255,.08);color:#dffaff;font-size:.75rem;line-height:1.4}
+/* Android 11 WebView compositor guard. The large animated fixed dust layer + blurred sticky
+ * surfaces are disabled only on Android 11, where real devices showed white/blue frozen frames. */
+html.bir-v299-android11,html.bir-v299-android11 body{scroll-behavior:auto!important}
+body.bir-v299-android11{background:linear-gradient(155deg,#3f2a08 0,#0c3266 34%,#05122a 68%,#030b1b 100%)!important}
+body.bir-v299-android11::before{display:none!important;animation:none!important;content:none!important}
+body.bir-v299-android11 .topbar{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+body.bir-v299-android11 .panel,body.bir-v299-android11 .module-tabs,body.bir-v299-android11 .bir-v298-transaction,body.bir-v299-android11 .bir-v298-situation{filter:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;animation:none!important;transition:none!important}
+body.bir-v299-android11 .module-tabs{box-shadow:0 7px 20px rgba(0,0,0,.42)!important}
+body.bir-v299-android11 .module-tab-primary{transform:translateY(-10px)!important}
+@media(max-width:390px){.bir-v299-rate-grid{grid-template-columns:1fr}.bir-v299-strategy-head button{width:100%;margin-top:5px}}
