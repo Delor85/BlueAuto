@@ -1,0 +1,147 @@
+name: BIR v2.9.9 Reference Stability validation
+
+on:
+  push:
+    branches: [fix/bir-v2-9-9-reference-stability]
+  pull_request:
+    branches: [fix/bir-v2-9-8-transaction-first-reference]
+    paths:
+      - 'app/**'
+      - '.github/workflows/v299-reference-stability.yml'
+      - 'docs/BIR_2.9.9_REFERENCE_STABILITY_2026-08-23.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bir-v299-reference-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-and-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Prove APK-only production boundary and release identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code 9c0832fa0d2a1d1a946d4350e03933098451d59d -- cloudflare
+          grep -q 'versionCode 64' app/build.gradle
+          grep -q 'versionName "2.9.9"' app/build.gradle
+          grep -Fq 'new String[]{"REMOTE", "ROBOT"}' app/src/main/java/com/profitloop/blueauto/MainActivity.java
+          ! grep -RniE 'sms[_ -]?fallback|financial_command_over_relay[[:space:]]*=[[:space:]]*true' app/src/main
+      - name: Validate Worker source without deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd cloudflare && npm ci && npm run check)
+      - name: Run every historical and v2.9.9 contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          for test in app/src/test/*.mjs; do node "$test"; done
+          node --check app/src/main/assets/app.js
+          node --check app/src/main/assets/field-ops-v297.js
+          node --check app/src/main/assets/transaction-first-v298.js
+          node --check app/src/main/assets/reference-stability-v299.js
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+          cache-read-only: true
+      - name: Prepare ephemeral validation signature
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .pilot-signing
+          keytool -genkeypair -v -keystore .pilot-signing/debug.keystore -storepass validationOnly64 \
+            -keypass validationOnly64 -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 30 \
+            -dname 'CN=BIR v2.9.9 Ephemeral Validation,O=OpenAI CI,C=CM'
+          echo 'BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=validationOnly64' >> "$GITHUB_ENV"
+      - name: Unit tests and Release build
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle :app:testDebugUnitTest :app:assembleRelease --stacktrace
+      - name: Verify exact candidate identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk="$(find app/build/outputs/apk/release -type f -name '*.apk' -print -quit)"
+          test -f "$apk"
+          bt="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          "$bt/aapt" dump badging "$apk" | tee /tmp/v299-badging.txt
+          grep -q "package: name='com.profitloop.blueauto' versionCode='64' versionName='2.9.9'" /tmp/v299-badging.txt
+          grep -q "sdkVersion:'23'" /tmp/v299-badging.txt
+          if grep -q 'application-debuggable' /tmp/v299-badging.txt; then exit 1; fi
+          sha256sum "$apk" | tee /tmp/v299-candidate.sha256.txt
+          git rev-parse HEAD | tee /tmp/v299-source-sha.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BIR-v2.9.9-reference-stability-EPHEMERAL
+          retention-days: 7
+          if-no-files-found: error
+          path: |
+            app/build/outputs/apk/release/*.apk
+            /tmp/v299-badging.txt
+            /tmp/v299-candidate.sha256.txt
+            /tmp/v299-source-sha.txt
+
+  android-matrix:
+    needs: validate-and-build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 32
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - android: '6'; api: 23
+          - android: '7'; api: 24
+          - android: '8'; api: 26
+          - android: '9'; api: 28
+          - android: '10'; api: 29
+          - android: '11'; api: 30
+          - android: '12'; api: 31
+          - android: '13'; api: 33
+          - android: '14'; api: 34
+          - android: '15'; api: 35
+          - android: '16'; api: 36
+    name: Android ${{ matrix.android }} / API ${{ matrix.api }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: BIR-v2.9.9-reference-stability-EPHEMERAL
+          path: apk
+      - name: Boot, install and launch exact candidate
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: x86_64
+          profile: Nexus 5X
+          target: google_apis
+          disable-animations: false
+          emulator-boot-timeout: 720
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
+          script: |
+            set -eu
+            adb wait-for-device
+            for i in 1 2 3 4 5 6 7 8 9 10 11 12; do adb shell pm list packages >/dev/null 2>&1 && break; sleep 5; done
+            apkfile="$(find apk -type f -name 'app-release.apk' -print -quit)"; test -f "$apkfile"
+            ok=0; for i in 1 2 3 4; do adb install --no-streaming "$apkfile" && ok=1 && break; sleep 8; adb kill-server || true; adb start-server; adb wait-for-device; done; test "$ok" = 1
+            adb shell dumpsys package com.profitloop.blueauto | grep -q 'versionCode=64'
+            adb logcat -c || true
+            started=0; for i in 1 2 3 4; do adb shell am start -W -n com.profitloop.blueauto/.MainActivity && started=1 && break; sleep 6; adb wait-for-device; done; test "$started" = 1
+            sleep 4
+            adb shell dumpsys activity activities | grep -q 'com.profitloop.blueauto'
+            adb logcat -d '*:E' > /tmp/v299-logcat.txt || true
+            ! grep -E 'FATAL EXCEPTION.*com.profitloop.blueauto|Process: com.profitloop.blueauto' /tmp/v299-logcat.txt
