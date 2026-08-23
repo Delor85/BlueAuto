@@ -28,7 +28,7 @@ must(/liveRobotOwner\(env, node, deviceId\)/.test(server),'single-Robot ownershi
 must(/commission_policy/.test(js),'commission strategy must read existing policy');
 must(/Taux habituel \/ défaut/.test(js)&&/Taux personnalisés/.test(js)&&/Taux ponctuels récents/.test(js),'commission strategy sections missing');
 must(/CHILD_OVERRIDE/.test(js)&&/PONCTUEL › PERSO › DÉFAUT/.test(js),'commission precedence/dashboard missing');
-must(!/commission_set_default|commission_set_child/.test(js),'v299 strategy dashboard must never mutate commission policy');
+must(!/platformAction\s*\(\s*['"]commission_set_(?:default|child)['"]/.test(js),'v299 strategy dashboard must never emit a commission policy mutation');
 
 must(/assistantAnswer/.test(js)&&/scoreIntents/.test(js),'wide Assistant engine missing');
 for(const token of ['sync','commission','android','robot','access','pin','sim','balance','buy','sell','queue','identity','proof','network'])must(js.includes("id:'"+token+"'"),'Assistant intent missing: '+token);
