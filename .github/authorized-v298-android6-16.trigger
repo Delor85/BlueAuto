@@ -1,0 +1,9 @@
+authorized_sha=536e9241513015a62a3eeda6aa34db8abbba0a90
+package=com.profitloop.blueauto
+versionName=2.9.8
+versionCode=63
+minSdk=23
+maxTestedAndroid=16
+certificate_sha256=f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5
+scope=build-sign-upgrade-smoke-delivery-only
+production_mutation=false
