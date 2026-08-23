@@ -6,7 +6,7 @@ on:
     paths: [.github/authorized-v298-permanent.trigger]
 
 permissions:
-  contents: read
+  contents: write
   issues: write
 
 concurrency:
@@ -73,6 +73,7 @@ jobs:
     outputs:
       source_sha: ${{ steps.auth.outputs.source_sha }}
       apk_sha256: ${{ steps.release.outputs.apk_sha256 }}
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -168,6 +169,7 @@ jobs:
           printf 'source_sha=%s\npackage=com.profitloop.blueauto\nversionName=2.9.8\nversionCode=63\napk_sha256=%s\ncertificate_sha256=%s\nupgrade_baseline=2.9.7-vc62\nproduction_mutation=false\n' '${{ steps.auth.outputs.source_sha }}' "$apk_sha" "$cert" > BIR-v2.9.8-Permanent-release-info.txt
           echo "apk_sha256=$apk_sha" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
+        id: upload
         with:
           name: BIR-v2.9.8-Permanent
           path: |
@@ -207,11 +209,14 @@ jobs:
           disable-animations: true
           script: |
             set -eu
-            adb install apk/BIR-v2.9.7-vc62-Permanent-Baseline.apk
+            base="$(find apk -type f -name 'BIR-v2.9.7-vc62-Permanent-Baseline.apk' -print -quit)"
+            candidate="$(find apk -type f -name 'BIR-Blue-Infinity-Retail-v2.9.8-vc63-Permanent.apk' -print -quit)"
+            test -n "$base" && test -n "$candidate"
+            adb install "$base"
             adb shell dumpsys package com.profitloop.blueauto | grep -q 'versionCode=62'
             adb shell am start -W -n com.profitloop.blueauto/.MainActivity
             adb shell am force-stop com.profitloop.blueauto
-            adb install -r apk/BIR-Blue-Infinity-Retail-v2.9.8-vc63-Permanent.apk
+            adb install -r "$candidate"
             adb shell dumpsys package com.profitloop.blueauto | grep -q 'versionCode=63'
             adb logcat -c || true
             adb shell am start -W -n com.profitloop.blueauto/.MainActivity
@@ -225,21 +230,26 @@ jobs:
     if: ${{ always() && needs.permanent-build.result == 'success' && needs.smoke-upgrade.result == 'success' }}
     runs-on: ubuntu-24.04
     steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fix/bir-v2-9-8-transaction-first-reference
+          fetch-depth: 0
       - name: Publish immutable v2.9.8 delivery proof
         env:
           GH_TOKEN: ${{ github.token }}
           SOURCE_SHA: ${{ needs.permanent-build.outputs.source_sha }}
           APK_SHA256: ${{ needs.permanent-build.outputs.apk_sha256 }}
+          ARTIFACT_ID: ${{ needs.permanent-build.outputs.artifact_id }}
         run: |
           set -euo pipefail
           pr="$(gh api "repos/${{ github.repository }}/pulls?head=Delor85:fix/bir-v2-9-8-transaction-first-reference&state=open" --jq '.[0].number // empty')"
-          test -n "$pr" || exit 0
           body=$(cat <<EOF
           <!-- BIR_V298_PERMANENT_DELIVERY_PROOF -->
           ## ✅ B.I.R. v2.9.8 — APK permanente certifiée
 
           - run_id: ${{ github.run_id }}
           - source_sha: $SOURCE_SHA
+          - artifact_id: $ARTIFACT_ID
           - artifact: BIR-v2.9.8-Permanent
           - apk: BIR-Blue-Infinity-Retail-v2.9.8-vc63-Permanent.apk
           - package: com.profitloop.blueauto
@@ -251,8 +261,23 @@ jobs:
           - Android 6 / API23: SUCCESS
           - Android 8 / API26: SUCCESS
           - production_mutation: false
-
-          Cette preuve est publiée uniquement après signature historique et réussite des deux upgrades en place.
           EOF
           )
-          gh api "repos/${{ github.repository }}/issues/$pr/comments" -f body="$body" >/dev/null
+          if test -n "$pr"; then gh api "repos/${{ github.repository }}/issues/$pr/comments" -f body="$body" >/dev/null; fi
+          cat > .github/v298-permanent-delivery-proof.txt <<EOF
+          run_id=${{ github.run_id }}
+          source_sha=$SOURCE_SHA
+          artifact_id=$ARTIFACT_ID
+          apk_sha256=$APK_SHA256
+          certificate_sha256=f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5
+          versionName=2.9.8
+          versionCode=63
+          android_api23=SUCCESS
+          android_api26=SUCCESS
+          production_mutation=false
+          EOF
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/v298-permanent-delivery-proof.txt
+          git commit -m 'docs(v2.9.8): record permanent APK delivery proof'
+          git push origin HEAD:fix/bir-v2-9-8-transaction-first-reference
