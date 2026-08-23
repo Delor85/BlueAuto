@@ -1,0 +1,58 @@
+name: BIR v2.9.7 one-shot native 10s alignment
+
+on:
+  push:
+    branches: [fix/bir-v2-9-7-field-resilience-ai]
+    paths:
+      - '.github/workflows/v297-native-10s-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  align-native-remote-cadence:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout delivery branch
+        uses: actions/checkout@v5
+        with:
+          ref: fix/bir-v2-9-7-field-resilience-ai
+          fetch-depth: 0
+
+      - name: Align native snapshot cadence and regression contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          robot = Path('app/src/main/java/com/profitloop/blueauto/RobotService.java')
+          test = Path('app/src/test/v291-field-recovery-contract.mjs')
+          r = robot.read_text()
+          old = 'private static final long REMOTE_SNAPSHOT_MS = 5_000L;'
+          new = 'private static final long REMOTE_SNAPSHOT_MS = 10_000L;'
+          if r.count(old) != 1:
+              raise SystemExit(f'Expected exactly one native cadence marker, found {r.count(old)}')
+          robot.write_text(r.replace(old, new))
+          t = test.read_text()
+          old_test = "robot.includes('REMOTE_SNAPSHOT_MS = 5_000L')"
+          new_test = "robot.includes('REMOTE_SNAPSHOT_MS = 10_000L')"
+          if t.count(old_test) != 1:
+              raise SystemExit(f'Expected exactly one historical cadence contract, found {t.count(old_test)}')
+          test.write_text(t.replace(old_test, new_test))
+          PY
+          grep -q 'REMOTE_SNAPSHOT_MS = 10_000L' app/src/main/java/com/profitloop/blueauto/RobotService.java
+          grep -q "REMOTE_SNAPSHOT_MS = 10_000L" app/src/test/v291-field-recovery-contract.mjs
+
+      - name: Commit exact additive alignment
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo 'Native cadence already aligned.'
+            exit 0
+          fi
+          git config user.name 'Delor85'
+          git config user.email 'mbolodelorpro@gmail.com'
+          git add app/src/main/java/com/profitloop/blueauto/RobotService.java app/src/test/v291-field-recovery-contract.mjs
+          git commit -m 'fix(v2.9.7): align native Remote snapshot to 10 seconds'
+          git push origin HEAD:fix/bir-v2-9-7-field-resilience-ai
