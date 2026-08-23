@@ -20,7 +20,7 @@ const acceptedCodes=['versionCode 52','versionCode 53','versionCode 54','version
 const acceptedNames=['versionName "2.7.1"','versionName "2.8.0"','versionName "2.8.1"','versionName "2.9.0"','versionName "2.9.1"','versionName "2.9.3"','versionName "2.9.5"','versionName "2.9.6"','versionName "2.9.7"'];
 if(!acceptedCodes.some(x=>gradle.includes(x))||!acceptedNames.some(x=>gradle.includes(x))) throw new Error('version mismatch');
 for(const x of ['field-ops-v297.css','field-ops-v297.js']) if(!html.includes(x)) throw new Error('v2.9.7 field module not loaded: '+x);
-for(const x of ['File & activité en direct','ACTUALISER SOLDE','ASSISTANT OPÉRATIONNEL LOCAL','Pourquoi ça ne part pas ?','requestQueue(false)','requestDashboard()']) if(!field297.includes(x)) throw new Error('v2.9.7 field contract missing: '+x);
+for(const x of ['File & activité en direct','ACTUALISER SOLDE','ASSISTANT OPÉRATIONNEL LOCAL','Pourquoi ça ne part pas ?','requestQueue(false)','function requestDashboard(force)','10000']) if(!field297.includes(x)) throw new Error('v2.9.7 field contract missing: '+x);
 if(!field297.includes('insertBefore(detail,btn.nextSibling)')) throw new Error('Mes outils must render detail under selected tool');
 if(!field297.includes('aucune opération financière automatique')&&!field297.includes('ne crée, ne confirme')) throw new Error('local assistant financial guard missing');
 if(html.includes('une plateforme, pas un catalogue')||html.includes('Uniquement les capacités propres')) throw new Error('meta competitor/catalog copy must not appear');
