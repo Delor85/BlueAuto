@@ -8,6 +8,7 @@ on:
     paths:
       - 'app/**'
       - '.github/workflows/v298-transaction-first.yml'
+      - '.github/workflows/v298-permanent-android6-16.yml'
       - 'docs/BIR_2.9.8_Reference_Transaction_First_2026-08-23.md'
 
 permissions:
