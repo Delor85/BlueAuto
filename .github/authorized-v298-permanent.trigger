@@ -1,0 +1,8 @@
+authorized_sha=9582f1c4b63bd3016f83fb20e436b2ffa76cc237
+certificate_sha256=f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5
+package=com.profitloop.blueauto
+versionCode=63
+versionName=2.9.8
+baseline_sha=bd3401bf131eb647ea7cbeb2ad6c2213b691b20d
+scope=build-sign-upgrade-smoke-delivery-only
+production_mutation=false
