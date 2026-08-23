@@ -19,16 +19,17 @@ import java.util.Locale;
 /**
  * Lightweight field-safety observer for Remote terminals and local Robot health.
  *
- * It never creates a financial command. RobotService already refreshes the authenticated Remote
- * dashboard cache every ~5 seconds; this observer reads that cache for urgent Remote alerts. On a
- * Robot it only detects an Accessibility state transition and wakes the existing sync engine so the
- * Remote receives that state promptly instead of waiting for the normal heartbeat interval.
+ * It never creates a financial command. RobotService maintains the authenticated Remote dashboard
+ * cache; this observer checks that state every 10 seconds for urgent Remote alerts. On a Robot it
+ * only detects an Accessibility state transition and wakes the existing sync engine so the Remote
+ * receives that state promptly instead of waiting for a normal heartbeat.
  */
 public final class BirApplication extends Application {
     private static final String CHANNEL = "bir_remote_urgent_v297";
     private static final int NOTIFICATION_ID = 5597;
-    private static final long CHECK_MS = 5_000L;
-    private static final long CACHE_MAX_AGE_MS = 35_000L;
+    private static final long CHECK_MS = 10_000L;
+    private static final long ROBOT_SILENCE_ALERT_SECONDS = 60L;
+    private static final long CACHE_MAX_AGE_MS = 90_000L;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private Boolean lastAccessibilityEnabled;
     private Boolean lastAccessibilityConnected;
@@ -86,6 +87,7 @@ public final class BirApplication extends Application {
                     || "STALE".equalsIgnoreCase(row.optString("robot_status", ""));
             if (!robotExpected) continue;
 
+            // Accessibility is a direct operational fault and remains immediately actionable.
             if (row.has("accessibility_enabled") && !row.optBoolean("accessibility_enabled", true)) {
                 urgentTitle = "URGENT — Accessibilité " + node;
                 urgentText = "Le Robot a perdu l’Accessibilité. Achats/ventes doivent rester en file. Ouvrez B.I.R. et intervenez sur le téléphone Robot.";
@@ -96,14 +98,19 @@ public final class BirApplication extends Application {
                 urgentText = "Accessibilité autorisée mais service Android déconnecté. Ne recréez pas la transaction; B.I.R. attend la reconnexion.";
                 break;
             }
+
             double age = row.optDouble("robot_age_seconds", -1d);
             String status = row.optString("robot_status", "").toUpperCase(Locale.ROOT);
-            if (row.optBoolean("robot_stale", false) || "OFFLINE".equals(status)
-                    || "STALE".equals(status) || age > 30d) {
+            boolean serverStale = row.optBoolean("robot_stale", false)
+                    || "OFFLINE".equals(status) || "STALE".equals(status);
+            boolean silentForSixtySeconds = age >= ROBOT_SILENCE_ALERT_SECONDS;
+            // Prefer the measured age. If an older server does not expose age_seconds, keep its
+            // explicit STALE/OFFLINE verdict as a compatibility fallback instead of hiding danger.
+            if (silentForSixtySeconds || (age < 0d && serverStale)) {
                 urgentTitle = "URGENT — Robot " + node + " injoignable";
-                urgentText = age > 30d
+                urgentText = silentForSixtySeconds
                         ? "Aucun signal fiable depuis " + Math.round(age) + " s. Ne recréez pas une opération déjà en file."
-                        : "La télémétrie du Robot est en retard. Ne recréez pas une opération déjà en file.";
+                        : "La télémétrie du Robot est déclarée en retard par le serveur. Ne recréez pas une opération déjà en file.";
                 break;
             }
         }
