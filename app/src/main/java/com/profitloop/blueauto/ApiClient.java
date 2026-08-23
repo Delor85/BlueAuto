@@ -62,7 +62,7 @@ final class ApiClient {
         SimIdentityManager.Verification sim = SimIdentityManager.verify(context, targetProfile);
         boolean locallyEnabled = AppConfig.robotEnabled(context, targetProfile);
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.9.6");
+        payload.put("app_version", BuildConfig.VERSION_NAME);
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
         payload.put("robot_enabled", locallyEnabled && sim.valid);
@@ -129,7 +129,7 @@ final class ApiClient {
     JSONObject activateRobot(SimIdentityManager.Verification sim, int simSlot,
                              boolean replaceVerifiedSameSimRobot) throws Exception {
         JSONObject payload = new JSONObject();
-        payload.put("app_version", "2.9.6");
+        payload.put("app_version", BuildConfig.VERSION_NAME);
         payload.put("android_version", Build.VERSION.RELEASE);
         payload.put("device_model", Build.MANUFACTURER + " " + Build.MODEL);
         payload.put("sim_verified", sim.valid);
@@ -240,8 +240,6 @@ final class ApiClient {
     }
 
     private JSONObject postControl(String action, JSONObject payload, boolean authenticated) throws Exception {
-        // Retry-safe control-plane calls never dial USSD or mutate financial stock. Shorter timeouts
-        // prevent one weak profile/network route from starving the other SIM queues on this phone.
         return post(action, payload, authenticated, true, 7_000, 10_000);
     }
 
@@ -254,8 +252,7 @@ final class ApiClient {
                             boolean allowAuthenticationRepair, int connectTimeoutMs,
                             int readTimeoutMs) throws Exception {
         String baseUrl = endpointOverride.isEmpty() ? AppConfig.apiUrl(context) : endpointOverride;
-        String endpoint = baseUrl + "?action="
-                + URLEncoder.encode(action, "UTF-8");
+        String endpoint = baseUrl + "?action=" + URLEncoder.encode(action, "UTF-8");
         HttpURLConnection connection = (HttpURLConnection) new URL(endpoint).openConnection();
         connection.setConnectTimeout(connectTimeoutMs);
         connection.setReadTimeout(readTimeoutMs);
@@ -265,94 +262,56 @@ final class ApiClient {
         connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
         String userAgent = AppConfig.userAgent(context);
         if (userAgent.isEmpty()) {
-            userAgent = "Mozilla/5.0 (Linux; Android " + Build.VERSION.RELEASE + "; "
-                    + Build.MODEL + ") AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36";
+            userAgent = "Mozilla/5.0 (Linux; Android " + Build.VERSION.RELEASE + "; " + Build.MODEL + ") AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36";
         }
         connection.setRequestProperty("User-Agent", userAgent);
         connection.setRequestProperty("X-BlueMagic-Client", "android-native-v2");
         String requestToken = "";
         if (authenticated) {
-            requestToken = tokenOverride.isEmpty()
-                    ? (profileIdOverride.isEmpty() ? AppConfig.token(context)
-                    : AppConfig.token(context, profileIdOverride))
-                    : tokenOverride;
+            requestToken = tokenOverride.isEmpty() ? (profileIdOverride.isEmpty() ? AppConfig.token(context) : AppConfig.token(context, profileIdOverride)) : tokenOverride;
             if (requestToken.isEmpty()) throw new ApiException("NOT_PAIRED", "Appareil non appairé.");
             connection.setRequestProperty("X-Device-Token", requestToken);
         }
-        if (!ownerTokenOverride.isEmpty()) {
-            connection.setRequestProperty("X-Owner-Token", ownerTokenOverride);
-        }
-
+        if (!ownerTokenOverride.isEmpty()) connection.setRequestProperty("X-Owner-Token", ownerTokenOverride);
         try {
             connection.setDoOutput(true);
             byte[] body = payload.toString().getBytes(StandardCharsets.UTF_8);
             connection.setFixedLengthStreamingMode(body.length);
-            try (OutputStream output = connection.getOutputStream()) {
-                output.write(body);
-            }
-
+            try (OutputStream output = connection.getOutputStream()) { output.write(body); }
             int status = connection.getResponseCode();
-            InputStream stream = status >= 200 && status < 400
-                    ? connection.getInputStream()
-                    : connection.getErrorStream();
+            InputStream stream = status >= 200 && status < 400 ? connection.getInputStream() : connection.getErrorStream();
             String response = read(stream);
-
-            if (response.trim().isEmpty()) {
-                throw new ApiException("EMPTY_RESPONSE", "Réponse vide du serveur (HTTP " + status + ").");
-            }
-
+            if (response.trim().isEmpty()) throw new ApiException("EMPTY_RESPONSE", "Réponse vide du serveur (HTTP " + status + ").");
             JSONObject root;
-            try {
-                root = new JSONObject(response);
-            } catch (Exception parseError) {
-                throw new ApiException("INVALID_RESPONSE", "Réponse non JSON du serveur (HTTP " + status + ").");
-            }
-
+            try { root = new JSONObject(response); }
+            catch (Exception parseError) { throw new ApiException("INVALID_RESPONSE", "Réponse non JSON du serveur (HTTP " + status + ")."); }
             if (!root.optBoolean("ok", false)) {
                 JSONObject error = root.optJSONObject("error");
                 String code = error == null ? "API_ERROR" : error.optString("code", "API_ERROR");
                 String message = error == null ? "Erreur API." : error.optString("message", "Erreur API.");
                 if (authenticated && allowAuthenticationRepair && "AUTH_INVALID".equals(code)) {
                     repairAuthentication(baseUrl, requestToken);
-                    return post(action, payload, true, false,
-                            connectTimeoutMs, readTimeoutMs);
+                    return post(action, payload, true, false, connectTimeoutMs, readTimeoutMs);
                 }
                 throw new ApiException(code, message);
             }
             JSONObject data = root.optJSONObject("data");
             return data == null ? new JSONObject() : data;
-        } finally {
-            connection.disconnect();
-        }
+        } finally { connection.disconnect(); }
     }
 
     private void repairAuthentication(String baseUrl, String rejectedToken) throws Exception {
-        synchronized (ApiClient.class) {
-            repairAuthenticationLocked(baseUrl, rejectedToken);
-        }
+        synchronized (ApiClient.class) { repairAuthenticationLocked(baseUrl, rejectedToken); }
     }
 
     private void repairAuthenticationLocked(String baseUrl, String rejectedToken) throws Exception {
-        String targetProfile = profileIdOverride.isEmpty()
-                ? AppConfig.profileId(context) : profileIdOverride;
+        String targetProfile = profileIdOverride.isEmpty() ? AppConfig.profileId(context) : profileIdOverride;
         String latestToken = AppConfig.token(context, targetProfile);
-        if (!latestToken.isEmpty() && !latestToken.equals(rejectedToken)) {
-            tokenOverride = latestToken;
-            return;
-        }
-
+        if (!latestToken.isEmpty() && !latestToken.equals(rejectedToken)) { tokenOverride = latestToken; return; }
         String secret;
-        try {
-            secret = SecurePairingStore.read(context);
-        } catch (Exception error) {
-            throw new ApiException("PAIRING_REPAIR_REQUIRED",
-                    "Jeton expiré. Ouvrez « Vérifier / réparer l’appairage » et confirmez le secret.");
-        }
-        if (secret.length() < 24) {
-            throw new ApiException("PAIRING_REPAIR_REQUIRED",
-                    "Jeton expiré. Ouvrez « Vérifier / réparer l’appairage » et confirmez le secret.");
-        }
-
+        try { secret = SecurePairingStore.read(context); }
+        catch (Exception error) { throw new ApiException("PAIRING_REPAIR_REQUIRED", "Jeton expiré. Ouvrez « Vérifier / réparer l’appairage » et confirmez le secret."); }
+        if (secret.length() < 24) throw new ApiException("PAIRING_REPAIR_REQUIRED", "Jeton expiré. Ouvrez « Vérifier / réparer l’appairage » et confirmez le secret.");
         JSONObject pairing = new JSONObject();
         pairing.put("node_code", AppConfig.nodeCode(context, targetProfile));
         pairing.put("phone_number", AppConfig.phoneNumber(context, targetProfile));
@@ -367,15 +326,11 @@ final class ApiClient {
         pairing.put("repair_sim_fingerprint", sim.attestation());
         pairing.put("repair_robot_enabled", AppConfig.robotEnabled(context, targetProfile));
         pairing.put("sim_slot", Math.max(0, AppConfig.simSlot(context, targetProfile)));
-
-        JSONObject data = new ApiClient(context, baseUrl, "")
-                .post("pair_device", pairing, false, false);
+        JSONObject data = new ApiClient(context, baseUrl, "").post("pair_device", pairing, false, false);
         String renewedToken = data.optString("device_token", "");
-        if (!AppConfig.repairPairing(context, targetProfile,
-                data.optString("device_id", ""), renewedToken,
+        if (!AppConfig.repairPairing(context, targetProfile, data.optString("device_id", ""), renewedToken,
                 data.optString("node_code", AppConfig.nodeCode(context, targetProfile)), baseUrl)) {
-            throw new ApiException("PAIRING_REPAIR_FAILED",
-                    "Le nouveau jeton n’a pas pu être enregistré sur ce compte.");
+            throw new ApiException("PAIRING_REPAIR_FAILED", "Le nouveau jeton n’a pas pu être enregistré sur ce compte.");
         }
         AppConfig.updateOfficialIdentity(context, targetProfile,
                 data.optString("official_node_code", AppConfig.nodeCode(context, targetProfile)),
@@ -399,10 +354,6 @@ final class ApiClient {
 
     static final class ApiException extends Exception {
         final String code;
-
-        ApiException(String code, String message) {
-            super(message);
-            this.code = code;
-        }
+        ApiException(String code, String message) { super(message); this.code = code; }
     }
 }

@@ -11,7 +11,6 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 public class SmsReceiver extends BroadcastReceiver {
     @Override
@@ -32,7 +31,7 @@ public class SmsReceiver extends BroadcastReceiver {
         String message = body.toString().trim();
         if (message.isEmpty()) return;
         BlueMessageParser.Result parsed = BlueMessageParser.parse(message);
-        String profileId = profileForSms(context, intent);
+        String profileId = profileForSms(context, intent, message, parsed);
         if (profileId.isEmpty()) return;
 
         JSONObject active = PendingCommandStore.get(context, profileId);
@@ -101,7 +100,14 @@ public class SmsReceiver extends BroadcastReceiver {
         }).start();
     }
 
-    private static String profileForSms(Context context, Intent intent) {
+    /**
+     * Prefer Android's subscription/slot routing. Some Android 8 dual-SIM firmwares omit those
+     * extras, so v2.9.7 uses only strong local evidence as a fallback: the configured SIM number,
+     * the unique active command target, or a unique parent -> child relationship for a received
+     * transfer. A tie deliberately returns no profile instead of risking a wrong financial balance.
+     */
+    private static String profileForSms(Context context, Intent intent, String message,
+                                        BlueMessageParser.Result parsed) {
         int subscriptionId = intent.getIntExtra(SubscriptionManager.EXTRA_SUBSCRIPTION_INDEX, -1);
         if (subscriptionId < 0) subscriptionId = intent.getIntExtra("subscription", -1);
         int slot = -1;
@@ -113,6 +119,7 @@ public class SmsReceiver extends BroadcastReceiver {
                 }
             } catch (Exception ignored) {}
         }
+
         List<String> candidates = new ArrayList<>();
         for (String id : AppConfig.profileIds(context)) {
             if (!AppConfig.isRobotMode(context, id)) continue;
@@ -120,7 +127,46 @@ public class SmsReceiver extends BroadcastReceiver {
         }
         if (candidates.size() == 1) return candidates.get(0);
         if (slot < 0 && AppConfig.profileIds(context).length == 1) return AppConfig.profileIds(context)[0];
-        return "";
+        if (candidates.isEmpty()) return "";
+
+        String digits = message == null ? "" : message.replaceAll("\\D", "");
+        int bestScore = 0;
+        String best = "";
+        boolean tie = false;
+        for (String id : candidates) {
+            int score = 0;
+            String ownPhone = AppConfig.phoneNumber(context, id).replaceAll("\\D", "");
+            if (ownPhone.length() >= 9 && digits.contains(ownPhone)) score += 12;
+
+            JSONObject pending = PendingCommandStore.get(context, id);
+            if (pending != null) {
+                String target = pending.optString("target_phone", "").replaceAll("\\D", "");
+                if (target.length() >= 9 && digits.contains(target)) score += 10;
+                long expected = pending.optLong("amount", 0L);
+                if (expected > 0L && parsed != null && parsed.amountFcfa != null
+                        && parsed.amountFcfa == expected) score += 2;
+            }
+
+            if (parsed != null && "TRANSFER_RECEIVED".equals(parsed.kind)) {
+                String parentNode = AppConfig.parentNode(context, id);
+                if (parentNode != null && !parentNode.isEmpty()) {
+                    for (String possibleParent : AppConfig.profileIds(context)) {
+                        if (!parentNode.equalsIgnoreCase(AppConfig.nodeCode(context, possibleParent))) continue;
+                        String parentPhone = AppConfig.phoneNumber(context, possibleParent).replaceAll("\\D", "");
+                        if (parentPhone.length() >= 9 && digits.contains(parentPhone)) score += 8;
+                    }
+                }
+            }
+
+            if (score > bestScore) {
+                bestScore = score;
+                best = id;
+                tie = false;
+            } else if (score > 0 && score == bestScore) {
+                tie = true;
+            }
+        }
+        return bestScore > 0 && !tie ? best : "";
     }
 
     private static String safePin(Context context, String profileId) {

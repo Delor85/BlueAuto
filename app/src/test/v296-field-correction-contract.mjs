@@ -13,9 +13,9 @@ const api=read('app/src/main/java/com/profitloop/blueauto/ApiClient.java');
 const worker=read('cloudflare/src/index.js');
 const permanent=read('.github/workflows/v296-permanent-upgrade.yml');
 
-must(gradle.includes('versionCode 61')&&gradle.includes('versionName "2.9.6"'),'2.9.6 Android identity missing');
-must(api.includes('payload.put("app_version", "2.9.6");'),'2.9.6 telemetry missing');
-must(worker.includes("const API_VERSION = '2.9.6-cloudflare'"),'2.9.6 Worker identity missing');
+must((gradle.includes('versionCode 61')&&gradle.includes('versionName "2.9.6"'))||(gradle.includes('versionCode 62')&&gradle.includes('versionName "2.9.7"')),'2.9.6+ Android identity missing');
+must(api.includes('payload.put("app_version", BuildConfig.VERSION_NAME);')||api.includes('payload.put("app_version", "2.9.6");')||api.includes('payload.put("app_version", "2.9.7");'),'2.9.6+ telemetry missing');
+must(worker.includes("const API_VERSION = '2.9.6-cloudflare'"),'2.9.6 Worker source baseline missing');
 must(main.includes('PIN Blue exact à 4 chiffres est obligatoire en Remote et en Robot')
   &&main.includes('SecurePinStore.save(this, pin);'),'PIN must be captured for Remote and Robot');
 must(main.includes('Afficher le code pendant la saisie')&&attempts.includes('MAX_ATTEMPTS = 5')
@@ -32,9 +32,11 @@ must(manifest.includes('android:icon="@drawable/ic_launcher_bir"')
 must(worker.includes("if (role === 'POS')")&&worker.includes("fullParent.role !== 'DSM'")
   &&worker.includes("requestedIdentity.node_code !== officialExisting.node_code"),
   'Worker must reject ambiguous PoS lineage and recover by SIM only with exact official identity');
-must(permanent.includes('BIR-v2.9.4-vc59-Permanent-Baseline.apk')
-  &&permanent.includes('adb install -r apk/BIR-Blue-Infinity-Retail-v2.9.6-vc61-Permanent.apk')
-  &&permanent.includes('certificate_sha256')&&permanent.includes('api: 23')
+const oldProof=permanent.includes('BIR-v2.9.4-vc59-Permanent-Baseline.apk')
+  &&permanent.includes('adb install -r apk/BIR-Blue-Infinity-Retail-v2.9.6-vc61-Permanent.apk');
+const v297Proof=permanent.includes('BIR-v2.9.6-vc61-Permanent-Baseline.apk')
+  &&permanent.includes('adb install -r apk/BIR-Blue-Infinity-Retail-v2.9.7-vc62-Permanent.apk');
+must((oldProof||v297Proof)&&permanent.includes('certificate_sha256')&&permanent.includes('api: 23')
   &&permanent.includes('api: 26'),'permanent Android 6/8 in-place upgrade proof missing');
 
-console.log('B.I.R. v2.9.6 field correction contract OK');
+console.log('B.I.R. v2.9.6 baseline preserved under v2.9.7 field correction contract OK');

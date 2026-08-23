@@ -1,0 +1,116 @@
+name: BIR v2.9.7 Permanent Field APK
+
+on:
+  push:
+    branches: [fix/bir-v2-9-7-field-resilience-ai]
+    paths:
+      - '.github/workflows/v297-permanent-apk.yml'
+
+permissions:
+  contents: read
+
+env:
+  BIR_PERMANENT_CERT_SHA256: f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5
+
+jobs:
+  permanent-v297:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      BLUE_MAGIC_ANDROID_KEYSTORE_BASE64: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_BASE64 }}
+      BLUE_MAGIC_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_PASSWORD }}
+    steps:
+      - name: Checkout exact v2.9.7 source
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Prove package and production boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.sha }}"
+          grep -q 'applicationId "com.profitloop.blueauto"' app/build.gradle
+          grep -q 'versionCode 62' app/build.gradle
+          grep -q 'versionName "2.9.7"' app/build.gradle
+          grep -Fq 'new String[]{"REMOTE", "ROBOT"}' app/src/main/java/com/profitloop/blueauto/MainActivity.java
+          ! grep -RniE 'sms[_ -]?fallback|financial_command_over_relay[[:space:]]*=[[:space:]]*true' app/src/main
+          git diff --exit-code a6cdf9edf7729cdcaa052ab51926b247064b6e23 -- cloudflare
+
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate Worker/D1 source locally and all Android/WebView contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd cloudflare && npm ci && npm run check)
+          for test_file in app/src/test/*.mjs; do node "$test_file"; done
+          node --check app/src/main/assets/field-ops-v297.js
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Gradle 8.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+
+      - name: Restore permanent signing key without exposing it
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$BLUE_MAGIC_ANDROID_KEYSTORE_BASE64"
+          test -n "$BLUE_MAGIC_ANDROID_KEYSTORE_PASSWORD"
+          mkdir -p .pilot-signing
+          printf '%s' "$BLUE_MAGIC_ANDROID_KEYSTORE_BASE64" | base64 --decode > .pilot-signing/debug.keystore
+          keytool -list -v -keystore .pilot-signing/debug.keystore \
+            -storepass "$BLUE_MAGIC_ANDROID_KEYSTORE_PASSWORD" -alias androiddebugkey > /tmp/key-info.txt
+          cert=$(grep -i 'SHA256:' /tmp/key-info.txt | head -n1 | sed 's/.*SHA256:[[:space:]]*//' | tr -d ':[:space:]' | tr 'A-F' 'a-f')
+          test "$cert" = "$BIR_PERMANENT_CERT_SHA256"
+          rm -f /tmp/key-info.txt
+
+      - name: Test and assemble permanent Release APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
+          APK=$(find app/build/outputs/apk/release -name '*.apk' | head -n1)
+          test -n "$APK"
+          cp "$APK" /tmp/BIR-Blue-Infinity-Retail-v2.9.7-vc62-PERMANENT.apk
+
+      - name: Verify identity, certificate and hash
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=/tmp/BIR-Blue-Infinity-Retail-v2.9.7-vc62-PERMANENT.apk
+          build_tools=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n1)
+          "$build_tools/zipalign" -c -v 4 "$APK"
+          "$build_tools/aapt" dump badging "$APK" | tee /tmp/v297-badging.txt
+          grep -q "package: name='com.profitloop.blueauto' versionCode='62' versionName='2.9.7'" /tmp/v297-badging.txt
+          grep -q "application-label:'B.I.R. — Blue Infinity Retail'" /tmp/v297-badging.txt
+          ! grep -q 'application-debuggable' /tmp/v297-badging.txt
+          "$build_tools/apksigner" verify --verbose --print-certs "$APK" | tee /tmp/v297-cert.txt
+          cert=$(grep -i 'Signer #1 certificate SHA-256 digest:' /tmp/v297-cert.txt | head -n1 | awk '{print $NF}' | tr 'A-F' 'a-f')
+          test "$cert" = "$BIR_PERMANENT_CERT_SHA256"
+          sha256sum "$APK" | tee /tmp/v297-permanent-sha256.txt
+          git rev-parse HEAD | tee /tmp/v297-permanent-source-sha.txt
+
+      - name: Upload permanent field candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIR-v2.9.7-code62-PERMANENT
+          retention-days: 90
+          if-no-files-found: error
+          path: |
+            /tmp/BIR-Blue-Infinity-Retail-v2.9.7-vc62-PERMANENT.apk
+            /tmp/v297-permanent-sha256.txt
+            /tmp/v297-permanent-source-sha.txt
+            /tmp/v297-badging.txt
+            /tmp/v297-cert.txt

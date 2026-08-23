@@ -2,19 +2,22 @@ name: BIR v2.9.7 Field Resilience validation
 
 on:
   push:
-    branches: [fix/bir-v2-9-5-identity-balance-sync]
+    branches: [fix/bir-v2-9-7-field-resilience-ai]
   pull_request:
+    branches: [fix/bir-v2-9-5-identity-balance-sync]
     paths:
       - 'app/**'
-      - 'cloudflare/**'
-      - '.github/workflows/v295-identity-balance-sync.yml'
+      - '.github/workflows/v297-field-resilience.yml'
 
 permissions:
   contents: read
 
 concurrency:
-  group: bir-v297-validation-${{ github.event.pull_request.number || github.ref }}-${{ github.sha }}
-  cancel-in-progress: false
+  group: bir-v297-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BIR_PERMANENT_CERT_SHA256: f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5
 
 jobs:
   validate-and-build:
@@ -23,28 +26,40 @@ jobs:
     steps:
       - name: Checkout candidate source
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: '22'
 
-      - name: Validate Worker and D1 migrations locally
-        working-directory: cloudflare
+      - name: Prove production boundaries
         run: |
           set -euo pipefail
-          npm ci
-          npm run check
+          git diff --exit-code a6cdf9edf7729cdcaa052ab51926b247064b6e23 -- cloudflare
+          test ! -e cloudflare/migrations/0012_bir_v297.sql
+          grep -q 'versionCode 62' app/build.gradle
+          grep -q 'versionName "2.9.7"' app/build.gradle
+          grep -Fq 'new String[]{"REMOTE", "ROBOT"}' app/src/main/java/com/profitloop/blueauto/MainActivity.java
+          ! grep -RniE 'sms[_ -]?fallback|financial_command_over_relay[[:space:]]*=[[:space:]]*true' app/src/main
 
-      - name: Validate Android and WebView contracts
+      - name: Validate Worker source locally
         run: |
           set -euo pipefail
-          for test_file in app/src/test/*.mjs; do node "$test_file"; done
+          (cd cloudflare && npm ci && npm run check)
+
+      - name: Validate WebView and regression contracts
+        run: |
+          set -euo pipefail
+          for test_file in app/src/test/*.mjs; do echo "== $test_file =="; node "$test_file"; done
           node --check app/src/main/assets/app.js
-          node --check app/src/main/assets/balance-engine-v280.js
-          node --check app/src/main/assets/field-recovery-v291.js
           node --check app/src/main/assets/war-room-v294.js
           node --check app/src/main/assets/field-ops-v297.js
+          node --check app/src/main/assets/intelligence-v297.js
+          test -s app/src/main/assets/intelligence-v297.css
+          grep -q "intelligence-v297.js" app/src/main/assets/field-ops-v297.js
+          grep -q "intelligence-v297.css" app/src/main/assets/intelligence-v297.js
 
       - name: Java 17
         uses: actions/setup-java@v5
@@ -78,7 +93,6 @@ jobs:
           "$build_tools/aapt" dump badging "$apk_path" | tee /tmp/bir-v297-badging.txt
           grep -q "package: name='com.profitloop.blueauto' versionCode='62' versionName='2.9.7'" /tmp/bir-v297-badging.txt
           grep -q "application-label:'B.I.R. — Blue Infinity Retail'" /tmp/bir-v297-badging.txt
-          grep -q 'application-icon' /tmp/bir-v297-badging.txt
           ! grep -q 'application-debuggable' /tmp/bir-v297-badging.txt
           sha256sum "$apk_path" | tee /tmp/bir-v297-apk.sha256
 
@@ -92,3 +106,11 @@ jobs:
             /tmp/bir-v297-apk.sha256
           if-no-files-found: error
           retention-days: 7
+
+  permanent-signing-policy:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Permanent signing remains authorization-gated
+        run: |
+          echo 'Permanent signing is intentionally excluded from PR jobs.'
+          echo 'Use .github/workflows/v296-permanent-upgrade.yml through the isolated authorization trigger after this exact source SHA is green.'

@@ -1,0 +1,22 @@
+import fs from 'node:fs';
+import {execFileSync} from 'node:child_process';
+// Final 2.9.7 delivery gate: 10 s convergence, 60 s Robot silence alert, no financial autonomy.
+const modulePath='app/src/main/assets/field-ops-v297.js';
+execFileSync(process.execPath,['--check',modulePath],{stdio:'inherit'});
+const js=fs.readFileSync(modulePath,'utf8');
+const html=fs.readFileSync('app/src/main/assets/index.html','utf8');
+const sms=fs.readFileSync('app/src/main/java/com/profitloop/blueauto/SmsReceiver.java','utf8');
+const app=fs.readFileSync('app/src/main/java/com/profitloop/blueauto/BirApplication.java','utf8');
+const manifest=fs.readFileSync('app/src/main/AndroidManifest.xml','utf8');
+for(const x of ['field-ops-v297.js','field-ops-v297.css']) if(!html.includes(x)) throw new Error('missing v297 asset: '+x);
+for(const x of ['refreshQueueSnapshot','loadDashboard','10000','ACTUALISER SOLDE','ASSISTANT OPÉRATIONNEL LOCAL','Génération ou mise à jour de l’état du réseau','visibilitychange']) if(!js.includes(x)) throw new Error('field resilience missing: '+x);
+if(!js.includes("age>=60")||!js.includes('alerte après 60 s de silence')) throw new Error('Remote silence alert must wait for 60 seconds');
+if(!js.includes("r==='DAE'||r==='DSM'")||!js.includes('gateDashboard')||!js.includes('gateQueue')) throw new Error('DAE/DSM network convergence gate missing');
+if(/createCommand\s*\(/.test(js)||/previewCommand\s*\(/.test(js)) throw new Error('assistant/telemetry module must not create finance commands');
+if(!js.includes("document.visibilityState==='hidden'")) throw new Error('10s telemetry must pause while UI is hidden');
+if(!sms.includes('bestScore > 0 && !tie ? best : ""')) throw new Error('dual-SIM ambiguity must fail closed');
+if(!sms.includes('AppConfig.simSlot(context, id) == slot')) throw new Error('Android subscription slot must remain primary SMS routing evidence');
+for(const x of ['IMPORTANCE_HIGH','cachedRemoteDashboard','robot_age_seconds','accessibility_connected','RobotService.forceSync','CHECK_MS = 10_000L','ROBOT_SILENCE_ALERT_SECONDS = 60L']) if(!app.includes(x)) throw new Error('Remote urgency observer missing: '+x);
+if(!manifest.includes('android:name=".BirApplication"')) throw new Error('BirApplication must be registered');
+if(/createCommand|placeUssdCall|sendUssdRequest/.test(app)) throw new Error('urgency observer must not create or dial financial/USSD commands');
+console.log('BIR v2.9.7 field resilience: 10s refresh, 60s silence alert, DAE/DSM convergence, no-finance assistant and dual-SIM fail-closed OK');
