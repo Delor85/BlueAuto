@@ -16,12 +16,12 @@ for(const x of ['birCamtelBalance','birAvailableBalance','birReservedBalance','b
   if(!(html+js+css).includes(x)) throw new Error('BIR functional UX missing: '+x);
 }
 if(!js.includes("var saved='reports'")) throw new Error('BIR home is not default');
-const acceptedCodes=['versionCode 52','versionCode 53','versionCode 54','versionCode 55','versionCode 56','versionCode 58','versionCode 60','versionCode 61','versionCode 62'];
-const acceptedNames=['versionName "2.7.1"','versionName "2.8.0"','versionName "2.8.1"','versionName "2.9.0"','versionName "2.9.1"','versionName "2.9.3"','versionName "2.9.5"','versionName "2.9.6"','versionName "2.9.7"'];
+const acceptedCodes=['versionCode 52','versionCode 53','versionCode 54','versionCode 55','versionCode 56','versionCode 58','versionCode 60','versionCode 61','versionCode 62','versionCode 63'];
+const acceptedNames=['versionName "2.7.1"','versionName "2.8.0"','versionName "2.8.1"','versionName "2.9.0"','versionName "2.9.1"','versionName "2.9.3"','versionName "2.9.5"','versionName "2.9.6"','versionName "2.9.7"','versionName "2.9.8"'];
 if(!acceptedCodes.some(x=>gradle.includes(x))||!acceptedNames.some(x=>gradle.includes(x))) throw new Error('version mismatch');
 for(const x of ['field-ops-v297.css','field-ops-v297.js']) if(!html.includes(x)) throw new Error('v2.9.7 field module not loaded: '+x);
 for(const x of ['File & activité en direct','ACTUALISER SOLDE','ASSISTANT OPÉRATIONNEL LOCAL','Pourquoi ça ne part pas ?','requestQueue(false)','function requestDashboard(force)','10000']) if(!field297.includes(x)) throw new Error('v2.9.7 field contract missing: '+x);
 if(!field297.includes('insertBefore(detail,btn.nextSibling)')) throw new Error('Mes outils must render detail under selected tool');
 if(!field297.includes('aucune opération financière automatique')&&!field297.includes('ne crée, ne confirme')) throw new Error('local assistant financial guard missing');
 if(html.includes('une plateforme, pas un catalogue')||html.includes('Uniquement les capacités propres')) throw new Error('meta competitor/catalog copy must not appear');
-console.log('BIR v2.9.7 functional UX + historical Blue Magic contract OK');
+console.log('BIR v2.9.7+ functional UX + historical Blue Magic contract OK');
