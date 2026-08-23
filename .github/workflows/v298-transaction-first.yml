@@ -131,9 +131,7 @@ jobs:
           disable-animations: true
           script: |
             set -eu
-            candidate="$(find apk -type f -name 'app-release.apk' -print -quit)"
-            test -n "$candidate"
-            adb install "$candidate"
+            adb install "$(find apk -type f -name 'app-release.apk' -print -quit)"
             adb shell dumpsys package com.profitloop.blueauto | grep -q 'versionCode=63'
             adb logcat -c || true
             adb shell am start -W -n com.profitloop.blueauto/.MainActivity
