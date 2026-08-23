@@ -26,6 +26,8 @@ jobs:
     steps:
       - name: Checkout candidate source
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Node.js 22
         uses: actions/setup-node@v4
