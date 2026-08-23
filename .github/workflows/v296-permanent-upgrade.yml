@@ -11,7 +11,7 @@ permissions:
 
 concurrency:
   group: bir-v297-permanent-upgrade
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   authorization-gate:
@@ -39,6 +39,20 @@ jobs:
           test -z "$unexpected" || exit 0
           test "$(git diff --name-only "$source_sha"..HEAD)" = '.github/authorized-v297-permanent.trigger' || exit 0
           echo 'authorized=true' >> "$GITHUB_OUTPUT"
+      - name: Announce exact permanent run on PR 67
+        if: ${{ steps.gate.outputs.authorized == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          body=$(cat <<EOF
+          <!-- BIR_V297_PERMANENT_RUN -->
+          B.I.R. v2.9.7 permanent run started
+          run_id: ${{ github.run_id }}
+          authorization_sha: ${{ github.sha }}
+          production_mutation: false
+          EOF
+          )
+          gh api "repos/${{ github.repository }}/issues/67/comments" -f body="$body" >/dev/null
 
   permanent-build:
     needs: authorization-gate
