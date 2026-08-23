@@ -1,4 +1,4 @@
-authorized_sha=9582f1c4b63bd3016f83fb20e436b2ffa76cc237
+authorized_sha=a79d152651c448dbab79c4f250a0dd4c9d1395b4
 certificate_sha256=f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5
 package=com.profitloop.blueauto
 versionCode=63
