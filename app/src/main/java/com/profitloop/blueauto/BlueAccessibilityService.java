@@ -109,7 +109,7 @@ public class BlueAccessibilityService extends AccessibilityService {
                     "successfully transferred", "transfer successfully", "you transfer")))
                     && resultBelongsToVerifiedSession(command)) {
                 lastResultAt = System.currentTimeMillis();
-                if (parsedBlue.currentBalanceFcfa != null) {
+                if (parsedBlue.currentBalanceFcfa != null && !"BALANCE_CHILD".equals(operation)) {
                     CertifiedBalanceStore.observeTrusted(this, profileId, parsedBlue);
                 }
                 RobotService.operatorResult(this, profileId, true, "",

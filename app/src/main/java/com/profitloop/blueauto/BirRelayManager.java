@@ -1,7 +1,6 @@
 package com.profitloop.blueauto;
 
 import android.Manifest;
-import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothServerSocket;
@@ -18,6 +17,8 @@ import android.net.wifi.p2p.WifiP2pManager;
 import android.net.wifi.p2p.nsd.WifiP2pDnsSdServiceInfo;
 import android.net.wifi.p2p.nsd.WifiP2pDnsSdServiceRequest;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -39,25 +40,35 @@ final class BirRelayManager {
     private static final String SERVICE="_birrelay._tcp";
     private static final int PORT=49831;
     private static final long WINDOW_MS=40_000L;
+    private static final long AUTO_COOLDOWN_MS=15*60_000L;
+    private static final String AUTO_RELAY_AT="bir_relay_auto_at_v295";
     private static final UUID BT_UUID=UUID.fromString("2fd7dbe7-ef24-4aac-83ec-1ab7a5cc3bb2");
     private static BirRelayManager live;
-    private final Activity activity;
+    private final Context context;
     private final WifiP2pManager manager;
     private final WifiP2pManager.Channel channel;
     private final AtomicBoolean transferred=new AtomicBoolean(false);
     private BroadcastReceiver receiver;
     private volatile BluetoothServerSocket btServer;
 
-    private BirRelayManager(Activity a){activity=a;manager=(WifiP2pManager)a.getSystemService(Context.WIFI_P2P_SERVICE);channel=manager==null?null:manager.initialize(a,a.getMainLooper(),null);}
+    private BirRelayManager(Context c){context=c.getApplicationContext();manager=(WifiP2pManager)context.getSystemService(Context.WIFI_P2P_SERVICE);channel=manager==null?null:manager.initialize(context,Looper.getMainLooper(),null);}
 
-    static synchronized String start(Activity a){
-        if(LocalEventStore.pendingCount(a)<=0)return "Aucun événement en attente à relayer.";
-        if(!permissionsReady(a))return "Autorisations Appareils à proximité / localisation requises pour B.I.R. Relay.";
-        if(live!=null)live.stop(); live=new BirRelayManager(a); live.begin();
+    static synchronized String start(Context c){
+        if(LocalEventStore.pendingCount(c)<=0)return "Aucun événement en attente à relayer.";
+        if(!permissionsReady(c))return "Autorisations Appareils à proximité / localisation requises pour B.I.R. Relay.";
+        if(live!=null)live.stop(); live=new BirRelayManager(c); live.begin();
         return "B.I.R. Relay recherche un appareil B.I.R. proche par Wi‑Fi Direct / Bluetooth pendant 40 secondes.";
     }
 
-    static boolean permissionsReady(Activity a){
+    static synchronized boolean maybeStart(Context c){
+        if(live!=null||LocalEventStore.pendingCount(c)<=0||!permissionsReady(c))return false;
+        long now=System.currentTimeMillis(),last=AppConfig.prefs(c).getLong(AUTO_RELAY_AT,0L);
+        if(last>0L&&now-last<AUTO_COOLDOWN_MS)return false;
+        AppConfig.prefs(c).edit().putLong(AUTO_RELAY_AT,now).apply();
+        live=new BirRelayManager(c);live.begin();return true;
+    }
+
+    static boolean permissionsReady(Context a){
         if(Build.VERSION.SDK_INT>=33&&a.checkSelfPermission("android.permission.NEARBY_WIFI_DEVICES")!=PackageManager.PERMISSION_GRANTED)return false;
         if(Build.VERSION.SDK_INT>=31){
             if(a.checkSelfPermission("android.permission.BLUETOOTH_SCAN")!=PackageManager.PERMISSION_GRANTED)return false;
@@ -75,7 +86,7 @@ final class BirRelayManager {
     private void begin(){
         startBluetooth();
         if(manager!=null&&channel!=null)startWifi();
-        activity.getWindow().getDecorView().postDelayed(this::stop,WINDOW_MS);
+        new Handler(Looper.getMainLooper()).postDelayed(this::stop,WINDOW_MS);
     }
 
     private void startWifi(){
@@ -87,7 +98,7 @@ final class BirRelayManager {
     private void register(){
         IntentFilter f=new IntentFilter();f.addAction(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION);
         receiver=new BroadcastReceiver(){public void onReceive(Context c,Intent i){if(WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION.equals(i.getAction()))try{manager.requestConnectionInfo(channel,BirRelayManager.this::onInfo);}catch(SecurityException ignored){}}};
-        activity.registerReceiver(receiver,f);
+        if(Build.VERSION.SDK_INT>=33)context.registerReceiver(receiver,f,Context.RECEIVER_NOT_EXPORTED);else context.registerReceiver(receiver,f);
     }
 
     private void discover(){
@@ -124,18 +135,18 @@ final class BirRelayManager {
     private void exchange(BluetoothSocket socket)throws Exception{exchange(new BufferedReader(new InputStreamReader(socket.getInputStream(),"UTF-8")),new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(),"UTF-8")));}
 
     private void exchange(BufferedReader r,BufferedWriter w)throws Exception{
-        JSONObject mine=new JSONObject();mine.put("protocol","BIR_RELAY_1");mine.put("events",OfflineSyncManager.relayBundle(activity,50));
+        JSONObject mine=new JSONObject();mine.put("protocol","BIR_RELAY_1");mine.put("events",OfflineSyncManager.relayBundle(context,50));
         w.write(mine.toString());w.write("\n");w.flush(); String line=r.readLine();
-        if(line!=null&&line.length()<900000){JSONObject peer=new JSONObject(line);if("BIR_RELAY_1".equals(peer.optString("protocol")))OfflineSyncManager.acceptRelayBundle(activity,peer.optJSONArray("events"));}
+        if(line!=null&&line.length()<900000){JSONObject peer=new JSONObject(line);if("BIR_RELAY_1".equals(peer.optString("protocol")))OfflineSyncManager.acceptRelayBundle(context,peer.optJSONArray("events"));}
     }
 
     private void success(String transport){
-        if(!transferred.compareAndSet(false,true))return; OfflineSyncManager.syncRelayed(activity,50);
-        activity.runOnUiThread(()->android.widget.Toast.makeText(activity,"B.I.R. Relay : échange signé terminé par "+transport+".",android.widget.Toast.LENGTH_LONG).show()); stop();
+        if(!transferred.compareAndSet(false,true))return; OfflineSyncManager.syncRelayed(context,50);
+        new Handler(Looper.getMainLooper()).post(()->android.widget.Toast.makeText(context,"B.I.R. Relay : échange signé terminé par "+transport+".",android.widget.Toast.LENGTH_LONG).show()); stop();
     }
 
     private synchronized void stop(){
-        if(receiver!=null){try{activity.unregisterReceiver(receiver);}catch(Exception ignored){}receiver=null;}
+        if(receiver!=null){try{context.unregisterReceiver(receiver);}catch(Exception ignored){}receiver=null;}
         try{if(btServer!=null)btServer.close();}catch(Exception ignored){}
         if(manager!=null&&channel!=null){try{manager.clearLocalServices(channel,null);manager.clearServiceRequests(channel,null);manager.removeGroup(channel,null);}catch(Exception ignored){}}
         if(live==this)live=null;

@@ -14,7 +14,7 @@ import java.util.TimeZone;
 /**
  * Durable device-local cache for the newest trusted Blue balance evidence.
  *
- * Only evidence parsed from a trusted telephony accessibility root is accepted.
+ * Only evidence parsed from a trusted telephony source (USSD accessibility or operator SMS) is accepted.
  * No PIN, raw USSD payload or pairing secret is ever stored here.
  */
 final class CertifiedBalanceStore {

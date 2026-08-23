@@ -1,6 +1,6 @@
 {
   "name": "blue-magic-cloudflare-api",
-  "version": "2.8.0",
+  "version": "2.9.6",
   "private": true,
   "type": "module",
   "scripts": {

@@ -54,6 +54,10 @@ final class SecurePairingStore {
         return !AppConfig.prefs(context).getString(VALUE_KEY, "").isEmpty();
     }
 
+    static synchronized void clear(Context context) {
+        AppConfig.prefs(context).edit().remove(VALUE_KEY).commit();
+    }
+
     private static SecretKey getOrCreateKey() throws Exception {
         KeyStore store = KeyStore.getInstance(KEYSTORE);
         store.load(null);

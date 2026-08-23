@@ -45,7 +45,7 @@ final class SimIdentityManager {
                 return Verification.ready(snapshot, true);
             }
             return Verification.failure(BINDING_REQUIRED,
-                    "Confirmez une fois que la SIM de " + AppConfig.nodeCode(context, profileId)
+                    "Confirmez une fois que la SIM de " + AppConfig.officialNodeCode(context, profileId)
                             + " est bien dans le slot " + (snapshot.slot + 1) + ".",
                     snapshot);
         }
@@ -129,7 +129,7 @@ final class SimIdentityManager {
             Snapshot mismatch = new Snapshot(slot, info, "", "", observed, "");
             mismatch.failure = Verification.failure(NUMBER_MISMATCH,
                     "La SIM du slot " + (slot + 1) + " porte le numéro " + mask(observed)
-                            + ", pas celui de " + AppConfig.nodeCode(context, profileId) + ".", mismatch);
+                            + ", pas celui de " + AppConfig.officialNodeCode(context, profileId) + ".", mismatch);
             return mismatch;
         }
 
@@ -175,10 +175,16 @@ final class SimIdentityManager {
                 TelephonyManager telephony = (TelephonyManager) context.getSystemService(
                         Context.TELEPHONY_SERVICE);
                 if (telephony != null) {
-                    number = telephony.createForSubscriptionId(info.getSubscriptionId())
-                            .getLine1Number();
+                    // createForSubscriptionId() only exists from API 24. Calling it on Android 6
+                    // throws NoSuchMethodError (an Error, not an Exception) exactly when a Remote
+                    // enters the Robot hall and SIM verification starts.
+                    number = Build.VERSION.SDK_INT >= 24
+                            ? telephony.createForSubscriptionId(info.getSubscriptionId()).getLine1Number()
+                            : telephony.getLine1Number();
                 }
-            } catch (Exception ignored) {
+            } catch (Throwable ignored) {
+                // Several Android 6 vendor telephony stacks throw linkage/runtime errors here.
+                // A hidden number simply falls back to the ICCID/subscription proof below.
             }
         }
         return number == null ? "" : number;

@@ -203,6 +203,10 @@ public class RobotService extends Service {
             if (!profiles.isEmpty()) acquireStandbyWakeLock();
             // Synchronization is secondary to execution: failures here never block local USSD.
             OfflineSyncManager.syncSome(this, 4);
+            // If direct Internet did not empty the durable queue, opportunistically open a short,
+            // rate-limited B.I.R. Relay window. Relay moves signed events only: never SMS, PINs or
+            // executable financial orders.
+            BirRelayManager.maybeStart(this);
             List<JSONObject> activeCommands = PendingCommandStore.getActiveUssdCommands(this);
             // A lease captured before a SIM was removed must be returned to the server before it can
             // block the correct Robot. Once dialing may have started we fail closed as UNKNOWN.

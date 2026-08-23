@@ -14,7 +14,7 @@ if(!main.includes('value.put("phone_number", AppConfig.phoneNumber')) throw new 
 for(const x of ['birCamtelBalance','birAvailableBalance','birReservedBalance','birAccountPhone','bir-nav-infinity','MODULES B.I.R.']){
   if(!(html+js+css).includes(x)) throw new Error('BIR functional UX missing: '+x);
 }
-if(!js.includes("bir_active_module_v269')||'reports'")) throw new Error('BIR home is not default');
-if(!(gradle.includes('versionCode 52')||gradle.includes('versionCode 53')||gradle.includes('versionCode 54')||gradle.includes('versionCode 55')||gradle.includes('versionCode 56')||gradle.includes('versionCode 58'))||!(gradle.includes('versionName \"2.7.1\"')||gradle.includes('versionName \"2.8.0\"')||gradle.includes('versionName \"2.8.1\"')||gradle.includes('versionName \"2.9.0\"')||gradle.includes('versionName \"2.9.1\"')||gradle.includes('versionName "2.9.3"'))) throw new Error('version mismatch');
+if(!js.includes("var saved='reports'")) throw new Error('BIR home is not default');
+if(!(gradle.includes('versionCode 52')||gradle.includes('versionCode 53')||gradle.includes('versionCode 54')||gradle.includes('versionCode 55')||gradle.includes('versionCode 56')||gradle.includes('versionCode 58')||(gradle.includes('versionCode 60')||gradle.includes('versionCode 61')))||!(gradle.includes('versionName \"2.7.1\"')||gradle.includes('versionName \"2.8.0\"')||gradle.includes('versionName \"2.8.1\"')||gradle.includes('versionName \"2.9.0\"')||gradle.includes('versionName \"2.9.1\"')||gradle.includes('versionName "2.9.3"')||(gradle.includes('versionName "2.9.5"')||gradle.includes('versionName "2.9.6"')))) throw new Error('version mismatch');
 if(html.includes('une plateforme, pas un catalogue')||html.includes('Uniquement les capacités propres')) throw new Error('meta competitor/catalog copy must not appear');
 console.log('BIR v2.6.9 functional UX + historical Blue Magic contract OK');

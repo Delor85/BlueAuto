@@ -23,8 +23,10 @@ final class BlueMessageParser {
             "(?i)(\\d{2}[-/]\\d{2}[-/]\\d{2,4})[^\\d]{0,16}(\\d{1,2}:\\d{2}(?::\\d{2})?)");
     private static final Pattern AMOUNT = Pattern.compile(
             "(?i)(?:Amount(?:\\s+is)?|Amount:|Dr:|Cr:|Transfer\\s+Balance\\s+of|Topup\\s+Amount)\\s*([0-9][0-9 .,'’]*?(?:[.,]\\d{1,2})?)\\s*(?:F\\s*CFA|FCFA|XAF)");
-    private static final Pattern BALANCE = Pattern.compile(
-            "(?i)(?:Current\\s*Balance|Now\\s+your\\s+balance\\s+is|Available\\s+Balance|Your\\s+available\\s+voucher\\s+stock\\s+is|Your\\s+Balance|Solde(?:\\s+(?:actuel|disponible|restant))?)\\s*(?:(?:est)(?:\\s+de)?|[:=])?\\s*([0-9][0-9 .,'’]*?(?:[.,]\\d{1,2})?)\\s*(?:F\\s*CFA|FCFA|XAF)");
+    private static final Pattern CURRENT_BALANCE = Pattern.compile(
+            "(?i)(?:Current\\s*Balance|Now\\s+your\\s+balance\\s+is|Available\\s+Balance|Solde\\s+(?:actuel|disponible|restant))\\s*(?:(?:est)(?:\\s+de)?|[:=])?\\s*([0-9][0-9 .,'’]*?(?:[.,]\\d{1,2})?)\\s*(?:F\\s*CFA|FCFA|XAF)");
+    private static final Pattern BALANCE_FALLBACK = Pattern.compile(
+            "(?i)(?:Your\\s+available\\s+voucher\\s+stock\\s+is|Your\\s+Balance|Solde)\\s*(?:(?:est)(?:\\s+de)?|[:=])?\\s*([0-9][0-9 .,'’]*?(?:[.,]\\d{1,2})?)\\s*(?:F\\s*CFA|FCFA|XAF)");
     private static final Pattern ACCOUNT = Pattern.compile("(?i)AccountNo[\\s:#=-]*([A-Za-z0-9_-]{2,64})");
     private static final Pattern PROVISIONAL_PIN = Pattern.compile(
             "(?i)(?:password\\s+is|temporary\\s+PIN(?:\\s+is)?|PIN(?:\\s+code)?\\s+is)\\s*([0-9]{4})");
@@ -40,7 +42,8 @@ final class BlueMessageParser {
         r.receiptNumber = group(RECEIPT, text, 1);
         r.accountNo = group(ACCOUNT, text, 1);
         r.amountFcfa = firstMoney(AMOUNT, text);
-        r.currentBalanceFcfa = firstMoney(BALANCE, text);
+        r.currentBalanceFcfa = firstMoney(CURRENT_BALANCE, text);
+        if (r.currentBalanceFcfa == null) r.currentBalanceFcfa = firstMoney(BALANCE_FALLBACK, text);
         Matcher dt = DATE_TIME.matcher(text);
         if (dt.find()) {
             r.date = dt.group(1);

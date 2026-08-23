@@ -11,11 +11,11 @@ const main = read('app/src/main/java/com/profitloop/blueauto/MainActivity.java')
 const manifest = read('app/src/main/AndroidManifest.xml');
 const worker = read('cloudflare/src/index.js');
 
-must((gradle.includes('versionCode 57')||gradle.includes('versionCode 58')) && (gradle.includes('versionName "2.9.2"')||gradle.includes('versionName "2.9.3"')), 'v2.9.2 identity missing');
+must((gradle.includes('versionCode 57')||gradle.includes('versionCode 58')||(gradle.includes('versionCode 60')||gradle.includes('versionCode 61'))) && (gradle.includes('versionName "2.9.2"')||gradle.includes('versionName "2.9.3"')||(gradle.includes('versionName "2.9.5"')||gradle.includes('versionName "2.9.6"'))), 'v2.9.2+ identity missing');
 must(index.includes('pilotage-v292.css') && index.includes('pilotage-v292.js'), 'v2.9.2 dashboard assets not loaded');
-must(((api.match(/app_version", "2\.9\.2/g) || []).length + (api.match(/app_version", "2\.9\.3/g) || []).length) >= 2, 'native heartbeat/activation does not report 2.9.2');
+must(((api.match(/app_version", "2\.9\.[2356]/g) || []).length) >= 2, 'native heartbeat/activation does not report a supported v2.9 release');
 must(api.includes('|ops_cockpit|ops_assist|ops_escalate|'), 'ops_assist is not allowed through native bridge');
-must((worker.includes("const API_VERSION = '2.9.2-cloudflare'")||worker.includes("const API_VERSION = '2.9.3-cloudflare'")), 'Worker version mismatch');
+must((worker.includes("const API_VERSION = '2.9.2-cloudflare'")||worker.includes("const API_VERSION = '2.9.3-cloudflare'")||(worker.includes("const API_VERSION = '2.9.5-cloudflare'")||worker.includes("const API_VERSION = '2.9.6-cloudflare'"))), 'Worker version mismatch');
 must(worker.includes('premium_for_all: true') && worker.includes('hierarchical_rescue: true') && worker.includes('simple_pilotage: true'), 'free premium capabilities missing');
 must(worker.includes("case 'ops_assist': return await opsAssist(env, auth, input, headers);"), 'ops_assist route missing');
 

@@ -2,7 +2,7 @@ import fs from 'node:fs';
 function text(p){return fs.readFileSync(p,'utf8')}
 const gradle=text('app/build.gradle'),main=text('app/src/main/java/com/profitloop/blueauto/MainActivity.java'),robot=text('app/src/main/java/com/profitloop/blueauto/RobotService.java'),manifest=text('app/src/main/AndroidManifest.xml'),index=text('app/src/main/assets/index.html'),v290=text('app/src/main/assets/control-tower-v290.js'),offline=text('app/src/main/java/com/profitloop/blueauto/OfflineRobotEngine.java'),relay=text('app/src/main/java/com/profitloop/blueauto/BirRelayManager.java');
 const must=(ok,msg)=>{if(!ok)throw new Error(msg)};
-must((gradle.includes('versionCode 55')||gradle.includes('versionCode 56')||gradle.includes('versionCode 58'))&&(gradle.includes('versionName "2.9.0"')||gradle.includes('versionName "2.9.1"')||gradle.includes('versionName "2.9.3"')),'v2.9.x identity missing');
+must((gradle.includes('versionCode 55')||gradle.includes('versionCode 56')||gradle.includes('versionCode 58')||(gradle.includes('versionCode 60')||gradle.includes('versionCode 61')))&&(gradle.includes('versionName "2.9.0"')||gradle.includes('versionName "2.9.1"')||gradle.includes('versionName "2.9.3"')||(gradle.includes('versionName "2.9.5"')||gradle.includes('versionName "2.9.6"'))),'v2.9.x identity missing');
 must(gradle.includes('applicationId "com.profitloop.blueauto"'),'historical package changed');
 must(main.includes('new String[]{"REMOTE", "ROBOT"}'),'exact two modes must remain');
 must(text('app/src/main/java/com/profitloop/blueauto/AppConfig.java').includes('if ("HYBRID".equals(value)) return "ROBOT"; // legacy data only'),'legacy mode must collapse to ROBOT');
@@ -12,6 +12,7 @@ must(offline.includes('"SUPPLY_CHILD"')&&offline.includes('"RETAIL_SALE"')&&offl
 must(robot.includes('local_origin')&&robot.includes('OfflineSyncManager.syncSome'),'offline queue not wired');
 must(robot.includes('single fence is intentionally kept'),'server idempotence fence missing');
 must(relay.includes('WifiP2pManager')&&relay.includes('BluetoothSocket')&&relay.includes('BIR_RELAY_1'),'B.I.R. Relay Wi-Fi Direct/Bluetooth transport missing');
+must(relay.includes('maybeStart(Context c)')&&relay.includes('AUTO_COOLDOWN_MS')&&robot.includes('BirRelayManager.maybeStart(this)'),'pending events must open a rate-limited automatic Relay window');
 must(!manifest.includes('SEND_SMS'),'SMS fallback is forbidden');
 must(text('app/src/main/java/com/profitloop/blueauto/OfflineSyncManager.java').includes('RelayIdentityStore.sign')&&text('app/src/main/java/com/profitloop/blueauto/OfflineSyncManager.java').includes('validRelayEnvelope'),'signed Relay envelope verification missing');
 must(index.includes('control-tower-v290.js'),'v2.9 overlay missing');

@@ -16,7 +16,7 @@ const worker=read('cloudflare/src/index.js');
 const migration=read('cloudflare/migrations/0010_coherence_recovery_and_reconciliation.sql');
 
 function need(ok,msg){if(!ok)throw new Error(msg);}
-need(gradle.includes('versionCode 58')&&gradle.includes('versionName "2.9.3"'),'v2.9.3/code58 required');
+need((gradle.includes('versionCode 58')&&gradle.includes('versionName "2.9.3"'))||((gradle.includes('versionCode 60')||gradle.includes('versionCode 61'))&&(gradle.includes('versionName "2.9.5"')||gradle.includes('versionName "2.9.6"'))),'v2.9.3+ release identity required');
 need(local.includes('LOCAL_COMMAND_QUEUED')&&local.includes('REMOTE_ORDER_RECEIVED')&&local.includes('LOCAL_PROGRESS'),'safe local events must become syncable');
 need(balance.includes('TRUSTED_TELEPHONY')&&balance.includes('transaction_id')&&balance.includes('receipt_number'),'trusted local balance evidence must be durable and identifiable');
 need(access.includes('CertifiedBalanceStore.observeTrusted'),'accessibility result must promote trusted Blue proof locally');
@@ -27,7 +27,7 @@ need(robot.includes('ACCESSIBILITY_RECONNECT_GRACE_MS'),'temporarily disconnecte
 need(engine.includes('sameEvidenceMovement')&&engine.includes('last_transaction_id'),'balance engine must not double-apply movement already included in certified proof');
 need(ct.includes('operator_transaction_id')&&ct.includes('last_transaction_id'),'journal/proof must carry operator transaction identity');
 need(pilot.includes('distribution_command_center')&&pilot.includes('anomal'),'pilotage must surface the distribution command center and anomaly signals');
-need(worker.includes("const API_VERSION = '2.9.3-cloudflare'"),'Worker v2.9.3 required');
+need(worker.includes("const API_VERSION = '2.9.3-cloudflare'")||(worker.includes("const API_VERSION = '2.9.5-cloudflare'")||worker.includes("const API_VERSION = '2.9.6-cloudflare'")),'Worker v2.9.3+ required');
 need(worker.includes("case 'queue_snapshot'")&&worker.includes("case 'recover_lease'")&&worker.includes("case 'distribution_command_center'")&&worker.includes("case 'reconciliation_center'"),'v2.9.3 server routes missing');
 need(worker.includes('leased_by_device_id'),'lease ownership fence required');
 need(worker.includes('PROBABLE_OPERATOR_INCIDENT')&&worker.includes('stockout'),'outage correlation and stockout prediction required');

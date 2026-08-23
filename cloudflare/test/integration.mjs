@@ -18,7 +18,8 @@ try {
     '0003_balance_preflight_and_modules.sql', '0004_blue_message_intelligence_and_modules.sql',
     '0005_commission_policies_and_financial_quotes.sql', '0006_owner_admin_control_and_audit.sql',
     '0007_offline_events_and_bir_relay.sql', '0008_v290_free_ops_cockpit.sql',
-    '0009_remote_sync_wake.sql', '0010_coherence_recovery_and_reconciliation.sql']) {
+    '0009_remote_sync_wake.sql', '0010_coherence_recovery_and_reconciliation.sql',
+    '0011_canonical_identity_participant_results.sql']) {
     const schema = await readFile(new URL(`../migrations/${migration}`, import.meta.url), 'utf8');
     for (const statement of schema.split(';').map(value => value.replace(/^--.*$/gm, '').trim()).filter(Boolean)) {
       await db.prepare(statement).run();
@@ -62,12 +63,56 @@ try {
   });
   assert.equal(dsmTwo.data.node_code, 'DSM2_CE04');
 
+  // Field recovery: historical relational keys remain DSM1/POS1 while pairing and every public
+  // response use the full SU1 lineage confirmed by the SIM owner.
+  const southDae = await pair({
+    node_code: 'SU1', role: 'DAE', mode: 'REMOTE',
+    phone_number: '620550255', device_name: 'DAE Sud terrain'
+  });
+  assert.equal(southDae.data.official_node_code, 'SU1');
+  await db.prepare(
+    "INSERT INTO nodes(node_code,role,phone_number,parent_node_code,official_node_code,identity_state) "
+    + "VALUES('DSM1','DSM','620451087','SU1','','DERIVED')"
+  ).run();
+  await db.prepare(
+    "INSERT INTO devices(device_id,node_code,mode,device_name,token_hash) "
+    + "VALUES('11111111-1111-4111-8111-111111111111','DSM1','REMOTE','Legacy DSM','d1legacy')"
+  ).run();
+  const recoveredDsm = await pair({
+    node_code: 'DSM1_SU1', parent_node_code: 'SU1', role: 'DSM', mode: 'REMOTE',
+    phone_number: '620451087', device_name: 'DSM terrain récupéré'
+  });
+  assert.equal(recoveredDsm.data.node_code, 'DSM1');
+  assert.equal(recoveredDsm.data.official_node_code, 'DSM1_SU1');
+  await db.prepare(
+    "INSERT INTO nodes(node_code,role,phone_number,parent_node_code,official_node_code,identity_state) "
+    + "VALUES('POS1_DSM1','POS','621081275','DSM1','','DERIVED')"
+  ).run();
+  await db.prepare(
+    "INSERT INTO devices(device_id,node_code,mode,device_name,token_hash) "
+    + "VALUES('22222222-2222-4222-8222-222222222222','POS1_DSM1','REMOTE','Legacy POS','p1legacy')"
+  ).run();
+  const recoveredPos = await pair({
+    node_code: 'POS1_DSM1_SU1', parent_node_code: 'DSM1', role: 'POS', mode: 'REMOTE',
+    phone_number: '621081275', device_name: 'PoS terrain récupéré'
+  });
+  assert.equal(recoveredPos.data.node_code, 'POS1_DSM1');
+  assert.equal(recoveredPos.data.official_node_code, 'POS1_DSM1_SU1');
+
+  const ambiguousPosParent = await rawRequest('pair_device', {
+    node_code: 'POS38', parent_node_code: 'DSM12', role: 'POS', mode: 'REMOTE',
+    phone_number: '699000008', device_name: 'PoS incomplet', pairing_secret: PAIRING_SECRET
+  }, '');
+  assert.equal(ambiguousPosParent.status, 422);
+  assert.equal(ambiguousPosParent.body.error.code, 'INVALID_DSM_PARENT');
+
   await request('shadow_enroll', {node_code: 'POS37', phone_number: '699000003'}, dsm.data.device_token);
   const pos = await pair({
     node_code: 'POS37', parent_node_code: 'DSM12_CE04', role: 'POS', mode: 'ROBOT',
     phone_number: '699000003', device_name: 'Second Robot test'
   });
   assert.equal(pos.data.node_code, 'POS37_DSM12_CE04');
+  assert.equal(pos.data.official_node_code, 'POS37_DSM12_CE04');
   await attest(pos.data.device_token, 'c'.repeat(64), 1);
   const shortPosFromDae = await requestFailure('create_command', {
     request_type: 'CHILD_BALANCE', target_node_code: 'POS37',
@@ -242,6 +287,26 @@ try {
   }, dsm.data.device_token);
   assert.equal(status.data.command.state, 'SUCCEEDED');
   assert.equal(status.data.command.amount, 550);
+  assert.equal(status.data.command.result_audience, 'RECIPIENT');
+  assert.doesNotMatch(status.data.command.result_message, /test SUCCEEDED/);
+  assert.match(status.data.command.result_message, /confirmation Blue destinée à votre SIM/i);
+
+  const recipientProof = await request('record_operator_message', {
+    message: 'You received Airtime from 699000001 - CE04. Amount is 550.00 FCFA. Now your balance is 673.00 FCFA. TransactionID 000039365555, 20-08-2026 at 13:10:09.'
+  }, dsm.data.device_token);
+  assert.equal(recipientProof.data.operator_message.linked_command_public_id,
+    created.data.command.public_id);
+  const recipientStatus = await request('command_status', {
+    command_id: created.data.command.public_id
+  }, dsm.data.device_token);
+  assert.equal(recipientStatus.data.command.result_audience, 'RECIPIENT');
+  assert.match(recipientStatus.data.command.result_message, /You received Airtime/);
+  assert.equal(recipientStatus.data.command.balance_after, 673);
+  const executorStatus = await request('command_status', {
+    command_id: created.data.command.public_id
+  }, dae.data.device_token);
+  assert.equal(executorStatus.data.command.result_audience, 'EXECUTOR');
+  assert.equal(executorStatus.data.command.result_message, 'test SUCCEEDED');
 
   await db.prepare("DELETE FROM account_balances WHERE node_code = 'CE04'").run();
   const waitingCapacity = await request('check_purchase_capacity', {
@@ -274,6 +339,10 @@ try {
   assert.equal(dashboard.data.nodes.some(node => node.node_code === 'CE04'
     && node.balance === 650), true);
   assert.equal(dashboard.data.nodes.some(node => node.device_kind === 'ANDROID'), true);
+  assert.equal(dashboard.data.nodes.find(node => node.node_code === 'POS37_DSM12_CE04').official_node_code,
+    'POS37_DSM12_CE04');
+  assert.equal(typeof dashboard.data.nodes.find(node => node.node_code === 'CE04').robot_stale,
+    'boolean');
 
   // Une vue d'historique ne doit fournir un solde mutualisable que si le même écran Camtel
   // contient un libellé de solde actuel explicite. « Transfer Balance of 1 FCFA » n'en est pas un.
