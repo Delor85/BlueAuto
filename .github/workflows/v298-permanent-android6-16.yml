@@ -211,7 +211,7 @@ jobs:
     name: Upgrade Android ${{ matrix.android }} / API ${{ matrix.api }}
     needs: permanent-build
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       max-parallel: 6
@@ -243,11 +243,13 @@ jobs:
           disable-animations: true
           script: |
             set -eu
-            adb install "$(find apk -type f -name 'BIR-v2.9.7-vc62-Permanent-Baseline.apk' -print -quit)"
+            adb wait-for-device
+            for i in 1 2 3 4 5 6; do adb shell pm list packages >/dev/null 2>&1 && break; sleep 5; done
+            ok=0; for i in 1 2 3; do adb install --no-streaming "$(find apk -type f -name 'BIR-v2.9.7-vc62-Permanent-Baseline.apk' -print -quit)" && ok=1 && break; sleep 8; adb wait-for-device; done; test "$ok" = 1
             adb shell dumpsys package com.profitloop.blueauto | grep -q 'versionCode=62'
             adb shell am start -W -n com.profitloop.blueauto/.MainActivity
             adb shell am force-stop com.profitloop.blueauto
-            adb install -r "$(find apk -type f -name 'BIR-Blue-Infinity-Retail-v2.9.8-vc63-Permanent.apk' -print -quit)"
+            ok=0; for i in 1 2 3; do adb install --no-streaming -r "$(find apk -type f -name 'BIR-Blue-Infinity-Retail-v2.9.8-vc63-Permanent.apk' -print -quit)" && ok=1 && break; sleep 8; adb wait-for-device; done; test "$ok" = 1
             adb shell dumpsys package com.profitloop.blueauto | grep -q 'versionCode=63'
             adb logcat -c || true
             adb shell am start -W -n com.profitloop.blueauto/.MainActivity
