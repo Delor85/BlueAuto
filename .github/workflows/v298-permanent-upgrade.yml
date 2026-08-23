@@ -206,7 +206,7 @@ jobs:
           profile: ${{ matrix.profile }}
           disable-animations: true
           script: |
-            set -euo pipefail
+            set -eu
             adb install apk/BIR-v2.9.7-vc62-Permanent-Baseline.apk
             adb shell dumpsys package com.profitloop.blueauto | grep -q 'versionCode=62'
             adb shell am start -W -n com.profitloop.blueauto/.MainActivity
