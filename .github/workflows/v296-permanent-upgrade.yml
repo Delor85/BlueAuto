@@ -247,20 +247,20 @@ jobs:
           <!-- BIR_V297_PERMANENT_DELIVERY_PROOF -->
           ## ✅ B.I.R. v2.9.7 — APK permanente certifiée
 
-          - run_id: `${{ github.run_id }}`
-          - source_sha: `$SOURCE_SHA`
-          - artifact: `BIR-v2.9.7-Permanent`
-          - apk: `BIR-Blue-Infinity-Retail-v2.9.7-vc62-Permanent.apk`
-          - package: `com.profitloop.blueauto`
-          - versionName: `2.9.7`
-          - versionCode: `62`
-          - apk_sha256: `$APK_SHA256`
-          - certificate_sha256: `$CERT_SHA256`
-          - signature: `v1 + v2 + v3`
-          - upgrade smoke test: `2.9.6/vc61 → 2.9.7/vc62`
-          - Android 6 / API 23: `SUCCESS`
-          - Android 8 / API 26: `SUCCESS`
-          - production_mutation: `false`
+          - run_id: ${{ github.run_id }}
+          - source_sha: $SOURCE_SHA
+          - artifact: BIR-v2.9.7-Permanent
+          - apk: BIR-Blue-Infinity-Retail-v2.9.7-vc62-Permanent.apk
+          - package: com.profitloop.blueauto
+          - versionName: 2.9.7
+          - versionCode: 62
+          - apk_sha256: $APK_SHA256
+          - certificate_sha256: $CERT_SHA256
+          - signature: v1 + v2 + v3
+          - upgrade smoke test: 2.9.6/vc61 → 2.9.7/vc62
+          - Android 6 / API 23: SUCCESS
+          - Android 8 / API 26: SUCCESS
+          - production_mutation: false
 
           Cette preuve n'est publiée qu'après validation, signature avec le certificat historique et réussite des deux tests d'upgrade en place.
           EOF
