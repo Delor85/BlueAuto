@@ -209,14 +209,11 @@ jobs:
           disable-animations: true
           script: |
             set -eu
-            base="$(find apk -type f -name 'BIR-v2.9.7-vc62-Permanent-Baseline.apk' -print -quit)"
-            candidate="$(find apk -type f -name 'BIR-Blue-Infinity-Retail-v2.9.8-vc63-Permanent.apk' -print -quit)"
-            test -n "$base" && test -n "$candidate"
-            adb install "$base"
+            adb install "$(find apk -type f -name 'BIR-v2.9.7-vc62-Permanent-Baseline.apk' -print -quit)"
             adb shell dumpsys package com.profitloop.blueauto | grep -q 'versionCode=62'
             adb shell am start -W -n com.profitloop.blueauto/.MainActivity
             adb shell am force-stop com.profitloop.blueauto
-            adb install -r "$candidate"
+            adb install -r "$(find apk -type f -name 'BIR-Blue-Infinity-Retail-v2.9.8-vc63-Permanent.apk' -print -quit)"
             adb shell dumpsys package com.profitloop.blueauto | grep -q 'versionCode=63'
             adb logcat -c || true
             adb shell am start -W -n com.profitloop.blueauto/.MainActivity
