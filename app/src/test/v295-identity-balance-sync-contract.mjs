@@ -19,8 +19,8 @@ const app = read('app/src/main/assets/app.js');
 const pilotage = read('app/src/main/assets/pilotage-v292.js');
 const manifest = read('app/src/main/AndroidManifest.xml');
 
-need((gradle.includes('versionCode 60')||gradle.includes('versionCode 61')) && (gradle.includes('versionName "2.9.5"')||gradle.includes('versionName "2.9.6"')),
-  'v2.9.5 Android identity missing');
+need((gradle.includes('versionCode 60')||gradle.includes('versionCode 61')||gradle.includes('versionCode 62')||gradle.includes('versionCode 63')) && (gradle.includes('versionName "2.9.5"')||gradle.includes('versionName "2.9.6"')||gradle.includes('versionName "2.9.7"')||gradle.includes('versionName "2.9.8"')),
+  'v2.9.5+ Android identity missing');
 need((worker.includes("const API_VERSION = '2.9.5-cloudflare'")||worker.includes("const API_VERSION = '2.9.6-cloudflare'")), 'v2.9.5 Worker identity missing');
 
 need(migration.includes("official_node_code='POS1_DSM1_SU1'")
@@ -63,7 +63,7 @@ need(warRoom.includes("role==='POS'?'<span>Mon unique solde")
   'one-PoS / three-DAE-DSM balance rule missing');
 need(warRoom.includes("balance_reusable===true") && warRoom.includes("balance_quality==='EXACT'"),
   'War Room may still expose an uncertain balance');
-need(warRoom.includes('main.insertBefore(host,main.firstChild)'), 'War Room is not first on app open');
+need(warRoom.includes('main.insertBefore(host,main.firstChild)'), 'historical War Room insertion hook missing');
 need(controlTower.includes("balance.style.display='none'")
   && controlTower.includes("duplicate.style.display='none'"), 'duplicate balance cards remain visible');
 
@@ -82,4 +82,4 @@ need(worker.includes("if (kind !== 'LOCAL_COMMAND_RESULT') return;")
   && !worker.includes('financial_command_over_relay = true'),
   'Relay must carry signed evidence only and must never create/replay a financial command');
 
-console.log('B.I.R. v2.9.5 identity, participant messaging, truthful balance and Robot freshness contract OK');
+console.log('B.I.R. v2.9.5+ identity, participant messaging, truthful balance and Robot freshness contract OK');
