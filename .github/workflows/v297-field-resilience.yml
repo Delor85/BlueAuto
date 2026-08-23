@@ -4,7 +4,7 @@ on:
   push:
     branches: [fix/bir-v2-9-7-field-resilience-ai]
   pull_request:
-    branches: [feat/bir-v2-9-4-war-room]
+    branches: [fix/bir-v2-9-5-identity-balance-sync]
     paths:
       - 'app/**'
       - '.github/workflows/v297-field-resilience.yml'
