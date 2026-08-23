@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 concurrency:
   group: bir-v297-permanent-upgrade
@@ -48,6 +49,7 @@ jobs:
     outputs:
       source_sha: ${{ steps.authorization.outputs.source_sha }}
       certificate_sha256: ${{ steps.authorization.outputs.certificate_sha256 }}
+      apk_sha256: ${{ steps.release.outputs.apk_sha256 }}
     steps:
       - name: Checkout authorization commit
         uses: actions/checkout@v5
@@ -88,6 +90,8 @@ jobs:
         run: |
           set -euo pipefail
           for test_file in app/src/test/*.mjs; do node "$test_file"; done
+          node --check app/src/main/assets/field-ops-v297.js
+          node --check app/src/main/assets/intelligence-v297.js
           npm --prefix cloudflare ci
           npm --prefix cloudflare run check
       - name: Java 17
@@ -135,6 +139,7 @@ jobs:
           sign_apk /tmp/bir-v296/app/build/outputs/apk/release/app-release.apk /tmp/v296-aligned.apk BIR-v2.9.6-vc61-Permanent-Baseline.apk
           sign_apk app/build/outputs/apk/release/app-release.apk /tmp/v297-aligned.apk BIR-Blue-Infinity-Retail-v2.9.7-vc62-Permanent.apk
       - name: Verify identity certificate and update pair
+        id: release
         run: |
           set -euo pipefail
           build_tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
@@ -154,12 +159,15 @@ jobs:
           grep -q "application-label:'B.I.R. — Blue Infinity Retail'" /tmp/v297-badging.txt
           grep -q 'application-icon' /tmp/v297-badging.txt
           ! grep -q 'application-debuggable' /tmp/v297-badging.txt
-          sha256sum BIR-Blue-Infinity-Retail-v2.9.7-vc62-Permanent.apk | tee BIR-v2.9.7-Permanent.sha256.txt
+          apk_sha256="$(sha256sum BIR-Blue-Infinity-Retail-v2.9.7-vc62-Permanent.apk | awk '{print $1}')"
+          printf '%s  %s\n' "$apk_sha256" 'BIR-Blue-Infinity-Retail-v2.9.7-vc62-Permanent.apk' | tee BIR-v2.9.7-Permanent.sha256.txt
+          echo "apk_sha256=$apk_sha256" >> "$GITHUB_OUTPUT"
           {
             echo "source_sha=${{ steps.authorization.outputs.source_sha }}"
             echo 'package=com.profitloop.blueauto'
             echo 'versionName=2.9.7'
             echo 'versionCode=62'
+            echo "apk_sha256=$apk_sha256"
             echo "certificate_sha256=$cert"
             echo 'upgrade_baseline=2.9.6-vc61'
             echo 'signature_v1=true'
@@ -221,3 +229,40 @@ jobs:
             adb shell dumpsys activity activities | grep -q 'com.profitloop.blueauto'
             adb logcat -d '*:E' > /tmp/bir-v297-logcat.txt
             ! grep -E 'FATAL EXCEPTION.*com.profitloop.blueauto|Process: com.profitloop.blueauto' /tmp/bir-v297-logcat.txt
+
+  publish-delivery-proof:
+    needs: [permanent-build, smoke-upgrade]
+    if: ${{ always() && needs.permanent-build.result == 'success' && needs.smoke-upgrade.result == 'success' }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Publish immutable delivery proof on PR 67
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ needs.permanent-build.outputs.source_sha }}
+          APK_SHA256: ${{ needs.permanent-build.outputs.apk_sha256 }}
+          CERT_SHA256: ${{ needs.permanent-build.outputs.certificate_sha256 }}
+        run: |
+          set -euo pipefail
+          body=$(cat <<EOF
+          <!-- BIR_V297_PERMANENT_DELIVERY_PROOF -->
+          ## ✅ B.I.R. v2.9.7 — APK permanente certifiée
+
+          - run_id: `${{ github.run_id }}`
+          - source_sha: `$SOURCE_SHA`
+          - artifact: `BIR-v2.9.7-Permanent`
+          - apk: `BIR-Blue-Infinity-Retail-v2.9.7-vc62-Permanent.apk`
+          - package: `com.profitloop.blueauto`
+          - versionName: `2.9.7`
+          - versionCode: `62`
+          - apk_sha256: `$APK_SHA256`
+          - certificate_sha256: `$CERT_SHA256`
+          - signature: `v1 + v2 + v3`
+          - upgrade smoke test: `2.9.6/vc61 → 2.9.7/vc62`
+          - Android 6 / API 23: `SUCCESS`
+          - Android 8 / API 26: `SUCCESS`
+          - production_mutation: `false`
+
+          Cette preuve n'est publiée qu'après validation, signature avec le certificat historique et réussite des deux tests d'upgrade en place.
+          EOF
+          )
+          gh api "repos/${{ github.repository }}/issues/67/comments" -f body="$body" >/dev/null
