@@ -13,7 +13,7 @@ for(const token of ['VÉRIFIÉ','ESTIMÉ','ANCIEN','À VÉRIFIER','DEPUIS VOTRE 
 for(const token of ['Argent & Stock','Réseau & Robots','Distribution & Comptes','Comptabilité & Preuves','Performance & Prévision','Assistance & Administration']) must(js.includes(token),'missing capability family: '+token);
 for(const token of ["['sell',t('sell')]","['supply',t('supply')]","['balance',t('balance')]","['queue',t('queue')]","['assistant',t('assistant')]"]) must(js.includes(token),'missing universal action guard: '+token);
 must(js.includes("getUiLanguage"),'new UI must honor existing FR/EN setting');
-must(js.includes("D.en")&&js.includes("D.fr"),'new UI must ship bilingual dictionary with FR fallback');
+must(js.includes('var D={fr:{')&&js.includes('},en:{'),'new UI must ship bilingual dictionary with FR fallback');
 must(!/\b(?:const|let)\b|=>/.test(js),'Android 6 intelligence layer must remain ES5-compatible');
 must(js.includes("localStorage")&&js.includes("writeJson('visit'")&&js.includes("readJson('visit'") ,'temporal War Room persistence missing');
 must(js.includes("reconciliation_center")&&api.includes("reconciliation_center"),'reconciliation endpoint not wired end-to-end');
