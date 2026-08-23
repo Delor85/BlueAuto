@@ -130,7 +130,7 @@ jobs:
           profile: ${{ matrix.profile }}
           disable-animations: true
           script: |
-            set -euo pipefail
+            set -eu
             adb install apk/app-release.apk
             adb shell dumpsys package com.profitloop.blueauto | grep -q 'versionCode=63'
             adb logcat -c || true
