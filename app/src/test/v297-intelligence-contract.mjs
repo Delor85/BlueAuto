@@ -14,6 +14,7 @@ for(const token of ['Argent & Stock','Réseau & Robots','Distribution & Comptes'
 for(const token of ["['sell',t('sell')]","['supply',t('supply')]","['balance',t('balance')]","['queue',t('queue')]","['assistant',t('assistant')]"]) must(js.includes(token),'missing universal action guard: '+token);
 must(js.includes("getUiLanguage"),'new UI must honor existing FR/EN setting');
 must(js.includes("D.en")&&js.includes("D.fr"),'new UI must ship bilingual dictionary with FR fallback');
+must(!/\b(?:const|let)\b|=>/.test(js),'Android 6 intelligence layer must remain ES5-compatible');
 must(js.includes("localStorage")&&js.includes("writeJson('visit'")&&js.includes("readJson('visit'") ,'temporal War Room persistence missing');
 must(js.includes("reconciliation_center")&&api.includes("reconciliation_center"),'reconciliation endpoint not wired end-to-end');
 must(worker.includes('reconciliationCenter')&&worker.includes('MATCHED')&&worker.includes('BIR_ONLY')&&worker.includes('MISMATCH'),'server reconciliation source baseline missing');
@@ -27,6 +28,7 @@ must(!js.includes('setInterval('),'additive intelligence layer must not create a
 must(!js.includes('createCommand(')&&!js.includes('previewCommand('),'intelligence layer must never create or preview finance');
 must(!js.includes('mercenary_sale'),'intelligence layer must not turn Mercenaires into cross-hierarchy float');
 must(!/financement|white[ -]?label|marketplace/i.test(js),'rejected monetization concepts must not enter app layer');
-must(!/data-action=\\?"check-balance\\?".*\.click\(\)/s.test(js),'proactive layer must not automatically fire balance USSD');
+const proactive=(js.match(/function proactiveRefresh[\s\S]*?function wrapCallbacks/)||[''])[0];
+must(proactive&&!proactive.includes('check-balance')&&!proactive.includes('last-transactions'),'proactive refresh must never trigger USSD/history commands');
 must(css.includes('.bir-intel-truth')&&css.includes('.bir-intel-cockpit'),'cockpit/truth styles missing');
 console.log('BIR v2.9.7 intelligence: adaptive cockpit, Truth Engine, temporal War Room, free AI and reconciliation guards OK');
