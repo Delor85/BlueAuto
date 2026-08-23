@@ -108,67 +108,23 @@ jobs:
     name: Android ${{ matrix.android }} / API ${{ matrix.api }}
     needs: validate-and-build
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       max-parallel: 6
       matrix:
         include:
-          - android: '6'
-            api: 23
-            arch: x86
-            profile: Nexus 5
-            target: google_apis
-          - android: '7'
-            api: 24
-            arch: x86
-            profile: Nexus 5
-            target: google_apis
-          - android: '8'
-            api: 26
-            arch: x86_64
-            profile: Nexus 5X
-            target: google_apis
-          - android: '9'
-            api: 28
-            arch: x86_64
-            profile: Nexus 5X
-            target: google_apis
-          - android: '10'
-            api: 29
-            arch: x86_64
-            profile: Nexus 5X
-            target: google_apis
-          - android: '11'
-            api: 30
-            arch: x86_64
-            profile: Nexus 5X
-            target: google_apis
-          - android: '12'
-            api: 31
-            arch: x86_64
-            profile: Nexus 5X
-            target: google_apis
-          - android: '13'
-            api: 33
-            arch: x86_64
-            profile: Nexus 5X
-            target: google_apis
-          - android: '14'
-            api: 34
-            arch: x86_64
-            profile: Nexus 5X
-            target: google_apis
-          - android: '15'
-            api: 35
-            arch: x86_64
-            profile: Nexus 5X
-            target: google_apis
-          - android: '16'
-            api: 36
-            arch: x86_64
-            profile: Nexus 5X
-            target: google_apis
+          - { android: '6', api: 23, arch: x86, profile: 'Nexus 5', target: google_apis }
+          - { android: '7', api: 24, arch: x86, profile: 'Nexus 5', target: google_apis }
+          - { android: '8', api: 26, arch: x86_64, profile: 'Nexus 5X', target: google_apis }
+          - { android: '9', api: 28, arch: x86_64, profile: 'Nexus 5X', target: google_apis }
+          - { android: '10', api: 29, arch: x86_64, profile: 'Nexus 5X', target: google_apis }
+          - { android: '11', api: 30, arch: x86_64, profile: 'Nexus 5X', target: google_apis }
+          - { android: '12', api: 31, arch: x86_64, profile: 'Nexus 5X', target: google_apis }
+          - { android: '13', api: 33, arch: x86_64, profile: 'Nexus 5X', target: google_apis }
+          - { android: '14', api: 34, arch: x86_64, profile: 'Nexus 5X', target: google_apis }
+          - { android: '15', api: 35, arch: x86_64, profile: 'Nexus 5X', target: google_apis }
+          - { android: '16', api: 36, arch: x86_64, profile: 'Nexus 5X', target: google_apis }
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -184,7 +140,9 @@ jobs:
           disable-animations: true
           script: |
             set -eu
-            adb install "$(find apk -type f -name 'app-release.apk' -print -quit)"
+            adb wait-for-device
+            for i in 1 2 3 4 5 6; do adb shell pm list packages >/dev/null 2>&1 && break; sleep 5; done
+            ok=0; for i in 1 2 3; do adb install --no-streaming "$(find apk -type f -name 'app-release.apk' -print -quit)" && ok=1 && break; sleep 8; adb wait-for-device; done; test "$ok" = 1
             adb shell dumpsys package com.profitloop.blueauto | grep -q 'versionCode=63'
             adb logcat -c || true
             adb shell am start -W -n com.profitloop.blueauto/.MainActivity
