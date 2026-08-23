@@ -1,0 +1,5 @@
+observer_run_id=32657214526
+authorization_sha=3eac282edad74b966626131b9afebbab9f663172
+authorized_source_sha=722b03ee436b3ad8e40a6dc88e65f86c7a073136
+observed_at=2026-08-23T19:10:52+01:00
+production_mutation=false
