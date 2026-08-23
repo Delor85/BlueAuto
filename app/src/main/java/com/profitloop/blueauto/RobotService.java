@@ -49,7 +49,7 @@ public class RobotService extends Service {
     private static final int WATCHDOG_REQUEST_CODE = 5503;
     private static final long STANDBY_WAKE_MS = 30 * 60_000L;
     private static final long WATCHDOG_INTERVAL_MS = 60_000L;
-    private static final long REMOTE_SNAPSHOT_MS = 5_000L;
+    private static final long REMOTE_SNAPSHOT_MS = 10_000L;
     private static final long REMOTE_HEARTBEAT_MS = 20_000L;
     private static final long REMOTE_MAX_RETRY_MS = 30_000L;
     private static final String REMOTE_CACHE_PREFIX = "remote_dashboard_cache_v281_";

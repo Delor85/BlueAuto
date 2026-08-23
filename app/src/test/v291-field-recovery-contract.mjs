@@ -18,7 +18,7 @@ must(main.includes('TYPE_TEXT_FLAG_MULTI_LINE')&&main.includes('"Secours / SAV"'
 must(main.includes('"Taux de commission"')&&main.includes('TYPE_NUMBER_FLAG_DECIMAL'),'commission prompt compatibility lost');
 must(main.includes('public void kickSynchronization()'),'silent synchronization wake bridge missing');
 must(main.includes('AppConfig.profileId(MainActivity.this), 6_000L);'),'Remote dashboard cache must be short-lived');
-must(robot.includes('REMOTE_SNAPSHOT_MS = 5_000L')&&robot.includes('REMOTE_HEARTBEAT_MS = 20_000L'),'fast Remote observer missing');
+must(robot.includes('REMOTE_SNAPSHOT_MS = 10_000L')&&robot.includes('REMOTE_HEARTBEAT_MS = 20_000L'),'fast Remote observer missing');
 must(robot.includes('lastRemoteSnapshotByProfile.clear();'),'force sync must invalidate Remote snapshot schedule');
 must(robot.includes('OfflineSyncManager.syncSome(this, 25);')&&robot.includes('retryDueFinalReports(8);'),'force sync must drain safe outbox/final reports');
 const force=robot.slice(robot.indexOf('if (ACTION_FORCE_SYNC.equals(action))'),robot.indexOf('if (ACTION_CONTROL_POLL.equals(action))'));
