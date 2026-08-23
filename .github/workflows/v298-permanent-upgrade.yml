@@ -1,0 +1,258 @@
+name: BIR v2.9.8 Permanent Upgrade
+
+on:
+  push:
+    branches: [fix/bir-v2-9-8-transaction-first-reference]
+    paths: [.github/authorized-v298-permanent.trigger]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: bir-v298-permanent-upgrade
+  cancel-in-progress: true
+
+jobs:
+  authorization-gate:
+    runs-on: ubuntu-24.04
+    outputs:
+      authorized: ${{ steps.gate.outputs.authorized }}
+      source_sha: ${{ steps.gate.outputs.source_sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - name: Isolated exact-source authorization
+        id: gate
+        run: |
+          set -euo pipefail
+          echo 'authorized=false' >> "$GITHUB_OUTPUT"
+          trigger=.github/authorized-v298-permanent.trigger
+          test -f "$trigger" || exit 0
+          source_sha="$(sed -n 's/^authorized_sha=//p' "$trigger" | head -1 | tr -d '\r\n')"
+          test -n "$source_sha" || exit 0
+          git cat-file -e "$source_sha^{commit}" || exit 0
+          unexpected="$(git diff --name-only "$source_sha"..HEAD | grep -v '^.github/authorized-v298-permanent.trigger$' || true)"
+          test -z "$unexpected" || exit 0
+          test "$(git diff --name-only "$source_sha"..HEAD)" = '.github/authorized-v298-permanent.trigger' || exit 0
+          grep -q '^certificate_sha256=f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5$' "$trigger"
+          grep -q '^package=com.profitloop.blueauto$' "$trigger"
+          grep -q '^versionCode=63$' "$trigger"
+          grep -q '^versionName=2.9.8$' "$trigger"
+          grep -q '^baseline_sha=bd3401bf131eb647ea7cbeb2ad6c2213b691b20d$' "$trigger"
+          grep -q '^production_mutation=false$' "$trigger"
+          echo "source_sha=$source_sha" >> "$GITHUB_OUTPUT"
+          echo 'authorized=true' >> "$GITHUB_OUTPUT"
+      - name: Announce exact permanent run on v2.9.8 PR
+        if: ${{ steps.gate.outputs.authorized == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          pr="$(gh api "repos/${{ github.repository }}/pulls?head=Delor85:fix/bir-v2-9-8-transaction-first-reference&state=open" --jq '.[0].number // empty')"
+          test -n "$pr" || exit 0
+          body=$(cat <<EOF
+          <!-- BIR_V298_PERMANENT_RUN -->
+          B.I.R. v2.9.8 permanent run started
+          run_id: ${{ github.run_id }}
+          authorization_sha: ${{ github.sha }}
+          source_sha: ${{ steps.gate.outputs.source_sha }}
+          production_mutation: false
+          EOF
+          )
+          gh api "repos/${{ github.repository }}/issues/$pr/comments" -f body="$body" >/dev/null
+
+  permanent-build:
+    needs: authorization-gate
+    if: ${{ needs.authorization-gate.outputs.authorized == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    environment: production
+    outputs:
+      source_sha: ${{ steps.auth.outputs.source_sha }}
+      apk_sha256: ${{ steps.release.outputs.apk_sha256 }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - name: Checkout exact authorized source
+        id: auth
+        run: |
+          set -euo pipefail
+          source_sha='${{ needs.authorization-gate.outputs.source_sha }}'
+          git checkout --detach "$source_sha"
+          git diff --exit-code c92a62c2cccba62f2475a6544e92607e3d6e14e7 -- cloudflare
+          grep -q 'versionCode 63' app/build.gradle
+          grep -q 'versionName "2.9.8"' app/build.gradle
+          echo "source_sha=$source_sha" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Re-run release contracts
+        run: |
+          set -euo pipefail
+          node app/src/test/finance-flow.mjs
+          node app/src/test/bir-v269-functional-contract.mjs
+          node app/src/test/bir-v293-coherence-contract.mjs
+          node app/src/test/bir-v297-field-resilience.mjs
+          node app/src/test/v291-remote-sync-wake-contract.mjs
+          node app/src/test/v295-identity-balance-sync-contract.mjs
+          node app/src/test/v296-field-correction-contract.mjs
+          node app/src/test/v297-intelligence-contract.mjs
+          node app/src/test/v298-transaction-first-contract.mjs
+          node --check app/src/main/assets/transaction-first-v298.js
+          (cd cloudflare && npm ci && npm run check)
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+          cache-read-only: true
+      - name: Load and prove historical permanent certificate
+        env:
+          KEYSTORE_BASE64: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$KEYSTORE_BASE64"
+          test -n "$KEYSTORE_PASSWORD"
+          mkdir -p .pilot-signing
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > .pilot-signing/debug.keystore
+          password="$(printf '%s' "$KEYSTORE_PASSWORD" | tr -d '\r\n')"
+          echo "::add-mask::$password"
+          actual="$(keytool -list -v -keystore .pilot-signing/debug.keystore -storepass "$password" -alias androiddebugkey | awk '/SHA256:/{gsub(":", "", $2); print tolower($2); exit}')"
+          test "$actual" = 'f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5'
+          echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$password" >> "$GITHUB_ENV"
+      - name: Build v2.9.8 and v2.9.7 baseline from exact sources
+        run: |
+          set -euo pipefail
+          gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
+          git worktree add /tmp/bir-v297 bd3401bf131eb647ea7cbeb2ad6c2213b691b20d
+          mkdir -p /tmp/bir-v297/.pilot-signing
+          cp .pilot-signing/debug.keystore /tmp/bir-v297/.pilot-signing/debug.keystore
+          gradle --no-daemon -p /tmp/bir-v297 :app:assembleRelease
+      - name: Sign both with the same permanent key
+        run: |
+          set -euo pipefail
+          tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          sign_apk(){ "$tools/zipalign" -f -p 4 "$1" "$2"; "$tools/apksigner" sign --ks .pilot-signing/debug.keystore --ks-key-alias androiddebugkey --ks-pass "pass:$BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD" --key-pass "pass:$BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD" --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true --out "$3" "$2"; }
+          sign_apk /tmp/bir-v297/app/build/outputs/apk/release/app-release.apk /tmp/v297-aligned.apk BIR-v2.9.7-vc62-Permanent-Baseline.apk
+          sign_apk app/build/outputs/apk/release/app-release.apk /tmp/v298-aligned.apk BIR-Blue-Infinity-Retail-v2.9.8-vc63-Permanent.apk
+      - name: Verify permanent release identity
+        id: release
+        run: |
+          set -euo pipefail
+          tools="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          cert=f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5
+          for apk in BIR-v2.9.7-vc62-Permanent-Baseline.apk BIR-Blue-Infinity-Retail-v2.9.8-vc63-Permanent.apk; do
+            "$tools/zipalign" -c -v 4 "$apk"
+            "$tools/apksigner" verify --verbose --print-certs "$apk" | tee "/tmp/$apk.signature.txt"
+            actual="$(grep -i 'certificate SHA-256 digest:' "/tmp/$apk.signature.txt" | head -1 | sed -E 's/.*digest: //' | tr -d ':' | tr '[:upper:]' '[:lower:]')"
+            test "$actual" = "$cert"
+            grep -qi 'Verified using v1 scheme.*true' "/tmp/$apk.signature.txt"
+            grep -qi 'Verified using v2 scheme.*true' "/tmp/$apk.signature.txt"
+            grep -qi 'Verified using v3 scheme.*true' "/tmp/$apk.signature.txt"
+          done
+          "$tools/aapt" dump badging BIR-v2.9.7-vc62-Permanent-Baseline.apk | grep -q "package: name='com.profitloop.blueauto' versionCode='62' versionName='2.9.7'"
+          "$tools/aapt" dump badging BIR-Blue-Infinity-Retail-v2.9.8-vc63-Permanent.apk | tee /tmp/v298-permanent-badging.txt
+          grep -q "package: name='com.profitloop.blueauto' versionCode='63' versionName='2.9.8'" /tmp/v298-permanent-badging.txt
+          grep -q "application-label:'B.I.R. — Blue Infinity Retail'" /tmp/v298-permanent-badging.txt
+          ! grep -q 'application-debuggable' /tmp/v298-permanent-badging.txt
+          apk_sha="$(sha256sum BIR-Blue-Infinity-Retail-v2.9.8-vc63-Permanent.apk | awk '{print $1}')"
+          echo "$apk_sha  BIR-Blue-Infinity-Retail-v2.9.8-vc63-Permanent.apk" > BIR-v2.9.8-Permanent.sha256.txt
+          printf 'source_sha=%s\npackage=com.profitloop.blueauto\nversionName=2.9.8\nversionCode=63\napk_sha256=%s\ncertificate_sha256=%s\nupgrade_baseline=2.9.7-vc62\nproduction_mutation=false\n' '${{ steps.auth.outputs.source_sha }}' "$apk_sha" "$cert" > BIR-v2.9.8-Permanent-release-info.txt
+          echo "apk_sha256=$apk_sha" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BIR-v2.9.8-Permanent
+          path: |
+            BIR-Blue-Infinity-Retail-v2.9.8-vc63-Permanent.apk
+            BIR-v2.9.7-vc62-Permanent-Baseline.apk
+            BIR-v2.9.8-Permanent.sha256.txt
+            BIR-v2.9.8-Permanent-release-info.txt
+            /tmp/v298-permanent-badging.txt
+          retention-days: 90
+          if-no-files-found: error
+
+  smoke-upgrade:
+    needs: permanent-build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - api: 23
+            arch: x86
+            profile: Nexus 5
+          - api: 26
+            arch: x86_64
+            profile: Nexus 5X
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: BIR-v2.9.8-Permanent
+          path: apk
+      - name: Prove in-place v2.9.7 -> v2.9.8 upgrade on API ${{ matrix.api }}
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: ${{ matrix.arch }}
+          profile: ${{ matrix.profile }}
+          disable-animations: true
+          script: |
+            set -euo pipefail
+            adb install apk/BIR-v2.9.7-vc62-Permanent-Baseline.apk
+            adb shell dumpsys package com.profitloop.blueauto | grep -q 'versionCode=62'
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity
+            adb shell am force-stop com.profitloop.blueauto
+            adb install -r apk/BIR-Blue-Infinity-Retail-v2.9.8-vc63-Permanent.apk
+            adb shell dumpsys package com.profitloop.blueauto | grep -q 'versionCode=63'
+            adb logcat -c || true
+            adb shell am start -W -n com.profitloop.blueauto/.MainActivity
+            sleep 3
+            adb shell dumpsys activity activities | grep -q 'com.profitloop.blueauto'
+            adb logcat -d '*:E' > /tmp/v298-upgrade-logcat.txt
+            ! grep -E 'FATAL EXCEPTION.*com.profitloop.blueauto|Process: com.profitloop.blueauto' /tmp/v298-upgrade-logcat.txt
+
+  publish-delivery-proof:
+    needs: [permanent-build, smoke-upgrade]
+    if: ${{ always() && needs.permanent-build.result == 'success' && needs.smoke-upgrade.result == 'success' }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Publish immutable v2.9.8 delivery proof
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ needs.permanent-build.outputs.source_sha }}
+          APK_SHA256: ${{ needs.permanent-build.outputs.apk_sha256 }}
+        run: |
+          set -euo pipefail
+          pr="$(gh api "repos/${{ github.repository }}/pulls?head=Delor85:fix/bir-v2-9-8-transaction-first-reference&state=open" --jq '.[0].number // empty')"
+          test -n "$pr" || exit 0
+          body=$(cat <<EOF
+          <!-- BIR_V298_PERMANENT_DELIVERY_PROOF -->
+          ## ✅ B.I.R. v2.9.8 — APK permanente certifiée
+
+          - run_id: ${{ github.run_id }}
+          - source_sha: $SOURCE_SHA
+          - artifact: BIR-v2.9.8-Permanent
+          - apk: BIR-Blue-Infinity-Retail-v2.9.8-vc63-Permanent.apk
+          - package: com.profitloop.blueauto
+          - versionName: 2.9.8
+          - versionCode: 63
+          - apk_sha256: $APK_SHA256
+          - certificate_sha256: f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5
+          - upgrade smoke: v2.9.7/vc62 → v2.9.8/vc63
+          - Android 6 / API23: SUCCESS
+          - Android 8 / API26: SUCCESS
+          - production_mutation: false
+
+          Cette preuve est publiée uniquement après signature historique et réussite des deux upgrades en place.
+          EOF
+          )
+          gh api "repos/${{ github.repository }}/issues/$pr/comments" -f body="$body" >/dev/null
