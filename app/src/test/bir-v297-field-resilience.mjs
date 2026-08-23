@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import {execFileSync} from 'node:child_process';
+// Final 2.9.7 delivery gate: 10 s convergence, 60 s Robot silence alert, no financial autonomy.
 const modulePath='app/src/main/assets/field-ops-v297.js';
 execFileSync(process.execPath,['--check',modulePath],{stdio:'inherit'});
 const js=fs.readFileSync(modulePath,'utf8');
