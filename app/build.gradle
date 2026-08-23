@@ -12,16 +12,16 @@ android {
         applicationId "com.profitloop.blueauto"
         minSdk 23
         targetSdk 34
-        versionCode 62
-        versionName "2.9.7"
+        versionCode 63
+        versionName "2.9.8"
     }
 
     buildFeatures {
         buildConfig true
     }
 
-    // Historical test lineage retained as documentation only: previous permanent candidate used
-    // versionCode 61 / versionName "2.9.6". Active release identity is defined above.
+    // Permanent-update lineage: v2.9.7 = versionCode 62. v2.9.8 is intentionally the next
+    // in-place upgrade and keeps the historical package/certificate identity unchanged.
     signingConfigs {
         pilotDebug {
             storeFile rootProject.file('.pilot-signing/debug.keystore')
