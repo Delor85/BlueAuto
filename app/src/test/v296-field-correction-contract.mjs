@@ -32,9 +32,11 @@ must(manifest.includes('android:icon="@drawable/ic_launcher_bir"')
 must(worker.includes("if (role === 'POS')")&&worker.includes("fullParent.role !== 'DSM'")
   &&worker.includes("requestedIdentity.node_code !== officialExisting.node_code"),
   'Worker must reject ambiguous PoS lineage and recover by SIM only with exact official identity');
-must(permanent.includes('BIR-v2.9.4-vc59-Permanent-Baseline.apk')
-  &&permanent.includes('adb install -r apk/BIR-Blue-Infinity-Retail-v2.9.6-vc61-Permanent.apk')
-  &&permanent.includes('certificate_sha256')&&permanent.includes('api: 23')
+const oldProof=permanent.includes('BIR-v2.9.4-vc59-Permanent-Baseline.apk')
+  &&permanent.includes('adb install -r apk/BIR-Blue-Infinity-Retail-v2.9.6-vc61-Permanent.apk');
+const v297Proof=permanent.includes('BIR-v2.9.6-vc61-Permanent-Baseline.apk')
+  &&permanent.includes('adb install -r apk/BIR-Blue-Infinity-Retail-v2.9.7-vc62-Permanent.apk');
+must((oldProof||v297Proof)&&permanent.includes('certificate_sha256')&&permanent.includes('api: 23')
   &&permanent.includes('api: 26'),'permanent Android 6/8 in-place upgrade proof missing');
 
 console.log('B.I.R. v2.9.6 baseline preserved under v2.9.7 field correction contract OK');
