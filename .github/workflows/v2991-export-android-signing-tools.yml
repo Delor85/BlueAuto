@@ -1,0 +1,31 @@
+name: BIR v2.9.9.1 Export Android Signing Tools
+
+on:
+  push:
+    branches: [fix/bir-v2-9-9-1-field-runtime]
+
+permissions:
+  contents: read
+
+jobs:
+  export-tools:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Export official Android build tools for local permanent signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          bt="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          mkdir -p export
+          cp "$bt/lib/apksigner.jar" export/apksigner.jar
+          cp "$bt/zipalign" export/zipalign
+          cp "$bt/aapt" export/aapt
+          chmod +x export/zipalign export/aapt
+          printf 'build_tools=%s\n' "$(basename "$bt")" > export/BUILD_TOOLS_VERSION.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BIR-v2.9.9.1-Android-Signing-Tools
+          retention-days: 1
+          if-no-files-found: error
+          path: export/
