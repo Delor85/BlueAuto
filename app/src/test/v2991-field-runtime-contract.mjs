@@ -18,10 +18,13 @@ must(/bir-v2991-buy-card/.test(css)&&/#168c50|#0d6f40/.test(css),'purchase card 
 
 must(/Android\\s\+11/.test(js)&&/bir-v2991-api30/.test(js),'Android 11/API30 runtime guard missing');
 must(/body\.bir-v2991-api30 \*/.test(css)&&/backdrop-filter:none!important/.test(css),'API30 compositor simplification missing');
-must(/markPaint/.test(js),'API30 repaint rescue missing');
+must(/markPaint/.test(js),'API30 paint scheduler guard missing');
+must(!/offsetHeight/.test(js),'API30 guard must never force a synchronous full-layout read');
+must(/body\.bir-v2991-api30 \.module-tabs\{position:relative!important/.test(css),'API30 bottom navigation must not stay on a sticky compositor layer');
 
 must(/REMOTE_SNAPSHOT_MS = 10_000L/.test(robot),'historical Remote 10 s cadence must remain unchanged');
 must(/kickSynchronization/.test(js)&&/directRead\('1\/3'/.test(js)&&/directRead\('2\/3'/.test(js)&&/directRead\('3\/3'/.test(js),'foreground Remote convergence burst missing');
+must(/api30\(\)&&tag==='2\/3'/.test(js),'Android 11 convergence must avoid a redundant middle dashboard paint');
 must(!/setInterval\s*\(/.test(js),'v2991 must not add another permanent polling loop');
 
 must(/transaction_ledger/.test(js)&&/oneShotFromLedger/.test(js),'commission one-shot truth must prefer account server ledger');
@@ -38,4 +41,4 @@ must(!/createCommand\s*\(|previewCommand\s*\(|create_command|preview_command/.te
 must(!/executeRawUSSD|placeUssdCall|mercenary_sale/.test(js),'v2991 runtime must not bypass historical finance/USSD path');
 must(!/\bconst\b|\blet\b|=>/.test(js),'v2991 runtime must stay ES5-friendly for Android 6 WebView');
 
-console.log('BIR v2.9.9.1 field runtime: purchase color, multi-Remote convergence, server-backed commission truth, Android11 and Assistant guards OK');
+console.log('BIR v2.9.9.1 field runtime: purchase color, multi-Remote convergence, server-backed commission truth, Android11 no-reflow guard and Assistant guards OK');
