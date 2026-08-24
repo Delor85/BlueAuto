@@ -11,15 +11,15 @@
 .bir-v2991-rate-source{display:block;margin-top:5px;color:#9fb4cd;font-size:10px;line-height:1.35}
 .bir-v2991-assistant-server{margin-top:8px;padding:9px 10px;border-radius:10px;background:rgba(135,92,255,.12);color:#ece8ff;font-size:11px;line-height:1.4}
 
-/* API 30 / Android 11: favor predictable rasterization over decorative compositing.
- * No finance/UI capability is removed; only visual effects known to stress old WebViews are cut.
+/* API 30 / Android 11: predictable rasterization beats decorative compositing.
+ * No finance/UI capability is removed. Fixed/sticky compositor layers and costly effects are cut.
  */
-html.bir-v2991-api30,html.bir-v2991-api30 body{scroll-behavior:auto!important;background:#05122a!important;background-image:none!important}
+html.bir-v2991-api30,html.bir-v2991-api30 body{min-height:100%!important;scroll-behavior:auto!important;background:#05122a!important;background-image:none!important;overflow-x:hidden!important}
 body.bir-v2991-api30::before,body.bir-v2991-api30::after{display:none!important;content:none!important;animation:none!important}
 body.bir-v2991-api30 *,body.bir-v2991-api30 *::before,body.bir-v2991-api30 *::after{animation:none!important;transition:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;filter:none!important;will-change:auto!important;background-attachment:scroll!important}
 body.bir-v2991-api30 .panel,body.bir-v2991-api30 .bir-v298-transaction,body.bir-v2991-api30 .bir-v298-situation,body.bir-v2991-api30 .bir-v298-truthbar,body.bir-v2991-api30 .bir-v2991-buy-card{box-shadow:0 2px 8px rgba(0,0,0,.16)!important}
 body.bir-v2991-api30 .topbar{position:relative!important;top:auto!important;transform:none!important}
-body.bir-v2991-api30 .module-tabs{position:sticky!important;bottom:0!important;transform:none!important;contain:none!important;box-shadow:0 -2px 8px rgba(0,0,0,.24)!important}
+body.bir-v2991-api30 .module-tabs{position:relative!important;bottom:auto!important;transform:none!important;contain:none!important;box-shadow:0 -2px 8px rgba(0,0,0,.24)!important}
 body.bir-v2991-api30 .module-tab-primary{transform:none!important}
 body.bir-v2991-api30 .bir-v298-war-full,body.bir-v2991-api30 .bir-v298-live-holder,body.bir-v2991-api30 #birV297Assistant{transform:none!important}
 body.bir-v2991-api30 input,body.bir-v2991-api30 button{transform:none!important}
