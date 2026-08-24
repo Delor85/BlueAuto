@@ -4,6 +4,7 @@ on:
   push:
     branches: [fix/bir-v2-9-5-identity-balance-sync]
   pull_request:
+    branches: [fix/bir-v2-9-5-identity-balance-sync]
     paths:
       - 'app/**'
       - 'cloudflare/**'
