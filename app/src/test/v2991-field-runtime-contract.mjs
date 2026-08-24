@@ -25,8 +25,11 @@ must(/kickSynchronization/.test(js)&&/directRead\('1\/3'/.test(js)&&/directRead\
 must(!/setInterval\s*\(/.test(js),'v2991 must not add another permanent polling loop');
 
 must(/transaction_ledger/.test(js)&&/oneShotFromLedger/.test(js),'commission one-shot truth must prefer account server ledger');
-must(/transaction_ledger/.test(api),'native bridge must allow transaction ledger');
-must(/case 'transaction_ledger'/.test(server),'server source must already expose transaction ledger without a v2991 Cloudflare change');
+must(/commission_policy/.test(js)&&/normalizePolicy/.test(js)&&/persistentRateFor/.test(js),'punctual rates must be compared with current server policy');
+must(/commission_rate_bps/.test(js)&&/ÉCART AU TAUX PERSISTANT/.test(js),'ledger commission rate must support punctual inference');
+must(/transaction_ledger/.test(api)&&/commission_policy/.test(api),'native bridge must allow ledger and commission policy');
+must(/case 'transaction_ledger'/.test(server)&&/case 'commission_policy'/.test(server),'existing server must expose ledger and policy without v2991 Cloudflare change');
+must(/commission_rate_bps/.test(server)&&/effective_rate_bps/.test(server),'server source must expose transactional and persistent commission rates');
 
 must(/ops_assist/.test(js)&&/serverAssist/.test(js)&&/localWideAnswer/.test(js),'Assistant must combine broad local routing with server-assisted fallback');
 must(/ops_assist/.test(api)&&/case 'ops_assist'/.test(server),'existing platform control plane must expose ops_assist');
@@ -35,4 +38,4 @@ must(!/createCommand\s*\(|previewCommand\s*\(|create_command|preview_command/.te
 must(!/executeRawUSSD|placeUssdCall|mercenary_sale/.test(js),'v2991 runtime must not bypass historical finance/USSD path');
 must(!/\bconst\b|\blet\b|=>/.test(js),'v2991 runtime must stay ES5-friendly for Android 6 WebView');
 
-console.log('BIR v2.9.9.1 field runtime: purchase color, multi-Remote convergence, commission truth, Android11 and Assistant guards OK');
+console.log('BIR v2.9.9.1 field runtime: purchase color, multi-Remote convergence, server-backed commission truth, Android11 and Assistant guards OK');
