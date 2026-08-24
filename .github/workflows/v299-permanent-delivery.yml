@@ -4,6 +4,11 @@ on:
   push:
     branches: [ci/bir-v299-permanent-delivery]
     paths: [.github/authorized-v299-permanent.trigger]
+  pull_request:
+    branches: [fix/bir-v2-9-9-reference-stability]
+    paths:
+      - '.github/workflows/v299-permanent-delivery.yml'
+      - '.github/authorized-v299-permanent.trigger'
 
 permissions:
   contents: read
@@ -15,9 +20,9 @@ env:
 
 jobs:
   permanent-build:
+    if: ${{ github.event_name == 'push' || github.head_ref == 'ci/bir-v299-permanent-delivery' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 55
-    environment: production
     steps:
       - name: Checkout delivery authorization
         uses: actions/checkout@v5
@@ -114,7 +119,6 @@ jobs:
             --out BIR-Blue-Infinity-Retail-v2.9.9-vc64-Permanent.apk \
             /tmp/v299-aligned.apk
       - name: Verify permanent APK identity, signatures and payload
-        id: verify
         shell: bash
         run: |
           set -euo pipefail
