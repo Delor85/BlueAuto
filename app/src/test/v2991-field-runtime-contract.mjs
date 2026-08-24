@@ -34,11 +34,13 @@ must(/transaction_ledger/.test(api)&&/commission_policy/.test(api),'native bridg
 must(/case 'transaction_ledger'/.test(server)&&/case 'commission_policy'/.test(server),'existing server must expose ledger and policy without v2991 Cloudflare change');
 must(/commission_rate_bps/.test(server)&&/effective_rate_bps/.test(server),'server source must expose transactional and persistent commission rates');
 
-must(/ops_assist/.test(js)&&/serverAssist/.test(js)&&/localWideAnswer/.test(js),'Assistant must combine broad local routing with server-assisted fallback');
-must(/ops_assist/.test(api)&&/case 'ops_assist'/.test(server),'existing platform control plane must expose ops_assist');
+must(/scoreTopics/.test(js)&&/localWideAnswer/.test(js)&&/bindAssistantSearch/.test(js),'Assistant must provide broad free-text intent routing and IA search interception');
+must(/assistantLike/.test(js)&&/v291ServiceQuery/.test(js)&&/Assistant B\.I\.R\./.test(js),'global search must route IA/questions to Assistant instead of unrelated buttons');
+must(!/ops_assist/.test(js),'free-text Assistant must never misuse ops_assist WAKE_SYNC as a conversational backend');
+must(/primeEvidence/.test(js)&&/loadDashboard/.test(js)&&/refreshQueueSnapshot/.test(js),'Assistant may refresh only relevant read-only evidence');
 
 must(!/createCommand\s*\(|previewCommand\s*\(|create_command|preview_command/.test(js),'v2991 runtime must not create/preview finance');
 must(!/executeRawUSSD|placeUssdCall|mercenary_sale/.test(js),'v2991 runtime must not bypass historical finance/USSD path');
 must(!/\bconst\b|\blet\b|=>/.test(js),'v2991 runtime must stay ES5-friendly for Android 6 WebView');
 
-console.log('BIR v2.9.9.1 field runtime: purchase color, multi-Remote convergence, server-backed commission truth, Android11 no-reflow guard and Assistant guards OK');
+console.log('BIR v2.9.9.1 field runtime: purchase color, multi-Remote convergence, server-backed commission truth, Android11 no-reflow and side-effect-free Assistant guards OK');
