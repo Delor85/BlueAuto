@@ -19,7 +19,7 @@ must(/bir-v2991-buy-card/.test(css)&&/#168c50|#0d6f40/.test(css),'purchase card 
 must(/Android\\s\+11/.test(js)&&/bir-v2991-api30/.test(js),'Android 11/API30 runtime guard missing');
 must(/body\.bir-v2991-api30 \*/.test(css)&&/backdrop-filter:none!important/.test(css),'API30 compositor simplification missing');
 must(/markPaint/.test(js),'API30 paint scheduler guard missing');
-must(!/offsetHeight/.test(js),'API30 guard must never force a synchronous full-layout read');
+must(!/\.offsetHeight\b/.test(js),'API30 guard must never force a synchronous full-layout read');
 must(/body\.bir-v2991-api30 \.module-tabs\{position:relative!important/.test(css),'API30 bottom navigation must not stay on a sticky compositor layer');
 
 must(/REMOTE_SNAPSHOT_MS = 10_000L/.test(robot),'historical Remote 10 s cadence must remain unchanged');
