@@ -1,0 +1,34 @@
+name: BIR v2.9.9 Export Android Build Tools
+
+on:
+  pull_request:
+    branches: [fix/bir-v2-9-9-reference-stability]
+    paths:
+      - '.github/workflows/v299-export-build-tools.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  export-tools:
+    if: ${{ github.head_ref == 'ci/bir-v299-permanent-delivery' }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Pack official Android build-tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          bt="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          test -x "$bt/apksigner"
+          test -x "$bt/zipalign"
+          test -x "$bt/aapt"
+          tar -C "$(dirname "$bt")" -czf /tmp/android-build-tools.tar.gz "$(basename "$bt")"
+          printf '%s\n' "$(basename "$bt")" > /tmp/build-tools-version.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BIR-v2.9.9-Android-Build-Tools
+          path: |
+            /tmp/android-build-tools.tar.gz
+            /tmp/build-tools-version.txt
+          retention-days: 1
+          if-no-files-found: error
