@@ -6,7 +6,6 @@ on:
     paths:
       - 'app/**'
       - '.github/workflows/v2991-field-runtime-delivery.yml'
-      - '.github/workflows/v2991-critical-permanent.yml'
       - 'docs/BIR_2.9.9.1_Audit_Livraison_Reprise_2026-08-24.md'
 
 permissions:
@@ -21,7 +20,7 @@ env:
 
 jobs:
   validate-build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     timeout-minutes: 35
     steps:
       - name: Checkout exact source
@@ -118,7 +117,7 @@ jobs:
   android-matrix:
     name: Android ${{ matrix.android }} / API ${{ matrix.api }}
     needs: validate-build
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     timeout-minutes: 35
     strategy:
       fail-fast: false
@@ -166,8 +165,8 @@ jobs:
   qualification-summary:
     name: Full Android 6–16 qualification complete
     needs: [validate-build, android-matrix]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     steps:
       - run: |
           echo 'B.I.R. 2.9.9.1 qualification passed on Android 6 through 16.'
-          echo 'Permanent signing remains isolated in the push-only critical delivery workflow.'
+          echo 'The exact qualified APK artifact is the only payload eligible for permanent historical signing.'
