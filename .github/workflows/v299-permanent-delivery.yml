@@ -23,6 +23,7 @@ jobs:
     if: ${{ github.event_name == 'push' || github.head_ref == 'ci/bir-v299-permanent-delivery' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 55
+    environment: production
     steps:
       - name: Checkout delivery authorization
         uses: actions/checkout@v5
