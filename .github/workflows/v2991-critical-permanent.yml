@@ -10,6 +10,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: bir-v2991-critical-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   BIR_BASE_SHA: a13bafc76aa23157bb409a72904f4bc64f5cf815
   BIR_CERT_SHA256: f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5
@@ -66,7 +70,7 @@ jobs:
 
   critical-android:
     needs: build
-    runs-on: macos-15-intel
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -77,6 +81,15 @@ jobs:
           - {android: '11', api: 30, arch: x86_64, profile: 'Nexus 5X'}
     name: Critical Android ${{ matrix.android }} / API ${{ matrix.api }}
     steps:
+      - name: Enable KVM hardware acceleration
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -e /dev/kvm
+          sudo chmod 666 /dev/kvm
+          test -r /dev/kvm
+          test -w /dev/kvm
+          ls -l /dev/kvm
       - uses: actions/download-artifact@v4
         with:
           name: BIR-v2.9.9.1-Critical-Qualification
@@ -89,10 +102,11 @@ jobs:
           profile: ${{ matrix.profile }}
           target: google_apis
           disable-animations: false
-          emulator-boot-timeout: 900
+          disable-linux-hw-accel: false
+          emulator-boot-timeout: 720
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
           script: >-
-            set -eu; adb wait-for-device; ready=0; for i in $(seq 1 60); do if adb shell service check package 2>/dev/null | grep -qi found && adb shell cmd package list packages >/dev/null 2>&1 && adb shell pm path android >/dev/null 2>&1; then ready=1; break; fi; sleep 5; done; test "$ready" = 1; sleep 12; apk="$(find apk -type f -name 'BIR-Blue-Infinity-Retail-v2.9.9.1-vc65-Qualification.apk' -print -quit)"; test -s "$apk"; installed=0; for i in 1 2 3; do if adb install --no-streaming "$apk"; then installed=1; break; fi; sleep 15; done; test "$installed" = 1; adb shell dumpsys package com.profitloop.blueauto | grep -q 'versionCode=65'; adb logcat -c || true; adb shell am start -W -n com.profitloop.blueauto/.MainActivity > /tmp/start.txt; grep -Eq 'Status: ok|Complete' /tmp/start.txt; sleep 8; adb shell pidof com.profitloop.blueauto >/dev/null; adb exec-out screencap -p > /tmp/before.png; test -s /tmp/before.png; adb shell input tap 540 1450 || true; sleep 2; adb shell input swipe 540 1500 540 650 350 || true; sleep 3; adb exec-out screencap -p > /tmp/after.png; test -s /tmp/after.png; adb shell pidof com.profitloop.blueauto >/dev/null; adb logcat -d > /tmp/logcat.txt || true; ! grep -E 'FATAL EXCEPTION.*com.profitloop.blueauto|Process: com.profitloop.blueauto|ANR in com.profitloop.blueauto|Render process.*gone' /tmp/logcat.txt
+            set -eu; adb wait-for-device; ready=0; for i in $(seq 1 60); do if adb shell service check package 2>/dev/null | grep -qi found && adb shell cmd package list packages >/dev/null 2>&1 && adb shell pm path android >/dev/null 2>&1; then ready=1; break; fi; sleep 5; done; test "$ready" = 1; sleep 8; apk="$(find apk -type f -name 'BIR-Blue-Infinity-Retail-v2.9.9.1-vc65-Qualification.apk' -print -quit)"; test -s "$apk"; installed=0; for i in 1 2 3; do if adb install --no-streaming "$apk"; then installed=1; break; fi; sleep 12; done; test "$installed" = 1; adb shell dumpsys package com.profitloop.blueauto | grep -q 'versionCode=65'; adb logcat -c || true; adb shell am start -W -n com.profitloop.blueauto/.MainActivity > /tmp/start.txt; grep -Eq 'Status: ok|Complete' /tmp/start.txt; sleep 8; adb shell pidof com.profitloop.blueauto >/dev/null; adb exec-out screencap -p > /tmp/before.png; test -s /tmp/before.png; adb shell input tap 540 1450 || true; sleep 2; adb shell input swipe 540 1500 540 650 350 || true; sleep 3; adb exec-out screencap -p > /tmp/after.png; test -s /tmp/after.png; adb shell pidof com.profitloop.blueauto >/dev/null; adb logcat -d > /tmp/logcat.txt || true; ! grep -E 'FATAL EXCEPTION.*com.profitloop.blueauto|Process: com.profitloop.blueauto|ANR in com.profitloop.blueauto|Render process.*gone' /tmp/logcat.txt
 
   permanent:
     needs: [build, critical-android]
