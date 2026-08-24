@@ -12,16 +12,17 @@ android {
         applicationId "com.profitloop.blueauto"
         minSdk 23
         targetSdk 34
-        versionCode 65
-        versionName "2.9.9.1"
+        versionCode 66
+        versionName "2.9.9.2"
     }
 
     buildFeatures {
         buildConfig true
     }
 
-    // Permanent-update lineage: v2.9.8 = versionCode 63; v2.9.9 = versionCode 64 / versionName "2.9.9".
-    // v2.9.9.1 is the next in-place field-runtime correction and keeps the historical package/certificate identity unchanged.
+    // Permanent-update lineage: v2.9.8 = vc63; v2.9.9 = vc64; v2.9.9.1 = vc65.
+    // v2.9.9.2 = vc66: additive field completion + Android 11 rendering isolation.
+    // Historical package and permanent certificate identity remain unchanged.
     signingConfigs {
         pilotDebug {
             storeFile rootProject.file('.pilot-signing/debug.keystore')
