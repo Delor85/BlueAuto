@@ -1,0 +1,185 @@
+name: BIR v2.9.9 Permanent Delivery
+
+on:
+  push:
+    branches: [ci/bir-v299-permanent-delivery]
+    paths: [.github/authorized-v299-permanent.trigger]
+  pull_request:
+    branches: [fix/bir-v2-9-9-reference-stability]
+    paths:
+      - '.github/workflows/v299-permanent-delivery.yml'
+      - '.github/authorized-v299-permanent.trigger'
+
+permissions:
+  contents: read
+
+env:
+  BIR_SOURCE_SHA: a13bafc76aa23157bb409a72904f4bc64f5cf815
+  BIR_BASELINE_SHA: 9c0832fa0d2a1d1a946d4350e03933098451d59d
+  BIR_CERT_SHA256: f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5
+
+jobs:
+  permanent-build:
+    if: ${{ github.event_name == 'push' || github.head_ref == 'ci/bir-v299-permanent-delivery' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    environment: production
+    steps:
+      - name: Checkout delivery authorization
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - name: Prove isolated authorization
+        shell: bash
+        run: |
+          set -euo pipefail
+          trigger=.github/authorized-v299-permanent.trigger
+          test -f "$trigger"
+          grep -q '^authorized_sha=a13bafc76aa23157bb409a72904f4bc64f5cf815$' "$trigger"
+          grep -q '^package=com.profitloop.blueauto$' "$trigger"
+          grep -q '^versionName=2.9.9$' "$trigger"
+          grep -q '^versionCode=64$' "$trigger"
+          grep -q '^certificate_sha256=f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5$' "$trigger"
+          grep -q '^production_mutation=false$' "$trigger"
+      - name: Checkout exact application source
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.BIR_SOURCE_SHA }}
+          fetch-depth: 0
+      - name: Prove source identity and no production mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$BIR_SOURCE_SHA"
+          git diff --exit-code "$BIR_BASELINE_SHA" -- cloudflare
+          grep -q 'applicationId "com.profitloop.blueauto"' app/build.gradle
+          grep -q 'minSdk 23' app/build.gradle
+          grep -q 'versionCode 64' app/build.gradle
+          grep -q 'versionName "2.9.9"' app/build.gradle
+          grep -Fq 'new String[]{"REMOTE", "ROBOT"}' app/src/main/java/com/profitloop/blueauto/MainActivity.java
+          ! grep -RniE 'sms[_ -]?fallback|financial_command_over_relay[[:space:]]*=[[:space:]]*true' app/src/main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Re-run all historical and v2.9.9 contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd cloudflare && npm ci && npm run check)
+          for test_file in app/src/test/*.mjs; do echo "== $test_file =="; node "$test_file"; done
+          node --check app/src/main/assets/app.js
+          node --check app/src/main/assets/field-ops-v297.js
+          node --check app/src/main/assets/intelligence-v297.js
+          node --check app/src/main/assets/transaction-first-v298.js
+          node --check app/src/main/assets/reference-stability-v299.js
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+          cache-read-only: true
+      - name: Load and prove historical permanent signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$KEYSTORE_BASE64"
+          test -n "$KEYSTORE_PASSWORD"
+          mkdir -p .pilot-signing
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > .pilot-signing/debug.keystore
+          password="$(printf '%s' "$KEYSTORE_PASSWORD" | tr -d '\r\n')"
+          echo "::add-mask::$password"
+          actual="$(keytool -list -v -keystore .pilot-signing/debug.keystore -storepass "$password" -alias androiddebugkey | awk '/SHA256:/{gsub(":", "", $2); print tolower($2); exit}')"
+          test "$actual" = "$BIR_CERT_SHA256"
+          echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$password" >> "$GITHUB_ENV"
+      - name: Build exact v2.9.9 Release candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk /tmp/v299-unsigned.apk
+      - name: Align and sign permanently
+        shell: bash
+        run: |
+          set -euo pipefail
+          bt="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          "$bt/zipalign" -f -p 4 /tmp/v299-unsigned.apk /tmp/v299-aligned.apk
+          "$bt/apksigner" sign \
+            --ks .pilot-signing/debug.keystore \
+            --ks-key-alias androiddebugkey \
+            --ks-pass "pass:$BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD" \
+            --key-pass "pass:$BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD" \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            --v3-signing-enabled true \
+            --out BIR-Blue-Infinity-Retail-v2.9.9-vc64-Permanent.apk \
+            /tmp/v299-aligned.apk
+      - name: Verify permanent APK identity, signatures and payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          bt="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          apk=BIR-Blue-Infinity-Retail-v2.9.9-vc64-Permanent.apk
+          "$bt/zipalign" -c -v 4 "$apk" >/dev/null
+          "$bt/apksigner" verify --verbose --print-certs "$apk" | tee /tmp/v299-signature.txt
+          actual="$(grep -i 'certificate SHA-256 digest:' /tmp/v299-signature.txt | head -1 | sed -E 's/.*digest: //' | tr -d ':' | tr '[:upper:]' '[:lower:]')"
+          test "$actual" = "$BIR_CERT_SHA256"
+          grep -qi 'Verified using v1 scheme.*true' /tmp/v299-signature.txt
+          grep -qi 'Verified using v2 scheme.*true' /tmp/v299-signature.txt
+          grep -qi 'Verified using v3 scheme.*true' /tmp/v299-signature.txt
+          ! grep -q 'Signer #2' /tmp/v299-signature.txt
+          "$bt/aapt" dump badging "$apk" | tee /tmp/v299-badging.txt
+          grep -q "package: name='com.profitloop.blueauto' versionCode='64' versionName='2.9.9'" /tmp/v299-badging.txt
+          grep -q "sdkVersion:'23'" /tmp/v299-badging.txt
+          grep -q "targetSdkVersion:'34'" /tmp/v299-badging.txt
+          grep -q "application-label:'B.I.R. — Blue Infinity Retail'" /tmp/v299-badging.txt
+          ! grep -q 'application-debuggable' /tmp/v299-badging.txt
+          python3 - <<'PY'
+          import zipfile, hashlib
+          a='/tmp/v299-unsigned.apk'; b='BIR-Blue-Infinity-Retail-v2.9.9-vc64-Permanent.apk'
+          def entries(path):
+              out={}
+              with zipfile.ZipFile(path) as z:
+                  for n in z.namelist():
+                      u=n.upper()
+                      if u.startswith('META-INF/') and (u.endswith('.SF') or u.endswith('.RSA') or u.endswith('.DSA') or u.endswith('MANIFEST.MF')):
+                          continue
+                      out[n]=hashlib.sha256(z.read(n)).hexdigest()
+              return out
+          ea,eb=entries(a),entries(b)
+          assert ea==eb, 'application payload changed during permanent signing'
+          print('Application payload identical before/after permanent signing:',len(ea),'entries')
+          PY
+          apk_sha="$(sha256sum "$apk" | awk '{print $1}')"
+          printf '%s  %s\n' "$apk_sha" "$apk" > BIR-v2.9.9-Permanent.sha256.txt
+          {
+            echo "source_sha=$BIR_SOURCE_SHA"
+            echo 'package=com.profitloop.blueauto'
+            echo 'versionName=2.9.9'
+            echo 'versionCode=64'
+            echo 'minSdk=23'
+            echo 'targetSdk=34'
+            echo "apk_sha256=$apk_sha"
+            echo "certificate_sha256=$BIR_CERT_SHA256"
+            echo 'signatures=v1,v2,v3'
+            echo 'signers=1'
+            echo 'payload_identical_before_after_signing=true'
+            echo 'production_mutation=false'
+          } > BIR-v2.9.9-Permanent-release-info.txt
+      - name: Upload permanent APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIR-v2.9.9-Permanent
+          retention-days: 90
+          if-no-files-found: error
+          path: |
+            BIR-Blue-Infinity-Retail-v2.9.9-vc64-Permanent.apk
+            BIR-v2.9.9-Permanent.sha256.txt
+            BIR-v2.9.9-Permanent-release-info.txt
+            /tmp/v299-badging.txt
+            /tmp/v299-signature.txt
