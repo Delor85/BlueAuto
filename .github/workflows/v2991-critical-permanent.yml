@@ -66,7 +66,7 @@ jobs:
 
   critical-android:
     needs: build
-    runs-on: ubuntu-24.04
+    runs-on: macos-15-intel
     timeout-minutes: 45
     strategy:
       fail-fast: false
