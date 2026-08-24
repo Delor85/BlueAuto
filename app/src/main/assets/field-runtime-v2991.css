@@ -1,0 +1,26 @@
+/* B.I.R. 2.9.9.1 — Field Runtime Stabilization
+ * Additive, non-financial layer. Keeps Transaction-First and every historical finance guard.
+ */
+.bir-v2991-buy-card{display:block!important;margin:12px 0!important;padding:14px!important;border-radius:18px!important;background:linear-gradient(145deg,#dff9e8,#b9efd0)!important;border:2px solid rgba(13,111,64,.42)!important;box-shadow:0 10px 22px rgba(13,111,64,.14)!important;color:#123b26!important}
+.bir-v2991-buy-card label,.bir-v2991-buy-card b,.bir-v2991-buy-card span,.bir-v2991-buy-card small{color:#123b26!important}
+.bir-v2991-buy-card input{background:#fff!important;color:#102a1d!important;border-color:rgba(13,111,64,.5)!important}
+.bir-v2991-buy-card button{background:linear-gradient(105deg,#168c50,#0d6f40)!important;color:#fff!important;border-color:#0d6f40!important;box-shadow:none!important}
+.bir-v2991-buy-card::before{content:'ACHAT';display:inline-flex;margin:0 0 8px;padding:4px 8px;border-radius:999px;background:#0d6f40;color:#fff;font-size:10px;font-weight:900;letter-spacing:.08em}
+.bir-v2991-sync-chip{display:inline-flex;align-items:center;gap:6px;margin-top:6px;padding:5px 8px;border-radius:999px;background:rgba(78,225,255,.11);color:#dffaff;font-size:10px;font-weight:800}
+.bir-v2991-sync-chip::before{content:'●';font-size:8px}
+.bir-v2991-rate-source{display:block;margin-top:5px;color:#9fb4cd;font-size:10px;line-height:1.35}
+.bir-v2991-assistant-server{margin-top:8px;padding:9px 10px;border-radius:10px;background:rgba(135,92,255,.12);color:#ece8ff;font-size:11px;line-height:1.4}
+
+/* API 30 / Android 11: predictable rasterization beats decorative compositing.
+ * No finance/UI capability is removed. Fixed/sticky compositor layers and costly effects are cut.
+ */
+html.bir-v2991-api30,html.bir-v2991-api30 body{min-height:100%!important;scroll-behavior:auto!important;background:#05122a!important;background-image:none!important;overflow-x:hidden!important}
+body.bir-v2991-api30::before,body.bir-v2991-api30::after{display:none!important;content:none!important;animation:none!important}
+body.bir-v2991-api30 *,body.bir-v2991-api30 *::before,body.bir-v2991-api30 *::after{animation:none!important;transition:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;filter:none!important;will-change:auto!important;background-attachment:scroll!important}
+body.bir-v2991-api30 .panel,body.bir-v2991-api30 .bir-v298-transaction,body.bir-v2991-api30 .bir-v298-situation,body.bir-v2991-api30 .bir-v298-truthbar,body.bir-v2991-api30 .bir-v2991-buy-card{box-shadow:0 2px 8px rgba(0,0,0,.16)!important}
+body.bir-v2991-api30 .topbar{position:relative!important;top:auto!important;transform:none!important}
+body.bir-v2991-api30 .module-tabs{position:relative!important;bottom:auto!important;transform:none!important;contain:none!important;box-shadow:0 -2px 8px rgba(0,0,0,.24)!important}
+body.bir-v2991-api30 .module-tab-primary{transform:none!important}
+body.bir-v2991-api30 .bir-v298-war-full,body.bir-v2991-api30 .bir-v298-live-holder,body.bir-v2991-api30 #birV297Assistant{transform:none!important}
+body.bir-v2991-api30 input,body.bir-v2991-api30 button{transform:none!important}
+@media(max-width:390px){.bir-v2991-buy-card{margin-left:0!important;margin-right:0!important}}
