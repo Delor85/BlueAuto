@@ -1,0 +1,20 @@
+/* B.I.R. 2.9.9.2 — Completion & Android 11 deterministic rendering.
+ * Additive UI only. Finance/FIFO/PIN/Accessibility/dual-SIM remain owned by historical handlers.
+ */
+.bir-v2992-card{margin:10px 0;padding:14px;border:1px solid rgba(78,225,255,.24);border-radius:15px;background:linear-gradient(145deg,rgba(12,42,80,.97),rgba(6,25,52,.99));box-shadow:0 8px 22px rgba(0,0,0,.2)}
+.bir-v2992-card h3{margin:4px 0 7px}.bir-v2992-card p{margin:5px 0}.bir-v2992-card .bir-v2992-note{font-size:.72rem;line-height:1.42;color:#a8bad2}.bir-v2992-grid{display:flex;flex-wrap:wrap;margin:4px -4px}.bir-v2992-grid>*{width:calc(50% - 8px);margin:4px}.bir-v2992-grid input{margin:0}.bir-v2992-wide{width:calc(100% - 8px)!important}.bir-v2992-actions{display:flex;gap:8px;flex-wrap:wrap}.bir-v2992-actions button{flex:1 1 180px}.bir-v2992-status{margin-top:8px;padding:8px 10px;border-radius:10px;background:rgba(78,225,255,.08);color:#dff8ff;font-size:.72rem;line-height:1.4}.bir-v2992-status.error{background:rgba(255,107,122,.12);color:#ffd5da}.bir-v2992-status.ok{background:rgba(112,246,164,.1);color:#caffda}
+.bir-v2992-list{margin-top:8px}.bir-v2992-row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid rgba(78,225,255,.12)}.bir-v2992-row:last-child{border-bottom:0}.bir-v2992-row b,.bir-v2992-row small{display:block}.bir-v2992-row small{margin-top:2px;color:#9fb4cd;font-size:.65rem;line-height:1.35}.bir-v2992-pills{text-align:right;min-width:88px}.bir-v2992-pill{display:inline-block;margin:0 0 3px 3px;padding:3px 6px;border-radius:999px;background:rgba(78,225,255,.12);color:#dffaff;font-size:.56rem;font-weight:900}.bir-v2992-pill.warn{background:rgba(255,210,117,.16);color:#ffe3a2}.bir-v2992-pill.danger{background:rgba(255,107,122,.15);color:#ffbdc5}.bir-v2992-pill.tcho{background:rgba(135,92,255,.18);color:#e2d9ff}.bir-v2992-summary{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.bir-v2992-summary span{padding:5px 7px;border-radius:9px;background:#061630;color:#cfe5ff;font-size:.62rem;font-weight:800}.bir-v2992-check{background:linear-gradient(105deg,#087eae,#1668df)!important}.bir-v2992-tcho-button{background:linear-gradient(105deg,#875cff,#5b45d8)!important}
+
+/* Android 11 / API30: the WebView Activity runs without hardware acceleration in v2.9.9.2.
+ * Keep the DOM flat too: no phantom bottom spacer, no hidden-screen geometry, no fixed layers.
+ */
+html.bir-v2992-api30,html.bir-v2992-api30 body{height:auto!important;min-height:100%!important;background:#05122a!important;background-color:#05122a!important;background-image:none!important;overflow-x:hidden!important}
+body.bir-v2992-api30{margin:0!important;overscroll-behavior:none!important}
+body.bir-v2992-api30 main{padding-bottom:12px!important;background:#05122a!important;min-height:0!important}
+body.bir-v2992-api30 .module-tabs{position:relative!important;left:auto!important;right:auto!important;bottom:auto!important;width:100%!important;margin:10px 0 6px!important;transform:none!important;box-shadow:none!important}
+body.bir-v2992-api30 .module-tab-primary{transform:none!important}
+body.bir-v2992-api30 .module-screen.hidden,body.bir-v2992-api30 [hidden]{display:none!important;height:0!important;min-height:0!important;max-height:0!important;margin:0!important;padding:0!important;overflow:hidden!important}
+body.bir-v2992-api30 .toast{position:fixed!important;bottom:12px!important}
+body.bir-v2992-api30 .bir-v2992-card,body.bir-v2992-api30 .panel{box-shadow:none!important}
+body.bir-v2992-api30::before,body.bir-v2992-api30::after{display:none!important;content:none!important}
+@media(max-width:360px){.bir-v2992-grid>*{width:calc(100% - 8px)}.bir-v2992-row{display:block}.bir-v2992-pills{text-align:left;margin-top:5px}}

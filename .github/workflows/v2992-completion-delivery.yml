@@ -1,0 +1,153 @@
+name: BIR v2.9.9.2 Completion Qualification
+
+on:
+  push:
+    branches: [fix/bir-v2-9-9-2-completion]
+    paths:
+      - 'app/**'
+      - '.github/workflows/v2992-completion-delivery.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bir-v2992-completion-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BIR_V2991_SHA: 62bd4c04c314a58380b87e8c3eba0c223f5326fd
+
+jobs:
+  validate-build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Prove additive APK-only boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code "$BIR_V2991_SHA" -- cloudflare
+          grep -q 'applicationId "com.profitloop.blueauto"' app/build.gradle
+          grep -q 'minSdk 23' app/build.gradle
+          grep -q 'targetSdk 34' app/build.gradle
+          grep -q 'versionCode 66' app/build.gradle
+          grep -q 'versionName "2.9.9.2"' app/build.gradle
+          grep -q 'android:hardwareAccelerated="@bool/bir_main_hardware_accelerated"' app/src/main/AndroidManifest.xml
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run current anti-regression contracts and JS syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp app/build.gradle /tmp/build.gradle.v2992
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('app/build.gradle')
+          s=p.read_text().replace('versionCode 66','versionCode 65').replace('versionName "2.9.9.2"','versionName "2.9.9.1"')
+          p.write_text(s)
+          PY
+          node app/src/test/v2991-field-runtime-contract.mjs
+          mv /tmp/build.gradle.v2992 app/build.gradle
+          node app/src/test/v2992-completion-contract.mjs
+          node --check app/src/main/assets/app.js
+          node --check app/src/main/assets/field-ops-v297.js
+          node --check app/src/main/assets/intelligence-v297.js
+          node --check app/src/main/assets/transaction-first-v298.js
+          node --check app/src/main/assets/reference-stability-v299.js
+          node --check app/src/main/assets/field-runtime-v2991.js
+          node --check app/src/main/assets/field-runtime-v2992.js
+          git diff --exit-code -- app/build.gradle
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+          cache-read-only: true
+      - name: Build exact qualification APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .pilot-signing
+          password="$(openssl rand -hex 32)"
+          echo "::add-mask::$password"
+          keytool -genkeypair -keystore .pilot-signing/debug.keystore -storepass "$password" -alias androiddebugkey -keypass "$password" -dname 'CN=BIR 2.9.9.2 Qualification,O=ProfitLoop,C=CM' -keyalg RSA -keysize 2048 -validity 7 -noprompt
+          BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD="$password" gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk BIR-Blue-Infinity-Retail-v2.9.9.2-vc66-Qualification.apk
+      - name: Verify candidate identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          bt="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          apk=BIR-Blue-Infinity-Retail-v2.9.9.2-vc66-Qualification.apk
+          "$bt/zipalign" -c -v 4 "$apk" >/dev/null
+          "$bt/aapt" dump badging "$apk" | tee /tmp/v2992-badging.txt
+          grep -q "package: name='com.profitloop.blueauto' versionCode='66' versionName='2.9.9.2'" /tmp/v2992-badging.txt
+          grep -q "sdkVersion:'23'" /tmp/v2992-badging.txt
+          grep -q "targetSdkVersion:'34'" /tmp/v2992-badging.txt
+          ! grep -q 'application-debuggable' /tmp/v2992-badging.txt
+          sha256sum "$apk" | tee /tmp/v2992-qualification.sha256
+          git rev-parse HEAD | tee /tmp/v2992-source-sha.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BIR-v2.9.9.2-Qualification
+          retention-days: 7
+          if-no-files-found: error
+          path: |
+            BIR-Blue-Infinity-Retail-v2.9.9.2-vc66-Qualification.apk
+            /tmp/v2992-badging.txt
+            /tmp/v2992-qualification.sha256
+            /tmp/v2992-source-sha.txt
+
+  android-critical:
+    name: Android ${{ matrix.android }} / API ${{ matrix.api }}
+    needs: validate-build
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include:
+          - {android: '6', api: 23, arch: x86, profile: 'Nexus 5', stress: 8}
+          - {android: '8', api: 26, arch: x86_64, profile: 'Nexus 5X', stress: 8}
+          - {android: '11', api: 30, arch: x86_64, profile: 'Nexus 5X', stress: 30}
+    steps:
+      - name: Enable KVM
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -e /dev/kvm
+          sudo chmod 666 /dev/kvm
+          test -r /dev/kvm && test -w /dev/kvm
+      - uses: actions/download-artifact@v4
+        with:
+          name: BIR-v2.9.9.2-Qualification
+          path: apk
+      - name: Install, interact repeatedly, verify process and renderer
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: ${{ matrix.arch }}
+          profile: ${{ matrix.profile }}
+          target: google_apis
+          disable-animations: false
+          disable-linux-hw-accel: false
+          emulator-boot-timeout: 720
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
+          script: >-
+            set -eu; adb wait-for-device; ready=0; for i in $(seq 1 60); do if adb shell service check package 2>/dev/null | grep -qi found && adb shell cmd package list packages >/dev/null 2>&1 && adb shell pm path android >/dev/null 2>&1; then ready=1; break; fi; sleep 5; done; test "$ready" = 1; apk="$(find apk -type f -name 'BIR-Blue-Infinity-Retail-v2.9.9.2-vc66-Qualification.apk' -print -quit)"; test -s "$apk"; adb install --no-streaming "$apk"; adb shell dumpsys package com.profitloop.blueauto | grep -q 'versionCode=66'; adb logcat -c || true; adb shell am start -W -n com.profitloop.blueauto/.MainActivity > /tmp/start.txt; grep -Eq 'Status: ok|Complete' /tmp/start.txt; sleep 5; i=0; while [ "$i" -lt "${{ matrix.stress }}" ]; do adb shell input tap 530 820 || true; adb shell input swipe 530 1450 530 620 220 || true; adb shell input swipe 530 620 530 1450 220 || true; i=$((i+1)); done; sleep 4; adb shell pidof com.profitloop.blueauto >/dev/null; adb exec-out screencap -p > /tmp/final.png; test -s /tmp/final.png; adb logcat -d > /tmp/logcat.txt || true; ! grep -E 'FATAL EXCEPTION.*com.profitloop.blueauto|Process: com.profitloop.blueauto|ANR in com.profitloop.blueauto|Render process.*gone|crash_dump.*webview' /tmp/logcat.txt
+
+  qualification-summary:
+    needs: [validate-build, android-critical]
+    runs-on: ubuntu-22.04
+    steps:
+      - run: |
+          echo 'B.I.R. 2.9.9.2 exact candidate passed critical Android 6/8/11 qualification.'
+          echo 'No Worker/D1 deployment is performed by this workflow.'
