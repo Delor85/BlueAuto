@@ -10,19 +10,24 @@ must(loader.includes("'intelligence-v297-core.js'")&&loader.includes("'field-run
 must(loader.includes("'ai-guide-v2996.css'"),'v2996 guide stylesheet missing from loader');
 for(const old of ['transaction-first-v298.js','reference-stability-v299.js','field-runtime-v2991.js','field-runtime-v2992.js'])must(!new RegExp("addScriptOnce\\([^\\n]+"+old.replaceAll('.','\\.')).test(loader),'unstable historical runtime must not be loaded: '+old);
 
-for(const token of ['Pourquoi POS1 est en alerte ?','Donne-moi le brief complet','Diagnostique les boutons','Check réseau','Actualise tout','Synchronise','Ouvre le réseau','Vérifie le serveur','Quel est mon taux de commission ?','Prépare 5 000 FCFA pour POS1','Liste les services d’Accueil','Comment utiliser Tchoronko ?'])must(js.includes(token),'DAE/DSM AI discovery prompt missing: '+token);
+for(const token of ['Pourquoi POS1 est en alerte ?','Donne-moi le brief complet','Diagnostique les boutons','Check réseau','Actualise tout','Synchronise','Ouvre le réseau','Vérifie le serveur','Quel est mon taux de commission ?','Prépare 5 000 FCFA pour POS1','Liste les services d’Accueil','Comment utiliser Tchoronko ?'])must(js.includes(token),'DAE/DSM AI discovery capability missing: '+token);
 for(const token of ['Accueil','Réseau','Piloter / Fournir / Vendre','Activité','Gérer','Tchoronko 2G','CHECK RÉSEAU','Solde enfant','Journal des transactions','SIM & slots','Accessibilité & permissions'])must(js.includes(token),'service encyclopedia capability missing: '+token);
 must(js.includes('Comment fonctionne l’Assistant B.I.R. ?')&&js.includes('Il ne soumet ni ne confirme seul une opération financière'),'assistant self-help/financial guard missing');
 must(js.includes("setInput('childNode'")&&js.includes("setInput('childAmount'")&&js.includes('Opération préparée — non envoyée'),'natural-language preparation must only prefill certified form');
-must(js.includes("String(c.role||'').toUpperCase()!=='DAE'")&&js.includes("String(c.role||'').toUpperCase()!=='DSM'"),'primary role guard for child supply preparation missing');
+must(js.includes("String(c.role||'').toUpperCase()!=='DAE'")&&js.includes("String(c.role||'').toUpperCase()!=='DSM'"),'primary child-supply preparation role guard missing');
 
-for(const token of ["role()==='POS'",'Aide limitée au rôle PoS','Services disponibles pour votre rôle PoS','Les fonctions de pilotage d’enfants et de réseau réservées aux DAE/DSM ne sont ni listées ni expliquées au PoS','Aucune opération n’a été créée, préremplie ou exécutée','birV2996PosRail','BIRAIGuideV2996.__roleGuard','document.addEventListener(\'click\',captureQuery,true)','document.addEventListener(\'keydown\',captureQuery,true)'])must(guard.includes(token),'PoS assistant scope guard missing: '+token);
-for(const re of [/\\bprepare\\b[^\n]+(?:pos\|dsm\|enfant)/,/check reseau\|verifie\.\*reseau\|audite\.\*reseau/,/war room\|tchoronko\|solde enfant/,/commission\|taux/])must(re.test(guard),'restricted PoS intent family missing: '+re);
-for(const token of ['Comment vendre à un client ?','Comment demander du crédit ?','Quel est mon solde ?','Liste mes services','Comment fonctionne l’IA ?'])must(guard.includes(token),'safe PoS discovery prompt missing: '+token);
-must(!guard.includes('Prépare 5 000 FCFA pour POS1'),'PoS discovery must never advertise child-supply preparation');
-must(!guard.includes('Pourquoi POS1 est en alerte ?'),'PoS discovery must never advertise child-network alert intelligence');
-must(!guard.includes('Check réseau'),'PoS discovery must never advertise hierarchical Check Réseau');
-must(!guard.includes('Comment utiliser Tchoronko ?'),'PoS discovery must never advertise Tchoronko help');
+for(const token of ["role()==='POS'",'Aide limitée au rôle PoS','Fonctionnalités disponibles pour votre rôle PoS','Les fonctions réseau hiérarchiques DAE/DSM ne sont ni proposées ni expliquées à un PoS','War Room enfants','Check Réseau','Tchoronko','solde enfant','préparation d’approvisionnement d’un enfant','captureQuery','captureQuickAction'])must(guard.includes(token),'PoS Assistant scope guard missing: '+token);
+for(const token of ['check reseau','tchoronko','solde.*enfant','commission|taux'])must(guard.includes(token),'restricted PoS intent family missing: '+token);
+must(guard.includes("document.addEventListener('click',captureQuery,true)")&&guard.includes("document.addEventListener('keydown',captureQuery,true)")&&guard.includes("document.addEventListener('click',captureQuickAction,true)"),'role guard must intercept restricted requests before Assistant handlers');
+must(guard.includes("if(r==='POS'){denyPos();return true;}")&&guard.includes("if(r==='DAE'&&t.type!=='DSM')")&&guard.includes("if(r==='DSM'&&t.type!=='POS')"),'direct-child hierarchy guard DAE->DSM / DSM->POS / POS->none missing');
+must(guard.includes("k!=='network'")||guard.includes("k==='network'||k==='fleet'"),'restricted network quick action protection missing');
+must(guard.includes('DAE/DSM-only services are intentionally omitted.'),'public service catalog must remain role scoped for PoS');
+
+const frMatch=guard.match(/var POS_PROMOS_FR=(\[[^\n]+\]);/);
+must(frMatch,'PoS promo list missing');
+const posPromos=Function('return '+frMatch[1])();
+for(const forbidden of ['POS1','DSM1','Check réseau','Ouvre le réseau','Tchoronko','commission','Prépare 5 000'])must(!posPromos.some(x=>String(x).toLowerCase().includes(forbidden.toLowerCase())),'PoS promo leaks DAE/DSM-only help: '+forbidden);
+for(const allowed of ['brief','vente','demander du crédit','solde','boutons','Synchronise','serveur','services'])must(posPromos.some(x=>String(x).toLowerCase().includes(allowed.toLowerCase())),'PoS promo missing useful scoped help: '+allowed);
 
 must(css.includes('width:42px!important')&&css.includes('max-width:42px!important')&&css.includes('flex:0 0 42px!important'),'compact EN/FR language control contract missing');
 must(css.includes('.bir-v2996-ai-promo')&&css.includes('.bir-v2996-rail'),'AI discovery rail contract missing');
@@ -32,4 +37,4 @@ for(const source of [js,guard])for(const re of [/querySelector\([^\n]*request-su
 
 must(js.includes('document.visibilityState')&&js.includes('window.setTimeout'),'promo rotation must be visibility-aware and non-polling');
 must(guard.includes('document.visibilityState')&&guard.includes('window.setTimeout'),'PoS promo rotation must be visibility-aware and non-polling');
-console.log('B.I.R. 2.9.9.6 AI guide: PoS role isolation + compact language + role-scoped discovery + service encyclopedia + safe preparation, no finance execution or unstable runtime mechanism: OK');
+console.log('B.I.R. 2.9.9.6 AI guide: strict PoS scope + DAE->DSM / DSM->PoS hierarchy + compact language + role-scoped guide + safe preparation, no finance execution or unstable runtime mechanism: OK');
