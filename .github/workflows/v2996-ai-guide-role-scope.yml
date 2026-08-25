@@ -5,6 +5,7 @@ on:
     branches: [feat/bir-v2-9-9-6-ai-guide-harmonization]
     paths:
       - 'app/**'
+      - 'docs/BIR_2.9.9.6_AI_GUIDE_HARMONIZATION.md'
       - '.github/workflows/v2996-ai-guide-role-scope.yml'
   pull_request:
     branches: [fix/bir-v2-9-9-3-android11-child-warroom-tchoronko]
@@ -68,20 +69,19 @@ jobs:
           node app/src/test/v2996-ai-guide-harmonization-contract.mjs
           bash -n app/src/test/v2993-webview-smoke.sh
 
-      - name: Explicit PoS isolation assertions
+      - name: Explicit PoS and hierarchy isolation assertions
         shell: bash
         run: |
           set -euo pipefail
           guard=app/src/main/assets/ai-role-guard-v2996.js
           grep -q "role()==='POS'" "$guard"
           grep -q 'Aide limitée au rôle PoS' "$guard"
-          grep -q 'Services disponibles pour votre rôle PoS' "$guard"
-          grep -q 'birV2996PosRail' "$guard"
+          grep -q 'Fonctionnalités disponibles pour votre rôle PoS' "$guard"
+          grep -q "if(r==='POS'){denyPos();return true;}" "$guard"
+          grep -q "if(r==='DAE'&&t.type!=='DSM')" "$guard"
+          grep -q "if(r==='DSM'&&t.type!=='POS')" "$guard"
+          grep -q 'captureQuickAction' "$guard"
           grep -q 'BIRAIGuideV2996.__roleGuard' "$guard"
-          ! grep -q 'Prépare 5 000 FCFA pour POS1' "$guard"
-          ! grep -q 'Pourquoi POS1 est en alerte ?' "$guard"
-          ! grep -q 'Comment utiliser Tchoronko ?' "$guard"
-          ! grep -q 'Check réseau' "$guard"
           ! grep -Eq 'createCommand\(|previewCommand\(|confirmCommand\(|dialUssd\(|rawUssd\(|setInterval\(|new MutationObserver\(' "$guard"
 
       - uses: actions/setup-java@v5
@@ -118,6 +118,7 @@ jobs:
           grep -q "targetSdkVersion:'34'" /tmp/v2996-badging.txt
           ! grep -q 'application-debuggable' /tmp/v2996-badging.txt
           sha256sum "$apk" | tee /tmp/v2996-qualification.sha256
+          git rev-parse HEAD | tee /tmp/v2996-source-sha.txt
 
       - uses: actions/upload-artifact@v4
         with:
@@ -128,6 +129,7 @@ jobs:
             BIR-v2996-AI-Role-Qualification.apk
             /tmp/v2996-badging.txt
             /tmp/v2996-qualification.sha256
+            /tmp/v2996-source-sha.txt
 
   android-webview:
     name: Android ${{ matrix.android }} / API ${{ matrix.api }} — unified WebView smoke
@@ -136,12 +138,13 @@ jobs:
     timeout-minutes: 45
     strategy:
       fail-fast: false
-      max-parallel: 3
+      max-parallel: 4
       matrix:
         include:
           - {android: '6', api: 23, arch: x86, profile: 'Nexus 5', stress: 12}
-          - {android: '11', api: 30, arch: x86_64, profile: 'Nexus 5X', stress: 40}
-          - {android: '16', api: 36, arch: x86_64, profile: 'Nexus 5X', stress: 12}
+          - {android: '11', api: 30, arch: x86_64, profile: 'Nexus 5X', stress: 50}
+          - {android: '14', api: 34, arch: x86_64, profile: 'Nexus 5X', stress: 20}
+          - {android: '16', api: 36, arch: x86_64, profile: 'Nexus 5X', stress: 20}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -156,7 +159,14 @@ jobs:
         with:
           name: BIR-v2996-AI-Role-Qualification
           path: apk
-      - name: Install qualification APK and smoke the same modern WebView
+      - name: Prepare vc69 non-financial smoke script
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp app/src/test/v2993-webview-smoke.sh /tmp/v2996-webview-smoke.sh
+          sed -i "s/BIR-Blue-Infinity-Retail-v2.9.9.4-vc68-Qualification.apk/BIR-v2996-AI-Role-Qualification.apk/g; s/versionCode=68/versionCode=69/g; s/2.9.9.4 unified WebView smoke/2.9.9.6 AI role-guide WebView smoke/g" /tmp/v2996-webview-smoke.sh
+          bash -n /tmp/v2996-webview-smoke.sh
+      - name: Install qualification APK and stress the same modern WebView
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api }}
@@ -167,13 +177,13 @@ jobs:
           disable-linux-hw-accel: false
           emulator-boot-timeout: 720
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
-          script: bash "$GITHUB_WORKSPACE/app/src/test/v2993-webview-smoke.sh" ${{ matrix.stress }}
+          script: bash /tmp/v2996-webview-smoke.sh ${{ matrix.stress }}
 
   qualification-summary:
     needs: [contracts-build, android-webview]
     runs-on: ubuntu-22.04
     steps:
       - run: |
-          echo 'B.I.R. v2.9.9.6 AI/Guide candidate passed static role isolation, inherited War Room/convergence contracts, build and Android 6/11/16 WebView smoke.'
-          echo 'PoS help is scoped to PoS services; DAE/DSM child-network prompts/help/preparation stay inaccessible.'
+          echo 'B.I.R. v2.9.9.6 AI/Guide candidate passed static role isolation, inherited War Room/convergence contracts, build and Android 6/11/14/16 WebView smoke.'
+          echo 'PoS help is scoped to PoS services; child-network prompts/help stay inaccessible. Guided preparation is DAE->DSM / DSM->PoS only.'
           echo 'No Cloudflare/D1 mutation or production deployment is performed by this workflow.'
