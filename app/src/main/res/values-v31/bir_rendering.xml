@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- Android 12+ returns to the normal accelerated rendering path. -->
-    <bool name="bir_main_hardware_accelerated">true</bool>
-</resources>
