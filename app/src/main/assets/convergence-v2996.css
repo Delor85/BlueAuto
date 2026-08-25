@@ -1,0 +1,12 @@
+/* B.I.R. 2.9.9.6 — compact language + role-safe AI discovery. */
+.bir-topbar{position:relative}
+.bir-v2996-toptools{flex:0 0 78px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:3px;margin-right:5px}
+.bir-v2996-manage{width:76px!important;min-width:0!important;height:27px!important;padding:0 5px!important;border-radius:9px!important;font-size:10px!important;line-height:1!important;font-weight:900!important;white-space:nowrap!important}
+.v271-language.bir-v2996-language{width:34px!important;min-width:34px!important;max-width:34px!important;height:23px!important;min-height:23px!important;padding:0!important;margin:0!important;align-self:flex-start!important;border-radius:8px!important;font-size:10px!important;line-height:1!important;flex:0 0 23px!important}
+.bir-v2996-promo{width:calc(100% - 16px);margin:5px 8px 8px;padding:8px 10px;min-height:42px;border:1px solid rgba(36,137,210,.28);border-radius:12px;background:linear-gradient(90deg,rgba(11,116,180,.10),rgba(54,190,150,.10));color:#0b3567;display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;text-align:left}
+.bir-v2996-promo b{font-size:11px;white-space:nowrap}.bir-v2996-promo span{font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.bir-v2996-promo i{font-style:normal;font-size:18px;font-weight:900}
+.bir-v2996-catalog{margin-top:10px;padding-top:9px;border-top:1px solid rgba(40,120,180,.22)}
+.bir-v2996-catalog-buttons{display:flex;flex-wrap:wrap;gap:6px}.bir-v2996-catalog-buttons button{font-size:10px;padding:7px 8px}
+.bir-v2996-answer{line-height:1.48}.bir-v2996-answer h4{margin:8px 0 4px}.bir-v2996-answer p{margin:5px 0}.bir-v2996-answer ul{margin:5px 0 8px;padding-left:18px}.bir-v2996-answer li{margin:3px 0}
+.bir-v2996-ai-tag{display:inline-block;padding:4px 7px;border-radius:8px;background:rgba(25,150,95,.15);font-size:10px;font-weight:900;letter-spacing:.04em}.bir-v2996-ai-tag.off,.bir-v2996-ai-tag.denied{background:rgba(190,70,70,.13)}
+@media(max-width:430px){.bir-v2996-toptools{flex-basis:68px}.bir-v2996-manage{width:66px!important;font-size:9px!important}.bir-v2996-promo{grid-template-columns:auto 1fr}.bir-v2996-promo i{display:none}.bir-v2996-promo b{font-size:10px}.bir-v2996-promo span{font-size:11px}}
