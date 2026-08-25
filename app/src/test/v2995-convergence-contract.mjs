@@ -11,7 +11,9 @@ must(loader.includes("'intelligence-v297-core.js'")&&loader.includes("'field-run
 for(const old of ['transaction-first-v298.js','reference-stability-v299.js','field-runtime-v2991.js','field-runtime-v2992.js'])must(!new RegExp("addScriptOnce\\([^\\n]+"+old.replaceAll('.','\\.')).test(loader),'unstable historical runtime must not be loaded: '+old);
 
 for(const token of ['FICHE DE VÉRITÉ','Pourquoi cette priorité ?','URGENCES RÉELLES','CONTRÔLES UTILES','CHECK RÉSEAU & SAV COMMERCIAL','Mon tableau de commissions','Autodiagnostic non financier','Assistant B.I.R. — Copilote opérationnel','IA OPÉRATIONNELLE · À LA DEMANDE'])must(js.includes(token),'convergence capability missing: '+token);
-for(const token of ['network_balance_audit','platform_snapshot','commission_policy','transaction_ledger','CertifiedBalanceStore local','STOCK FAIBLE','INACTIF ≥48H','SOLDE À VÉRIFIER','TCHORONKO'])must(js.includes(token),'restored 2.9.9.x evidence/network capability missing: '+token);
+for(const token of ['network_balance_audit','platform_snapshot','commission_policy','transaction_ledger','STOCK FAIBLE','INACTIF ≥48H','SOLDE À VÉRIFIER','TCHORONKO'])must(js.includes(token),'restored 2.9.9.x evidence/network capability missing: '+token);
+must(js.includes('S.c.certified_balance')&&js.includes('Stockage certifié local'),'certified local balance fallback missing');
+must(js.includes("quality==='EXACT'")&&js.includes('balance_reusable')&&js.includes('CERTIFIÉ RÉCENT'),'certified balance freshness/reusability guard missing');
 must(js.includes("localStorage.getItem(pkey('ai'))!=='00'"),'existing per-profile AI enable/disable preference not honored');
 must(js.includes('Numéro reconnu :')&&js.includes('Les contrôles serveur restent obligatoires'),'phone -> node convenience guard missing');
 must(js.includes('Formulaire d’approvisionnement préparé')&&js.includes('Aucune demande n’a été envoyée')&&js.includes('Aucune vente n’a été exécutée'),'assistant guided-form task guards missing');
@@ -21,4 +23,4 @@ for(const re of [/\.createCommand\s*\(/,/\.previewCommand\s*\(/,/\.confirmComman
 for(const re of [/querySelector\([^\n]*request-supply[^\n]*\)\.click\s*\(/,/querySelector\([^\n]*supply-child[^\n]*\)\.click\s*\(/,/querySelector\([^\n]*retail-sale[^\n]*\)\.click\s*\(/])must(!re.test(js),'assistant must not submit finance: '+re);
 
 must(core.includes("ai:true")&&core.includes('birIntelToggle')&&core.includes("profileKey('ai')"),'stable core AI toggle contract missing');
-console.log('B.I.R. 2.9.9.5 convergence: restored truth/why/diagnostic/network/commission/assistant capabilities with no finance or Android 11 regression mechanism: OK');
+console.log('B.I.R. 2.9.9.5 convergence: truth/network/commission/assistant + certified local balance fallback preserved with no finance or Android 11 regression mechanism: OK');
