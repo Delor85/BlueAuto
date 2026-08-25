@@ -6,6 +6,11 @@ on:
     paths:
       - 'app/**'
       - '.github/workflows/v2996-ai-guide-role-scope.yml'
+  pull_request:
+    branches: [fix/bir-v2-9-9-3-android11-child-warroom-tchoronko]
+    paths:
+      - 'app/**'
+      - '.github/workflows/v2996-ai-guide-role-scope.yml'
   workflow_dispatch:
 
 permissions:
