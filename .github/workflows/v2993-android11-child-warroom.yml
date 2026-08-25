@@ -1,4 +1,4 @@
-name: BIR v2.9.9.3 Unified Android 6-16 Qualification
+name: BIR v2.9.9.4 War Room + Unified Android 6-16 Qualification
 
 on:
   push:
@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: bir-v2993-${{ github.ref }}
+  group: bir-v2994-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -31,8 +31,8 @@ jobs:
         run: |
           set -euo pipefail
           git diff --exit-code "$BIR_V2992_SHA" -- cloudflare
-          grep -q 'versionCode 67' app/build.gradle
-          grep -q 'versionName "2.9.9.3"' app/build.gradle
+          grep -q 'versionCode 68' app/build.gradle
+          grep -q 'versionName "2.9.9.4"' app/build.gradle
           grep -q 'minSdk 23' app/build.gradle
           grep -q 'targetSdk 34' app/build.gradle
           grep -q 'intelligence-v297-core.js' app/src/main/assets/intelligence-v297.js
@@ -46,21 +46,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cp app/build.gradle /tmp/build.gradle.v2993
+          cp app/build.gradle /tmp/build.gradle.v2994
           python3 - <<'PY'
           from pathlib import Path
           p=Path('app/build.gradle')
-          s=p.read_text().replace('versionCode 67','versionCode 64').replace('versionName "2.9.9.3"','versionName "2.9.9"')
+          s=p.read_text().replace('versionCode 68','versionCode 64').replace('versionName "2.9.9.4"','versionName "2.9.9"')
           p.write_text(s)
           PY
           node app/src/test/finance-flow.mjs
           node app/src/test/bir-v297-field-resilience.mjs
-          mv /tmp/build.gradle.v2993 app/build.gradle
+          mv /tmp/build.gradle.v2994 app/build.gradle
           git diff --exit-code -- app/build.gradle
-      - name: Run unified Android 6+ invariants and JavaScript syntax
+      - name: Run War Room/button audit and unified Android 6+ invariants
         shell: bash
         run: |
           set -euo pipefail
+          node app/src/test/v2994-war-room-button-audit.mjs
           node app/src/test/v2993-child-warroom-tchoronko-android11-contract.mjs
           for f in app/src/main/assets/app.js app/src/main/assets/field-ops-v297.js app/src/main/assets/war-room-v294.js app/src/main/assets/intelligence-v297.js app/src/main/assets/intelligence-v297-core.js app/src/main/assets/field-runtime-v2993.js; do node --check "$f"; done
           bash -n app/src/test/v2993-webview-smoke.sh
@@ -79,33 +80,33 @@ jobs:
           mkdir -p .pilot-signing
           password="$(openssl rand -hex 32)"
           echo "::add-mask::$password"
-          keytool -genkeypair -keystore .pilot-signing/debug.keystore -storepass "$password" -alias androiddebugkey -keypass "$password" -dname 'CN=BIR 2.9.9.3 Qualification,O=ProfitLoop,C=CM' -keyalg RSA -keysize 2048 -validity 7 -noprompt
+          keytool -genkeypair -keystore .pilot-signing/debug.keystore -storepass "$password" -alias androiddebugkey -keypass "$password" -dname 'CN=BIR 2.9.9.4 Qualification,O=ProfitLoop,C=CM' -keyalg RSA -keysize 2048 -validity 7 -noprompt
           BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD="$password" gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
-          cp app/build/outputs/apk/release/app-release.apk BIR-Blue-Infinity-Retail-v2.9.9.3-vc67-Qualification.apk
+          cp app/build/outputs/apk/release/app-release.apk BIR-Blue-Infinity-Retail-v2.9.9.4-vc68-Qualification.apk
       - name: Verify exact candidate
         shell: bash
         run: |
           set -euo pipefail
           bt="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
-          apk=BIR-Blue-Infinity-Retail-v2.9.9.3-vc67-Qualification.apk
+          apk=BIR-Blue-Infinity-Retail-v2.9.9.4-vc68-Qualification.apk
           "$bt/zipalign" -c -v 4 "$apk" >/dev/null
-          "$bt/aapt" dump badging "$apk" | tee /tmp/v2993-badging.txt
-          grep -q "package: name='com.profitloop.blueauto' versionCode='67' versionName='2.9.9.3'" /tmp/v2993-badging.txt
-          grep -q "sdkVersion:'23'" /tmp/v2993-badging.txt
-          grep -q "targetSdkVersion:'34'" /tmp/v2993-badging.txt
-          ! grep -q 'application-debuggable' /tmp/v2993-badging.txt
-          sha256sum "$apk" | tee /tmp/v2993-qualification.sha256
-          git rev-parse HEAD | tee /tmp/v2993-source-sha.txt
+          "$bt/aapt" dump badging "$apk" | tee /tmp/v2994-badging.txt
+          grep -q "package: name='com.profitloop.blueauto' versionCode='68' versionName='2.9.9.4'" /tmp/v2994-badging.txt
+          grep -q "sdkVersion:'23'" /tmp/v2994-badging.txt
+          grep -q "targetSdkVersion:'34'" /tmp/v2994-badging.txt
+          ! grep -q 'application-debuggable' /tmp/v2994-badging.txt
+          sha256sum "$apk" | tee /tmp/v2994-qualification.sha256
+          git rev-parse HEAD | tee /tmp/v2994-source-sha.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: BIR-v2.9.9.3-Qualification
+          name: BIR-v2.9.9.4-Qualification
           retention-days: 7
           if-no-files-found: error
           path: |
-            BIR-Blue-Infinity-Retail-v2.9.9.3-vc67-Qualification.apk
-            /tmp/v2993-badging.txt
-            /tmp/v2993-qualification.sha256
-            /tmp/v2993-source-sha.txt
+            BIR-Blue-Infinity-Retail-v2.9.9.4-vc68-Qualification.apk
+            /tmp/v2994-badging.txt
+            /tmp/v2994-qualification.sha256
+            /tmp/v2994-source-sha.txt
 
   android-webview:
     name: Android ${{ matrix.android }} / API ${{ matrix.api }} — same modern BIR WebView
@@ -140,7 +141,7 @@ jobs:
           sudo chmod 666 /dev/kvm
       - uses: actions/download-artifact@v4
         with:
-          name: BIR-v2.9.9.3-Qualification
+          name: BIR-v2.9.9.4-Qualification
           path: apk
       - name: Install exact APK and stress the same current WebView
         uses: reactivecircus/android-emulator-runner@v2
@@ -160,6 +161,6 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - run: |
-          echo 'B.I.R. 2.9.9.3 exact candidate passed the same modern WebView on Android 6 through Android 16.'
-          echo 'No Android 11 visual/functional fork is allowed; all versions use v2.9.7 Intelligence/Cockpit foundation + current v2.9.9.3 additive features.'
+          echo 'B.I.R. 2.9.9.4 exact candidate passed War Room/button contracts and the same modern WebView on Android 6 through Android 16.'
+          echo 'No Android 11 visual/functional fork is allowed; all versions keep the v2.9.7 Intelligence/Cockpit foundation + current additive features.'
           echo 'No Worker/D1 mutation is performed.'
