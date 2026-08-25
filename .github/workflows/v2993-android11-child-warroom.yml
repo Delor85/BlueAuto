@@ -129,6 +129,9 @@ jobs:
           - {android: '15', api: 35, arch: x86_64, profile: 'Nexus 5X', stress: 20}
           - {android: '16', api: 36, arch: x86_64, profile: 'Nexus 5X', stress: 20}
     steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
       - name: Enable KVM
         shell: bash
         run: |
