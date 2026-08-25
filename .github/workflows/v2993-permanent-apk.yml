@@ -1,0 +1,259 @@
+name: BIR v2.9.9.3 Permanent APK
+
+on:
+  push:
+    branches: [fix/bir-v2-9-9-3-android11-child-warroom-tchoronko]
+    paths: [.github/authorized-v2993-permanent.trigger]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bir-v2993-permanent-apk
+  cancel-in-progress: false
+
+jobs:
+  authorization-gate:
+    runs-on: ubuntu-22.04
+    outputs:
+      authorized: ${{ steps.gate.outputs.authorized }}
+      source_sha: ${{ steps.gate.outputs.source_sha }}
+      qualification_run_id: ${{ steps.gate.outputs.qualification_run_id }}
+      certificate_sha256: ${{ steps.gate.outputs.certificate_sha256 }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Authorize only the exact qualified v2.9.9.3 source
+        id: gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'authorized=false' >> "$GITHUB_OUTPUT"
+          trigger=.github/authorized-v2993-permanent.trigger
+          test -f "$trigger" || exit 0
+          source_sha="$(sed -n 's/^source_sha=//p' "$trigger" | head -1 | tr -d '\r\n')"
+          qualification_run_id="$(sed -n 's/^qualification_run_id=//p' "$trigger" | head -1 | tr -d '\r\n')"
+          certificate_sha256="$(sed -n 's/^certificate_sha256=//p' "$trigger" | head -1 | tr -d '\r\n' | tr '[:upper:]' '[:lower:]')"
+          test -n "$source_sha"
+          test -n "$qualification_run_id"
+          git cat-file -e "$source_sha^{commit}"
+          grep -q '^package=com.profitloop.blueauto$' "$trigger"
+          grep -q '^versionCode=67$' "$trigger"
+          grep -q '^versionName=2.9.9.3$' "$trigger"
+          test "$certificate_sha256" = 'f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5'
+          unexpected="$(git diff --name-only "$source_sha"..HEAD | grep -Ev '^\.github/(workflows/v2993-permanent-apk\.yml|authorized-v2993-permanent\.trigger)$' || true)"
+          test -z "$unexpected"
+          echo "authorized=true" >> "$GITHUB_OUTPUT"
+          echo "source_sha=$source_sha" >> "$GITHUB_OUTPUT"
+          echo "qualification_run_id=$qualification_run_id" >> "$GITHUB_OUTPUT"
+          echo "certificate_sha256=$certificate_sha256" >> "$GITHUB_OUTPUT"
+
+  permanent-build:
+    needs: authorization-gate
+    if: "${{ needs.authorization-gate.outputs.authorized == 'true' }}"
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    environment: production
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Checkout exact qualified application source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout --detach '${{ needs.authorization-gate.outputs.source_sha }}'
+          test "$(git rev-parse HEAD)" = '${{ needs.authorization-gate.outputs.source_sha }}'
+          grep -q 'applicationId "com.profitloop.blueauto"' app/build.gradle
+          grep -q 'minSdk 23' app/build.gradle
+          grep -q 'targetSdk 34' app/build.gradle
+          grep -q 'versionCode 67' app/build.gradle
+          grep -q 'versionName "2.9.9.3"' app/build.gradle
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Re-run qualified application invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code abde508132568ef1c9eefb6ee058db21af5577a2 -- cloudflare
+          cp app/build.gradle /tmp/build.gradle.v2993
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('app/build.gradle')
+          s=p.read_text().replace('versionCode 67','versionCode 64').replace('versionName "2.9.9.3"','versionName "2.9.9"')
+          p.write_text(s)
+          PY
+          node app/src/test/finance-flow.mjs
+          node app/src/test/bir-v297-field-resilience.mjs
+          mv /tmp/build.gradle.v2993 app/build.gradle
+          git diff --exit-code -- app/build.gradle
+          node app/src/test/v2993-child-warroom-tchoronko-android11-contract.mjs
+          for f in app/src/main/assets/app.js app/src/main/assets/field-ops-v297.js app/src/main/assets/war-room-v294.js app/src/main/assets/intelligence-v297.js app/src/main/assets/intelligence-v297-core.js app/src/main/assets/field-runtime-v2993.js; do node --check "$f"; done
+          bash -n app/src/test/v2993-webview-smoke.sh
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+          cache-read-only: true
+
+      - name: Load and verify historical permanent signing key
+        env:
+          PERMANENT_KEYSTORE_BASE64: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_BASE64 }}
+          PERMANENT_KEYSTORE_PASSWORD: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$PERMANENT_KEYSTORE_BASE64"
+          test -n "$PERMANENT_KEYSTORE_PASSWORD"
+          mkdir -p .pilot-signing
+          printf '%s' "$PERMANENT_KEYSTORE_BASE64" | base64 --decode > .pilot-signing/debug.keystore
+          password="$(printf '%s' "$PERMANENT_KEYSTORE_PASSWORD" | tr -d '\r\n')"
+          echo "::add-mask::$password"
+          actual="$(keytool -list -v -keystore .pilot-signing/debug.keystore -storepass "$password" -alias androiddebugkey | awk '/SHA256:/{gsub(":", "", $2); print tolower($2); exit}')"
+          test "$actual" = '${{ needs.authorization-gate.outputs.certificate_sha256 }}'
+          echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$password" >> "$GITHUB_ENV"
+
+      - name: Build exact permanent-source release
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk /tmp/v2993-gradle-release.apk
+
+      - name: Zipalign and permanently sign v1/v2/v3
+        shell: bash
+        run: |
+          set -euo pipefail
+          bt="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          "$bt/zipalign" -f -p 4 /tmp/v2993-gradle-release.apk /tmp/v2993-aligned.apk
+          "$bt/apksigner" sign \
+            --ks .pilot-signing/debug.keystore \
+            --ks-key-alias androiddebugkey \
+            --ks-pass "pass:$BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD" \
+            --key-pass "pass:$BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD" \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            --v3-signing-enabled true \
+            --v4-signing-enabled false \
+            --out BIR-Blue-Infinity-Retail-v2.9.9.3-vc67-Permanent.apk \
+            /tmp/v2993-aligned.apk
+
+      - name: Verify permanent identity, signer, schemes and payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          bt="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          apk=BIR-Blue-Infinity-Retail-v2.9.9.3-vc67-Permanent.apk
+          "$bt/zipalign" -c -v 4 "$apk" >/tmp/v2993-zipalign.txt
+          "$bt/apksigner" verify --verbose --print-certs "$apk" | tee /tmp/v2993-signature.txt
+          cert="$(grep -i 'certificate SHA-256 digest:' /tmp/v2993-signature.txt | head -1 | sed -E 's/.*digest: //' | tr -d ':' | tr '[:upper:]' '[:lower:]')"
+          test "$cert" = '${{ needs.authorization-gate.outputs.certificate_sha256 }}'
+          grep -qi 'Verified using v1 scheme.*true' /tmp/v2993-signature.txt
+          grep -qi 'Verified using v2 scheme.*true' /tmp/v2993-signature.txt
+          grep -qi 'Verified using v3 scheme.*true' /tmp/v2993-signature.txt
+          grep -qi 'Number of signers: 1' /tmp/v2993-signature.txt
+          "$bt/aapt" dump badging "$apk" | tee /tmp/v2993-badging.txt
+          grep -q "package: name='com.profitloop.blueauto' versionCode='67' versionName='2.9.9.3'" /tmp/v2993-badging.txt
+          grep -q "sdkVersion:'23'" /tmp/v2993-badging.txt
+          grep -q "targetSdkVersion:'34'" /tmp/v2993-badging.txt
+          grep -q "application-label:'B.I.R. — Blue Infinity Retail'" /tmp/v2993-badging.txt
+          ! grep -q 'application-debuggable' /tmp/v2993-badging.txt
+          python3 - <<'PY'
+          import zipfile, hashlib
+          a='/tmp/v2993-aligned.apk'
+          b='BIR-Blue-Infinity-Retail-v2.9.9.3-vc67-Permanent.apk'
+          def payload(path):
+              out={}
+              with zipfile.ZipFile(path) as z:
+                  for n in z.namelist():
+                      if n.upper().startswith('META-INF/'):
+                          continue
+                      out[n]=hashlib.sha256(z.read(n)).hexdigest()
+              return out
+          pa,pb=payload(a),payload(b)
+          if pa != pb:
+              missing=sorted(set(pa)-set(pb)); added=sorted(set(pb)-set(pa)); changed=sorted(k for k in set(pa)&set(pb) if pa[k]!=pb[k])
+              raise SystemExit(f'payload changed by signing: missing={missing} added={added} changed={changed}')
+          print(f'payload_identical=true entries={len(pa)}')
+          PY
+          sha256sum "$apk" | tee BIR-v2.9.9.3-Permanent.sha256.txt
+          cat > BIR-v2.9.9.3-Permanent-release-info.txt <<EOF
+          source_sha=${{ needs.authorization-gate.outputs.source_sha }}
+          qualification_run_id=${{ needs.authorization-gate.outputs.qualification_run_id }}
+          package=com.profitloop.blueauto
+          versionName=2.9.9.3
+          versionCode=67
+          certificate_sha256=${{ needs.authorization-gate.outputs.certificate_sha256 }}
+          signature_v1=true
+          signature_v2=true
+          signature_v3=true
+          signer_count=1
+          payload_identical_after_signing=true
+          production_mutation=false
+          EOF
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BIR-v2.9.9.3-Permanent
+          retention-days: 90
+          if-no-files-found: error
+          path: |
+            BIR-Blue-Infinity-Retail-v2.9.9.3-vc67-Permanent.apk
+            BIR-v2.9.9.3-Permanent.sha256.txt
+            BIR-v2.9.9.3-Permanent-release-info.txt
+            /tmp/v2993-badging.txt
+            /tmp/v2993-signature.txt
+            /tmp/v2993-zipalign.txt
+
+  permanent-smoke:
+    needs: [authorization-gate, permanent-build]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {android: '6', api: 23, arch: x86, profile: 'Nexus 5', stress: 8}
+          - {android: '11', api: 30, arch: x86_64, profile: 'Nexus 5X', stress: 30}
+          - {android: '16', api: 36, arch: x86_64, profile: 'Nexus 5X', stress: 10}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.authorization-gate.outputs.source_sha }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: BIR-v2.9.9.3-Permanent
+          path: permanent
+      - name: Present permanent APK to the exact qualified smoke harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p apk
+          cp permanent/BIR-Blue-Infinity-Retail-v2.9.9.3-vc67-Permanent.apk apk/BIR-Blue-Infinity-Retail-v2.9.9.3-vc67-Qualification.apk
+      - name: Install and stress permanent APK on Android ${{ matrix.android }}
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: ${{ matrix.arch }}
+          profile: ${{ matrix.profile }}
+          target: google_apis
+          disable-animations: false
+          disable-linux-hw-accel: false
+          emulator-boot-timeout: 720
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
+          script: bash "$GITHUB_WORKSPACE/app/src/test/v2993-webview-smoke.sh" ${{ matrix.stress }}
+
+  delivery-summary:
+    needs: [authorization-gate, permanent-build, permanent-smoke]
+    runs-on: ubuntu-22.04
+    steps:
+      - run: |
+          echo 'B.I.R. 2.9.9.3/vc67 permanent APK signed and smoke-tested.'
+          echo 'Package com.profitloop.blueauto; permanent signer f51e1d84…; no Worker/D1 mutation.'

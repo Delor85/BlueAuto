@@ -12,17 +12,19 @@ android {
         applicationId "com.profitloop.blueauto"
         minSdk 23
         targetSdk 34
-        versionCode 66
-        versionName "2.9.9.2"
+        versionCode 70
+        versionName "2.9.9.6"
     }
 
     buildFeatures {
         buildConfig true
     }
 
-    // Permanent-update lineage: v2.9.8 = vc63; v2.9.9 = vc64; v2.9.9.1 = vc65.
-    // v2.9.9.2 = vc66: additive field completion + Android 11 rendering isolation.
-    // Historical package and permanent certificate identity remain unchanged.
+    // Permanent-update lineage: v2.9.8 = vc63; v2.9.9 = vc64; v2.9.9.1 = vc65; v2.9.9.2 = vc66.
+    // v2.9.9.3 = vc67 unified the modern Android 6+ interface; v2.9.9.4 = vc68 repaired War Room truth/buttons.
+    // v2.9.9.5 = vc69 restored useful 2.9.9.x capabilities on the stable runtime.
+    // v2.9.9.6 = vc70 adds compact language placement and role-safe AI discovery/catalogue/how-to while
+    // preserving the same finance/USSD/Cloudflare rules. Historical package/certificate identity remain unchanged.
     signingConfigs {
         pilotDebug {
             storeFile rootProject.file('.pilot-signing/debug.keystore')
