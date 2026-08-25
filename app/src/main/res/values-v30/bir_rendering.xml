@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Android 11/API30 only: force software rendering to avoid WebView compositor freezes/white frames. -->
-    <bool name="bir_main_hardware_accelerated">false</bool>
+    <!-- Android 11/API30: match the proven pre-2.9.9 rendering path used by the field-stable 2.9.7 line. -->
+    <bool name="bir_main_hardware_accelerated">true</bool>
 </resources>
