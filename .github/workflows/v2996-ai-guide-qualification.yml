@@ -51,23 +51,17 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.2'
-      - name: Load historical permanent signing key
-        env:
-          KEYSTORE_BASE64: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_BASE64 }}
-          KEYSTORE_PASSWORD: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_PASSWORD }}
+          cache-read-only: true
+      - name: Create isolated qualification key
         shell: bash
         run: |
           set -euo pipefail
-          test -n "$KEYSTORE_BASE64"
-          test -n "$KEYSTORE_PASSWORD"
           mkdir -p .pilot-signing
-          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > .pilot-signing/debug.keystore
-          password="$(printf '%s' "$KEYSTORE_PASSWORD" | tr -d '\r\n')"
+          password="$(openssl rand -hex 32)"
           echo "::add-mask::$password"
-          actual="$(keytool -list -v -keystore .pilot-signing/debug.keystore -storepass "$password" -alias androiddebugkey | awk '/SHA256:/{gsub(":", "", $2); print tolower($2); exit}')"
-          test "$actual" = 'f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5'
+          keytool -genkeypair -keystore .pilot-signing/debug.keystore -storepass "$password" -alias androiddebugkey -keypass "$password" -dname 'CN=BIR v2.9.9.6 Qualification,O=ProfitLoop,C=CM' -keyalg RSA -keysize 2048 -validity 7 -noprompt
           echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$password" >> "$GITHUB_ENV"
-      - name: Unit tests and release build
+      - name: Unit tests and qualification release build
         shell: bash
         run: |
           set -euo pipefail
@@ -75,13 +69,14 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk BIR-Blue-Infinity-Retail-v2.9.9.6-vc70-Qualification.apk
           bt="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
           "$bt/apksigner" verify --verbose --print-certs BIR-Blue-Infinity-Retail-v2.9.9.6-vc70-Qualification.apk | tee signature.txt
-          cert="$(grep -i 'certificate SHA-256 digest:' signature.txt | head -1 | sed -E 's/.*digest: //' | tr -d ':' | tr '[:upper:]' '[:lower:]')"
-          test "$cert" = 'f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5'
           "$bt/aapt" dump badging BIR-Blue-Infinity-Retail-v2.9.9.6-vc70-Qualification.apk | tee badging.txt
           grep -q "package: name='com.profitloop.blueauto' versionCode='70' versionName='2.9.9.6'" badging.txt
           grep -q "sdkVersion:'23'" badging.txt
           grep -q "targetSdkVersion:'34'" badging.txt
+          ! grep -q 'application-debuggable' badging.txt
           sha256sum BIR-Blue-Infinity-Retail-v2.9.9.6-vc70-Qualification.apk | tee BIR-v2.9.9.6-Qualification.sha256.txt
+          git rev-parse HEAD | tee BIR-v2.9.9.6-Qualification-source.txt
+          printf '%s\n' 'qualification_signer=ephemeral_non_production' 'permanent_signer_required_for_delivery=true' > BIR-v2.9.9.6-Qualification-signing-scope.txt
       - uses: actions/upload-artifact@v4
         with:
           name: BIR-v2.9.9.6-Qualification
@@ -90,6 +85,8 @@ jobs:
           path: |
             BIR-Blue-Infinity-Retail-v2.9.9.6-vc70-Qualification.apk
             BIR-v2.9.9.6-Qualification.sha256.txt
+            BIR-v2.9.9.6-Qualification-source.txt
+            BIR-v2.9.9.6-Qualification-signing-scope.txt
             badging.txt
             signature.txt
 
@@ -127,5 +124,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - run: |
-          echo 'B.I.R. 2.9.9.6/vc70 qualification passed: contracts + permanent signer + Android 6/11/16 smoke.'
+          echo 'B.I.R. 2.9.9.6/vc70 qualification passed: contracts + isolated release build + Android 6/11/16 smoke.'
+          echo 'The qualification APK is intentionally NOT signed with the production certificate.'
+          echo 'Permanent signing remains a separate protected delivery action and is not required to validate UI/role behavior.'
           echo 'No Cloudflare/D1 mutation in this workflow.'
