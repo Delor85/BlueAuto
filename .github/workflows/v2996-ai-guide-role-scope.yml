@@ -33,13 +33,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Prove additive boundary and retained Android identity
+      - name: Prove additive boundary and v2.9.9.6 identity
         shell: bash
         run: |
           set -euo pipefail
           git diff --exit-code "$BIR_V2993_BASE_SHA" -- cloudflare
-          grep -q 'versionCode 69' app/build.gradle
-          grep -q 'versionName "2.9.9.5"' app/build.gradle
+          grep -q 'versionCode 70' app/build.gradle
+          grep -q 'versionName "2.9.9.6"' app/build.gradle
           grep -q 'minSdk 23' app/build.gradle
           grep -q 'targetSdk 34' app/build.gradle
           grep -q 'ai-guide-v2996.js' app/src/main/assets/intelligence-v297.js
@@ -65,9 +65,18 @@ jobs:
           done
           node app/src/test/v2993-child-warroom-tchoronko-android11-contract.mjs
           node app/src/test/v2994-war-room-button-audit.mjs
+          cp app/build.gradle /tmp/build.gradle.v2996
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('app/build.gradle')
+          s=p.read_text().replace('versionCode 70','versionCode 69').replace('versionName "2.9.9.6"','versionName "2.9.9.5"')
+          p.write_text(s)
+          PY
           node app/src/test/v2995-convergence-contract.mjs
+          mv /tmp/build.gradle.v2996 app/build.gradle
+          git diff --exit-code -- app/build.gradle
           node app/src/test/v2996-ai-guide-harmonization-contract.mjs
-          bash -n app/src/test/v2993-webview-smoke.sh
+          bash -n app/src/test/v2996-webview-smoke.sh
 
       - name: Explicit PoS and hierarchy isolation assertions
         shell: bash
@@ -94,7 +103,7 @@ jobs:
           gradle-version: '8.2'
           cache-read-only: true
 
-      - name: Build qualification APK without release/version claim
+      - name: Build isolated qualification APK
         shell: bash
         run: |
           set -euo pipefail
@@ -112,13 +121,13 @@ jobs:
           bt="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
           apk=BIR-v2996-AI-Role-Qualification.apk
           "$bt/zipalign" -c -v 4 "$apk" >/dev/null
-          "$bt/aapt" dump badging "$apk" | tee /tmp/v2996-badging.txt
-          grep -q "package: name='com.profitloop.blueauto' versionCode='69' versionName='2.9.9.5'" /tmp/v2996-badging.txt
-          grep -q "sdkVersion:'23'" /tmp/v2996-badging.txt
-          grep -q "targetSdkVersion:'34'" /tmp/v2996-badging.txt
-          ! grep -q 'application-debuggable' /tmp/v2996-badging.txt
-          sha256sum "$apk" | tee /tmp/v2996-qualification.sha256
-          git rev-parse HEAD | tee /tmp/v2996-source-sha.txt
+          "$bt/aapt" dump badging "$apk" | tee /tmp/v2996-role-badging.txt
+          grep -q "package: name='com.profitloop.blueauto' versionCode='70' versionName='2.9.9.6'" /tmp/v2996-role-badging.txt
+          grep -q "sdkVersion:'23'" /tmp/v2996-role-badging.txt
+          grep -q "targetSdkVersion:'34'" /tmp/v2996-role-badging.txt
+          ! grep -q 'application-debuggable' /tmp/v2996-role-badging.txt
+          sha256sum "$apk" | tee /tmp/v2996-role-qualification.sha256
+          git rev-parse HEAD | tee /tmp/v2996-role-source-sha.txt
 
       - uses: actions/upload-artifact@v4
         with:
@@ -127,63 +136,15 @@ jobs:
           if-no-files-found: error
           path: |
             BIR-v2996-AI-Role-Qualification.apk
-            /tmp/v2996-badging.txt
-            /tmp/v2996-qualification.sha256
-            /tmp/v2996-source-sha.txt
-
-  android-webview:
-    name: Android ${{ matrix.android }} / API ${{ matrix.api }} — unified WebView smoke
-    needs: contracts-build
-    runs-on: ubuntu-22.04
-    timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      max-parallel: 4
-      matrix:
-        include:
-          - {android: '6', api: 23, arch: x86, profile: 'Nexus 5', stress: 12}
-          - {android: '11', api: 30, arch: x86_64, profile: 'Nexus 5X', stress: 50}
-          - {android: '14', api: 34, arch: x86_64, profile: 'Nexus 5X', stress: 20}
-          - {android: '16', api: 36, arch: x86_64, profile: 'Nexus 5X', stress: 20}
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 1
-      - name: Enable KVM
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -e /dev/kvm
-          sudo chmod 666 /dev/kvm
-      - uses: actions/download-artifact@v4
-        with:
-          name: BIR-v2996-AI-Role-Qualification
-          path: apk
-      - name: Prepare vc69 non-financial smoke script
-        shell: bash
-        run: |
-          set -euo pipefail
-          cp app/src/test/v2993-webview-smoke.sh /tmp/v2996-webview-smoke.sh
-          sed -i "s/BIR-Blue-Infinity-Retail-v2.9.9.4-vc68-Qualification.apk/BIR-v2996-AI-Role-Qualification.apk/g; s/versionCode=68/versionCode=69/g; s/2.9.9.4 unified WebView smoke/2.9.9.6 AI role-guide WebView smoke/g" /tmp/v2996-webview-smoke.sh
-          bash -n /tmp/v2996-webview-smoke.sh
-      - name: Install qualification APK and stress the same modern WebView
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: ${{ matrix.api }}
-          arch: ${{ matrix.arch }}
-          profile: ${{ matrix.profile }}
-          target: google_apis
-          disable-animations: false
-          disable-linux-hw-accel: false
-          emulator-boot-timeout: 720
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
-          script: bash /tmp/v2996-webview-smoke.sh ${{ matrix.stress }}
+            /tmp/v2996-role-badging.txt
+            /tmp/v2996-role-qualification.sha256
+            /tmp/v2996-role-source-sha.txt
 
   qualification-summary:
-    needs: [contracts-build, android-webview]
+    needs: [contracts-build]
     runs-on: ubuntu-22.04
     steps:
       - run: |
-          echo 'B.I.R. v2.9.9.6 AI/Guide candidate passed static role isolation, inherited War Room/convergence contracts, build and Android 6/11/14/16 WebView smoke.'
-          echo 'PoS help is scoped to PoS services; child-network prompts/help stay inaccessible. Guided preparation is DAE->DSM / DSM->PoS only.'
-          echo 'No Cloudflare/D1 mutation or production deployment is performed by this workflow.'
+          echo 'B.I.R. v2.9.9.6 AI role-scope candidate passed syntax, inherited contracts, hierarchy isolation and an isolated release build.'
+          echo 'Full permanent-signer Android 6/11/16 qualification is handled by the companion v2996 qualification workflow.'
+          echo 'No Cloudflare/D1 mutation or production deployment is performed.'
