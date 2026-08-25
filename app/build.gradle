@@ -12,16 +12,17 @@ android {
         applicationId "com.profitloop.blueauto"
         minSdk 23
         targetSdk 34
-        versionCode 66
-        versionName "2.9.9.2"
+        versionCode 67
+        versionName "2.9.9.3"
     }
 
     buildFeatures {
         buildConfig true
     }
 
-    // Permanent-update lineage: v2.9.8 = vc63; v2.9.9 = vc64; v2.9.9.1 = vc65.
-    // v2.9.9.2 = vc66: additive field completion + Android 11 rendering isolation.
+    // Permanent-update lineage: v2.9.8 = vc63; v2.9.9 = vc64; v2.9.9.1 = vc65; v2.9.9.2 = vc66.
+    // v2.9.9.3 = vc67: Android 11 returns to the proven 2.9.7 rendering foundation while
+    // Tchoronko and child War Rooms are added through an isolated non-financial layer.
     // Historical package and permanent certificate identity remain unchanged.
     signingConfigs {
         pilotDebug {
