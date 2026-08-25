@@ -1,0 +1,21 @@
+import fs from 'node:fs';
+const read=p=>fs.readFileSync(p,'utf8');
+const must=(x,m)=>{if(!x)throw new Error(m);};
+const loader=read('app/src/main/assets/intelligence-v297.js');
+const priv=read('app/src/main/assets/privileged-guide-v2996.js');
+const platform=read('app/src/main/assets/platform-v267.js');
+const main=read('app/src/main/java/com/profitloop/blueauto/MainActivity.java');
+const admin=read('app/src/main/assets/control-tower-v280.js');
+const ops=read('app/src/main/assets/control-tower-v290-ops.js');
+
+must(loader.includes("'privileged-guide-v2996.js'"),'privileged MOCK/ADMIN guide not loaded');
+for(const token of ['Mercenaires / Cloud Vending','Compte MOCK — laboratoire propriétaire','ADMIN PROPRIÉTAIRE','SUPER-ADMIN','B.I.R. Pay','Support WhatsApp','Academy','API Business','White Label'])must(priv.includes(token),'missing privileged catalogue/roadmap token: '+token);
+for(const token of ['mercenary_save','mercenary_list','mercenary_sale'])must(priv.includes(token)&&platform.includes(token),'Mercenaires action missing: '+token);
+must(platform.includes('isMockWorkspace()')&&platform.includes('isDae() || isMockWorkspace()'),'historical Mercenaires MOCK route UI missing');
+must(main.includes('normalizedAction.startsWith("mercenary_")')&&main.includes('mockRouteProfile()'),'native MOCK Mercenaires routing through a real DAE profile missing');
+must(main.includes('MOCK ne crée pas d’approvisionnement ou de vente Blue directe'),'MOCK direct Blue finance block missing');
+for(const token of ['OWNER_ADMIN','SUPER_ADMIN','owner_admin_workspace','super_admin_workspace'])must(main.includes(token),'native owner/admin workspace contract missing: '+token);
+for(const token of ['owner_snapshot','owner_transactions','owner_audit','owner_control','owner_tchoronko_save','owner_assist'])must(admin.includes(token),'ADMIN governance action missing: '+token);
+must(ops.includes('super_admin_workspace')&&ops.includes('owner_admin_workspace')&&ops.includes('owner_ops_cockpit'),'ADMIN/SUPER-ADMIN ops cockpit missing');
+for(const source of [priv])for(const re of [/\.createCommand\s*\(/,/\.previewCommand\s*\(/,/\.confirmCommand\s*\(/,/dialUssd\s*\(/,/rawUssd\s*\(/,/setInterval\s*\(/,/new\s+MutationObserver\s*\(/])must(!re.test(source),'privileged guide must stay outside finance/unstable engine: '+re);
+console.log('B.I.R. 2.9.9.6 privileged workspaces: MOCK Mercenaires + ADMIN/SUPER-ADMIN governance restored/documented with no direct finance execution: OK');
