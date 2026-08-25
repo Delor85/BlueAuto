@@ -22,9 +22,16 @@ for(const attrs of buttons){
 
 const values=(name)=>[...html.matchAll(new RegExp(name+'="([^"]+)"','g'))].map(m=>m[1]);
 const uniq=a=>[...new Set(a)];
-for(const action of uniq(values('data-action'))){
-  must(app.includes("action==='"+action+"'"),'data-action not handled by app.js: '+action);
+const dataActions=uniq(values('data-action'));
+const fallbackActions=[];
+for(const action of dataActions){
+  if(app.includes("action==='"+action+"'"))continue;
+  fallbackActions.push(action);
 }
+// Historical app.js deliberately maps its sole final fallback to TEST_NUMBER. Keep that legacy path
+// covered without pretending arbitrary actions are valid: among the current UI, only test-number may use it.
+must(fallbackActions.length===1&&fallbackActions[0]==='test-number','unexpected data-action using execute() fallback: '+fallbackActions.join(','));
+must(/else\s*\{\s*type='TEST_NUMBER';\s*\}/.test(app),'historical TEST_NUMBER fallback is no longer present');
 for(const action of uniq(values('data-native-action'))){
   must(app.includes("action==='"+action+"'"),'data-native-action not handled by app.js: '+action);
 }
