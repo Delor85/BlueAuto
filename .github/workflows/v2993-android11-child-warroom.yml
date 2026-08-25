@@ -150,7 +150,7 @@ jobs:
           disable-linux-hw-accel: false
           emulator-boot-timeout: 720
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
-          script: bash app/src/test/v2993-webview-smoke.sh ${{ matrix.stress }}
+          script: bash "$GITHUB_WORKSPACE/app/src/test/v2993-webview-smoke.sh" ${{ matrix.stress }}
 
   qualification-summary:
     needs: [validate-build, android-webview]
