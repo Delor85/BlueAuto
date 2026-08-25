@@ -4,7 +4,7 @@ set -euo pipefail
 stress="${1:-12}"
 package="com.profitloop.blueauto"
 activity="com.profitloop.blueauto/.MainActivity"
-apk="$(find apk -type f -name 'BIR-Blue-Infinity-Retail-v2.9.9.3-vc67-Qualification.apk' -print -quit)"
+apk="$(find apk -type f -name 'BIR-Blue-Infinity-Retail-v2.9.9.4-vc68-Qualification.apk' -print -quit)"
 
 fail(){
   code="${1:-1}"; shift || true
@@ -53,7 +53,7 @@ done
 
 step 'install exact candidate'
 adb install --no-streaming "$apk"
-adb shell dumpsys package "$package" | grep -q 'versionCode=67' || fail 82 'installed versionCode is not 67'
+adb shell dumpsys package "$package" | grep -q 'versionCode=68' || fail 82 'installed versionCode is not 68'
 
 # google_apis emulator images are debuggable. Seed a strictly local/non-production DAE profile so
 # the smoke opens the real B.I.R. WebView instead of only exercising the native pairing screen.
@@ -87,7 +87,7 @@ adb shell pidof "$package" >/dev/null || fail 84 'BIR process not alive after la
 bir_resumed || fail 85 'BIR MainActivity is not resumed after launch'
 
 # Prove that the real WebView renderer is active. UIAutomator output is optional because older
-# providers (notably some API28 images) may fail to emit a hierarchy even while Chromium renders.
+# providers may fail to emit a hierarchy even while Chromium renders.
 step 'prove WebView renderer exists'
 adb shell uiautomator dump /sdcard/bir-window.xml >/dev/null 2>&1 || true
 adb pull /sdcard/bir-window.xml /tmp/bir-window.xml >/dev/null 2>&1 || true
@@ -110,7 +110,7 @@ initial_size="$(wc -c </tmp/bir-initial.png | tr -d ' ')"
 [ "$initial_size" -gt 10000 ] || fail 87 "initial screenshot unexpectedly small: $initial_size bytes"
 
 # Stress only scroll + process foreground/background/resume. No fixed-coordinate navigation and no
-# financial button taps. This tests exactly the rendering/lifecycle regression that affected Android 11.
+# financial button taps. This keeps the Android 11 rendering regression covered without mutating finance.
 step "stress renderer/lifecycle cycles=$stress"
 for _ in $(seq 1 "$stress"); do
   adb shell input swipe 540 1450 540 650 110 || true
@@ -132,4 +132,4 @@ if grep -E 'FATAL EXCEPTION.*com\.profitloop\.blueauto|Process: com\.profitloop\
   fail 1 'fatal/ANR/WebView renderer failure detected'
 fi
 
-echo "B.I.R. 2.9.9.3 unified WebView smoke: OK (stress=$stress, initial_png=$initial_size, final_png=$final_size)"
+echo "B.I.R. 2.9.9.4 unified WebView smoke: OK (stress=$stress, initial_png=$initial_size, final_png=$final_size)"
