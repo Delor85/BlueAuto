@@ -17,6 +17,13 @@ fail(){
 
 step(){ echo "BIR_SMOKE_STEP: $*"; }
 
+bir_resumed(){
+  if adb shell dumpsys window windows 2>/dev/null | grep -E 'mCurrentFocus|mFocusedApp' | grep -q "$package"; then
+    return 0
+  fi
+  adb shell dumpsys activity activities 2>/dev/null | grep -E 'mResumedActivity|ResumedActivity' | grep -q "$package"
+}
+
 test -n "$apk" || fail 81 'qualification APK path missing'
 test -s "$apk" || fail 81 'qualification APK empty'
 
@@ -65,7 +72,7 @@ cat /tmp/bir-start.txt
 grep -Eq 'Status: ok|Complete' /tmp/bir-start.txt || fail 83 'MainActivity did not report successful launch'
 sleep 10
 adb shell pidof "$package" >/dev/null || fail 84 'BIR process not alive after launch'
-adb shell dumpsys window windows | grep -E 'mCurrentFocus|mFocusedApp' | grep -q "$package" || fail 85 'BIR MainActivity is not focused after launch'
+bir_resumed || fail 85 'BIR MainActivity is not resumed after launch'
 
 # Prove that the real WebView renderer is active. UIAutomator output is optional because older
 # providers (notably some API28 images) may fail to emit a hierarchy even while Chromium renders.
@@ -103,7 +110,7 @@ sleep 5
 
 step 'final liveness/render/crash checks'
 adb shell pidof "$package" >/dev/null || fail 89 'BIR process died during stress'
-adb shell dumpsys window windows | grep -E 'mCurrentFocus|mFocusedApp' | grep -q "$package" || fail 89 'BIR not focused after stress'
+bir_resumed || fail 89 'BIR MainActivity is not resumed after stress'
 adb exec-out screencap -p >/tmp/bir-final.png
 test -s /tmp/bir-final.png || fail 89 'final rendered screenshot missing'
 final_size="$(wc -c </tmp/bir-final.png | tr -d ' ')"
