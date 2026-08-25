@@ -9,7 +9,7 @@ const css=read('app/src/main/assets/field-runtime-v2993.css');
 const app=read('app/src/main/java/com/profitloop/blueauto/BirApplication.java');
 const manifest=read('app/src/main/AndroidManifest.xml');
 
-must(/versionCode\s+67\b/.test(gradle)&&/versionName\s+"2\.9\.9\.3"/.test(gradle),'release identity 2.9.9.3/vc67 missing');
+must(/versionCode\s+68\b/.test(gradle)&&/versionName\s+"2\.9\.9\.4"/.test(gradle),'release identity 2.9.9.4/vc68 missing');
 must(loader.includes('intelligence-v297-core.js')&&loader.includes('field-runtime-v2993.js'),'unified v2.9.7 core + v2993 chain missing');
 must(!/Android\\s\+11|api30\(|bir-v2993-api30-legacy/.test(loader),'loader must not branch visually/functionally on Android 11');
 for(const forbidden of ['transaction-first-v298','reference-stability-v299','field-runtime-v2991','field-runtime-v2992'])must(!loader.includes(forbidden),'post-2.9.7 DOM-rebuild chain must not be loaded: '+forbidden);
@@ -29,4 +29,4 @@ must(/APPROVISIONNER/.test(js)&&/CONSULTER SOLDE/.test(js),'child War Room safe 
 for(const bad of ['createCommand','previewCommand','confirmCommand','dialUssd','rawUssd','setInterval'])must(!js.includes(bad),'v2993 must not introduce finance/raw-USSD/poll loop: '+bad);
 must(css.includes('#requestSupplyCard'),'modern green purchase styling must apply to the common Android 6+ UI');
 must(!/bir-v2993-api30-legacy|body\.bir-v2993-api30/.test(css),'CSS must not expose an Android 11-specific visual fork');
-console.log('B.I.R. 2.9.9.3 unified Android 6+ / child-WarRoom / Tchoronko contract: OK');
+console.log('B.I.R. 2.9.9.4 unified Android 6+ / child-WarRoom / Tchoronko contract: OK');
