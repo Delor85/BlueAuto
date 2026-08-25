@@ -1,4 +1,4 @@
-name: BIR v2.9.9.3 Android11 + Child War Room Qualification
+name: BIR v2.9.9.3 Unified Android 6-16 Qualification
 
 on:
   push:
@@ -26,7 +26,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - name: Prove additive boundary and exact identity
+      - name: Prove production boundary and exact release identity
         shell: bash
         run: |
           set -euo pipefail
@@ -35,7 +35,10 @@ jobs:
           grep -q 'versionName "2.9.9.3"' app/build.gradle
           grep -q 'minSdk 23' app/build.gradle
           grep -q 'targetSdk 34' app/build.gradle
-          grep -q '<bool name="bir_main_hardware_accelerated">true</bool>' app/src/main/res/values-v30/bir_rendering.xml
+          grep -q 'intelligence-v297-core.js' app/src/main/assets/intelligence-v297.js
+          grep -q 'field-runtime-v2993.js' app/src/main/assets/intelligence-v297.js
+          ! grep -Eq 'transaction-first-v298|reference-stability-v299|field-runtime-v2991|field-runtime-v2992|api30\(|bir-v2993-api30-legacy' app/src/main/assets/intelligence-v297.js
+          ! grep -q 'bir_main_hardware_accelerated' app/src/main/AndroidManifest.xml
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -54,12 +57,13 @@ jobs:
           node app/src/test/bir-v297-field-resilience.mjs
           mv /tmp/build.gradle.v2993 app/build.gradle
           git diff --exit-code -- app/build.gradle
-      - name: Run v2993 invariants and syntax on exact source
+      - name: Run unified Android 6+ invariants and JavaScript syntax
         shell: bash
         run: |
           set -euo pipefail
           node app/src/test/v2993-child-warroom-tchoronko-android11-contract.mjs
-          for f in app/src/main/assets/app.js app/src/main/assets/field-ops-v297.js app/src/main/assets/war-room-v294.js app/src/main/assets/intelligence-v297.js app/src/main/assets/field-runtime-v2993.js; do node --check "$f"; done
+          for f in app/src/main/assets/app.js app/src/main/assets/field-ops-v297.js app/src/main/assets/war-room-v294.js app/src/main/assets/intelligence-v297.js app/src/main/assets/intelligence-v297-core.js app/src/main/assets/field-runtime-v2993.js; do node --check "$f"; done
+          bash -n app/src/test/v2993-webview-smoke.sh
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -104,19 +108,26 @@ jobs:
             /tmp/v2993-source-sha.txt
 
   android-webview:
-    name: Android ${{ matrix.android }} / API ${{ matrix.api }} — actual BIR WebView
+    name: Android ${{ matrix.android }} / API ${{ matrix.api }} — same modern BIR WebView
     needs: validate-build
     runs-on: ubuntu-22.04
-    timeout-minutes: 40
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       max-parallel: 4
       matrix:
         include:
           - {android: '6', api: 23, arch: x86, profile: 'Nexus 5', stress: 12}
+          - {android: '7', api: 24, arch: x86, profile: 'Nexus 5', stress: 12}
           - {android: '8', api: 26, arch: x86_64, profile: 'Nexus 5X', stress: 12}
+          - {android: '9', api: 28, arch: x86_64, profile: 'Nexus 5X', stress: 12}
+          - {android: '10', api: 29, arch: x86_64, profile: 'Nexus 5X', stress: 16}
           - {android: '11', api: 30, arch: x86_64, profile: 'Nexus 5X', stress: 60}
-          - {android: '14', api: 34, arch: x86_64, profile: 'Nexus 5X', stress: 16}
+          - {android: '12', api: 31, arch: x86_64, profile: 'Nexus 5X', stress: 20}
+          - {android: '13', api: 33, arch: x86_64, profile: 'Nexus 5X', stress: 20}
+          - {android: '14', api: 34, arch: x86_64, profile: 'Nexus 5X', stress: 20}
+          - {android: '15', api: 35, arch: x86_64, profile: 'Nexus 5X', stress: 20}
+          - {android: '16', api: 36, arch: x86_64, profile: 'Nexus 5X', stress: 20}
     steps:
       - name: Enable KVM
         shell: bash
@@ -128,7 +139,7 @@ jobs:
         with:
           name: BIR-v2.9.9.3-Qualification
           path: apk
-      - name: Install, seed a local DAE profile, open actual WebView and stress it
+      - name: Install exact APK and stress the same current WebView
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api }}
@@ -139,61 +150,13 @@ jobs:
           disable-linux-hw-accel: false
           emulator-boot-timeout: 720
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
-          script: |
-            set -eu
-            adb wait-for-device
-            ready=0
-            for i in $(seq 1 60); do
-              if adb shell service check package 2>/dev/null | grep -qi found && adb shell pm path android >/dev/null 2>&1; then ready=1; break; fi
-              sleep 5
-            done
-            test "$ready" = 1
-            apk="$(find apk -type f -name 'BIR-Blue-Infinity-Retail-v2.9.9.3-vc67-Qualification.apk' -print -quit)"
-            test -s "$apk"
-            adb install --no-streaming "$apk"
-            adb shell dumpsys package com.profitloop.blueauto | grep -q 'versionCode=67'
-            adb root >/tmp/adb-root.txt 2>&1 || true
-            adb wait-for-device
-            adb shell id | grep -q 'uid=0(root)'
-            uid="$(adb shell dumpsys package com.profitloop.blueauto | sed -n 's/.*userId=\([0-9]*\).*/\1/p' | head -1 | tr -d '\r')"
-            test -n "$uid"
-            cat >/tmp/bir-prefs.xml <<'XML'
-            <?xml version='1.0' encoding='utf-8' standalone='yes' ?>
-            <map>
-              <string name="active_profile_id_v3">ci-dae</string>
-              <string name="profiles_v3">[{"id":"ci-dae","api_url":"https://127.0.0.1/api","device_token":"ci-token-not-production","node_code":"OU3","official_node_code":"OU3","phone_number":"690000000","parent_node_code":"","official_parent_node_code":"","role":"DAE","device_mode":"REMOTE","sim_slot":0}]</string>
-            </map>
-            XML
-            adb push /tmp/bir-prefs.xml /data/local/tmp/bir-prefs.xml >/dev/null
-            adb shell "mkdir -p /data/user/0/com.profitloop.blueauto/shared_prefs && cp /data/local/tmp/bir-prefs.xml /data/user/0/com.profitloop.blueauto/shared_prefs/blue_magic_native_v2.xml && chown -R $uid:$uid /data/user/0/com.profitloop.blueauto"
-            adb shell am force-stop com.profitloop.blueauto
-            adb logcat -c || true
-            adb shell am start -W -n com.profitloop.blueauto/.MainActivity >/tmp/start.txt
-            grep -Eq 'Status: ok|Complete' /tmp/start.txt
-            sleep 7
-            adb shell uiautomator dump /sdcard/bir-window.xml >/dev/null 2>&1 || true
-            adb pull /sdcard/bir-window.xml /tmp/bir-window.xml >/dev/null 2>&1 || true
-            test -s /tmp/bir-window.xml
-            grep -q 'WAR ROOM DES ENFANTS' /tmp/bir-window.xml
-            i=0
-            while [ "$i" -lt "${{ matrix.stress }}" ]; do
-              adb shell input swipe 530 1450 530 580 180 || true
-              adb shell input tap 520 900 || true
-              adb shell input swipe 530 580 530 1450 180 || true
-              i=$((i+1))
-            done
-            sleep 4
-            adb shell pidof com.profitloop.blueauto >/dev/null
-            adb exec-out screencap -p >/tmp/final.png
-            test -s /tmp/final.png
-            adb logcat -d >/tmp/logcat.txt || true
-            ! grep -E 'FATAL EXCEPTION.*com.profitloop.blueauto|Process: com.profitloop.blueauto|ANR in com.profitloop.blueauto|Render process.*gone|crash_dump.*webview' /tmp/logcat.txt
+          script: bash app/src/test/v2993-webview-smoke.sh ${{ matrix.stress }}
 
   qualification-summary:
     needs: [validate-build, android-webview]
     runs-on: ubuntu-22.04
     steps:
       - run: |
-          echo 'B.I.R. 2.9.9.3 exact candidate passed actual-WebView Android 6/8/11/14 qualification.'
-          echo 'Android 11 uses the proven pre-2.9.8 UI foundation plus isolated v2993 child War Room/Tchoronko.'
+          echo 'B.I.R. 2.9.9.3 exact candidate passed the same modern WebView on Android 6 through Android 16.'
+          echo 'No Android 11 visual/functional fork is allowed; all versions use v2.9.7 Intelligence/Cockpit foundation + current v2.9.9.3 additive features.'
           echo 'No Worker/D1 mutation is performed.'
