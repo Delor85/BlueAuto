@@ -22,9 +22,10 @@ import java.util.Locale;
  * Lightweight field-safety observer for Remote terminals and local Robot health.
  *
  * It never creates a financial command. RobotService owns the authenticated Remote dashboard
- * cache and its 10-second polling cadence. This application class only wakes that existing engine
- * when a Remote process starts or returns to foreground, so several Remote phones attached to the
- * same logical account converge quickly on the same server truth without becoming competing Robots.
+ * cache and its 10-second polling cadence. Since the field regression is isolated to Android 11
+ * starting in the post-2.9.7 line, API30 deliberately keeps the proven 2.9.7 lifecycle behavior:
+ * no extra process-start/activity-resume forceSync. Other Android versions retain the bounded
+ * foreground convergence introduced later for multi-Remote use.
  */
 public final class BirApplication extends Application {
     private static final String CHANNEL = "bir_remote_urgent_v297";
@@ -50,19 +51,20 @@ public final class BirApplication extends Application {
     @Override public void onCreate() {
         super.onCreate();
         createUrgencyChannel();
-        registerActivityLifecycleCallbacks(new ActivityLifecycleCallbacks() {
-            @Override public void onActivityCreated(Activity activity, Bundle state) {}
-            @Override public void onActivityStarted(Activity activity) {}
-            @Override public void onActivityResumed(Activity activity) { wakeRemoteTruth(false); }
-            @Override public void onActivityPaused(Activity activity) {}
-            @Override public void onActivityStopped(Activity activity) {}
-            @Override public void onActivitySaveInstanceState(Activity activity, Bundle state) {}
-            @Override public void onActivityDestroyed(Activity activity) {}
-        });
-        // First process start: ensure a Remote-only phone does not wait for a Robot/watchdog event
-        // before its existing 10-second observer begins. sendServiceAction remains guarded by the
-        // Android background-start fallback inside RobotService.
-        wakeRemoteTruth(true);
+        if (Build.VERSION.SDK_INT != Build.VERSION_CODES.R) {
+            registerActivityLifecycleCallbacks(new ActivityLifecycleCallbacks() {
+                @Override public void onActivityCreated(Activity activity, Bundle state) {}
+                @Override public void onActivityStarted(Activity activity) {}
+                @Override public void onActivityResumed(Activity activity) { wakeRemoteTruth(false); }
+                @Override public void onActivityPaused(Activity activity) {}
+                @Override public void onActivityStopped(Activity activity) {}
+                @Override public void onActivitySaveInstanceState(Activity activity, Bundle state) {}
+                @Override public void onActivityDestroyed(Activity activity) {}
+            });
+            // Keep the later bounded foreground convergence everywhere except Android 11/API30,
+            // which reuses the exact lifecycle rhythm that was stable through B.I.R. 2.9.7.
+            wakeRemoteTruth(true);
+        }
         handler.postDelayed(observer, 1_500L);
     }
 
@@ -93,8 +95,7 @@ public final class BirApplication extends Application {
         if (lastAccessibilityEnabled != enabled || lastAccessibilityConnected != connected) {
             lastAccessibilityEnabled = enabled;
             lastAccessibilityConnected = connected;
-            // Safe control-plane wake only: clears heartbeat backoff and publishes fresh telemetry.
-            // No command is created and no USSD is dialled by this observer.
+            // This accessibility transition wake existed in the stable v2.9.7 behavior and stays.
             RobotService.forceSync(this);
         }
     }
@@ -115,7 +116,6 @@ public final class BirApplication extends Application {
                     || "STALE".equalsIgnoreCase(row.optString("robot_status", ""));
             if (!robotExpected) continue;
 
-            // Accessibility is a direct operational fault and remains immediately actionable.
             if (row.has("accessibility_enabled") && !row.optBoolean("accessibility_enabled", true)) {
                 urgentTitle = "URGENT — Accessibilité " + node;
                 urgentText = "Le Robot a perdu l’Accessibilité. Achats/ventes doivent rester en file. Ouvrez B.I.R. et intervenez sur le téléphone Robot.";
