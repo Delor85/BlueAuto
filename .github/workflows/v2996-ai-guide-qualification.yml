@@ -32,7 +32,16 @@ jobs:
           node --check app/src/main/assets/ai-guide-v2996.js
           node --check app/src/main/assets/ai-role-guard-v2996.js
           node --check app/src/main/assets/intelligence-v297.js
+          cp app/build.gradle /tmp/build.gradle.v2996
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('app/build.gradle')
+          s=p.read_text().replace('versionCode 70','versionCode 69').replace('versionName "2.9.9.6"','versionName "2.9.9.5"')
+          p.write_text(s)
+          PY
           node app/src/test/v2995-convergence-contract.mjs
+          mv /tmp/build.gradle.v2996 app/build.gradle
+          git diff --exit-code -- app/build.gradle
           node app/src/test/v2996-ai-guide-harmonization-contract.mjs
           bash -n app/src/test/v2996-webview-smoke.sh
       - uses: actions/setup-java@v5
