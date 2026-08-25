@@ -67,20 +67,24 @@ sleep 10
 adb shell pidof "$package" >/dev/null || fail 84 'BIR process not alive after launch'
 adb shell dumpsys window windows | grep -E 'mCurrentFocus|mFocusedApp' | grep -q "$package" || fail 85 'BIR MainActivity is not focused after launch'
 
-# UIAutomator is used only to prove that the native hierarchy contains a real WebView. We do not
-# require individual HTML text nodes: WebView accessibility exposure and edge-to-edge coordinates
-# legitimately differ between Android releases and must not create false regressions.
+# Prove that the real WebView renderer is active. UIAutomator output is optional because older
+# providers (notably some API28 images) may fail to emit a hierarchy even while Chromium renders.
 step 'prove WebView renderer exists'
 adb shell uiautomator dump /sdcard/bir-window.xml >/dev/null 2>&1 || true
 adb pull /sdcard/bir-window.xml /tmp/bir-window.xml >/dev/null 2>&1 || true
-test -s /tmp/bir-window.xml || fail 86 'UI hierarchy dump missing'
-if ! grep -Eq 'android\.webkit\.WebView|WebView' /tmp/bir-window.xml; then
-  # Some WebView/provider versions flatten the accessibility class. Require rendered pixels plus
-  # chromium/WebView process evidence instead of failing on accessibility semantics alone.
-  adb shell ps -A 2>/dev/null | grep -Ei 'webview|sandboxed_process|chromium' >/tmp/bir-webview-ps.txt || true
-  adb exec-out screencap -p >/tmp/bir-initial.png
-  test -s /tmp/bir-initial.png || fail 86 'no WebView class and no rendered screenshot'
+adb logcat -d >/tmp/bir-prestress-logcat.txt || true
+adb shell ps -A 2>/dev/null >/tmp/bir-processes.txt || true
+webview_evidence=0
+if test -s /tmp/bir-window.xml && grep -Eq 'android\.webkit\.WebView|WebView' /tmp/bir-window.xml; then
+  webview_evidence=1
 fi
+if grep -Ei 'WebViewFactory|chromium|webview_service|sandboxed_process' /tmp/bir-prestress-logcat.txt >/dev/null 2>&1; then
+  webview_evidence=1
+fi
+if grep -Ei 'webview|sandboxed_process|chromium' /tmp/bir-processes.txt >/dev/null 2>&1; then
+  webview_evidence=1
+fi
+[ "$webview_evidence" = 1 ] || fail 86 'no WebView/Chromium renderer evidence found'
 adb exec-out screencap -p >/tmp/bir-initial.png
 test -s /tmp/bir-initial.png || fail 87 'initial rendered screenshot missing'
 initial_size="$(wc -c </tmp/bir-initial.png | tr -d ' ')"
