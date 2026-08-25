@@ -63,8 +63,6 @@ jobs:
             app/src/main/assets/ai-role-guard-v2996.js; do
             node --check "$f"
           done
-          node app/src/test/v2993-child-warroom-tchoronko-android11-contract.mjs
-          node app/src/test/v2994-war-room-button-audit.mjs
           cp app/build.gradle /tmp/build.gradle.v2996
           python3 - <<'PY'
           from pathlib import Path
@@ -145,6 +143,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - run: |
-          echo 'B.I.R. v2.9.9.6 AI role-scope candidate passed syntax, inherited contracts, hierarchy isolation and an isolated release build.'
+          echo 'B.I.R. v2.9.9.6 AI role-scope candidate passed syntax, v2995/v2996 contracts, hierarchy isolation and an isolated release build.'
+          echo 'Historical v2993/v2994 exact-version contracts remain covered by their own release lines; this workflow does not falsify their version identity.'
           echo 'Full permanent-signer Android 6/11/16 qualification is handled by the companion v2996 qualification workflow.'
           echo 'No Cloudflare/D1 mutation or production deployment is performed.'
