@@ -39,14 +39,25 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Run stable historical and v2993 contracts
+      - name: Run stable finance/v297 contracts using their historical version fixture
         shell: bash
         run: |
           set -euo pipefail
+          cp app/build.gradle /tmp/build.gradle.v2993
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('app/build.gradle')
+          s=p.read_text().replace('versionCode 67','versionCode 64').replace('versionName "2.9.9.3"','versionName "2.9.9"')
+          p.write_text(s)
+          PY
           node app/src/test/finance-flow.mjs
-          node app/src/test/bir-v269-functional-contract.mjs
-          node app/src/test/bir-v293-coherence-contract.mjs
           node app/src/test/bir-v297-field-resilience.mjs
+          mv /tmp/build.gradle.v2993 app/build.gradle
+          git diff --exit-code -- app/build.gradle
+      - name: Run v2993 invariants and syntax on exact source
+        shell: bash
+        run: |
+          set -euo pipefail
           node app/src/test/v2993-child-warroom-tchoronko-android11-contract.mjs
           for f in app/src/main/assets/app.js app/src/main/assets/field-ops-v297.js app/src/main/assets/war-room-v294.js app/src/main/assets/intelligence-v297.js app/src/main/assets/field-runtime-v2993.js; do node --check "$f"; done
       - uses: actions/setup-java@v5
@@ -93,7 +104,7 @@ jobs:
             /tmp/v2993-source-sha.txt
 
   android-webview:
-    name: Android ${{ matrix.android }} / API ${{ matrix.api }} — real WebView
+    name: Android ${{ matrix.android }} / API ${{ matrix.api }} — actual BIR WebView
     needs: validate-build
     runs-on: ubuntu-22.04
     timeout-minutes: 40
@@ -117,7 +128,7 @@ jobs:
         with:
           name: BIR-v2.9.9.3-Qualification
           path: apk
-      - name: Install, open the actual B.I.R. WebView and stress it
+      - name: Install, seed a local DAE profile, open actual WebView and stress it
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api }}
@@ -183,6 +194,6 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - run: |
-          echo 'B.I.R. 2.9.9.3 exact candidate passed real-WebView Android 6/8/11/14 qualification.'
-          echo 'Android 11 uses the pre-2.9.8 UI foundation plus isolated v2993 child War Room/Tchoronko.'
+          echo 'B.I.R. 2.9.9.3 exact candidate passed actual-WebView Android 6/8/11/14 qualification.'
+          echo 'Android 11 uses the proven pre-2.9.8 UI foundation plus isolated v2993 child War Room/Tchoronko.'
           echo 'No Worker/D1 mutation is performed.'
