@@ -31,6 +31,7 @@ jobs:
           test -z "$(git diff --name-only e27a0ead275b44be880461a9be548bb3c9c5a0c5..HEAD | grep '^cloudflare/' || true)"
           node --check app/src/main/assets/ai-guide-v2996.js
           node --check app/src/main/assets/ai-role-guard-v2996.js
+          node --check app/src/main/assets/privileged-guide-v2996.js
           node --check app/src/main/assets/intelligence-v297.js
           cp app/build.gradle /tmp/build.gradle.v2996
           python3 - <<'PY'
@@ -43,6 +44,7 @@ jobs:
           mv /tmp/build.gradle.v2996 app/build.gradle
           git diff --exit-code -- app/build.gradle
           node app/src/test/v2996-ai-guide-harmonization-contract.mjs
+          node app/src/test/v2996-privileged-workspaces-contract.mjs
           bash -n app/src/test/v2996-webview-smoke.sh
       - uses: actions/setup-java@v5
         with:
@@ -118,6 +120,25 @@ jobs:
           emulator-boot-timeout: 720
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
           script: bash "$GITHUB_WORKSPACE/app/src/test/v2996-webview-smoke.sh" ${{ matrix.stress }}
+      - name: Collect smoke diagnostics
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p smoke-diagnostics
+          cp /tmp/bir-logcat.txt smoke-diagnostics/ 2>/dev/null || true
+          cp /tmp/bir-start.txt smoke-diagnostics/ 2>/dev/null || true
+          cp /tmp/bir-initial.png smoke-diagnostics/ 2>/dev/null || true
+          adb logcat -d > smoke-diagnostics/logcat-final.txt 2>/dev/null || true
+          adb shell dumpsys activity activities > smoke-diagnostics/activity.txt 2>/dev/null || true
+          adb shell dumpsys meminfo com.profitloop.blueauto > smoke-diagnostics/meminfo.txt 2>/dev/null || true
+          adb exec-out screencap -p > smoke-diagnostics/final.png 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: BIR-v2996-smoke-${{ matrix.android }}-diagnostics
+          retention-days: 14
+          if-no-files-found: warn
+          path: smoke-diagnostics/
 
   qualification-summary:
     needs: [contract-and-build, android-smoke]
