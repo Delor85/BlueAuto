@@ -1,0 +1,16 @@
+/* B.I.R. 2.9.9.6 — assistant discovery rail + compact language switch. */
+.bir-v2996-rail{display:flex;align-items:stretch;gap:8px;margin:7px 10px 10px;padding:0;min-height:42px}
+.bir-v2996-lang-slot{display:flex;align-items:center;justify-content:flex-start;flex:0 0 auto}
+.bir-v2996-lang-slot .v271-language{display:inline-flex!important;align-items:center;justify-content:center!important;width:42px!important;min-width:42px!important;max-width:42px!important;height:34px!important;min-height:34px!important;margin:0!important;padding:0!important;border-radius:10px!important;font-size:12px!important;font-weight:950!important;letter-spacing:.04em!important;line-height:1!important;flex:0 0 42px!important}
+.bir-v2996-ai-promo{min-width:0;flex:1;display:flex;align-items:center;gap:8px;border:1px solid rgba(78,225,255,.34);border-radius:12px;background:rgba(10,32,64,.82);padding:7px 10px;color:#fff;text-align:left;box-shadow:0 5px 16px rgba(0,0,0,.12)}
+.bir-v2996-ai-promo:active{transform:translateY(1px)}
+.bir-v2996-ai-mark{display:inline-flex;align-items:center;justify-content:center;flex:0 0 28px;width:28px;height:28px;border-radius:9px;background:rgba(78,225,255,.14);font-size:16px;font-weight:950;color:#4ee1ff}
+.bir-v2996-ai-copy{display:block;min-width:0;flex:1}
+.bir-v2996-ai-copy small{display:block;font-size:9px!important;line-height:1.1!important;font-weight:900;letter-spacing:.08em;color:#4ee1ff;text-transform:uppercase;margin-bottom:2px}
+.bir-v2996-ai-copy strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11.5px;line-height:1.25;font-weight:800;color:#fff}
+.bir-v2996-ai-arrow{flex:0 0 auto;font-size:17px;opacity:.8}
+.bir-v2996-guide{margin:10px 0 12px;padding:12px;border:1px solid rgba(78,225,255,.24);border-radius:14px;background:rgba(5,18,42,.05)}
+.bir-v2996-guide h4{margin:3px 0 7px}.bir-v2996-guide p{margin:4px 0;line-height:1.45}.bir-v2996-guide ul{margin:6px 0 4px;padding-left:20px}.bir-v2996-guide li{margin:4px 0;line-height:1.4}
+.bir-v2996-guide-tabs{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}.bir-v2996-guide-tabs button{padding:6px 8px!important;min-height:30px!important;font-size:10px!important}
+.bir-v2996-guard{display:block;margin-top:8px;padding:7px 9px;border-radius:9px;background:rgba(255,205,92,.14);font-size:10px;line-height:1.4}
+@media(max-width:420px){.bir-v2996-rail{gap:6px;margin-left:7px;margin-right:7px}.bir-v2996-ai-copy strong{font-size:10.5px}.bir-v2996-ai-promo{padding:6px 8px}.bir-v2996-ai-mark{width:26px;height:26px;flex-basis:26px}}
