@@ -12,8 +12,8 @@ android {
         applicationId "com.profitloop.blueauto"
         minSdk 23
         targetSdk 34
-        versionCode 67
-        versionName "2.9.9.3"
+        versionCode 68
+        versionName "2.9.9.4"
     }
 
     buildFeatures {
@@ -21,8 +21,9 @@ android {
     }
 
     // Permanent-update lineage: v2.9.8 = vc63; v2.9.9 = vc64; v2.9.9.1 = vc65; v2.9.9.2 = vc66.
-    // v2.9.9.3 = vc67: one modern Android 6+ runtime uses the proven v2.9.7 Intelligence/Cockpit
-    // foundation plus the current additive Tchoronko and child War Room layer. No Android 11 UI fork.
+    // v2.9.9.3 = vc67 unified the modern Android 6+ interface.
+    // v2.9.9.4 = vc68 keeps that exact architecture and repairs War Room truth fallback,
+    // refresh completeness and observable button routing without changing finance/USSD rules.
     // Historical package and permanent certificate identity remain unchanged.
     signingConfigs {
         pilotDebug {
