@@ -24,6 +24,18 @@ bir_resumed(){
   adb shell dumpsys activity activities 2>/dev/null | grep -E 'mResumedActivity|ResumedActivity' | grep -q "$package"
 }
 
+package_uid(){
+  local u=''
+  u="$(adb shell stat -c %u "/data/user/0/$package" 2>/dev/null | head -1 | tr -d '\r' || true)"
+  if ! printf '%s' "$u" | grep -Eq '^[0-9]+$'; then
+    u="$(adb shell dumpsys package "$package" 2>/dev/null | sed -n 's/.*userId=\([0-9]*\).*/\1/p' | head -1 | tr -d '\r' || true)"
+  fi
+  if ! printf '%s' "$u" | grep -Eq '^[0-9]+$'; then
+    u="$(adb shell cmd package list packages -U "$package" 2>/dev/null | sed -n 's/.*uid:\([0-9]*\).*/\1/p' | head -1 | tr -d '\r' || true)"
+  fi
+  printf '%s' "$u"
+}
+
 test -n "$apk" || fail 81 'qualification APK path missing'
 test -s "$apk" || fail 81 'qualification APK empty'
 
@@ -51,8 +63,8 @@ adb wait-for-device
 if ! adb shell id | grep -q 'uid=0(root)'; then
   fail 80 'emulator image does not allow adb root; cannot seed WebView profile safely'
 fi
-uid="$(adb shell dumpsys package "$package" | sed -n 's/.*userId=\([0-9]*\).*/\1/p' | head -1 | tr -d '\r')"
-[ -n "$uid" ] || fail 80 'could not resolve package uid'
+uid="$(package_uid)"
+printf '%s' "$uid" | grep -Eq '^[0-9]+$' || fail 80 'could not resolve package uid'
 
 cat >/tmp/bir-prefs.xml <<'XML'
 <?xml version='1.0' encoding='utf-8' standalone='yes' ?>
