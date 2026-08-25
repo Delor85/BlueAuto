@@ -33,4 +33,5 @@
 - Le smoke injecte uniquement dans l'émulateur un profil DAE local/non-production afin d'ouvrir le vrai WebView. Il exige le cockpit moderne `COCKPIT ADAPTATIF` puis la `WAR ROOM DES ENFANTS` avant tout stress.
 - Le stress ne clique aucune opération financière : navigation Accueil/Réseau, défilement et cycles arrière-plan/reprise uniquement. Android 11 reçoit un stress renforcé.
 - L'ancien rouge de matrice du run 32834988156 était un défaut de harnais : `android-emulator-runner` exécutait chaque ligne du bloc shell séparément et coupait la boucle `for` avant `done`. Ce résultat n'est pas une preuve de plantage applicatif.
+- Le workflow historique `v299-reference-stability.yml` est désormais limité à sa propre ligne 2.9.9 ; il ne juge plus la 2.9.9.3 avec des contrats de l'architecture abandonnée.
 - Le cahier des charges maître ne sera déclaré définitivement mis à jour qu'après qualification de l'APK exact et validation terrain, notamment Android 11 réel.
