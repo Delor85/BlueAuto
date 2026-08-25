@@ -22,6 +22,7 @@ must(guard.includes("document.addEventListener('click',captureQuery,true)")&&gua
 must(guard.includes("if(r==='POS'){denyPos();return true;}")&&guard.includes("if(r==='DAE'&&t.type!=='DSM')")&&guard.includes("if(r==='DSM'&&t.type!=='POS')"),'direct-child hierarchy guard DAE->DSM / DSM->POS / POS->none missing');
 must(guard.includes("k!=='network'")||guard.includes("k==='network'||k==='fleet'"),'restricted network quick action protection missing');
 must(guard.includes('DAE/DSM-only services are intentionally omitted.'),'public service catalog must remain role scoped for PoS');
+must(guard.includes("var old=id('birV2996Rail')")&&guard.includes("if(old)old.style.display='none'")&&guard.includes("rail.id='birV2996PosRail'"),'PoS must replace the generic DAE/DSM discovery rail');
 
 const frMatch=guard.match(/var POS_PROMOS_FR=(\[[^\n]+\]);/);
 must(frMatch,'PoS promo list missing');
@@ -37,4 +38,4 @@ for(const source of [js,guard])for(const re of [/querySelector\([^\n]*request-su
 
 must(js.includes('document.visibilityState')&&js.includes('window.setTimeout'),'promo rotation must be visibility-aware and non-polling');
 must(guard.includes('document.visibilityState')&&guard.includes('window.setTimeout'),'PoS promo rotation must be visibility-aware and non-polling');
-console.log('B.I.R. 2.9.9.6 AI guide: strict PoS scope + DAE->DSM / DSM->PoS hierarchy + compact language + role-scoped guide + safe preparation, no finance execution or unstable runtime mechanism: OK');
+console.log('B.I.R. 2.9.9.6 AI guide: strict PoS scope + generic rail replacement + DAE->DSM / DSM->PoS hierarchy + compact language + role-scoped guide + safe preparation, no finance execution or unstable runtime mechanism: OK');
