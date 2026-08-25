@@ -1,7 +1,7 @@
 (function(){
 'use strict';
-/* B.I.R. 2.9.9.3 — direct-child War Rooms + reliable Tchoronko.
- * Standalone on Android 11: it must work on the proven v2.9.7 UI foundation without v298/v299/v2991/v2992.
+/* B.I.R. 2.9.9.3 — unified Android 6+ direct-child War Rooms + reliable Tchoronko.
+ * Loaded identically on every supported Android above the proven v2.9.7 Intelligence/Cockpit core.
  * Read/control-plane only. It never creates/previews/confirms finance, never dials raw USSD and never polls periodically.
  */
 var S={installed:false,c:{},snapshot:null,policy:null,ledger:[],ops:null,pending:null,queue:[],wrapped:false,selected:null,lastRefreshAt:0};
