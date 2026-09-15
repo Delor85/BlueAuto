@@ -1,4 +1,6 @@
-run=seed
+run=v2.9.3-accessibility-reboot-1
 source_sha=33a15f4eb7e0c04b0dac8c82837037396c49cea2
+window_seconds=150
+reboot=true
 production_deploy=forbidden
 permanent_signing=forbidden
