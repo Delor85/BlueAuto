@@ -1,7 +1,9 @@
-name: Déployer Blue Magic sur Cloudflare
+name: Déployer Blue Magic v2.6.7 sur Cloudflare
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [fix/blue-magic-v2-6-recovery]
+    paths: [.github/authorized-v267-production.trigger]
 
 permissions:
   contents: read
@@ -12,9 +14,10 @@ concurrency:
 
 jobs:
   deploy-production:
+    if: "${{ github.event.head_commit.message == 'release: authorized Blue Magic v2.6.7 platform handoff' }}"
     runs-on: ubuntu-latest
     environment: production
-    timeout-minutes: 20
+    timeout-minutes: 25
     defaults:
       run:
         working-directory: cloudflare
@@ -24,8 +27,8 @@ jobs:
       CLOUDFLARE_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
 
     steps:
-      - name: Récupérer la version validée
-        uses: actions/checkout@v4
+      - name: Récupérer le commit v2.6.7 autorisé
+        uses: actions/checkout@v5
 
       - name: Installer Node.js 22
         uses: actions/setup-node@v4
@@ -48,14 +51,36 @@ jobs:
           npx wrangler --version
           npx wrangler deploy --dry-run --config wrangler.production.jsonc
 
-      - name: Vérifier les migrations D1 en attente
-        run: npx wrangler d1 migrations list blue-magic --remote --config wrangler.production.jsonc
+      - name: Exiger uniquement la migration D1 0004
+        run: |
+          set -euo pipefail
+          migration_status="$(npx wrangler d1 migrations list blue-magic --remote --config wrangler.production.jsonc 2>&1)"
+          printf '%s\n' "$migration_status"
+          pending="$(printf '%s\n' "$migration_status" \
+            | grep -oE '000[0-9][A-Za-z0-9_.-]*\.sql' | sort -u || true)"
+          if [ "$pending" != '0004_blue_message_intelligence_and_modules.sql' ]; then
+            echo "::error::Périmètre refusé. Migration attendue: 0004_blue_message_intelligence_and_modules.sql seulement. Reçu: ${pending:-aucune/inconnue}."
+            exit 1
+          fi
 
-      - name: Appliquer les migrations additives D1
+      - name: Appliquer uniquement la migration additive autorisée
         run: npx wrangler d1 migrations apply blue-magic --remote --config wrangler.production.jsonc
+
+      - name: Confirmer que toutes les migrations sont appliquées
+        run: |
+          set -euo pipefail
+          migration_status="$(npx wrangler d1 migrations list blue-magic --remote --config wrangler.production.jsonc 2>&1)"
+          printf '%s\n' "$migration_status"
+          printf '%s\n' "$migration_status" | grep -q 'No migrations to apply'
 
       - name: Déployer uniquement blue-magic-api
         run: npx wrangler deploy --config wrangler.production.jsonc
 
-      - name: Vérifier le Worker et la base après déploiement
-        run: curl --fail --silent --show-error --retry 5 --retry-delay 3 "https://blue-magic-api.mbolodelorpro.workers.dev/api?action=health"
+      - name: Vérifier le Worker v2.6.7 et D1
+        run: |
+          set -euo pipefail
+          health="$(curl --fail --silent --show-error --retry 10 --retry-delay 3 \
+            "https://blue-magic-api.mbolodelorpro.workers.dev/api?action=health&release=267")"
+          printf '%s\n' "$health"
+          printf '%s\n' "$health" | grep -q '"version":"2.6.7-cloudflare"'
+          printf '%s\n' "$health" | grep -q '"database":"online"'

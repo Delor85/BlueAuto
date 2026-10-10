@@ -1,5 +1,90 @@
 # Protocole de test terrain — avant argent réel
 
+## Gate 0AA — v2.6.7 coordonnée
+
+Ne commencer ce gate qu'après confirmation de `2.6.7-cloudflare`, D1 avec migration `0003` et APK `2.6.7 • versionCode 47`. Une APK v2.6.7 contre le Worker v2.6.5 n'est pas un environnement valide.
+
+1. Installer la vraie APK Release par-dessus la v2.6.5 ou v2.6.6 permanente, sans désinstaller. Conserver un compte, son slot et un marqueur de données.
+2. Sur Android 6, 7, 8, 9, 10, 11, 12, 13, 14 et, si disponibles, 15/16 : relever séparément le message d'installation et le résultat d'ouverture. Ne jamais confondre un délai `am start` avec un refus PackageInstaller.
+3. En cas d'échec Android 11, relever avant désinstallation : modèle, version installée/versionCode, taille et SHA-256 du fichier, espace libre, sources inconnues et sortie exacte `adb install -r` si ADB est disponible.
+4. Vérifier que l'APK n'est pas débogable et que son certificat SHA-256 est le certificat permanent documenté.
+
+## Gate 0AB — solde avant achat
+
+1. Sur le Robot du supérieur, valider d'abord **Consulter mon solde** et vérifier que Rapports affiche le montant et son horodatage.
+2. Dans les trois minutes, depuis un DSM/PoS enfant, demander un montant inférieur : l'app doit annoncer la réutilisation de la preuve et afficher la confirmation 1/2 sans nouvelle commande `BALANCE_OWN`.
+3. Répéter après **5 dernières transactions** contenant un libellé explicite de solde actuel : ce solde doit être réutilisé. Répéter avec une liste ne contenant que montants de transactions et frais : elle ne doit pas remplacer le solde et, après expiration, une lecture fraîche est obligatoire.
+4. Annuler à cette confirmation : aucune commande de transfert ne doit être créée.
+5. Demander ensuite un montant supérieur au solde : aucune confirmation 1/2 et aucune finance ne doivent être créées. Le message doit afficher le montant disponible exact et demander de recommencer avec `montant ≤ disponible`.
+6. Recommencer avec le montant exact disponible. La confirmation 1/2 apparaît, mais signaler que le contrôle ne réserve pas le crédit chez Camtel et qu'un autre enfant peut encore le consommer.
+7. Répéter depuis deux enfants quasi simultanés : une même preuve de capacité ne doit jamais créer deux commandes dépassant ensemble le stock ; achats et ventes en attente doivent réduire le disponible calculé.
+8. Attendre plus de 180 secondes : la preuve doit expirer et entraîner une unique consultation fraîche mutualisée.
+
+## Gate 0AC — verrou simple sans voile
+
+Répéter sur Android 6, 8 et 11 : écran ouvert, écran éteint + swipe, écran allumé + swipe, puis verrou sécurisé.
+
+- aucune activité Blue Magic visible, aucun assombrissement et aucun voile ;
+- prompt Téléphone visible, PIN réellement présent (même exposé), bouton ENVOYER activé, résultat en moins de 30 secondes ;
+- si le swipe lock n'est pas réellement retiré sous quatre secondes, aucun `DIALING` et aucune composition ;
+- verrou sécurisé : commande différée, jamais contournée ;
+- après succès/échec, le verrou simple est restauré ;
+- répéter Test, Achat, Vente, Remote→Robot, annulation, mismatch montant/numéro et multi-SIM.
+
+## Gate 0AD — commandes et onglets du cahier
+
+Tester sans fonds : Test numéro, solde propre, cinq dernières transactions, détail par ID et solde enfant. Ensuite, sur des SIM de recette seulement et avec confirmation de la cible : init reset PIN enfant, suspension/réactivation, gel/réactivation et gel propre. Rapports et Flotte doivent montrer uniquement l'arborescence autorisée, les soldes horodatés et le badge Android ou `NON_ENREGISTRE`. Ne pas tester une commande de gel sur une SIM de production active.
+
+## Gate 0 — mise à jour v2.6.5 → v2.6.6
+
+1. Depuis la v2.6.5 permanente actuellement installée, installer la v2.6.6 **par-dessus**, sans désinstallation, puis confirmer `2.6.6 • versionCode 46`. La CI doit avoir réussi la mise à jour v2.6.5→v2.6.6 sur API 23, 26, 30 et 36 avec conservation des données.
+2. Sur Android 11 en particulier, si l’installation directe échoue, ne pas multiplier immédiatement les désinstallations : photographier le message, relever la version installée, le modèle et l’espace libre, puis tester la même APK une seconde fois. Une désinstallation efface les comptes locaux et empêche de prouver la compatibilité de mise à jour.
+3. Dans l’écran principal, ouvrir **SAV → Vérifier le serveur**. Le résultat doit indiquer `blue-magic-api`, `2.6.5-cloudflare` et D1 `online`.
+4. Ne supprimer ni ne recréer un compte existant pour ce test ; vérifier que ses données, son mode et son slot sont conservés.
+
+## Gate 0B — ergonomie et modules v2.6.6
+
+1. Vérifier que le nœud actif reste en haut et que les cinq modules sont dans le dock flottant inférieur, avec **Flux** au centre.
+2. Ouvrir successivement Rapports, Flotte, Flux, Robot et SAV. Aucun écran ne doit être vide ni déplacer les cartes financières hors de Flux.
+3. Dans **Gérer**, vérifier que **MODIFIER LE PIN CAMTEL** est visible avant Autorisations, que la barre de défilement latérale reste visible et que le texte signale les autres réglages.
+4. Ouvrir le réglage PIN, saisir quatre chiffres dans l’environnement surveillé, contrôler la case d’affichage volontaire puis annuler. Le PIN réel ne doit jamais figurer dans une capture de test.
+5. Dans Flotte, vérifier que **Comptes et slots** et **Vérifier / lier la SIM** ouvrent les écrans natifs attendus. Dans Robot, vérifier Autorisations, PIN et Gérer. Dans SAV, vérifier la santé du serveur et le renvoi vers le test sans fonds.
+6. Lorsque le clavier d’un montant ou numéro est ouvert, le dock inférieur doit disparaître ; il doit revenir après fermeture du clavier.
+
+## Gate 1 — rétablissement de `TEST_NUMBER` sans fonds
+
+1. Sur le compte Robot, accordez Téléphone et État du téléphone, puis utilisez **VÉRIFIER / LIER LA SIM**.
+2. Désactivez temporairement l’Accessibilité Blue Magic : l’interface doit avertir que seule la finance est indisponible.
+3. Démarrez le Robot. Il doit rester actif au lieu d’être arrêté pour absence d’Accessibilité.
+4. Depuis le même profil polyvalent ou depuis le Remote, lancez **Tester la SIM Robot**.
+5. Le Remote doit afficher soit `ONLINE` avec « Robot détenteur de la SIM connecté », soit un diagnostic explicite `OFFLINE`/`STALE`. Il ne doit plus prétendre que la commande a été transmise quand aucun Robot ne communique.
+6. Si `ONLINE` est affiché, le Robot doit louer la commande en moins de 10 secondes et composer uniquement `*825*3*3#`. Relevez le numéro affiché et le code d’erreur exact si la composition n’a pas lieu.
+7. Réactivez l’Accessibilité avant toute transaction financière.
+
+Ce Gate valide la correction de la régression principale sans exposer de fonds. Aucun achat ni vente ne doit être tenté avant sa réussite.
+
+## Gate 2 — insertion du PIN sous verrou simple
+
+1. Utilisez un téléphone Robot physiquement surveillé, avec un simple verrou par glissement, sans PIN, schéma, mot de passe ni empreinte Android.
+2. Lancez une transaction minimale supervisée seulement après la réussite de Gate 1.
+3. Le verrou simple doit être retiré temporairement pour exposer la fenêtre système USSD, puis restauré après l'opération.
+4. Après vérification du numéro et du montant, Blue Magic doit écrire le PIN puis toucher le bouton de validation. Aucun voile « PIN protégé » ne doit recouvrir ou gêner le dialogue. Le PIN peut être visible physiquement pendant ces quelques secondes, mais il doit rester absent des journaux, du Worker et de D1.
+5. Un verrou Android sécurisé ne doit jamais être contourné ; la commande financière doit être différée jusqu’au déverrouillage.
+
+## Gate 3 — cartes et opérations financières
+
+Après la mise à jour, ouvrez successivement chaque compte déjà appairé, sans le supprimer :
+
+- `DAE` doit voir **Approvisionnement**, mais pas Achat ni Vente client ;
+- `DSM` doit voir **Achat de crédit** et **Approvisionnement** ;
+- `POS` doit voir **Achat de crédit** et **Vente client** ;
+- chaque écran doit afficher une phrase qui confirme explicitement les actions autorisées pour le rôle.
+- sur Android 6 comme sur les versions récentes, Achat, Vente et Test doivent avoir le même état actif bleu, jamais gris ou blanc au repos ;
+- après pression, l’écran doit afficher « Vérification des numéros officiels et de la filiation… », puis la confirmation native avec fournisseur, bénéficiaire et montant ;
+- **ANNULER** ne doit créer ni composer aucune commande ; **CONFIRMER** doit transmettre exactement l’empreinte de cette prévisualisation.
+
+Si le rôle reste « — », n’effectuez aucune opération financière : utilisez **☰ GÉRER → VÉRIFIER / RÉPARER L’APPAIRAGE** et contrôlez le nœud ainsi que son supérieur.
+
 ## Gate A — Serveur
 
 - `api.php?action=health` renvoie du JSON, jamais une page HTML ;
@@ -55,6 +140,8 @@ Effectuer d’abord une transaction manuelle minimale et noter le texte exact du
 | `SIM_PERMISSION_MISSING` | l’autorisation État du téléphone manque | Autorisations → Téléphone/État du téléphone → Autoriser |
 | `SIM_SELECTION_FAILED` | slot vide ou compte d’appel Android non associé | vérifier la SIM choisie dans le compte et qu’elle est active pour les appels |
 | `ROBOT_SIM_NOT_VERIFIED` | SIM non liée, déplacée ou attestation serveur absente | ouvrir **☰ GÉRER → VÉRIFIER / LIER LA SIM**, puis redémarrer ce Robot |
+| `OFFLINE` | aucun Robot vérifié n’est actuellement élu pour ce nœud | ouvrir le téléphone portant la SIM, vérifier la SIM, puis démarrer le Robot |
+| `STALE` | un ancien Robot est enregistré mais n’envoie plus de heartbeat | ouvrir l’ancien téléphone s’il existe ; sinon réparer l’appairage sur le téléphone qui possède physiquement la SIM puis redémarrer le Robot |
 | `CONFIRMATION_MISMATCH` | numéro/montant formaté différemment ou réellement faux | ne pas forcer; capturer le pop-up et adapter le parseur |
 | `WRONG_PIN` | PIN local erroné | arrêter, vérifier manuellement, enregistrer le bon PIN; aucune répétition |
 | `UNKNOWN` | transfert possiblement exécuté sans preuve captée | vérifier solde et cinq dernières transactions avant toute nouvelle tentative |
@@ -73,12 +160,14 @@ Le même modèle de téléphone, la même version Android, la même application 
 5. Chaque profil garde séparément son jeton, son PIN chiffré, son slot SIM et son historique local.
 6. Lancez deux demandes rapprochées : la seconde doit rester `PENDING` jusqu’à la fermeture complète de la première, puis démarrer après le délai de séparation.
 
-## Test obligatoire de déplacement d’une SIM
+## Test obligatoire de déplacement ou remplacement d’une SIM
 
 1. Sur T1, liez POS1 au slot 2 et DSM1 au slot 1, puis démarrez les deux Robots.
-2. Éteignez T1, retirez POS1 du slot 2 et insérez-la dans T2.
-3. Sur T2, appairez POS1, sélectionnez son slot réel, confirmez **VÉRIFIER / LIER LA SIM**, puis démarrez le Robot.
-4. Rallumez T1 : POS1 doit afficher **SIM BLOQUÉE / Robot ARRÊTÉ** tandis que DSM1 reste actif.
-5. Depuis T3 Remote, lancez uniquement `TEST_NUMBER` pour POS1 : T2 doit louer et exécuter la commande ; T1 ne doit ni composer le test ni capturer la commande.
-6. Répétez avec un deuxième `TEST_NUMBER` pour DSM1 : seul le slot 1 de T1 doit être utilisé.
-7. Ne passez à une transaction de 1 FCFA qu’après dix alternances POS1/DSM1 sans erreur de SIM, de slot ou de nœud.
+2. Depuis T2, appairez POS1 en mode **REMOTE**, puis entrez dans le **hall Robot**. Cette entrée ne doit demander aucune permission et ne doit pas démarrer le Robot.
+3. Dans le hall, accordez les autorisations, choisissez le slot réel et confirmez **VÉRIFIER / LIER LA SIM**. Sans la SIM, le démarrage doit rester impossible.
+4. Cas normal : arrêtez explicitement T1, déplacez la SIM vers T2 et démarrez T2.
+5. Cas fantôme : si le compte de T1 a été supprimé et que `ROBOT_ALREADY_ACTIVE` apparaît, T2 doit proposer **VÉRIFIER LA SIM ET REMPLACER**. La même SIM au bon slot doit désactiver uniquement l'ancien propriétaire correspondant et démarrer T2. Une SIM absente ou différente doit être refusée.
+6. Sur T1, l’ancien profil POS1 doit rester en attente serveur et ne jamais louer la file, tandis que DSM1 reste actif. Une SIM physiquement absente doit toujours arrêter localement son profil Robot.
+7. Depuis T3 Remote, lancez uniquement `TEST_NUMBER` pour POS1 : T2 doit louer et exécuter la commande ; T1 ne doit ni composer le test ni capturer la commande.
+8. Répétez avec un deuxième `TEST_NUMBER` pour DSM1 : seul le slot 1 de T1 doit être utilisé.
+9. Ne passez à une transaction de 1 FCFA qu’après dix alternances POS1/DSM1 sans erreur de SIM, de slot ou de nœud.

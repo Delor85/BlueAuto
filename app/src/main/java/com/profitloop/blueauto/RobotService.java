@@ -10,6 +10,7 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.pm.ServiceInfo;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.PowerManager;
@@ -17,7 +18,9 @@ import android.os.SystemClock;
 
 import org.json.JSONObject;
 
+import java.util.Calendar;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -32,6 +35,7 @@ public class RobotService extends Service {
     static final String ACTION_CANCEL = "com.profitloop.blueauto.CANCEL_PENDING";
     static final String ACTION_PIN_SUBMITTED = "com.profitloop.blueauto.PIN_SUBMITTED";
     static final String ACTION_OPERATOR_RESULT = "com.profitloop.blueauto.OPERATOR_RESULT";
+    static final String ACTION_AUDIT = "com.profitloop.blueauto.REQUEST_AUDIT";
     static final String EXTRA_PROFILE_ID = "profile_id";
     static final String EXTRA_SUCCESS = "success";
     static final String EXTRA_MESSAGE = "message";
@@ -42,18 +46,19 @@ public class RobotService extends Service {
     private static final int NOTIFICATION_ID = 5502;
     private static final int WATCHDOG_REQUEST_CODE = 5503;
     private static final long STANDBY_WAKE_MS = 30 * 60_000L;
-    private static final long WATCHDOG_INTERVAL_MS = 15 * 60_000L;
-    private static final long SYSTEM_USSD_SCREEN_WAKE_MS = 20_000L;
+    private static final long WATCHDOG_INTERVAL_MS = 60_000L;
+    private static final long SIMPLE_UNLOCK_WAIT_MS = 3_500L;
+    private static final long SIMPLE_UNLOCK_COOLDOWN_MS = 30_000L;
 
     private ScheduledExecutorService executor;
     private final AtomicBoolean cycleRunning = new AtomicBoolean(false);
     private final Map<String, Long> lastHeartbeatByProfile = new HashMap<>();
+    private final Map<String, Long> apiRetryAtByProfile = new HashMap<>();
+    private final Map<String, Integer> apiFailureCountByProfile = new HashMap<>();
     private long backoffMs = AppConfig.IDLE_POLL_MS;
     private int roundRobinIndex = 0;
     private PowerManager.WakeLock commandWakeLock;
-    private PowerManager.WakeLock commandScreenWakeLock;
     private PowerManager.WakeLock standbyWakeLock;
-    private boolean insecureKeyguardDismissed;
     private long standbyWakeRenewAt = 0L;
     private long lastCommandFinishedAt = 0L;
 
@@ -62,7 +67,7 @@ public class RobotService extends Service {
         super.onCreate();
         executor = Executors.newSingleThreadScheduledExecutor();
         createNotificationChannel();
-        startForeground(NOTIFICATION_ID, notification("Robots en préparation…"));
+        enterForeground(notification("Robots en préparation…"));
     }
 
     @Override
@@ -80,11 +85,27 @@ public class RobotService extends Service {
             if (!profileId.isEmpty()) {
                 AppConfig.setRobotEnabled(this, profileId, false);
                 lastHeartbeatByProfile.remove(profileId);
+                clearProfileApiFailure(profileId);
             }
             if (!AppConfig.anyRobotEnabled(this)) releaseStandbyWakeLock();
-            if (!hasServiceWork()) {
-                updateNotification("Tous les Robots sont arrêtés");
-                stopSelf();
+            final String stoppedProfile = profileId;
+            final boolean stopAfterRelease = !hasServiceWork();
+            executor.execute(() -> {
+                try {
+                    if (!stoppedProfile.isEmpty()) {
+                        ApiClient.forProfile(this, stoppedProfile).heartbeat();
+                    }
+                } catch (Exception ignored) {
+                    // Local stop remains authoritative; no other phone is elected automatically.
+                } finally {
+                    if (stopAfterRelease) {
+                        updateNotification("Tous les Robots sont arrêtés");
+                        stopSelf();
+                    }
+                }
+            });
+            if (stopAfterRelease) {
+                updateNotification("Arrêt du Robot en cours de confirmation…");
                 return START_NOT_STICKY;
             }
             updateNotification(robotSummary("Robot arrêté; autres Robots actifs"));
@@ -109,9 +130,16 @@ public class RobotService extends Service {
             return START_STICKY;
         }
 
+        if (ACTION_AUDIT.equals(action)) {
+            final String targetProfile = profileId;
+            executor.schedule(() -> queueOverlapAudit(targetProfile, true), 1_000L, TimeUnit.MILLISECONDS);
+            return START_STICKY;
+        }
+
         if (ACTION_START.equals(action) && !profileId.isEmpty()) {
             AppConfig.setRobotEnabled(this, profileId, true);
             lastHeartbeatByProfile.remove(profileId);
+            clearProfileApiFailure(profileId);
         }
         if (!hasServiceWork()) {
             stopSelf();
@@ -178,6 +206,33 @@ public class RobotService extends Service {
             JSONObject activeUssd = activeCommands.isEmpty() ? null : activeCommands.get(0);
             if (activeUssd != null) {
                 String owner = activeUssd.optString("local_profile_id", "");
+                String localState = activeUssd.optString("local_state", PendingCommandStore.LEASED);
+                if (PendingCommandStore.LEASED.equals(localState)) {
+                    ApiClient leasedApi = ApiClient.forProfile(this, owner);
+                    if (DeviceLockState.isSecurelyLocked(this)) {
+                        releaseLockedLease(owner, activeUssd, leasedApi);
+                        nextDelay = AppConfig.LOCKED_POLL_MS;
+                    } else if (!DeviceLockState.blocksUssd(this)) {
+                        executeCommand(owner, activeUssd, leasedApi);
+                        nextDelay = 2_000L;
+                    } else {
+                        long assistAt = activeUssd.optLong("simple_unlock_assist_at", 0L);
+                        if (assistAt <= 0L) {
+                            if (beginSimpleUnlockAssist(owner, activeUssd)) {
+                                nextDelay = 750L;
+                            } else {
+                                releaseLockedLease(owner, activeUssd, leasedApi);
+                                nextDelay = AppConfig.LOCKED_POLL_MS;
+                            }
+                        } else if (System.currentTimeMillis() - assistAt >= SIMPLE_UNLOCK_WAIT_MS) {
+                            releaseLockedLease(owner, activeUssd, leasedApi);
+                            nextDelay = AppConfig.LOCKED_POLL_MS;
+                        } else {
+                            nextDelay = 750L;
+                        }
+                    }
+                    return;
+                }
                 if (PendingCommandStore.isExpired(activeUssd)) {
                     finishCommand(owner, false, "RESULT_TIMEOUT",
                             "Aucune confirmation fiable reçue dans le délai. Vérification manuelle requise.", "");
@@ -185,16 +240,6 @@ public class RobotService extends Service {
                 } else {
                     nextDelay = 2_000L;
                 }
-                return;
-            }
-
-            // A credential-protected keyguard cannot safely expose the Camtel PIN prompt. Keep
-            // every Robot enabled and retry shortly after the user unlocks; a swipe-only keyguard
-            // is handled temporarily when the call is actually placed.
-            if (DeviceLockState.isSecurelyLocked(this)) {
-                updateNotification(robotSummary(
-                        "Téléphone protégé — reprise automatique après déverrouillage"));
-                nextDelay = AppConfig.LOCKED_POLL_MS;
                 return;
             }
 
@@ -211,8 +256,14 @@ public class RobotService extends Service {
                 int index = (roundRobinIndex + offset) % count;
                 String profileId = profiles.get(index);
                 if (!AppConfig.isPaired(this, profileId) || !AppConfig.isRobotMode(this, profileId)) continue;
-                if (AppConfig.pinBlocked(this, profileId)) continue;
                 if (PendingCommandStore.get(this, profileId) != null) continue;
+                long retryAt = apiRetryAtByProfile.containsKey(profileId)
+                        ? apiRetryAtByProfile.get(profileId) : 0L;
+                if (retryAt > System.currentTimeMillis()) {
+                    lastProfileProblem = AppConfig.nodeCode(this, profileId)
+                            + " : réseau en reprise; autres SIM prioritaires";
+                    continue;
+                }
 
                 ApiClient api = ApiClient.forProfile(this, profileId);
                 try {
@@ -232,11 +283,13 @@ public class RobotService extends Service {
                     long lastHeartbeat = lastHeartbeatByProfile.containsKey(profileId)
                             ? lastHeartbeatByProfile.get(profileId) : 0L;
                     if (System.currentTimeMillis() - lastHeartbeat >= AppConfig.HEARTBEAT_MS) {
-                        api.heartbeat();
+                        api.heartbeat(lastHeartbeat == 0L);
                         lastHeartbeatByProfile.put(profileId, System.currentTimeMillis());
                     }
 
+                    maybeQueueNightlyNetworkAudit(profileId, api);
                     JSONObject lease = api.leaseCommand();
+                    clearProfileApiFailure(profileId);
                     if (lease.optBoolean("available", false)) {
                         JSONObject command = lease.optJSONObject("command");
                         if (command == null) throw new IllegalStateException("Commande louée absente.");
@@ -246,9 +299,14 @@ public class RobotService extends Service {
                         command.put("state_changed_at", System.currentTimeMillis());
                         PendingCommandStore.save(this, profileId, command);
                         roundRobinIndex = (index + 1) % count;
-                        if (DeviceLockState.isSecurelyLocked(this)) {
-                            releaseLockedLease(profileId, command, api);
-                            nextDelay = AppConfig.LOCKED_POLL_MS;
+                        if (DeviceLockState.blocksUssd(this)) {
+                            if (DeviceLockState.isSecurelyLocked(this)
+                                    || !beginSimpleUnlockAssist(profileId, command)) {
+                                releaseLockedLease(profileId, command, api);
+                                nextDelay = AppConfig.LOCKED_POLL_MS;
+                            } else {
+                                nextDelay = 750L;
+                            }
                             return;
                         }
                         readiness = checkReadiness(profileId);
@@ -265,11 +323,16 @@ public class RobotService extends Service {
                     }
 
                 } catch (ApiClient.ApiException apiError) {
+                    // API business/auth errors are explicit server answers, not transport stalls.
+                    clearProfileApiFailure(profileId);
                     lastProfileProblem = AppConfig.nodeCode(this, profileId)
                             + " : " + apiError.code + " — " + safeMessage(apiError);
                 } catch (Exception profileError) {
+                    long failureRetryAt = markProfileApiFailure(profileId);
+                    long seconds = Math.max(1L, (failureRetryAt - System.currentTimeMillis() + 999L) / 1000L);
                     lastProfileProblem = AppConfig.nodeCode(this, profileId)
-                            + " : réseau — " + safeMessage(profileError);
+                            + " : réseau lent; nouvelle tentative dans ~" + seconds
+                            + " s, autres SIM non bloquées";
                 }
             }
 
@@ -301,6 +364,70 @@ public class RobotService extends Service {
         }
     }
 
+    private void maybeQueueNightlyNetworkAudit(String profileId, ApiClient api) {
+        String role = AppConfig.role(this, profileId).toUpperCase(Locale.ROOT);
+        int startMinute;
+        int spanMinutes;
+        if ("POS".equals(role)) { startMinute = 2 * 60; spanMinutes = 60; }
+        else if ("DSM".equals(role)) { startMinute = 3 * 60; spanMinutes = 60; }
+        else if ("DAE".equals(role)) { startMinute = 4 * 60; spanMinutes = 60; }
+        else return;
+
+        Calendar now = Calendar.getInstance();
+        int minuteOfDay = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE);
+        if (minuteOfDay >= 7 * 60) return;
+        String dayKey = String.format(Locale.US, "%04d-%03d",
+                now.get(Calendar.YEAR), now.get(Calendar.DAY_OF_YEAR));
+        String node = AppConfig.nodeCode(this, profileId);
+        int slot = deterministicNightSlot(node + "|" + dayKey + "|PRIMARY", spanMinutes);
+        int dueMinute = startMinute + slot;
+        android.content.SharedPreferences prefs =
+                getSharedPreferences("blue_magic_night_audit", MODE_PRIVATE);
+        String primaryKey = profileId + "_" + role + "_primary";
+        String finalKey = profileId + "_" + role + "_final";
+        String retryKey = profileId + "_" + role + "_retry_at";
+        long retryAt = prefs.getLong(retryKey, 0L);
+        if (System.currentTimeMillis() < retryAt) return;
+
+        String phase = "";
+        if (minuteOfDay >= dueMinute && !dayKey.equals(prefs.getString(primaryKey, ""))) {
+            phase = "PRIMARY";
+        } else if ("DAE".equals(role)) {
+            // A small second DAE sweep before 06:00 catches post-audit activity without waking
+            // every PoS a second time. Reports themselves remain live and never freeze at this hour.
+            int finalDue = 5 * 60 + 15
+                    + deterministicNightSlot(node + "|" + dayKey + "|FINAL", 40);
+            if (minuteOfDay >= finalDue && !dayKey.equals(prefs.getString(finalKey, ""))) {
+                phase = "FINAL";
+            }
+        }
+        if (phase.isEmpty()) return;
+
+        try {
+            JSONObject result = api.networkBalanceAudit();
+            boolean complete = result.optBoolean("complete", false);
+            android.content.SharedPreferences.Editor edit = prefs.edit();
+            if (complete) {
+                edit.putString("FINAL".equals(phase) ? finalKey : primaryKey, dayKey)
+                        .remove(retryKey).apply();
+            } else {
+                edit.putLong(retryKey, System.currentTimeMillis() + 5 * 60_000L).apply();
+            }
+            updateNotification(robotSummary("Audit " + phase.toLowerCase(Locale.ROOT) + " " + role + " : "
+                    + result.optInt("queued", 0) + " requête(s), "
+                    + result.optInt("reused", 0) + " preuve(s), "
+                    + result.optInt("deferred", 0) + " différée(s)"));
+        } catch (Exception ignored) {
+            prefs.edit().putLong(retryKey, System.currentTimeMillis() + 5 * 60_000L).apply();
+        }
+    }
+
+    private static int deterministicNightSlot(String key, int spanMinutes) {
+        int hash = key == null ? 0 : key.hashCode();
+        if (hash == Integer.MIN_VALUE) hash = 0;
+        return Math.abs(hash) % Math.max(1, spanMinutes);
+    }
+
     private boolean retryOneDueFinalReport() {
         boolean outstanding = false;
         boolean attempted = false;
@@ -327,18 +454,24 @@ public class RobotService extends Service {
                 disableUnsafeRobot(profileId, readiness.message);
                 return;
             }
+            String operation = UssdCommandFactory.operation(command);
+            CommandExecutionPolicy.Capability capability = CommandExecutionPolicy.capability(
+                    operation,
+                    SecurePinStore.hasPin(this, profileId),
+                    BlueAccessibilityService.isEnabled(this),
+                    AppConfig.pinBlocked(this, profileId));
+            if (!capability.ready) {
+                if ("ACCESSIBILITY_DISABLED".equals(capability.code)) {
+                    releaseUnexecutedLease(profileId, command, api,
+                            "Accessibilité Blue Magic désactivée; transaction financière conservée en file.");
+                    updateNotification(robotSummary("Robot actif — Accessibilité à réactiver; achats/ventes restent en file"));
+                    return;
+                }
+                finishCommand(profileId, false, capability.code, capability.message, "");
+                return;
+            }
             String ussd = UssdCommandFactory.buildAndValidate(this, profileId, command);
             boolean requiresPin = UssdCommandFactory.requiresPin(command);
-            if (requiresPin && !SecurePinStore.hasPin(this, profileId)) {
-                finishCommand(profileId, false, "PIN_NOT_CONFIGURED",
-                        "Aucun PIN opérateur chiffré sur ce Robot.", "");
-                return;
-            }
-            if (requiresPin && !BlueAccessibilityService.isEnabled(this)) {
-                finishCommand(profileId, false, "ACCESSIBILITY_DISABLED",
-                        "Service d’accessibilité Blue Magic désactivé.", "");
-                return;
-            }
             if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
                 finishCommand(profileId, false, "CALL_PERMISSION_MISSING",
                         "Autorisation Téléphone non accordée.", "");
@@ -350,23 +483,22 @@ public class RobotService extends Service {
                         "Autorisation État du téléphone requise pour sélectionner la SIM.", "");
                 return;
             }
+            if (DeviceLockState.blocksUssd(this)) {
+                releaseLockedLease(profileId, command, api);
+                return;
+            }
             acquireCommandWakeLock();
-            PendingCommandStore.updateState(this, profileId, PendingCommandStore.DIALING);
-            api.sendEvent(command, "DIALING", "Composition USSD déclenchée sur le Robot.", "");
-            updateNotification("Commande " + AppConfig.nodeCode(this, profileId) + " en cours");
-
-            String next = requiresPin ? PendingCommandStore.AWAITING_PIN : PendingCommandStore.AWAITING_RESULT;
-            PendingCommandStore.updateState(this, profileId, next);
-            api.sendEvent(command, next, requiresPin
-                    ? "En attente de la fenêtre de confirmation PIN."
-                    : "En attente du résultat opérateur.", "");
-
             try {
-                boolean needsWakeSettle = !DeviceLockState.isScreenInteractive(this)
-                        || DeviceLockState.isInsecurelyLocked(this);
-                acquireCommandScreenWakeLock();
-                insecureKeyguardDismissed = DeviceLockState.dismissInsecureKeyguard(this);
-                waitForSystemUssdWindow(needsWakeSettle);
+                PendingCommandStore.updateState(this, profileId, PendingCommandStore.DIALING);
+                api.sendEvent(command, "DIALING", "Composition USSD déclenchée sur le Robot déverrouillé.", "");
+                updateNotification("Commande " + AppConfig.nodeCode(this, profileId) + " en cours");
+
+                String next = requiresPin ? PendingCommandStore.AWAITING_PIN
+                        : PendingCommandStore.AWAITING_RESULT;
+                PendingCommandStore.updateState(this, profileId, next);
+                api.sendEvent(command, next, requiresPin
+                        ? "En attente de la fenêtre de confirmation PIN."
+                        : "Commande directe avec PIN local déjà composé; attente du résultat opérateur.", "");
                 SimCallManager.placeUssdCall(this, ussd, profileId);
                 if (requiresPin) BlueAccessibilityService.kick(this);
             } catch (SecurityException permissionError) {
@@ -381,19 +513,11 @@ public class RobotService extends Service {
         }
     }
 
-    private void waitForSystemUssdWindow(boolean needsWakeSettle) {
-        if (!needsWakeSettle) return;
-        try {
-            Thread.sleep(1_200L);
-        } catch (Exception ignored) {
-        }
-    }
 
     private void reportProgress(String profileId, String state, String message) {
         if (profileId == null || profileId.isEmpty()) return;
         JSONObject command = PendingCommandStore.get(this, profileId);
         if (command == null) return;
-        if ("PIN_SUBMITTED".equals(state)) releaseCommandScreenWakeLock();
         try {
             ApiClient api = ApiClient.forProfile(this, profileId);
             api.sendEvent(command, state, message, "");
@@ -415,9 +539,9 @@ public class RobotService extends Service {
         String state;
         if (success) {
             state = "SUCCEEDED";
-        } else if ("WRONG_PIN".equals(code)) {
+        } else if ("WRONG_PIN".equals(code) || "PIN_BLOCKED".equals(code)) {
             state = "BLOCKED";
-            AppConfig.setPinBlocked(this, profileId, true);
+            if ("WRONG_PIN".equals(code)) AppConfig.setPinBlocked(this, profileId, true);
         } else if ("RESULT_TIMEOUT".equals(code)
                 || "USER_CANCELLED_UNCERTAIN".equals(code)
                 || "CONCURRENT_COMMAND_RECOVERY".equals(code)) {
@@ -445,6 +569,12 @@ public class RobotService extends Service {
             } catch (Exception ignoredAgain) {
             }
         }
+        if (reported && success && "MODIFY_PIN_LOCAL".equals(UssdCommandFactory.operation(command))) {
+            try { PendingPinChangeStore.commit(this, profileId); } catch (Exception ignored) {}
+        }
+        if (reported && success && CommandExecutionPolicy.isFinancial(UssdCommandFactory.operation(command))) {
+            scheduleOverlapAuditAfterFinancial(profileId);
+        }
         if (reported) PendingCommandStore.clear(this, profileId);
         lastCommandFinishedAt = System.currentTimeMillis();
         releaseCommandWakeLock();
@@ -455,6 +585,35 @@ public class RobotService extends Service {
                 : "Dernière commande à vérifier — " + AppConfig.nodeCode(this, profileId)))
                 : "Résultat obtenu — synchronisation en attente");
         scheduleCycle(reported ? 1_000L : 15_000L);
+    }
+
+    private void scheduleOverlapAuditAfterFinancial(String profileId) {
+        String key = "overlap_tx_count_" + profileId;
+        int count = AppConfig.prefs(this).getInt(key, 0) + 1;
+        if (count < 4) {
+            AppConfig.prefs(this).edit().putInt(key, count).apply();
+            return;
+        }
+        AppConfig.prefs(this).edit().putInt(key, 0).apply();
+        executor.schedule(() -> queueOverlapAudit(profileId, false), 15_000L, TimeUnit.MILLISECONDS);
+    }
+
+    private void queueOverlapAudit(String profileId, boolean forced) {
+        if (profileId == null || profileId.isEmpty() || !AppConfig.robotEnabled(this, profileId)) return;
+        if (PendingCommandStore.get(this, profileId) != null) {
+            if (forced) executor.schedule(() -> queueOverlapAudit(profileId, true), 5_000L, TimeUnit.MILLISECONDS);
+            return;
+        }
+        try {
+            JSONObject payload = new JSONObject();
+            payload.put("request_type", "LAST_TRANSACTIONS");
+            payload.put("client_request_id", "audit_" + java.util.UUID.randomUUID().toString().replace("-", ""));
+            ApiClient.forProfile(this, profileId).createCommand(payload);
+            updateNotification(robotSummary("Audit Blue des 5 dernières transactions programmé"));
+            scheduleCycle(0L);
+        } catch (Exception ignored) {
+            if (forced) executor.schedule(() -> queueOverlapAudit(profileId, true), 30_000L, TimeUnit.MILLISECONDS);
+        }
     }
 
     private void retryFinalReport(String profileId, JSONObject command) {
@@ -510,16 +669,41 @@ public class RobotService extends Service {
         }
     }
 
-    private void releaseLockedLease(String profileId, JSONObject command, ApiClient api) {
+    private boolean beginSimpleUnlockAssist(String profileId, JSONObject command) {
+        if (!DeviceLockState.canAssistSimpleUnlock(this) || DeviceLockState.isSecurelyLocked(this)) {
+            return false;
+        }
+        long now = System.currentTimeMillis();
+        String key = "simple_unlock_assist_at_" + profileId;
+        long last = AppConfig.prefs(this).getLong(key, 0L);
+        if (now - last < SIMPLE_UNLOCK_COOLDOWN_MS) return false;
+        if (!SimpleKeyguardAssistActivity.launch(this)) return false;
         try {
-            api.releaseCommand(command,
-                    "Téléphone verrouillé par un mot de passe ou schéma; exécution différée.");
+            command.put("simple_unlock_assist_at", now);
+            PendingCommandStore.save(this, profileId, command);
+        } catch (Exception ignored) {
+            return false;
+        }
+        AppConfig.prefs(this).edit().putLong(key, now).apply();
+        updateNotification(robotSummary("Verrou simple — tentative unique de libération avant l’USSD"));
+        return true;
+    }
+
+    private void releaseLockedLease(String profileId, JSONObject command, ApiClient api) {
+        boolean secure = DeviceLockState.isSecurelyLocked(this);
+        String reason = secure
+                ? "Écran protégé par un verrou sécurisé. Déverrouillage humain obligatoire."
+                : "Le verrou simple n’a pas pu être libéré proprement lors de la tentative ponctuelle.";
+        try {
+            api.releaseCommand(command, reason + " La commande reste dans la file et pourra être reprise.");
         } catch (Exception ignored) {
             // Un ancien serveur relâchera lui-même le lease à son expiration.
         }
         PendingCommandStore.clear(this, profileId);
         releaseCommandWakeLock();
-        updateNotification(robotSummary("Commande différée — déverrouillez le téléphone"));
+        updateNotification(robotSummary(secure
+                ? "Écran sécurisé — déverrouillez ou contactez le titulaire/supérieur; la file reprendra ensuite"
+                : "Écran verrouillé — déverrouillez ou contactez le titulaire/supérieur; Blue Magic reprendra la file"));
     }
 
     private Readiness checkReadiness(String profileId) {
@@ -532,19 +716,12 @@ public class RobotService extends Service {
         if (checkSelfPermission(Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
             return Readiness.failure("Autorisation État du téléphone absente; SIM invérifiable.");
         }
-        if (!SecurePinStore.hasPin(this, profileId)) {
-            return Readiness.failure("PIN Camtel local absent.");
-        }
-        if (!BlueAccessibilityService.isEnabled(this)) {
-            return Readiness.failure("Service d’accessibilité Blue Magic désactivé.");
-        }
         SimIdentityManager.Verification sim = SimIdentityManager.verify(this, profileId);
         if (!sim.valid) return Readiness.failure(sim.message);
-        try {
-            SimCallManager.verifyCallRoute(this, profileId);
-        } catch (Exception error) {
-            return Readiness.failure(safeMessage(error));
-        }
+        // La présence de la SIM est le verrou d'éligibilité. Certains dialers Android 6 à 13
+        // ne publient leur PhoneAccount qu'au moment de l'appel : exiger cette route ici arrêtait
+        // le Robot avant qu'il puisse louer TEST_NUMBER ou une commande financière. La route
+        // exacte reste résolue et contrôlée immédiatement avant placeCall().
         return Readiness.ready(sim);
     }
 
@@ -609,30 +786,10 @@ public class RobotService extends Service {
         }
     }
 
-    @SuppressWarnings("deprecation")
-    private void acquireCommandScreenWakeLock() {
-        releaseCommandScreenWakeLock();
-        PowerManager manager = (PowerManager) getSystemService(POWER_SERVICE);
-        if (manager == null) return;
-        commandScreenWakeLock = manager.newWakeLock(
-                PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP,
-                "BlueMagic:SystemUssdPrompt");
-        commandScreenWakeLock.acquire(SYSTEM_USSD_SCREEN_WAKE_MS);
-    }
 
     private void releaseCommandWakeLock() {
         if (commandWakeLock != null && commandWakeLock.isHeld()) commandWakeLock.release();
         commandWakeLock = null;
-        releaseCommandScreenWakeLock();
-        if (insecureKeyguardDismissed) DeviceLockState.restoreInsecureKeyguard();
-        insecureKeyguardDismissed = false;
-    }
-
-    private void releaseCommandScreenWakeLock() {
-        if (commandScreenWakeLock != null && commandScreenWakeLock.isHeld()) {
-            commandScreenWakeLock.release();
-        }
-        commandScreenWakeLock = null;
     }
 
     private void acquireStandbyWakeLock() {
@@ -666,6 +823,31 @@ public class RobotService extends Service {
                     CHANNEL_ID, getString(R.string.robot_channel_name), NotificationManager.IMPORTANCE_LOW);
             channel.setDescription("État des téléphones Robots Blue Magic");
             manager.createNotificationChannel(channel);
+        }
+    }
+
+    private void enterForeground(Notification value) {
+        try {
+            if (Build.VERSION.SDK_INT >= 34) {
+                startForeground(NOTIFICATION_ID, value,
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+            } else if (Build.VERSION.SDK_INT >= 29) {
+                // Android 10 à 13 reçoivent uniquement un type connu de leur framework.
+                startForeground(NOTIFICATION_ID, value,
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+            } else {
+                startForeground(NOTIFICATION_ID, value);
+            }
+        } catch (RuntimeException primaryFailure) {
+            // Certains constructeurs Android 10/11 interprètent mal un manifeste compilé avec un
+            // type Android 14. Le type dataSync déclaré sert de repli et empêche le service de
+            // fermer tout le processus au moment où l’activité s’ouvre.
+            if (Build.VERSION.SDK_INT >= 29) {
+                startForeground(NOTIFICATION_ID, value,
+                        ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+            } else {
+                startForeground(NOTIFICATION_ID, value);
+            }
         }
     }
 
@@ -719,7 +901,10 @@ public class RobotService extends Service {
     }
 
     static void stop(Context context) {
-        String profileId = AppConfig.profileId(context);
+        stop(context, AppConfig.profileId(context));
+    }
+
+    static void stop(Context context, String profileId) {
         sendServiceAction(context, new Intent(context, RobotService.class)
                 .setAction(ACTION_STOP).putExtra(EXTRA_PROFILE_ID, profileId));
     }
@@ -746,15 +931,43 @@ public class RobotService extends Service {
         sendServiceAction(context, intent);
     }
 
+    static void requestAudit(Context context, String profileId) {
+        sendServiceAction(context, new Intent(context, RobotService.class)
+                .setAction(ACTION_AUDIT).putExtra(EXTRA_PROFILE_ID, profileId));
+    }
+
     private static void sendServiceAction(Context context, Intent intent) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent);
-        else context.startService(intent);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent);
+            else context.startService(intent);
+        } catch (RuntimeException ignored) {
+            // Android 12+ peut refuser un démarrage reçu en arrière-plan. Le prochain retour dans
+            // l'app ou le watchdog relancera le même service sans faire planter l'interface.
+            scheduleWatchdog(context, 5_000L);
+        }
     }
 
     private static String profileId(Intent intent) {
         if (intent == null) return "";
         String profileId = intent.getStringExtra(EXTRA_PROFILE_ID);
         return profileId == null ? "" : profileId;
+    }
+
+    private long markProfileApiFailure(String profileId) {
+        int count = apiFailureCountByProfile.containsKey(profileId)
+                ? apiFailureCountByProfile.get(profileId) + 1 : 1;
+        count = Math.min(4, count);
+        apiFailureCountByProfile.put(profileId, count);
+        long delay = Math.min(30_000L, 5_000L * (1L << (count - 1)));
+        long retryAt = System.currentTimeMillis() + delay;
+        apiRetryAtByProfile.put(profileId, retryAt);
+        return retryAt;
+    }
+
+    private void clearProfileApiFailure(String profileId) {
+        if (profileId == null || profileId.isEmpty()) return;
+        apiFailureCountByProfile.remove(profileId);
+        apiRetryAtByProfile.remove(profileId);
     }
 
     private static String safeMessage(Exception error) {

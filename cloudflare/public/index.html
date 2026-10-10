@@ -41,7 +41,7 @@
             <p class="muted">Le Robot de votre DAE ou DSM approvisionnera votre SIM après deux contrôles.</p>
             <label>Montant (FCFA)</label>
             <input id="requestSupplyAmount" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="Ex. 50000">
-            <button type="button" data-action="request-supply">Envoyer la demande</button>
+            <button type="button" class="transaction-action" data-action="request-supply">Envoyer la demande</button>
         </article>
 
         <article id="supplyChildCard" class="panel command-card hidden">
@@ -52,7 +52,7 @@
             <input id="childNode" type="text" autocomplete="off" placeholder="Ex. DSM7 ou POS5">
             <label>Montant (FCFA)</label>
             <input id="childAmount" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="Ex. 25000">
-            <button type="button" data-action="supply-child">Programmer la recharge</button>
+            <button type="button" class="transaction-action" data-action="supply-child">Programmer la recharge</button>
         </article>
 
         <article id="retailCard" class="panel command-card hidden">
@@ -63,14 +63,14 @@
             <input id="retailPhone" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="6XXXXXXXX">
             <label>Montant (FCFA)</label>
             <input id="retailAmount" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="Ex. 1000">
-            <button type="button" data-action="retail-sale">Exécuter la vente</button>
+            <button type="button" class="transaction-action" data-action="retail-sale">Exécuter la vente</button>
         </article>
 
         <article class="panel command-card">
             <p class="eyebrow">DIAGNOSTIC SANS FONDS</p>
             <h3>Tester la SIM Robot</h3>
             <p class="muted">Lance uniquement <code>*825*3*3#</code>. Faites ce test avant toute transaction financière.</p>
-            <button type="button" class="secondary" data-action="test-number">Lancer le test numéro</button>
+            <button type="button" class="transaction-action" data-action="test-number">Lancer le test numéro</button>
         </article>
     </section>
 
