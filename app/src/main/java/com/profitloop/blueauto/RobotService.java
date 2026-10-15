@@ -281,9 +281,41 @@ public class RobotService extends Service {
                     return;
                 }
                 if (PendingCommandStore.isExpired(activeUssd)) {
-                    finishCommand(owner, false, "RESULT_TIMEOUT",
-                            "Aucune confirmation fiable reçue dans le délai. Vérification manuelle requise.", "");
-                    nextDelay = 5_000L;
+                    // Separate telephony-dialog cancellation from financial result.
+                    // A timed-out PIN form may still be on screen and lock the SIM.
+                    // One guarded cancel attempt, then retain UNKNOWN for reconciliation.
+                    long recoveryAt = activeUssd.optLong("timeout_recovery_started_at_ms", 0L);
+                    if (recoveryAt == 0L) {
+                        try {
+                            activeUssd.put("timeout_recovery_started_at_ms", System.currentTimeMillis());
+                            PendingCommandStore.save(this, owner, activeUssd);
+                            String timedOutPublicId = activeUssd.optString("public_id", "");
+                            String timedOutState = localState;
+                            if (PendingCommandStore.AWAITING_PIN.equals(timedOutState)
+                                    || PendingCommandStore.AWAITING_RESULT.equals(timedOutState)
+                                    || PendingCommandStore.PIN_SUBMITTED.equals(timedOutState)) {
+                                BlueAccessibilityService.cancelVisiblePrompt(this, owner);
+                                updateNotification(robotSummary(
+                                        "USSD bloqué — annulation du dialogue demandée. Résultat Blue à vérifier."));
+                            }
+                            executor.schedule(() -> {
+                                JSONObject latest = PendingCommandStore.get(this, owner);
+                                if (latest != null
+                                        && timedOutPublicId.equals(latest.optString("public_id", ""))
+                                        && PendingCommandStore.isExpired(latest)) {
+                                    finishCommand(owner, false, "RESULT_TIMEOUT",
+                                            "Dialogue à fermer sur le Robot si nécessaire. "
+                                            + "La disponibilité de la SIM doit être vérifiée par le test "
+                                            + "*825*3*3#. Ce test ne prouve pas l'échec du transfert initial.", "");
+                                }
+                                scheduleCycle(1_000L);
+                            }, 1_000L, TimeUnit.MILLISECONDS);
+                        } catch (Exception recoveryError) {
+                            updateNotification(robotSummary(
+                                    "Récupération USSD impossible — intervention manuelle requise."));
+                        }
+                    }
+                    nextDelay = 2_000L;
                 } else {
                     nextDelay = 2_000L;
                 }

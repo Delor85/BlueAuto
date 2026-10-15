@@ -15,6 +15,8 @@ assert.ok(css.includes('bir-v2996-selected:not(.hidden)'),'no role-hidden form e
 assert.ok(!css.includes('[data-tab-panel="reports"] > :not(#birV2996CommercialHome):not(#birV2996Forum){display:block!important}'), 'no forced visibility of role-hidden dashboard panels');
 const robot=read('app/src/main/java/com/profitloop/blueauto/RobotService.java');
 const accessibility=read('app/src/main/java/com/profitloop/blueauto/BlueAccessibilityService.java');
+assert.ok(robot.includes('timeout_recovery_started_at_ms') && robot.includes('timedOutPublicId.equals('), 'timeout recovery is bounded and command-specific');
+assert.ok(robot.includes('BlueAccessibilityService.cancelVisiblePrompt(this, owner);'), 'PIN timeout asks for trusted Camtel dialog cancel');
 assert.ok(robot.includes('boolean proofPersisted = false;')&&robot.includes('if (!proofPersisted) return;'), 'receipt must be durable before command clear');
 assert.ok(robot.includes('"SIM_LOST_DURING_COMMAND".equals(code)'), 'uncertain SIM loss must not be classified as failure');
 assert.ok(accessibility.includes('clickTrustedTelephonyFirst(roots, "annuler", "cancel")'), 'cancel only trusted Camtel window');

@@ -33,3 +33,8 @@ Run inherited v2996 qualification workflows, isolated APK and device smoke.
 Check PoS: Vendre/Acheter, no child supply. DSM: Approvisionner PoS/Acheter. DAE: Approvisionner DSM.
 Check immediate account change, read-only Robot actions, screen state, input preservation, Back behavior, no ad/forum writes.
 Do not assert deployed until signed permanent APK, SHA, install-over-old-version check and device test are recorded.
+
+## Additional source hardening
+- RobotService watches expired active USSD and requests one guarded phone-only Annuler click (with command-ID fence), then records UNKNOWN. It **does not** prove session closure and **does not** auto-compose a new transaction or even the SIM test.
+- User must verify the phone dialog is closed before manually selecting existing TEST_NUMBER *825*3*3#. If the line responds, the financial transfer still needs reconciliation.
+- These safeguards require emulator and Android 6/11 telephony-field qualification; currently source-delivered only.
