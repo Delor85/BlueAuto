@@ -32,7 +32,7 @@ jobs:
       - name: Wait for Android 6/11/16 exact-source qualification
         shell: bash
         env:
-          GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           api="https://api.github.com/repos/$GITHUB_REPOSITORY/actions/runs"
@@ -95,8 +95,8 @@ jobs:
       - name: Recover and verify historical signing certificate
         shell: bash
         env:
-          KEY_B64: \${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_BASE64 }}
-          KEY_PASS: \${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_PASSWORD }}
+          KEY_B64: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_BASE64 }}
+          KEY_PASS: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_PASSWORD }}
         run: |
           set -euo pipefail
           test -n "$KEY_B64"
