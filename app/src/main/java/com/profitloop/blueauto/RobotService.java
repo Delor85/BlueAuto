@@ -314,6 +314,18 @@ public class RobotService extends Service {
                             updateNotification(robotSummary(
                                     "Récupération USSD impossible — intervention manuelle requise."));
                         }
+                    } else if (System.currentTimeMillis() - recoveryAt >= 3_000L) {
+                        // Scheduled callbacks are lost on process death. Recover after
+                        // service restart without requesting a second cancel click.
+                        JSONObject current = PendingCommandStore.get(this, owner);
+                        if (current != null
+                                && activeUssd.optString("public_id", "")
+                                    .equals(current.optString("public_id", ""))
+                                && PendingCommandStore.isExpired(current)) {
+                            finishCommand(owner, false, "RESULT_TIMEOUT",
+                                    "Session USSD à vérifier et à fermer manuellement si nécessaire. "
+                                    + "Test ligne *825*3*3# après fermeture ; résultat financier inconnu.", "");
+                        }
                     }
                     nextDelay = 2_000L;
                 } else {
