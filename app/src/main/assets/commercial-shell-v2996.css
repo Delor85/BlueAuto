@@ -80,3 +80,8 @@ html.bir-v2996-commerce [data-tab-panel="flux"] .command-card.bir-v2996-selected
 .bir-v2996-accounting-note{padding:11px;background:#fff7e6;border-radius:11px}
 html.bir-v2996-commerce.bir-v2996-accounting [data-tab-panel="support"] > :not(#birV2996Accounting){display:none!important}
 html.bir-v2996-commerce.bir-v2996-accounting #birV2996Accounting{display:block!important}
+
+/* Mobile usability recovery: avoid obscuring the last actionable content under the fixed bottom rail. */
+html.bir-v2996-commerce body{padding-bottom:max(112px,calc(96px + env(safe-area-inset-bottom,0px)))}
+/* Keep the commercial first actions readable on narrow Android screens. */
+@media(max-width:390px){.bir-v2996-main{min-height:88px;padding:10px}.bir-v2996-intro{padding:8px}.bir-v2996-robot{padding:10px}.bir-v2996-robot p{margin:5px 0}.bir-v2996-community{padding:8px}.bir-v2996-ad{min-height:48px;padding:9px}}
