@@ -12,5 +12,12 @@ for(const token of ['openAccounts','prepareRobotPermissions','startRobot','verif
 assert.ok(!/\.createCommand\s*\(|\.previewCommand\s*\(|\.cancelCommand\s*\(|\.stopRobot\s*\(|\.dialUssd\s*\(/.test(shell),'shell must not execute or cancel finance');
 assert.ok(!/setInterval\s*\(/.test(shell),'no background polling');
 assert.ok(css.includes('bir-v2996-selected:not(.hidden)'),'no role-hidden form elevation');
+assert.ok(!css.includes('[data-tab-panel="reports"] > :not(#birV2996CommercialHome):not(#birV2996Forum){display:block!important}'), 'no forced visibility of role-hidden dashboard panels');
+const robot=read('app/src/main/java/com/profitloop/blueauto/RobotService.java');
+const accessibility=read('app/src/main/java/com/profitloop/blueauto/BlueAccessibilityService.java');
+assert.ok(robot.includes('boolean proofPersisted = false;')&&robot.includes('if (!proofPersisted) return;'), 'receipt must be durable before command clear');
+assert.ok(robot.includes('"SIM_LOST_DURING_COMMAND".equals(code)'), 'uncertain SIM loss must not be classified as failure');
+assert.ok(accessibility.includes('clickTrustedTelephonyFirst(roots, "annuler", "cancel")'), 'cancel only trusted Camtel window');
+assert.ok(!accessibility.includes('service.performGlobalAction(GLOBAL_ACTION_BACK);'), 'never blind global Back');
 assert.ok(html.includes('data-action="request-supply"')&&html.includes('data-action="retail-sale"')&&html.includes('data-action="supply-child"'),'existing finance actions retained');
 console.log('BIR commercial shell + logo + Robot quick access + account switch + reserved ad/forum + preserved finance: OK');

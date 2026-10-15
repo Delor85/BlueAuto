@@ -753,11 +753,22 @@ public class BlueAccessibilityService extends AccessibilityService {
         service.handler.post(() -> {
             JSONObject current = PendingCommandStore.get(service, profileId);
             if (current == null) return;
-            List<AccessibilityNodeInfo> roots = service.externalRoots();
-            if (!clickFirst(roots, "annuler", "cancel", "fermer", "close")) {
-                service.performGlobalAction(GLOBAL_ACTION_BACK);
-            }
+            // Invalidate delayed PIN/Send callbacks before trying to cancel.
             service.resetAutomation();
+            List<AccessibilityNodeInfo> roots = service.externalRoots();
+            boolean requested = service.clickTrustedTelephonyFirst(roots, "annuler", "cancel");
+            // A clicked Annuler is NOT evidence that Camtel rejected a transfer.
+            try {
+                JSONObject detail = new JSONObject();
+                detail.put("event", requested ? "TRUSTED_USSD_CANCEL_CLICK_REQUESTED"
+                        : "USSD_CANCEL_MANUAL_REQUIRED");
+                detail.put("command_id", current.optString("public_id", ""));
+                detail.put("financial_result", "UNKNOWN_UNTIL_VERIFIED");
+                LocalEventStore.append(service, profileId, current.optString("public_id", ""),
+                        "QUEUE_RECOVERY", detail);
+            } catch (Exception ignored) {}
+            if (!requested) android.util.Log.w("BIR_USSD_RECOVERY",
+                    "Trusted cancel unavailable; manual closure required. Never use global Back.");
         });
     }
 

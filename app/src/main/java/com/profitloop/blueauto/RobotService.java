@@ -694,7 +694,14 @@ public class RobotService extends Service {
             if ("WRONG_PIN".equals(code)) AppConfig.setPinBlocked(this, profileId, true);
         } else if ("RESULT_TIMEOUT".equals(code)
                 || "USER_CANCELLED_UNCERTAIN".equals(code)
-                || "CONCURRENT_COMMAND_RECOVERY".equals(code)) {
+                || "CONCURRENT_COMMAND_RECOVERY".equals(code)
+                || "SIM_LOST_DURING_COMMAND".equals(code)
+                || (CommandExecutionPolicy.isFinancial(UssdCommandFactory.operation(command))
+                    && ("DIAL_FAILURE".equals(code) || "SIM_PERMISSION_MISSING".equals(code)
+                        || "SIM_SELECTION_FAILED".equals(code))
+                    && !PendingCommandStore.LEASED.equals(
+                        command.optString("local_state", PendingCommandStore.LEASED)))) {
+            // A UI/telephony error after possible dialing cannot prove no Camtel transfer.
             state = "UNKNOWN";
         } else {
             state = "FAILED";
@@ -702,6 +709,7 @@ public class RobotService extends Service {
 
         boolean localOrigin = command.optBoolean("local_origin", false);
         if (localOrigin) {
+            boolean proofPersisted = false;
             try {
                 JSONObject result = new JSONObject(command.toString());
                 result.remove("lease_token"); result.put("state", state); result.put("error_code", code);
@@ -709,7 +717,16 @@ public class RobotService extends Service {
                 result.put("operator_transaction_id", transactionId == null ? "" : transactionId);
                 result.put("completed_at_ms", System.currentTimeMillis());
                 LocalEventStore.append(this, profileId, command.optString("public_id"), "LOCAL_COMMAND_RESULT", result);
-            } catch (Exception ignored) {}
+                proofPersisted = true;
+            } catch (Exception evidenceError) {
+                // Keep the pending record when SQLite fails. The expiry watcher
+                // retries the result save, never a second financial USSD.
+                updateNotification(robotSummary(
+                        "Preuve locale non enregistrée — commande conservée, aucune recomposition"));
+                releaseCommandWakeLock();
+                scheduleCycle(15_000L);
+            }
+            if (!proofPersisted) return;
             if (success && "MODIFY_PIN_LOCAL".equals(UssdCommandFactory.operation(command))) {
                 try { PendingPinChangeStore.commit(this, profileId); } catch (Exception ignored) {}
             }

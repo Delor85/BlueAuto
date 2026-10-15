@@ -44,9 +44,9 @@ html.bir-v2996-commerce .bir-account-chip:focus{outline:2px solid #45bcff}
 .bir-v2996-ad{display:flex;flex-direction:column;gap:5px;min-height:67px;padding:13px;background:#edf2f8;border:1px dashed #b1c7dd;border-radius:13px;color:#526b80}
 .bir-v2996-ad small{font-size:.66rem;font-weight:800;letter-spacing:.04em}
 .bir-v2996-ad span{font-size:.69rem;line-height:1.3}
-html.bir-v2996-commerce [data-tab-panel="reports"] > :not(#birV2996CommercialHome):not(.bir-balance-card):not(#birV2996Forum){display:none!important}
+/* Keep role-specific .hidden attributes authoritative in the full dashboard. */
+html.bir-v2996-commerce:not(.bir-v2996-dashboard):not(.bir-v2996-forum) [data-tab-panel="reports"] > :not(#birV2996CommercialHome):not(.bir-balance-card):not(#birV2996Forum){display:none!important}
 html.bir-v2996-commerce #birV2996Forum{display:none!important}
-html.bir-v2996-commerce.bir-v2996-dashboard [data-tab-panel="reports"] > :not(#birV2996CommercialHome):not(#birV2996Forum){display:block!important}
 html.bir-v2996-commerce.bir-v2996-dashboard #birV2996CommercialHome{display:none!important}
 html.bir-v2996-commerce.bir-v2996-forum #birV2996CommercialHome,html.bir-v2996-commerce.bir-v2996-forum [data-tab-panel="reports"] > .bir-balance-card{display:none!important}
 html.bir-v2996-commerce.bir-v2996-forum #birV2996Forum{display:block!important}
