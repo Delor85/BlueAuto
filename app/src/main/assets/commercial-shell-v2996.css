@@ -67,3 +67,16 @@ html.bir-v2996-commerce [data-tab-panel="flux"] .command-card.bir-v2996-selected
 @media(max-width:360px){.bir-v2996-intro h2{font-size:1.08rem}.bir-v2996-commerce-primary{gap:6px}.bir-v2996-main{padding:11px 9px}.bir-v2996-main .bir-v2996-action-label{font-size:.86rem}.bir-v2996-flow-hub{gap:6px}.bir-v2996-intro{padding:9px}}
 @media(max-width:300px){.bir-v2996-robot-tools{display:grid;grid-template-columns:1fr 1fr}.bir-v2996-commerce-primary{grid-template-columns:1fr 1fr}.bir-v2996-main{min-height:97px}}
 @media(prefers-reduced-motion:reduce){.bir-v2996-action{transition:none}}
+
+/* Coherent read-only accounting page; hide legacy support cards only on this route. */
+.bir-v2996-accounting-page{display:none;background:white;border:1px solid #d8e7f5;border-radius:14px;padding:14px;color:#153b67}
+.bir-v2996-accounting-page h2{font-size:1.17rem;margin:0 0 10px}
+.bir-v2996-accounting-page>small{display:block;color:#516b82;line-height:1.5;font-size:.73rem}
+.bir-v2996-accounting-page>p{line-height:1.5;font-size:.81rem;color:#516b82}
+.bir-v2996-accounting-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.bir-v2996-accounting-grid article{padding:12px;border-radius:12px;background:#eaf3ff;min-width:0}
+.bir-v2996-accounting-grid article strong{display:block;color:#0853a6;font-size:1.13rem;overflow-wrap:anywhere}
+.bir-v2996-accounting-grid article span{display:block;color:#55718d;font-size:.72rem;margin-top:5px}
+.bir-v2996-accounting-note{padding:11px;background:#fff7e6;border-radius:11px}
+html.bir-v2996-commerce.bir-v2996-accounting [data-tab-panel="support"] > :not(#birV2996Accounting){display:none!important}
+html.bir-v2996-commerce.bir-v2996-accounting #birV2996Accounting{display:block!important}

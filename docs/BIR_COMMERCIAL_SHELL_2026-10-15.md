@@ -38,3 +38,8 @@ Do not assert deployed until signed permanent APK, SHA, install-over-old-version
 - RobotService watches expired active USSD and requests one guarded phone-only Annuler click (with command-ID fence), then records UNKNOWN. It **does not** prove session closure and **does not** auto-compose a new transaction or even the SIM test.
 - User must verify the phone dialog is closed before manually selecting existing TEST_NUMBER *825*3*3#. If the line responds, the financial transfer still needs reconciliation.
 - These safeguards require emulator and Android 6/11 telephony-field qualification; currently source-delivered only.
+
+## Read-only accounting view added
+- Account-level sales and purchases declared SUCCEEDED by the Worker (no commission ownership or profit invented), refreshed on user navigation.
+- Embedded as an independent page linked from Home; previous Activity/SAV section preserved.
+- Client-native callback chained to preserve existing handlers. Requires role-access server API and device qualification.
