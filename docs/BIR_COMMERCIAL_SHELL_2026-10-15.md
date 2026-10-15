@@ -43,3 +43,9 @@ Do not assert deployed until signed permanent APK, SHA, install-over-old-version
 - Account-level sales and purchases declared SUCCEEDED by the Worker (no commission ownership or profit invented), refreshed on user navigation.
 - Embedded as an independent page linked from Home; previous Activity/SAV section preserved.
 - Client-native callback chained to preserve existing handlers. Requires role-access server API and device qualification.
+
+## Evidence hardening across Cockpits / IA / War Rooms
+- Fallback to locally certified balance only for active account; never substitute parent balance for a child.
+- STOCK FAIBLE now requires recent (<=1h), EXACT and reusable proof. Outdated or missing proof shows SOLDE À VÉRIFIER instead of claiming low stock.
+- Truth sheet and Assistant use quality/provenance instead of uncalibrated numeric confidence percentages.
+- This changes alerts only, not server balances or authorizations. Verify contract tests and WebView smoke on exact SHA.
