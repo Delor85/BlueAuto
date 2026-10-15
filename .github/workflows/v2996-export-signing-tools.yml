@@ -25,7 +25,7 @@ jobs:
           cp "$bt/zipalign" exported-tools/
           cp "$bt/aapt" exported-tools/
           # Bring the Android SDK C++ runtime needed by zipalign on thin Linux containers.
-          dep="$(ldd "$bt/zipalign" | awk '/libc\\+\\+\\.so/{print $3; exit}')"
+          dep="$(ldd "$bt/zipalign" | awk '$1=="libc++.so" {print $3; exit}')"
           test -n "$dep" && test -f "$dep"
           cp -L "$dep" exported-tools/libc++.so
           chmod +x exported-tools/zipalign exported-tools/aapt
