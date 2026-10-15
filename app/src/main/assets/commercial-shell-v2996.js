@@ -89,7 +89,7 @@ function assistantVisibleLater(){window.setTimeout(function(){if(mounted){setVie
 document.addEventListener('click',function(ev){
  var n=ev.target;
  while(n&&n!==document){
-  if(n.id==='birV2996Rail'||n.id==='birV2996PosRail'||n.id==='birV297Ask'||n.id==='birIntelSearchGo'){
+  if(n.id==='birV297Ask'||n.id==='birIntelSearchGo'){
    assistantVisibleLater();break;
   }
   n=n.parentNode;
