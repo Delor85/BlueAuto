@@ -1,0 +1,16 @@
+import {readFileSync} from 'node:fs';
+import assert from 'node:assert/strict';
+const read=p=>readFileSync(p,'utf8');
+const shell=read('app/src/main/assets/commercial-shell-v2996.js');
+const css=read('app/src/main/assets/commercial-shell-v2996.css');
+const loader=read('app/src/main/assets/intelligence-v297.js');
+const html=read('app/src/main/assets/index.html');
+assert.match(html, /src="bir-logo.svg"/, 'original BIR logo remains intact');
+assert.match(loader,/commercial-shell-v2996.js/,'new shell loaded');
+assert.match(loader,/commercial-shell-v2996.css/,'new shell CSS loaded');
+for(const token of ['openAccounts','prepareRobotPermissions','startRobot','verifySim','openPinSettings','openBatteryOptimizationSettings','birV2996Forum','ESPACE PUBLICITAIRE RÉSERVÉ','data-bir-commerce','PIN Blue bloqué','Accessibilité désactivée','Robot arrêté','Robot activé','Vendre du crédit','Approvisionner un PoS','Approvisionner un DSM','pushState','popstate'])assert.ok(shell.includes(token),'missing: '+token);
+assert.ok(!/\.createCommand\s*\(|\.previewCommand\s*\(|\.cancelCommand\s*\(|\.stopRobot\s*\(|\.dialUssd\s*\(/.test(shell),'shell must not execute or cancel finance');
+assert.ok(!/setInterval\s*\(/.test(shell),'no background polling');
+assert.ok(css.includes('bir-v2996-selected:not(.hidden)'),'no role-hidden form elevation');
+assert.ok(html.includes('data-action="request-supply"')&&html.includes('data-action="retail-sale"')&&html.includes('data-action="supply-child"'),'existing finance actions retained');
+console.log('BIR commercial shell + logo + Robot quick access + account switch + reserved ad/forum + preserved finance: OK');

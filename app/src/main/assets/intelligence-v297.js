@@ -14,7 +14,8 @@
 function id(x){return document.getElementById(x);}
 function addCssOnce(idValue,href){if(id(idValue))return;var l=document.createElement('link');l.id=idValue;l.rel='stylesheet';l.href=href;document.head.appendChild(l);}
 function addScriptOnce(idValue,src,onload){if(id(idValue)){if(onload)onload();return;}var s=document.createElement('script');s.id=idValue;s.src=src;s.async=false;if(onload)s.onload=onload;document.body.appendChild(s);}
-function loadPrivileged(){addScriptOnce('birV2996PrivilegedGuide','privileged-guide-v2996.js');}
+function loadCommerceShell(){addCssOnce('birV2996CommerceCss','commercial-shell-v2996.css');addScriptOnce('birV2996CommerceShell','commercial-shell-v2996.js');}
+function loadPrivileged(){addScriptOnce('birV2996PrivilegedGuide','privileged-guide-v2996.js',function(){window.setTimeout(loadCommerceShell,80);});}
 function loadRoleGuard(){addScriptOnce('birV2996AiRoleGuard','ai-role-guard-v2996.js',function(){window.setTimeout(loadPrivileged,40);});}
 function loadV2996(){addCssOnce('birV2996AiGuideCss','ai-guide-v2996.css');addScriptOnce('birV2996AiGuide','ai-guide-v2996.js',function(){window.setTimeout(loadRoleGuard,40);});}
 function loadV2995(){addScriptOnce('birV2995Convergence','convergence-v2995.js',function(){window.setTimeout(loadV2996,160);});}
