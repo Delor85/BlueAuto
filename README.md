@@ -1,11 +1,17 @@
-# Blue Magic v2.5.1 — route SIM stable et poussière magique
+# Blue Magic v2.5.4 — diagnostic d’appairage et opérations financières préservées
 
 Blue Magic automatise, sur un téléphone Android dédié, les transferts de crédit de distribution Blue/Camtel qui nécessitent désormais deux étapes :
 
 1. composition de `*550*2*numéro*montant#` ou `*550*1*numéro*montant#` ;
 2. vérification de la confirmation Camtel, saisie locale du PIN puis clic sur **ENVOYER**.
 
-Cette version reconstruit en priorité le trajet critique **Télécommande → serveur → Robot → fenêtre USSD → PIN → preuve opérateur**. Les cinq onglets ERP complets viendront après la validation terrain de ce noyau.
+Cette version maintient le trajet critique **Télécommande → serveur → Robot → fenêtre USSD → PIN → preuve opérateur** et rétablit l’affichage des actions financières sur les profils migrés d’anciennes versions, notamment sous Android 6.
+
+L’appairage initial ne peut plus échouer silencieusement : chaque champ invalide affiche maintenant une erreur ciblée et un message visible, le numéro accepte aussi le format `+237`, et l’appel réseau signale immédiatement son démarrage puis son résultat.
+
+La v2.5.4 ajoute une version installée visible, un contrôle HTTPS/D1 indépendant et un code de diagnostic persistant. Elle ne modifie ni le Worker, ni D1, ni les commandes financières, ni les règles USSD/SIM/PIN.
+
+La reprise permanente du projet se trouve dans [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md) et sa procédure obligatoire dans [`docs/BLUE_MAGIC_DELIVERY_PROCEDURE.md`](docs/BLUE_MAGIC_DELIVERY_PROCEDURE.md).
 
 ## Ce qui change par rapport à l’ancien code
 
@@ -29,6 +35,8 @@ Cette version reconstruit en priorité le trajet critique **Télécommande → s
 - les codes courts sont résolus uniquement dans leur branche (`DSM7` → `DSM7_SU2`, `POS5` → `POS5_DSM7_SU2`) ; plusieurs DSM peuvent appartenir au même DAE, chacun avec son numéro Camtel unique ;
 - les commandes récentes affichent leur horodatage local ;
 - `ROBOT` est polyvalent (exécution + création de commandes) ; `REMOTE` reste uniquement télécommande.
+- un ancien profil dont le rôle local est vide ou obsolète récupère prudemment `DSM`/`POS` depuis son identifiant canonique, ou `DAE` depuis l’absence de supérieur ; le Worker conserve l’autorité finale sur chaque permission financière ;
+- l’écran explique les opérations permises par le rôle actif, afin de distinguer une règle hiérarchique d’un blocage technique ;
 - au repos, seul le service Robot fonctionne : l’écran peut s’éteindre normalement et n’est plus maintenu allumé ;
 - lors d’une commande, seule la surface Téléphone/USSD est réveillée brièvement ; l’activité Blue Magic ne s’affiche pas au-dessus du verrou ;
 - une synchronisation finale en panne ne bloque plus les files des autres SIM et se réconcilie automatiquement avec le statut serveur ;

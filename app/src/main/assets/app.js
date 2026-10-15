@@ -14,12 +14,17 @@
     function initialize(){
         if(!bridge()){byId('nativeBadge').textContent='PONT ABSENT';byId('browserNotice').className='notice';return;}
         try{configuration=JSON.parse(window.AndroidBridge.getConfiguration()||'{}');}catch(ignored){configuration={};}
+        configuration.role=normalizeRole(configuration);
         commands=load();byId('nativeBadge').textContent='PONT NATIF ACTIF';byId('nativeBadge').className='badge badge-ok';
         byId('nodeCode').textContent=configuration.node_code||'Nœud non configuré';
         byId('nodeMeta').textContent=(configuration.role||'—')+' • '+(configuration.mode||'—')+' • SIM '+((configuration.sim_slot||0)+1);
         byId('robotState').textContent=configuration.robot_enabled?'ROBOT ACTIF':'ROBOT ARRÊTÉ';
         if(configuration.pin_blocked){byId('fatalNotice').textContent='PIN BLOQUÉ pour l’exécution Robot. Les fonctions Remote restent disponibles.';byId('fatalNotice').className='notice notice-danger';}
         else if(configuration.mode==='ROBOT'&&!configuration.sim_verified){byId('fatalNotice').textContent='SIM NON VÉRIFIÉE : le Robot est arrêté et ne peut réserver aucune commande. Ouvrez ☰ GÉRER > VÉRIFIER / LIER LA SIM.';byId('fatalNotice').className='notice notice-danger';}
+        if(configuration.role==='DAE'){showRoleNotice('Profil DAE : approvisionnement des DSM disponible. Un DAE n’achète pas auprès d’un supérieur et ne vend pas aux clients finaux.');}
+        else if(configuration.role==='DSM'){showRoleNotice('Profil DSM : achat auprès du DAE et approvisionnement des PoS disponibles.');}
+        else if(configuration.role==='POS'){showRoleNotice('Profil PoS : achat auprès du DSM et vente aux clients finaux disponibles.');}
+        else{byId('fatalNotice').textContent='RÔLE NON RECONNU : ouvrez ☰ GÉRER > VÉRIFIER / RÉPARER L’APPAIRAGE. Aucune opération financière ne sera envoyée tant que le profil n’est pas identifié.';byId('fatalNotice').className='notice notice-danger';}
         if(configuration.role==='DSM'||configuration.role==='POS'){byId('requestSupplyCard').className='panel command-card';}
         if(configuration.role==='DAE'||configuration.role==='DSM'){byId('supplyChildCard').className='panel command-card';}
         if(configuration.role==='POS'){byId('retailCard').className='panel command-card';}
@@ -29,6 +34,17 @@
         document.addEventListener('focusout',function(){window.setTimeout(function(){if(!document.activeElement||document.activeElement.tagName!=='INPUT'){try{window.AndroidBridge.setFormEditing(false);}catch(ignored){}}},180);});
         render();refresh();window.setInterval(refresh,15000);
     }
+    function normalizeRole(config){
+        var role=String(config.role||'').replace(/^\s+|\s+$/g,'').toUpperCase(),node,parent;
+        if(role==='DAE'||role==='DSM'||role==='POS'){return role;}
+        node=String(config.node_code||'').replace(/^\s+|\s+$/g,'').toUpperCase();
+        parent=String(config.parent_node_code||'').replace(/^\s+|\s+$/g,'');
+        if(/^POS(?:[-_\/]|\d)/.test(node)){return 'POS';}
+        if(/^DSM(?:[-_\/]|\d)/.test(node)){return 'DSM';}
+        if(node&&!parent){return 'DAE';}
+        return '';
+    }
+    function showRoleNotice(message){var notice=byId('roleNotice');notice.textContent=message;notice.className='notice';}
     function execute(action){
         if(!bridge()){return;}var type='',node='',phone='',amount='';
         if(action==='request-supply'){type='REQUEST_SUPPLY';amount=byId('requestSupplyAmount').value.replace(/^\s+|\s+$/g,'');}
