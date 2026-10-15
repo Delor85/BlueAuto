@@ -1,0 +1,138 @@
+name: BIR v2.9.9.6 Permanent Commercial APK
+on:
+  push:
+    branches: [release/bir-v2996-commercial-20261015]
+    paths: [.github/workflows/v2996-permanent-commercial.yml]
+permissions:
+  contents: read
+concurrency:
+  group: bir-v2996-commercial-permanent
+  cancel-in-progress: false
+env:
+  BIR_SOURCE_SHA: 96f48eefd9600ec6850b4655ba6810bcba70e179
+  BIR_QUALIFICATION_RUN: '38682890487'
+  BIR_ROLE_RUN: '38682890476'
+  BIR_HISTORIC_CERT_SHA256: f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5
+jobs:
+  qualification-gate:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Prove exact source and release-only diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git cat-file -e "$BIR_SOURCE_SHA^{commit}"
+          other="$(git diff --name-only "$BIR_SOURCE_SHA" HEAD | grep -v '^.github/workflows/v2996-permanent-commercial.yml$' || true)"
+          test -z "$other"
+          test "$(git show "$BIR_SOURCE_SHA:app/build.gradle" | grep -c 'versionCode 70')" -eq 1
+      - name: Wait for Android 6/11/16 exact-source qualification
+        shell: bash
+        env:
+          GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/$GITHUB_REPOSITORY/actions/runs"
+          role="$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" "$api/$BIR_ROLE_RUN")"
+          test "$(printf '%s' "$role" | jq -r .head_sha)" = "$BIR_SOURCE_SHA"
+          test "$(printf '%s' "$role" | jq -r .conclusion)" = success
+          qualified=false
+          for i in $(seq 1 80); do
+            result="$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" "$api/$BIR_QUALIFICATION_RUN")"
+            test "$(printf '%s' "$result" | jq -r .head_sha)" = "$BIR_SOURCE_SHA"
+            status="$(printf '%s' "$result" | jq -r .status)"
+            conclusion="$(printf '%s' "$result" | jq -r .conclusion)"
+            echo "Qualification: $status / $conclusion"
+            if [ "$status" = completed ]; then
+              test "$conclusion" = success
+              qualified=true
+              break
+            fi
+            sleep 15
+          done
+          test "$qualified" = true
+  permanent-apk:
+    needs: qualification-gate
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    environment: production
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 96f48eefd9600ec6850b4655ba6810bcba70e179
+          fetch-depth: 0
+      - name: Verify immutable source and non-deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$BIR_SOURCE_SHA"
+          git diff --exit-code e27a0ead275b44be880461a9be548bb3c9c5a0c5 -- cloudflare
+          grep -q 'applicationId "com.profitloop.blueauto"' app/build.gradle
+          grep -q 'versionCode 70' app/build.gradle
+          grep -q 'versionName "2.9.9.6"' app/build.gradle
+          grep -q 'minSdk 23' app/build.gradle
+          test -s app/src/main/assets/bir-logo.svg
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify modern commercial shell and inherited Assistant
+        run: |
+          node --check app/src/main/assets/commercial-shell-v2996.js
+          node app/src/test/v2996-commercial-shell-contract.mjs
+          node app/src/test/v2996-ai-guide-harmonization-contract.mjs
+          node app/src/test/v2996-privileged-workspaces-contract.mjs
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+          cache-read-only: true
+      - name: Recover and verify historical signing certificate
+        shell: bash
+        env:
+          KEY_B64: \${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_BASE64 }}
+          KEY_PASS: \${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$KEY_B64"
+          test -n "$KEY_PASS"
+          mkdir -p .pilot-signing
+          printf '%s' "$KEY_B64" | base64 --decode > .pilot-signing/debug.keystore
+          echo "::add-mask::$KEY_PASS"
+          actual="$(keytool -list -v -keystore .pilot-signing/debug.keystore -storepass "$KEY_PASS" -alias androiddebugkey | awk '/SHA256:/{gsub(":", "", $2); print tolower($2); exit}')"
+          test "$actual" = "$BIR_HISTORIC_CERT_SHA256"
+          echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$KEY_PASS" >> "$GITHUB_ENV"
+      - name: Build permanent APK
+        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
+      - name: Verify package, signing certificate and archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p delivery
+          apk=app/build/outputs/apk/release/app-release.apk
+          bt="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          "$bt/zipalign" -c -v 4 "$apk"
+          "$bt/apksigner" verify --verbose --print-certs "$apk" | tee delivery/signature.txt
+          cert="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' delivery/signature.txt | tr -d ':' | tr '[:upper:]' '[:lower:]' | head -1)"
+          test "$cert" = "$BIR_HISTORIC_CERT_SHA256"
+          grep -qi 'Verified using v1 scheme.*true' delivery/signature.txt
+          grep -qi 'Verified using v2 scheme.*true' delivery/signature.txt
+          "$bt/aapt" dump badging "$apk" | tee delivery/badging.txt
+          grep -q "package: name='com.profitloop.blueauto' versionCode='70' versionName='2.9.9.6'" delivery/badging.txt
+          grep -q "sdkVersion:'23'" delivery/badging.txt
+          grep -q "targetSdkVersion:'34'" delivery/badging.txt
+          ! grep -q application-debuggable delivery/badging.txt
+          cp "$apk" delivery/BIR-2.9.9.6-vc70-Commercial-Permanent.apk
+          (cd delivery && sha256sum BIR-2.9.9.6-vc70-Commercial-Permanent.apk > SHA256.txt)
+          printf 'source_sha=%s\nqualification_run=%s\ncertificate_sha256=%s\ncloudflare_deployed=false\nd1_migration=false\non_device_ussd_test=not_proven\n' "$BIR_SOURCE_SHA" "$BIR_QUALIFICATION_RUN" "$BIR_HISTORIC_CERT_SHA256" > delivery/DELIVERY.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BIR-v2.9.9.6-Commercial-Permanent-SIGNED
+          retention-days: 90
+          if-no-files-found: error
+          path: delivery/
