@@ -4,8 +4,8 @@ stress="${1:-12}"
 package="com.profitloop.blueauto"
 activity="com.profitloop.blueauto/.MainActivity"
 apk="$(find apk -type f -name 'BIR-Blue-Infinity-Retail-v2.9.9.6-vc70-Qualification.apk' -print -quit)"
-fail(){ code="${1:-1}"; shift || true; echo "BIR_SMOKE_FAILURE: $*" >&2; adb logcat -d 2>/dev/null | grep -E 'com\.profitloop\.blueauto|chromium|WebView' | tail -100 >&2 || true; exit "$code"; }
-bir_resumed(){ adb shell dumpsys activity activities 2>/dev/null | grep -E 'mResumedActivity|ResumedActivity' | grep -q "$package"; }
+fail(){ code="${1:-1}"; shift || true; echo "BIR_SMOKE_FAILURE: $*" >&2; timeout 20s adb logcat -d -t 1500 2>/dev/null | grep -E 'com\\.profitloop\\.blueauto|chromium|WebView' | tail -60 >&2 || true; exit "$code"; }
+bir_resumed(){ local summary; summary="$(adb shell dumpsys activity activities 2>/dev/null | grep -E 'mResumedActivity|ResumedActivity|topResumedActivity|topActivity' || true)"; [[ "$summary" == *"$package"* ]]; }
 package_uid(){ local u=''; u="$(adb shell stat -c %u "/data/user/0/$package" 2>/dev/null | head -1 | tr -d '\r' || true)"; if ! printf '%s' "$u" | grep -Eq '^[0-9]+$'; then u="$(adb shell dumpsys package "$package" 2>/dev/null | sed -n 's/.*userId=\([0-9]*\).*/\1/p' | head -1 | tr -d '\r' || true)"; fi; printf '%s' "$u"; }
 test -s "$apk" || fail 81 'qualification APK missing'
 adb wait-for-device
@@ -13,7 +13,8 @@ ready=0
 for _ in $(seq 1 60); do if adb shell pm path android >/dev/null 2>&1; then ready=1; break; fi; sleep 5; done
 [ "$ready" = 1 ] || fail 80 'package manager not ready'
 adb install --no-streaming "$apk"
-adb shell dumpsys package "$package" | grep -q 'versionCode=70' || fail 82 'installed versionCode is not 70'
+installed="$(adb shell dumpsys package "$package" 2>/dev/null || true)"
+printf '%s\n' "$installed" | grep 'versionCode=70' >/dev/null || fail 82 'installed versionCode is not 70'
 adb root >/dev/null 2>&1 || true
 adb wait-for-device
 uid="$(package_uid)"; printf '%s' "$uid" | grep -Eq '^[0-9]+$' || fail 80 'package uid unavailable'
