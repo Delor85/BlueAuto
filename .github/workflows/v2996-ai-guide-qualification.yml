@@ -33,6 +33,8 @@ jobs:
           node --check app/src/main/assets/ai-role-guard-v2996.js
           node --check app/src/main/assets/privileged-guide-v2996.js
           node --check app/src/main/assets/intelligence-v297.js
+          node --check app/src/main/assets/commercial-shell-v2996.js
+          node app/src/test/v2996-commercial-shell-contract.mjs
           cp app/build.gradle /tmp/build.gradle.v2996
           python3 - <<'PY'
           from pathlib import Path

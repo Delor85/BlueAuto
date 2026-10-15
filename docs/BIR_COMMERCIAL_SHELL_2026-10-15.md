@@ -14,7 +14,7 @@ No Worker/D1/migrations, USSD execution, finance, PIN or ownership changes in th
 - Commerce form focused as a subpage; history navigation via same-WebView state, old dashboards accessible separately.
 - Advertising placeholder **only**, no ad network or data collection.
 - Forum placeholder **only**, no user posting, stored content, moderation or external access.
-- Legacy network/accounting/AI/War Rooms retained; no new financial accounting engine in this commit.
+- Legacy network/accounting/AI/War Rooms retained; AI rail and assistant reply access explicitly restored through Dashboard routing; no new financial accounting engine in this commit.
 
 ## Follow-up scope (NOT delivered by this commit)
 1. PIN watchdog: cancel verified telephony dialog after 120–180s, prove session closed, then test *825*3*3# safely; never auto-replay uncertain finance.

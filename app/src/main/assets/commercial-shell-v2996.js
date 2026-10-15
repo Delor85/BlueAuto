@@ -22,7 +22,7 @@ function renderHome(){var home=el('birV2996CommercialHome');if(!home)return;var 
 home.innerHTML='<section class="bir-v2996-intro"><div><small>'+esc(L('PRÊT POUR LE COMMERCE BLUE','READY FOR BLUE BUSINESS'))+'</small><h2>'+esc(title)+'</h2><span>'+esc(t(c.official_node_code||c.node_code||'Compte à configurer'))+' · '+esc(t(c.mode||'—'))+'</span></div>'+a(L('Changer de compte','Switch account'),'accounts','bir-v2996-switch','')+'</section>'+
 '<div class="bir-v2996-commerce-primary">'+a(actions[0][0],actions[0][1],'bir-v2996-main',actions[0][2])+a(actions[1][0],actions[1][1],'bir-v2996-main bir-v2996-secondary',actions[1][2])+'</div>'+
 robotHtml(c)+
-'<nav class="bir-v2996-shortcuts" aria-label="'+esc(L('Raccourcis','Shortcuts'))+'">'+a(L('Solde & preuves','Balance & evidence'),'dashboard','bir-v2996-shortcut','')+a(L('Transactions','Transactions'),'support','bir-v2996-shortcut','')+a(L('Mon réseau','My network'),'network','bir-v2996-shortcut','')+a(L('Tableaux de bord','Dashboards'),'dashboard','bir-v2996-shortcut','')+'</nav>'+
+'<nav class="bir-v2996-shortcuts" aria-label="'+esc(L('Raccourcis','Shortcuts'))+'">'+a(L('Solde & preuves','Balance & evidence'),'dashboard','bir-v2996-shortcut','')+a(L('Transactions','Transactions'),'support','bir-v2996-shortcut','')+a(L('Mon réseau','My network'),'network','bir-v2996-shortcut','')+a(L('Tableaux de bord','Dashboards'),'dashboard','bir-v2996-shortcut','')+a(L('Assistant BIR IA','BIR AI assistant'),'assistant','bir-v2996-shortcut','')+'</nav>'+
 '<section class="bir-v2996-community"><div><strong>'+esc(L('Forum BIR','BIR Forum'))+'</strong><p>'+esc(L('Espace réservé aux échanges entre utilisateurs. Les publications ne sont pas encore activées.','Reserved community space. Posting is not yet enabled.'))+'</p></div>'+a(L('Découvrir','Explore'),'forum','bir-v2996-small','')+'</section>'+
 '<aside class="bir-v2996-ad" aria-label="'+esc(L('Emplacement publicitaire réservé','Reserved ad slot'))+'"><small>'+esc(L('ESPACE PUBLICITAIRE RÉSERVÉ','RESERVED ADVERTISING SPACE'))+'</small><span>'+esc(L('Aucune publicité active. Les opérations financières restent prioritaires.','No active ads. Financial work stays first.'))+'</span></aside>';
 }
@@ -39,7 +39,7 @@ if(head)head.innerHTML=meta?'<button class="bir-v2996-back" type="button" data-b
 if(hub){hub.style.display=meta?'none':'grid';if(!meta){var aa=roles(c),html='';for(i=0;i<aa.length;i++)html+=a(aa[i][0],aa[i][1],'bir-v2996-flow-link',aa[i][2]);html+=a(L('Tester la ligne','Test line'),'test','bir-v2996-flow-link',L('Code sans fonds *825*3*3#','Non-financial *825*3*3#'));html+=a(L('Détail transaction','Transaction details'),'details','bir-v2996-flow-link','');if(r==='DSM'||r==='DAE')html+=a(L('Solde enfant','Child balance'),'balanceChild','bir-v2996-flow-link','');html+=a(L('Historique et suivi','History and tracking'),'support','bir-v2996-flow-link','');hub.innerHTML=html;}}
 if(meta&&meta.focus){window.setTimeout(function(){var inp=el(meta.focus);if(inp&&inp.offsetParent!==null){try{inp.focus();}catch(e){}}},120);}
 }
-function setView(name,noHistory){if(!mounted)return;route=name;var h=document.documentElement;h.classList.remove('bir-v2996-dashboard','bir-v2996-forum');var tab=(name==='home'||name==='dashboard'||name==='forum')?'reports':name==='network'?'fleet':name==='support'?'support':name==='manage'?'config':'flux';openTab(tab);
+function setView(name,noHistory){if(!mounted)return;if(name==='assistant'){name='dashboard';window.setTimeout(function(){var q=el('birV297Question');if(q&&q.focus)q.focus();},260);}route=name;var h=document.documentElement;h.classList.remove('bir-v2996-dashboard','bir-v2996-forum');var tab=(name==='home'||name==='dashboard'||name==='forum')?'reports':name==='network'?'fleet':name==='support'?'support':name==='manage'?'config':'flux';openTab(tab);
 if(name==='dashboard')h.classList.add('bir-v2996-dashboard');
 if(name==='forum')h.classList.add('bir-v2996-forum');
 if(name==='home')renderHome();
@@ -48,13 +48,26 @@ if(!noHistory&&window.history&&window.history.pushState){try{window.history.push
 window.scrollTo(0,0);
 }
 function toRoute(action){if(action==='retail'||action==='buy'||action==='supply'||action==='test'||action==='details'||action==='balanceChild')return 'form:'+action;return action;}
-function click(e){var target=e.target;while(target&&target!==document&&!target.getAttribute('data-bir-commerce'))target=target.parentNode;if(!target||target===document)return;var action=target.getAttribute('data-bir-commerce');if(!action)return;e.preventDefault();if(action==='accounts'||action==='manage'||action==='permissions'||action==='sim'||action==='pin'||action==='start'||action==='battery'){if(!bridge(action)){if(action==='manage')setView('manage');else if(action==='accounts')setView('manage');}else window.setTimeout(renderHome,450);return;}if(action==='dashboard'||action==='forum'||action==='home'||action==='commerce'||action==='network'||action==='support')setView(action);else setView(toRoute(action));}
+function click(e){var target=e.target;while(target&&target!==document&&!target.getAttribute('data-bir-commerce'))target=target.parentNode;if(!target||target===document)return;var action=target.getAttribute('data-bir-commerce');if(!action)return;e.preventDefault();if(action==='accounts'||action==='manage'||action==='permissions'||action==='sim'||action==='pin'||action==='start'||action==='battery'){if(!bridge(action)){if(action==='manage')setView('manage');else if(action==='accounts')setView('manage');}else window.setTimeout(renderHome,450);return;}if(action==='dashboard'||action==='assistant'||action==='forum'||action==='home'||action==='commerce'||action==='network'||action==='support')setView(action);else setView(toRoute(action));}
 function mount(){if(mounted)return;var reports=document.querySelector('[data-tab-panel="reports"]'),flux=document.querySelector('[data-tab-panel="flux"]');if(!reports||!flux)return;
 var home=document.createElement('div');home.id='birV2996CommercialHome';home.className='bir-v2996-home';reports.insertBefore(home,reports.firstChild);
 var forum=document.createElement('section');forum.id='birV2996Forum';forum.innerHTML='<button type="button" class="bir-v2996-back" data-bir-commerce="home">← '+esc(L('Accueil','Home'))+'</button><h2>'+esc(L('Forum BIR','BIR Forum'))+'</h2><p>'+esc(L('Espace communautaire réservé. Aucun message ne peut encore être publié : l’authentification, les droits, la modération, les signalements et les données doivent être définis.','Community space reserved. Posting is not enabled until identity, access rules, moderation, reporting and storage are ready.'))+'</p>';reports.insertBefore(forum,home.nextSibling);
 var heading=document.createElement('div');heading.id='birV2996FlowHead';heading.className='bir-v2996-flow-head';var hub=document.createElement('div');hub.id='birV2996FlowHub';hub.className='bir-v2996-flow-hub';flux.insertBefore(hub,flux.firstChild);flux.insertBefore(heading,hub);
 var account=document.querySelector('.bir-account-chip');if(account){account.setAttribute('role','button');account.setAttribute('tabindex','0');account.setAttribute('aria-label',L('Changer de compte','Switch account'));account.setAttribute('title',L('Changer de compte','Switch account'));account.addEventListener('click',function(){bridge('accounts');});account.addEventListener('keydown',function(e){if(e.keyCode===13||e.keyCode===32){e.preventDefault();bridge('accounts');}});}
 document.addEventListener('click',click,false);
+function assistantVisibleLater(){window.setTimeout(function(){if(mounted){setView('dashboard',true);}},330);}
+document.addEventListener('click',function(ev){
+ var n=ev.target;
+ while(n&&n!==document){
+  if(n.id==='birV2996Rail'||n.id==='birV2996PosRail'||n.id==='birV297Ask'||n.id==='birIntelSearchGo'){
+   assistantVisibleLater();break;
+  }
+  n=n.parentNode;
+ }
+},true);
+document.addEventListener('keydown',function(ev){
+ if(ev.keyCode===13&&ev.target&&ev.target.id==='birV297Question')assistantVisibleLater();
+},true);
 var tabs=document.querySelectorAll('button[data-tab]'),i;for(i=0;i<tabs.length;i++)(function(b){b.addEventListener('click',function(){if(navigating)return;var name=b.getAttribute('data-tab');if(name==='flux')setView('commerce');else if(name==='reports')setView('home');else if(name==='fleet')setView('network');else if(name==='support')setView('support');else if(name==='config')setView('manage');});})(tabs[i]);
 window.addEventListener('popstate',function(e){setView(e.state&&e.state.birCommercial||'home',true);});
 document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&(route==='home'))renderHome();});
