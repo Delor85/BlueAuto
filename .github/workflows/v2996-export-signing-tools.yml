@@ -1,0 +1,35 @@
+name: BIR Export Android Signing Tools (no secrets)
+on:
+  push:
+    branches: [release/bir-v2996-permanent-20261015]
+    paths: [.github/workflows/v2996-export-signing-tools.yml]
+permissions:
+  contents: read
+jobs:
+  export-tools:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Export locally verifiable SDK Build-Tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          bt="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          echo "SDK build-tools $bt"
+          test -f "$bt/lib/apksigner.jar"
+          test -f "$bt/zipalign"
+          test -f "$bt/aapt"
+          mkdir -p exported-tools
+          cp "$bt/lib/apksigner.jar" exported-tools/
+          cp "$bt/zipalign" exported-tools/
+          cp "$bt/aapt" exported-tools/
+          chmod +x exported-tools/zipalign exported-tools/aapt
+          (cd exported-tools && sha256sum apksigner.jar zipalign aapt > SHA256SUMS.txt)
+          echo "android_build_tools_version=$(basename "$bt")" > exported-tools/ORIGIN.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BIR-Android-Build-Tools-For-Local-Historical-Signing
+          retention-days: 2
+          if-no-files-found: error
+          path: exported-tools/
