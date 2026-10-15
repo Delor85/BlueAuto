@@ -1,0 +1,117 @@
+name: BIR 2.9.9.6 Historical-Signature APK
+
+on:
+  push:
+    branches: [release/bir-v2996-permanent-20261015]
+    paths: [.github/workflows/v2996-permanent-exact.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bir-v2996-exact-signed-apk
+  cancel-in-progress: false
+
+jobs:
+  permanent-signed-apk:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    environment: production
+    env:
+      SOURCE_SHA: f5f59f3da6d61e829446a1d0d0d70d145f3ef5be
+      HISTORIC_CERT: f51e1d84271d3c4e229ce3cb424b36c8d564832b939e496bfc50352339b769b5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: f5f59f3da6d61e829446a1d0d0d70d145f3ef5be
+          fetch-depth: 0
+      - name: Verify exact source, identity and no Worker changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git diff --exit-code e27a0ead275b44be880461a9be548bb3c9c5a0c5 -- cloudflare
+          grep -q 'applicationId "com.profitloop.blueauto"' app/build.gradle
+          grep -q 'versionCode 70' app/build.gradle
+          grep -q 'versionName "2.9.9.6"' app/build.gradle
+          grep -q 'minSdk 23' app/build.gradle
+          grep -q 'targetSdk 34' app/build.gradle
+          test -s app/src/main/assets/bir-logo.svg
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify finance and commercial interface contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check app/src/main/assets/intelligence-v297.js
+          node --check app/src/main/assets/commercial-shell-v2996.js
+          node --check app/src/main/assets/ai-guide-v2996.js
+          node app/src/test/v2996-commercial-shell-contract.mjs
+          node app/src/test/v2996-ai-guide-harmonization-contract.mjs
+          node app/src/test/v2996-privileged-workspaces-contract.mjs
+          bash -n app/src/test/v2996-webview-smoke.sh
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+          cache-read-only: true
+      - name: Recover original keystore and prove historical signing identity
+        shell: bash
+        env:
+          KEY_B64: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_BASE64 }}
+          KEY_PASS: ${{ secrets.BLUE_MAGIC_ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$KEY_B64" || { echo "::error::Missing historical keystore"; exit 1; }
+          test -n "$KEY_PASS" || { echo "::error::Missing historical key password"; exit 1; }
+          echo "::add-mask::$KEY_PASS"
+          mkdir -p .pilot-signing
+          printf '%s' "$KEY_B64" | base64 --decode > .pilot-signing/debug.keystore
+          actual="$(keytool -list -v -keystore .pilot-signing/debug.keystore -storepass "$KEY_PASS" -alias androiddebugkey | awk '/SHA256:/{gsub(":", "", $2); print tolower($2); exit}')"
+          test "$actual" = "$HISTORIC_CERT" || { echo "::error::Historical certificate SHA mismatch"; exit 1; }
+          echo "BLUE_MAGIC_PILOT_KEYSTORE_PASSWORD=$KEY_PASS" >> "$GITHUB_ENV"
+      - name: Build Android 6-compatible permanent-signature Release
+        shell: bash
+        run: gradle --no-daemon :app:testDebugUnitTest :app:assembleRelease
+      - name: Verify final signature, package identity and write delivery evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p delivery
+          apk=app/build/outputs/apk/release/app-release.apk
+          bt="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          "$bt/zipalign" -c -v 4 "$apk"
+          "$bt/apksigner" verify --verbose --print-certs "$apk" | tee delivery/signature.txt
+          actual="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' delivery/signature.txt | tr -d ':' | tr '[:upper:]' '[:lower:]' | head -1)"
+          test "$actual" = "$HISTORIC_CERT" || { echo "::error::APK signer differs from historic signer"; exit 1; }
+          grep -qi 'Verified using v1 scheme.*true' delivery/signature.txt
+          grep -qi 'Verified using v2 scheme.*true' delivery/signature.txt
+          "$bt/aapt" dump badging "$apk" | tee delivery/badging.txt
+          grep -q "package: name='com.profitloop.blueauto' versionCode='70' versionName='2.9.9.6'" delivery/badging.txt
+          grep -q "sdkVersion:'23'" delivery/badging.txt
+          grep -q "targetSdkVersion:'34'" delivery/badging.txt
+          ! grep -q 'application-debuggable' delivery/badging.txt
+          cp "$apk" delivery/BIR-2.9.9.6-vc70-Historical-Signed.apk
+          (cd delivery && sha256sum BIR-2.9.9.6-vc70-Historical-Signed.apk > SHA256.txt)
+          {
+            echo "source_sha=$SOURCE_SHA"
+            echo "package=com.profitloop.blueauto"
+            echo "versionName=2.9.9.6"
+            echo "versionCode=70"
+            echo "certificate_sha256=$HISTORIC_CERT"
+            echo "android_6_11_16_full_qa=pending"
+            echo "on_device_ussd_qualification=not_proven"
+            echo "cloudflare_deployed=false"
+            echo "d1_migrations_applied=false"
+            echo "install_over_existing_device=not_proven"
+          } > delivery/DELIVERY.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BIR-2.9.9.6-Historical-Signed-APK
+          retention-days: 90
+          if-no-files-found: error
+          path: delivery/
